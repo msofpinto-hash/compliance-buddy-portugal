@@ -354,13 +354,70 @@ async function scrapeDiplomaPage(url: string, apiKey: string): Promise<DREDocume
     const lines = markdown.split('\n').filter((l: string) => l.trim());
     let entity = '';
     let summary = '';
+    let publicationDate = '';
+    
+    // Try to extract publication date from markdown
+    // Format examples: "2023-09-06", "06/09/2023", "6 de setembro de 2023"
+    const datePatterns = [
+      // ISO format: 2023-09-06
+      /(\d{4})-(\d{2})-(\d{2})/,
+      // PT format in URL: Diário da República n.º 173/2023, Série I de 2023-09-06
+      /de\s+(\d{4})-(\d{2})-(\d{2})/,
+      // PT format: 06/09/2023 or 6/9/2023
+      /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
+      // Written PT format: 6 de setembro de 2023
+      /(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i
+    ];
+    
+    const monthNames: { [key: string]: string } = {
+      'janeiro': '01', 'fevereiro': '02', 'março': '03', 'marco': '03',
+      'abril': '04', 'maio': '05', 'junho': '06',
+      'julho': '07', 'agosto': '08', 'setembro': '09',
+      'outubro': '10', 'novembro': '11', 'dezembro': '12'
+    };
+    
+    // Search for date in markdown and metadata
+    const textToSearch = `${markdown} ${metadata.title || ''} ${metadata.description || ''}`;
+    
+    for (const pattern of datePatterns) {
+      const match = textToSearch.match(pattern);
+      if (match) {
+        if (pattern === datePatterns[0] || pattern === datePatterns[1]) {
+          // ISO format - year-month-day
+          publicationDate = `${match[1]}-${match[2]}-${match[3]}`;
+          break;
+        } else if (pattern === datePatterns[2]) {
+          // PT format - day/month/year
+          const day = match[1].padStart(2, '0');
+          const month = match[2].padStart(2, '0');
+          publicationDate = `${match[3]}-${month}-${day}`;
+          break;
+        } else if (pattern === datePatterns[3]) {
+          // Written format
+          const day = match[1].padStart(2, '0');
+          const monthName = match[2].toLowerCase();
+          const month = monthNames[monthName];
+          if (month) {
+            publicationDate = `${match[3]}-${month}-${day}`;
+            break;
+          }
+        }
+      }
+    }
+    
+    // If no date found, construct from year in document number
+    if (!publicationDate && docYear) {
+      publicationDate = `${docYear}-01-01`;
+      console.log(`No date found in text, using year from number: ${publicationDate}`);
+    }
     
     // First non-empty line after title is usually the entity
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (line && !line.startsWith('#') && !line.startsWith('[')) {
         if (!entity) {
-          entity = line;
+          // Clean entity - remove markdown links
+          entity = line.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
         } else if (!summary) {
           summary = line;
           break;
@@ -371,13 +428,15 @@ async function scrapeDiplomaPage(url: string, apiKey: string): Promise<DREDocume
     // Use title from metadata if available
     const title = metadata.title || metadata.ogTitle || formattedNumber;
     
+    console.log(`Extracted date: ${publicationDate} for ${formattedNumber}`);
+    
     return {
       id: docId,
       number: formattedNumber,
       title: title,
       summary: summary || markdown.substring(0, 500),
       entity: entity,
-      publicationDate: new Date().toISOString().split('T')[0], // Today's date for homepage items
+      publicationDate: publicationDate,
       documentUrl: url,
       category: capitalizedType
     };
