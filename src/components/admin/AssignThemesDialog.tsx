@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ interface AssignThemesDialogProps {
 export function AssignThemesDialog({ organization, open, onOpenChange }: AssignThemesDialogProps) {
   const queryClient = useQueryClient();
   const [selectedThemes, setSelectedThemes] = useState<Set<string>>(new Set());
+  const [initialized, setInitialized] = useState(false);
 
   // Fetch all themes
   const { data: themes, isLoading: isLoadingThemes } = useQuery({
@@ -53,18 +54,20 @@ export function AssignThemesDialog({ organization, open, onOpenChange }: AssignT
     enabled: open,
   });
 
-  // Initialize selected themes when data loads
-  useState(() => {
-    if (assignedThemes) {
+  // Initialize selected themes when dialog opens and data is loaded
+  useEffect(() => {
+    if (open && assignedThemes !== undefined && !initialized) {
       setSelectedThemes(new Set(assignedThemes));
+      setInitialized(true);
     }
-  });
+  }, [open, assignedThemes, initialized]);
 
-  // Update selected themes when assigned themes change
-  const isInitialized = assignedThemes !== undefined;
-  if (isInitialized && selectedThemes.size === 0 && assignedThemes.length > 0) {
-    setSelectedThemes(new Set(assignedThemes));
-  }
+  // Reset initialization when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setInitialized(false);
+    }
+  }, [open]);
 
   // Save themes mutation
   const saveMutation = useMutation({
@@ -91,6 +94,7 @@ export function AssignThemesDialog({ organization, open, onOpenChange }: AssignT
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization-themes", organization.id] });
+      queryClient.invalidateQueries({ queryKey: ["organization-themes-count", organization.id] });
       toast.success(`Temas atualizados para ${organization.name}`);
       onOpenChange(false);
     },
