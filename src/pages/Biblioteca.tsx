@@ -194,8 +194,10 @@ export default function Biblioteca() {
                           )}
                         </div>
 
-                        {/* Title */}
-                        <h3 className="font-medium text-lg mb-2">{leg.title}</h3>
+                        {/* Title - Link to details */}
+                        <Link to={`/legislacao/${leg.id}`} className="block hover:underline">
+                          <h3 className="font-medium text-lg mb-2">{leg.title}</h3>
+                        </Link>
 
                         {/* Summary */}
                         {leg.summary && (
@@ -233,19 +235,26 @@ export default function Biblioteca() {
                       </div>
 
                       {/* Actions */}
-                      {leg.document_url && (
-                        <a
-                          href={leg.document_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0"
-                        >
-                          <Button variant="outline" size="sm" className="gap-2">
-                            <ExternalLink className="h-4 w-4" />
-                            Ver Diploma
+                      <div className="flex flex-col gap-2 shrink-0">
+                        <Link to={`/legislacao/${leg.id}`}>
+                          <Button variant="default" size="sm" className="gap-2 w-full">
+                            <FileText className="h-4 w-4" />
+                            Ver Detalhes
                           </Button>
-                        </a>
-                      )}
+                        </Link>
+                        {leg.document_url && (
+                          <a
+                            href={leg.document_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button variant="outline" size="sm" className="gap-2 w-full">
+                              <ExternalLink className="h-4 w-4" />
+                              Documento
+                            </Button>
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
