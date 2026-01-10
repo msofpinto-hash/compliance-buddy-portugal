@@ -6,21 +6,70 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface ParsedRelation {
+  type: 'revoga' | 'altera' | 'regulamenta' | 'transpoe';
+  targetNumber: string;
+  targetUrl?: string;
+}
+
+interface ParsedRequirement {
+  article: string;
+  text: string;
+}
+
 interface ParsedLegislation {
   number: string;
   title: string;
   summary: string;
   entity: string;
   publicationDate: string | null;
+  effectiveDate: string | null;
   documentUrl: string;
   externalId: string;
+  relations: ParsedRelation[];
+  requirements: ParsedRequirement[];
+}
+
+const months: Record<string, string> = {
+  janeiro: '01', fevereiro: '02', março: '03', abril: '04',
+  maio: '05', junho: '06', julho: '07', agosto: '08',
+  setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
+};
+
+function parseDate(dateStr: string): string | null {
+  // Try YYYY-MM-DD format
+  const isoMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return isoMatch[0];
+  
+  // Try DD/MM/YYYY or DD-MM-YYYY
+  const slashMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (slashMatch) {
+    return `${slashMatch[3]}-${slashMatch[2].padStart(2, '0')}-${slashMatch[1].padStart(2, '0')}`;
+  }
+  
+  // Try "DD de Mês de YYYY"
+  const ptMatch = dateStr.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+  if (ptMatch) {
+    const month = months[ptMatch[2].toLowerCase()];
+    if (month) {
+      return `${ptMatch[3]}-${month}-${ptMatch[1].padStart(2, '0')}`;
+    }
+  }
+  
+  return null;
 }
 
 // Parse legislation data from Firecrawl markdown response
 function parseMarkdownContent(markdown: string, url: string): ParsedLegislation | null {
   try {
     console.log('Parsing markdown content, length:', markdown.length);
-    console.log('First 500 chars:', markdown.substring(0, 500));
+    
+    // Check for error page
+    if (markdown.includes('página que acedeu não se encontra disponível') || 
+        markdown.includes('Lamentamos') && markdown.length < 500) {
+      console.log('Error page detected, skipping');
+      return null;
+    }
     
     // Extract number from URL pattern: detalhe/tipo/numero-ano-id
     let number = '';
@@ -38,24 +87,22 @@ function parseMarkdownContent(markdown: string, url: string): ParsedLegislation 
     // Try to extract title from markdown - look for legislation number pattern
     const legislationTitleMatch = markdown.match(/(?:Portaria|Decreto-Lei|Despacho|Lei|Regulamento|Resolução|Declaração)[^\n]*n\.º[^\n]+/i);
     if (legislationTitleMatch) {
-      title = legislationTitleMatch[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '');
+      title = legislationTitleMatch[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '').replace(/\(.*?\)/g, '').trim();
     }
     
-    // Extract summary - look for SUMÁRIO section more carefully
+    // Extract summary
     let summary = '';
-    // Try multiple patterns for summary
     const sumarioPatterns = [
-      /SUMÁRIO\s*[:\-]?\s*([\s\S]+?)(?=\n\s*(?:TEXTO|Emissor|Entidade|\n#|\*\*Emissor))/i,
+      /SUMÁRIO\s*[:\-]?\s*([\s\S]+?)(?=\n\s*(?:TEXTO|Emissor|Entidade|\n#|\*\*Emissor|\*\*Data))/i,
       /Sumário[:\s]*([\s\S]+?)(?=\n\s*(?:Texto|Emissor|Entidade|\*\*))/i,
-      /(?:^|\n)(?:O presente|A presente|Estabelece|Aprova|Define|Altera|Regulamenta)[^.]+\./i,
     ];
     
     for (const pattern of sumarioPatterns) {
       const match = markdown.match(pattern);
-      if (match) {
-        const extracted = (match[1] || match[0]).trim()
+      if (match && match[1]) {
+        const extracted = match[1].trim()
           .replace(/\s+/g, ' ')
-          .replace(/\[.*?\]\([^)]*\)/g, '') // Remove markdown links
+          .replace(/\[.*?\]\([^)]*\)/g, '')
           .replace(/\*+/g, '')
           .substring(0, 1000);
         if (extracted.length > 20 && !extracted.includes('Página de entrada')) {
@@ -65,67 +112,33 @@ function parseMarkdownContent(markdown: string, url: string): ParsedLegislation 
       }
     }
     
-    // If still no summary, look for descriptive text after the title
-    if (!summary) {
-      const lines = markdown.split('\n').filter(l => l.trim().length > 0);
-      for (const line of lines) {
-        const cleanLine = line.replace(/\[.*?\]\([^)]*\)/g, '').replace(/\*+/g, '').trim();
-        if (cleanLine.length > 50 && 
-            !cleanLine.includes('Página de entrada') && 
-            !cleanLine.includes('Diário da República') &&
-            !cleanLine.startsWith('#') &&
-            !cleanLine.includes('Série I') &&
-            !cleanLine.includes('Série II')) {
-          summary = cleanLine.substring(0, 1000);
-          break;
-        }
-      }
-    }
-    
     // Extract entity/emissor
     let entity = '';
-    const entityPatterns = [
-      /Emissor[:\s]*([^\n]+)/i,
-      /Entidade[:\s]*([^\n]+)/i,
-      /Ministério[^\n]*([^\n]+)/i,
-      /Presidência[^\n]*([^\n]+)/i,
-    ];
-    for (const pattern of entityPatterns) {
-      const match = markdown.match(pattern);
-      if (match) {
-        entity = match[1].trim().replace(/\*+/g, '').substring(0, 200);
-        break;
-      }
+    const entityMatch = markdown.match(/(?:Emissor|Entidade)[:\s]*\**([^\n*]+)/i);
+    if (entityMatch) {
+      entity = entityMatch[1].trim().replace(/\*+/g, '').substring(0, 200);
     }
     
     // Extract publication date
     let publicationDate: string | null = null;
-    const datePatterns = [
-      /Data de Publicação[:\s]*(\d{4}-\d{2}-\d{2})/i,
-      /Publicado em[:\s]*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
-      /Data[:\s]*(\d{4}-\d{2}-\d{2})/i,
-      /(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i,
+    const pubDatePatterns = [
+      /Data de Publicação[:\s]*\**([^\n*]+)/i,
+      /Publicação[:\s]*\**([^\n*]+)/i,
+      /DR[:\s]*[^\n]*(\d{4}-\d{2}-\d{2})/i,
     ];
-    
-    for (const pattern of datePatterns) {
+    for (const pattern of pubDatePatterns) {
       const match = markdown.match(pattern);
       if (match) {
-        if (match.length === 2) {
-          // Already in YYYY-MM-DD format
-          publicationDate = match[1];
-        } else if (match.length === 4) {
-          // DD/MM/YYYY or DD de Mês de YYYY
-          const months: Record<string, string> = {
-            janeiro: '01', fevereiro: '02', março: '03', abril: '04',
-            maio: '05', junho: '06', julho: '07', agosto: '08',
-            setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
-          };
-          const month = months[match[2].toLowerCase()] || match[2].padStart(2, '0');
-          const day = match[1].padStart(2, '0');
-          const year = match[3];
-          publicationDate = `${year}-${month}-${day}`;
-        }
-        break;
+        publicationDate = parseDate(match[1]);
+        if (publicationDate) break;
+      }
+    }
+    
+    // Fallback: extract from Diário da República reference
+    if (!publicationDate) {
+      const drMatch = markdown.match(/Diário da República[^\n]*(\d{4}-\d{2}-\d{2})/i);
+      if (drMatch) {
+        publicationDate = drMatch[1];
       }
     }
     
@@ -137,6 +150,150 @@ function parseMarkdownContent(markdown: string, url: string): ParsedLegislation 
       }
     }
     
+    // Extract effective date (data de entrada em vigor)
+    let effectiveDate: string | null = null;
+    const effectiveDatePatterns = [
+      /(?:entra(?:r)?|entra(?:da)?)\s+em\s+vigor[:\s]*(?:a|em|no dia)?\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i,
+      /Data de Entrada em Vigor[:\s]*\**([^\n*]+)/i,
+      /Vigência[:\s]*\**([^\n*]+)/i,
+      /produz(?:ir)?\s+efeitos[:\s]*(?:a partir de|desde|em)?\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4}|\d{4}-\d{2}-\d{2})/i,
+    ];
+    for (const pattern of effectiveDatePatterns) {
+      const match = markdown.match(pattern);
+      if (match) {
+        effectiveDate = parseDate(match[1]);
+        if (effectiveDate) {
+          console.log(`Found effective date: ${effectiveDate}`);
+          break;
+        }
+      }
+    }
+    
+    // If no specific effective date, check for "dia seguinte" or use publication date
+    if (!effectiveDate && publicationDate) {
+      const nextDayMatch = markdown.match(/entra(?:r)?\s+em\s+vigor[^\n]*dia\s+seguinte/i);
+      if (nextDayMatch) {
+        const pubDate = new Date(publicationDate);
+        pubDate.setDate(pubDate.getDate() + 1);
+        effectiveDate = pubDate.toISOString().split('T')[0];
+      }
+    }
+    
+    // Extract relations (revoga, altera, regulamenta, transpõe)
+    const relations: ParsedRelation[] = [];
+    
+    // Look for "Revoga" section
+    const revogaPatterns = [
+      /(?:Revoga|revogad[oa])[:\s]*([^]*?)(?=\n\s*(?:Altera|Regulamenta|Transpõe|TEXTO|\*\*|$))/gi,
+      /diplomas?\s+revogados?[:\s]*([^]*?)(?=\n\n|\n#|$)/gi,
+    ];
+    for (const pattern of revogaPatterns) {
+      const matches = markdown.matchAll(pattern);
+      for (const match of matches) {
+        const section = match[1] || match[0];
+        // Extract legislation references
+        const refs = section.matchAll(/(?:Decreto-Lei|Portaria|Lei|Despacho|Regulamento)[^\n,;]*n\.º\s*[\d\w\-\/]+/gi);
+        for (const ref of refs) {
+          relations.push({
+            type: 'revoga',
+            targetNumber: ref[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '')
+          });
+        }
+      }
+    }
+    
+    // Look for "Altera" section
+    const alteraPatterns = [
+      /(?:Altera|alterad[oa])[:\s]*([^]*?)(?=\n\s*(?:Revoga|Regulamenta|Transpõe|TEXTO|\*\*|$))/gi,
+      /diplomas?\s+alterados?[:\s]*([^]*?)(?=\n\n|\n#|$)/gi,
+    ];
+    for (const pattern of alteraPatterns) {
+      const matches = markdown.matchAll(pattern);
+      for (const match of matches) {
+        const section = match[1] || match[0];
+        const refs = section.matchAll(/(?:Decreto-Lei|Portaria|Lei|Despacho|Regulamento)[^\n,;]*n\.º\s*[\d\w\-\/]+/gi);
+        for (const ref of refs) {
+          relations.push({
+            type: 'altera',
+            targetNumber: ref[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '')
+          });
+        }
+      }
+    }
+    
+    // Look for "Regulamenta" section
+    const regulamentaMatch = markdown.match(/(?:Regulamenta)[:\s]*([^]*?)(?=\n\s*(?:Revoga|Altera|Transpõe|TEXTO|\*\*|$))/i);
+    if (regulamentaMatch) {
+      const refs = regulamentaMatch[1].matchAll(/(?:Decreto-Lei|Portaria|Lei|Despacho|Regulamento)[^\n,;]*n\.º\s*[\d\w\-\/]+/gi);
+      for (const ref of refs) {
+        relations.push({
+          type: 'regulamenta',
+          targetNumber: ref[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '')
+        });
+      }
+    }
+    
+    // Look for "Transpõe" section
+    const transpoeMatch = markdown.match(/(?:Transpõe|Transposição)[:\s]*([^]*?)(?=\n\s*(?:Revoga|Altera|Regulamenta|TEXTO|\*\*|$))/i);
+    if (transpoeMatch) {
+      const refs = transpoeMatch[1].matchAll(/(?:Diretiva|Regulamento\s+\(UE\))[^\n,;]*(?:n\.º\s*)?[\d\w\-\/]+/gi);
+      for (const ref of refs) {
+        relations.push({
+          type: 'transpoe',
+          targetNumber: ref[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '')
+        });
+      }
+    }
+    
+    console.log(`Found ${relations.length} relations`);
+    
+    // Extract requirements (artigos)
+    const requirements: ParsedRequirement[] = [];
+    
+    // Look for TEXTO section and extract articles
+    const textoMatch = markdown.match(/TEXTO\s*([\s\S]+?)(?=$|\n##)/i);
+    if (textoMatch) {
+      const texto = textoMatch[1];
+      
+      // Extract articles with their content
+      const articlePattern = /(?:^|\n)\s*(?:Artigo|Art\.)\s*(\d+\.?º?)[^\n]*\n([\s\S]*?)(?=(?:\n\s*(?:Artigo|Art\.)\s*\d+|$))/gi;
+      const articles = texto.matchAll(articlePattern);
+      
+      for (const article of articles) {
+        const articleNum = `Artigo ${article[1].replace(/\.?º?$/, '')}º`;
+        const content = article[2].trim()
+          .replace(/\s+/g, ' ')
+          .replace(/\*+/g, '')
+          .substring(0, 2000);
+        
+        if (content.length > 10) {
+          requirements.push({
+            article: articleNum,
+            text: content
+          });
+        }
+      }
+    }
+    
+    // If no articles found, try to extract numbered items
+    if (requirements.length === 0) {
+      const numberedItems = markdown.matchAll(/(?:^|\n)\s*(\d+)[.\-\)]\s+([^\n]+)/gm);
+      let itemCount = 0;
+      for (const item of numberedItems) {
+        if (itemCount >= 20) break; // Limit to avoid noise
+        const text = item[2].trim();
+        if (text.length > 20 && !text.includes('Diário') && !text.includes('Série')) {
+          requirements.push({
+            article: `Item ${item[1]}`,
+            text: text.substring(0, 2000)
+          });
+          itemCount++;
+        }
+      }
+    }
+    
+    console.log(`Found ${requirements.length} requirements`);
+    
     // Extract external ID from URL
     const idMatch = url.match(/(\d+)(?:\?|$)/);
     const externalId = idMatch ? `dre-${idMatch[1]}` : `dre-${Date.now()}`;
@@ -146,7 +303,7 @@ function parseMarkdownContent(markdown: string, url: string): ParsedLegislation 
       return null;
     }
     
-    console.log(`Parsed: ${number}, Entity: ${entity}, Date: ${publicationDate}, Summary length: ${summary.length}`);
+    console.log(`Parsed: ${number}, Entity: ${entity}, PubDate: ${publicationDate}, EffDate: ${effectiveDate}, Summary: ${summary.length} chars`);
     
     return {
       number: number || title,
@@ -154,8 +311,11 @@ function parseMarkdownContent(markdown: string, url: string): ParsedLegislation 
       summary,
       entity,
       publicationDate,
+      effectiveDate,
       documentUrl: url,
-      externalId
+      externalId,
+      relations,
+      requirements
     };
   } catch (error) {
     console.error('Error parsing markdown:', error);
@@ -183,8 +343,11 @@ function parseFromUrl(url: string): ParsedLegislation | null {
       summary: '',
       entity: '',
       publicationDate: numParts[1].length === 4 ? `${numParts[1]}-01-01` : null,
+      effectiveDate: null,
       documentUrl: url,
-      externalId
+      externalId,
+      relations: [],
+      requirements: []
     };
   } catch {
     return null;
@@ -217,16 +380,19 @@ serve(async (req) => {
     // Get existing legislation to avoid duplicates
     const { data: existingLegislation } = await supabase
       .from('legislation')
-      .select('external_id, document_url');
+      .select('id, external_id, document_url, number');
     
     const existingUrls = new Set((existingLegislation || []).map(l => l.document_url));
     const existingIds = new Set((existingLegislation || []).map(l => l.external_id));
+    const legislationByNumber = new Map((existingLegislation || []).map(l => [l.number?.toLowerCase(), l.id]));
 
     let created = 0;
     let skipped = 0;
     let failed = 0;
+    let requirementsCreated = 0;
+    let relationsCreated = 0;
     const errors: string[] = [];
-    const results: { url: string; status: string; number?: string; method?: string }[] = [];
+    const results: { url: string; status: string; number?: string; method?: string; requirements?: number; relations?: number }[] = [];
 
     for (const link of links) {
       const url = link.trim();
@@ -243,6 +409,7 @@ serve(async (req) => {
         console.log(`Processing: ${url}`);
         let parsed: ParsedLegislation | null = null;
         let method = 'url';
+        let rawMarkdown = '';
 
         // Try Firecrawl first if available
         if (firecrawlApiKey) {
@@ -257,18 +424,18 @@ serve(async (req) => {
               body: JSON.stringify({
                 url: url,
                 formats: ['markdown'],
-                onlyMainContent: true,
-                waitFor: 2000, // Wait for JS rendering
+                onlyMainContent: false, // Get full content for requirements
+                waitFor: 3000, // Wait for JS rendering
               }),
             });
 
             if (firecrawlResponse.ok) {
               const firecrawlData = await firecrawlResponse.json();
-              const markdown = firecrawlData.data?.markdown || firecrawlData.markdown;
+              rawMarkdown = firecrawlData.data?.markdown || firecrawlData.markdown || '';
               
-              if (markdown) {
+              if (rawMarkdown) {
                 console.log('Firecrawl returned markdown, parsing...');
-                parsed = parseMarkdownContent(markdown, url);
+                parsed = parseMarkdownContent(rawMarkdown, url);
                 if (parsed) {
                   method = 'firecrawl';
                 }
@@ -289,7 +456,7 @@ serve(async (req) => {
         }
 
         if (!parsed) {
-          throw new Error('Could not parse legislation data');
+          throw new Error('Could not parse legislation data (page may not exist)');
         }
 
         // Check if external_id already exists
@@ -300,7 +467,7 @@ serve(async (req) => {
         }
 
         // Insert legislation
-        const { error: insertError } = await supabase
+        const { data: insertedLeg, error: insertError } = await supabase
           .from('legislation')
           .insert({
             external_id: parsed.externalId,
@@ -311,18 +478,97 @@ serve(async (req) => {
             entity: parsed.entity,
             origin: 'PT',
             publication_date: parsed.publicationDate,
+            effective_date: parsed.effectiveDate,
             document_url: parsed.documentUrl
-          });
+          })
+          .select('id')
+          .single();
 
         if (insertError) {
           throw new Error(insertError.message);
         }
 
+        const legislationId = insertedLeg.id;
+        let reqCount = 0;
+        let relCount = 0;
+
+        // Insert requirements
+        if (parsed.requirements.length > 0) {
+          const requirementsToInsert = parsed.requirements.map(req => ({
+            legislation_id: legislationId,
+            article: req.article,
+            requirement_text: req.text
+          }));
+
+          const { error: reqError } = await supabase
+            .from('legal_requirements')
+            .insert(requirementsToInsert);
+
+          if (reqError) {
+            console.error('Error inserting requirements:', reqError.message);
+          } else {
+            reqCount = requirementsToInsert.length;
+            requirementsCreated += reqCount;
+          }
+        }
+
+        // Insert relations
+        if (parsed.relations.length > 0) {
+          for (const relation of parsed.relations) {
+            // Try to find the target legislation by number
+            const targetNumber = relation.targetNumber.toLowerCase();
+            let targetId = legislationByNumber.get(targetNumber);
+
+            // If not found, try partial match
+            if (!targetId) {
+              for (const [num, id] of legislationByNumber) {
+                if (num && targetNumber.includes(num.split(' ').pop() || '')) {
+                  targetId = id;
+                  break;
+                }
+              }
+            }
+
+            if (targetId) {
+              const relationTypeMap: Record<string, string> = {
+                'revoga': 'revogado_por',
+                'altera': 'alteracao',
+                'regulamenta': 'regulamentacao',
+                'transpoe': 'transposicao'
+              };
+
+              const { error: relError } = await supabase
+                .from('legislation_relations')
+                .insert({
+                  source_legislation_id: legislationId,
+                  target_legislation_id: targetId,
+                  relation_type: relationTypeMap[relation.type] || relation.type,
+                  notes: `Extraído automaticamente: ${relation.targetNumber}`
+                });
+
+              if (!relError) {
+                relCount++;
+                relationsCreated++;
+              }
+            } else {
+              console.log(`Target legislation not found: ${relation.targetNumber}`);
+            }
+          }
+        }
+
         created++;
         existingUrls.add(url);
         existingIds.add(parsed.externalId);
-        results.push({ url, status: 'created', number: parsed.number, method });
-        console.log(`Created: ${parsed.number} (via ${method})`);
+        legislationByNumber.set(parsed.number.toLowerCase(), legislationId);
+        results.push({ 
+          url, 
+          status: 'created', 
+          number: parsed.number, 
+          method,
+          requirements: reqCount,
+          relations: relCount
+        });
+        console.log(`Created: ${parsed.number} (via ${method}) with ${reqCount} requirements, ${relCount} relations`);
 
       } catch (error) {
         failed++;
@@ -333,7 +579,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Import complete: ${created} created, ${skipped} skipped, ${failed} failed`);
+    console.log(`Import complete: ${created} created, ${skipped} skipped, ${failed} failed, ${requirementsCreated} requirements, ${relationsCreated} relations`);
 
     return new Response(
       JSON.stringify({
@@ -343,6 +589,8 @@ serve(async (req) => {
           created,
           skipped,
           failed,
+          requirementsCreated,
+          relationsCreated,
           errors: errors.slice(0, 10)
         },
         results
