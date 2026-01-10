@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.generate-compliance-report]
 verify_jwt = false
+
+[functions.import-pdf-legislation]
+verify_jwt = false
