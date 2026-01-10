@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.fix-legislation-metadata]
 verify_jwt = false
+
+[functions.reimport-dre-metadata]
+verify_jwt = false
