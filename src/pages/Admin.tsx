@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText, LogOut } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText, LogOut, Building2 } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
 import { LegislationPanel } from "@/components/admin/LegislationPanel";
+import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,23 +39,31 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="legislation" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="legislation" className="gap-2">
               <FileText className="h-4 w-4" />
-              Legislação
+              <span className="hidden sm:inline">Legislação</span>
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Clientes</span>
             </TabsTrigger>
             <TabsTrigger value="sync" className="gap-2">
               <RefreshCw className="h-4 w-4" />
-              Sincronização
+              <span className="hidden sm:inline">Sincronização</span>
             </TabsTrigger>
             <TabsTrigger value="themes" className="gap-2">
               <Palette className="h-4 w-4" />
-              Temas
+              <span className="hidden sm:inline">Temas</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="legislation">
             <LegislationPanel />
+          </TabsContent>
+
+          <TabsContent value="clients">
+            <ClientsPanel />
           </TabsContent>
 
           <TabsContent value="sync">
