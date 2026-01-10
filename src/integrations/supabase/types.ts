@@ -281,6 +281,7 @@ export type Database = {
           number: string
           origin: string | null
           publication_date: string | null
+          revocation_date: string | null
           source: string | null
           summary: string | null
           title: string
@@ -298,6 +299,7 @@ export type Database = {
           number: string
           origin?: string | null
           publication_date?: string | null
+          revocation_date?: string | null
           source?: string | null
           summary?: string | null
           title: string
@@ -315,6 +317,7 @@ export type Database = {
           number?: string
           origin?: string | null
           publication_date?: string | null
+          revocation_date?: string | null
           source?: string | null
           summary?: string | null
           title?: string
