@@ -1,9 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -57,8 +59,23 @@ export function SyncPanel() {
     failed: number;
   } | null>(null);
   const [updateExisting, setUpdateExisting] = useState(false);
+  const [reimportDateFrom, setReimportDateFrom] = useState("");
+  const [reimportDateTo, setReimportDateTo] = useState("");
+  const [reimportType, setReimportType] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
+
+  const LEGISLATION_TYPES = [
+    { value: "all", label: "Todos os tipos" },
+    { value: "decreto-lei", label: "Decreto-Lei" },
+    { value: "lei", label: "Lei" },
+    { value: "portaria", label: "Portaria" },
+    { value: "despacho", label: "Despacho" },
+    { value: "resolucao", label: "Resolução" },
+    { value: "regulamento", label: "Regulamento" },
+    { value: "declaracao", label: "Declaração" },
+    { value: "aviso", label: "Aviso" },
+  ];
 
   const handleSync = async (syncType: string, source: string = 'dre') => {
     try {
@@ -412,23 +429,76 @@ export function SyncPanel() {
     }
   };
 
-  const fetchIncompleteCount = async () => {
-    const { count, error } = await supabase
+  const getIncompleteFilters = () => {
+    return {
+      dateFrom: reimportDateFrom || null,
+      dateTo: reimportDateTo || null,
+      type: reimportType !== "all" ? reimportType : null,
+    };
+  };
+
+  const fetchIncompleteWithFilters = async (limit?: number) => {
+    const filters = getIncompleteFilters();
+    
+    let query = supabase
+      .from("legislation")
+      .select("document_url")
+      .or("summary.is.null,summary.eq.")
+      .not("document_url", "is", null)
+      .like("document_url", "%diariodarepublica.pt%");
+    
+    if (filters.dateFrom) {
+      query = query.gte("publication_date", filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      query = query.lte("publication_date", filters.dateTo);
+    }
+    if (filters.type) {
+      query = query.ilike("number", `%${filters.type}%`);
+    }
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return query;
+  };
+
+  const fetchIncompleteCountWithFilters = async () => {
+    const filters = getIncompleteFilters();
+    
+    let query = supabase
       .from("legislation")
       .select("*", { count: "exact", head: true })
       .or("summary.is.null,summary.eq.")
       .not("document_url", "is", null)
       .like("document_url", "%diariodarepublica.pt%");
     
+    if (filters.dateFrom) {
+      query = query.gte("publication_date", filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      query = query.lte("publication_date", filters.dateTo);
+    }
+    if (filters.type) {
+      query = query.ilike("number", `%${filters.type}%`);
+    }
+    
+    return query;
+  };
+
+  const fetchIncompleteCount = async () => {
+    const { count, error } = await fetchIncompleteCountWithFilters();
+    
     if (!error && count !== null) {
       setIncompleteCount(count);
     }
   };
 
-  // Fetch count on mount
-  useState(() => {
+  // Fetch count on mount and when filters change
+  useEffect(() => {
     fetchIncompleteCount();
-  });
+  }, [reimportDateFrom, reimportDateTo, reimportType]);
 
   const handleReimportIncomplete = async () => {
     setIsReimportingIncomplete(true);
@@ -443,20 +513,15 @@ export function SyncPanel() {
     let totalFailed = 0;
 
     try {
-      // First, get the total count
-      const { count: totalCount, error: countError } = await supabase
-        .from("legislation")
-        .select("*", { count: "exact", head: true })
-        .or("summary.is.null,summary.eq.")
-        .not("document_url", "is", null)
-        .like("document_url", "%diariodarepublica.pt%");
+      // First, get the total count with filters
+      const { count: totalCount, error: countError } = await fetchIncompleteCountWithFilters();
 
       if (countError) throw countError;
 
       if (!totalCount || totalCount === 0) {
         toast({
           title: "Nenhum diploma incompleto",
-          description: "Todos os diplomas do DRE já têm sumário preenchido",
+          description: "Nenhum diploma corresponde aos filtros selecionados",
         });
         setIsReimportingIncomplete(false);
         return;
@@ -464,23 +529,22 @@ export function SyncPanel() {
 
       setReimportProgress({ current: 0, total: totalCount });
 
+      const filterDesc = [];
+      if (reimportType !== "all") filterDesc.push(reimportType);
+      if (reimportDateFrom || reimportDateTo) filterDesc.push("período filtrado");
+      const filterText = filterDesc.length > 0 ? ` (${filterDesc.join(", ")})` : "";
+
       toast({
         title: "Reimportação iniciada",
-        description: `A processar ${totalCount} diploma(s) em lotes de ${BATCH_SIZE}...`,
+        description: `A processar ${totalCount} diploma(s)${filterText} em lotes de ${BATCH_SIZE}...`,
       });
 
       let hasMore = true;
       let batchNumber = 0;
 
       while (hasMore) {
-        // Fetch next batch of incomplete legislation
-        const { data: incomplete, error: fetchError } = await supabase
-          .from("legislation")
-          .select("document_url")
-          .or("summary.is.null,summary.eq.")
-          .not("document_url", "is", null)
-          .like("document_url", "%diariodarepublica.pt%")
-          .limit(BATCH_SIZE);
+        // Fetch next batch of incomplete legislation with filters
+        const { data: incomplete, error: fetchError } = await fetchIncompleteWithFilters(BATCH_SIZE);
 
         if (fetchError) throw fetchError;
 
@@ -925,6 +989,70 @@ https://dre.pt/application/file/..."
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="rounded-lg border bg-white p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              Filtros
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Tipo de Diploma</label>
+                <Select 
+                  value={reimportType} 
+                  onValueChange={setReimportType}
+                  disabled={isReimportingIncomplete}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Todos os tipos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LEGISLATION_TYPES.map(type => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Data de Publicação (desde)</label>
+                <Input
+                  type="date"
+                  value={reimportDateFrom}
+                  onChange={(e) => setReimportDateFrom(e.target.value)}
+                  disabled={isReimportingIncomplete}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Data de Publicação (até)</label>
+                <Input
+                  type="date"
+                  value={reimportDateTo}
+                  onChange={(e) => setReimportDateTo(e.target.value)}
+                  disabled={isReimportingIncomplete}
+                  className="h-9"
+                />
+              </div>
+            </div>
+            {(reimportType !== "all" || reimportDateFrom || reimportDateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setReimportType("all");
+                  setReimportDateFrom("");
+                  setReimportDateTo("");
+                }}
+                disabled={isReimportingIncomplete}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Limpar filtros
+              </Button>
+            )}
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="text-sm">
               {reimportProgress ? (
@@ -934,6 +1062,9 @@ https://dre.pt/application/file/..."
               ) : incompleteCount !== null ? (
                 <span className="text-muted-foreground">
                   <span className="font-medium text-amber-600">{incompleteCount}</span> diploma(s) com dados incompletos
+                  {(reimportType !== "all" || reimportDateFrom || reimportDateTo) && (
+                    <span className="text-xs ml-1">(filtrado)</span>
+                  )}
                 </span>
               ) : (
                 <span className="text-muted-foreground">A verificar...</span>
@@ -959,7 +1090,7 @@ https://dre.pt/application/file/..."
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                {isReimportingIncomplete ? `A reimportar...` : 'Reimportar Todos'}
+                {isReimportingIncomplete ? `A reimportar...` : 'Reimportar Filtrados'}
               </Button>
             </div>
           </div>
