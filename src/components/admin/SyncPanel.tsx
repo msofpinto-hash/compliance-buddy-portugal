@@ -19,6 +19,7 @@ export function SyncPanel() {
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [isImportingLinks, setIsImportingLinks] = useState(false);
   const [isReimportingIncomplete, setIsReimportingIncomplete] = useState(false);
+  const [reimportProgress, setReimportProgress] = useState<{ current: number; total: number } | null>(null);
   const [incompleteCount, setIncompleteCount] = useState<number | null>(null);
   const [textContent, setTextContent] = useState("");
   const [linksContent, setLinksContent] = useState("");
@@ -432,20 +433,27 @@ export function SyncPanel() {
   const handleReimportIncomplete = async () => {
     setIsReimportingIncomplete(true);
     setReimportStats(null);
+    setReimportProgress(null);
+
+    const BATCH_SIZE = 20;
+    let totalProcessed = 0;
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    let totalSkipped = 0;
+    let totalFailed = 0;
 
     try {
-      // Fetch all legislation with empty summary and DRE document_url
-      const { data: incomplete, error: fetchError } = await supabase
+      // First, get the total count
+      const { count: totalCount, error: countError } = await supabase
         .from("legislation")
-        .select("document_url")
+        .select("*", { count: "exact", head: true })
         .or("summary.is.null,summary.eq.")
         .not("document_url", "is", null)
-        .like("document_url", "%diariodarepublica.pt%")
-        .limit(50); // Process in batches of 50
+        .like("document_url", "%diariodarepublica.pt%");
 
-      if (fetchError) throw fetchError;
+      if (countError) throw countError;
 
-      if (!incomplete || incomplete.length === 0) {
+      if (!totalCount || totalCount === 0) {
         toast({
           title: "Nenhum diploma incompleto",
           description: "Todos os diplomas do DRE já têm sumário preenchido",
@@ -454,31 +462,88 @@ export function SyncPanel() {
         return;
       }
 
-      const links = incomplete
-        .map(l => l.document_url)
-        .filter((url): url is string => url !== null);
+      setReimportProgress({ current: 0, total: totalCount });
 
       toast({
         title: "Reimportação iniciada",
-        description: `A processar ${links.length} diploma(s) com dados incompletos...`,
+        description: `A processar ${totalCount} diploma(s) em lotes de ${BATCH_SIZE}...`,
       });
 
-      const { data, error } = await supabase.functions.invoke('import-dre-links', {
-        body: { links, updateExisting: true }
-      });
+      let hasMore = true;
+      let batchNumber = 0;
 
-      if (error) throw error;
+      while (hasMore) {
+        // Fetch next batch of incomplete legislation
+        const { data: incomplete, error: fetchError } = await supabase
+          .from("legislation")
+          .select("document_url")
+          .or("summary.is.null,summary.eq.")
+          .not("document_url", "is", null)
+          .like("document_url", "%diariodarepublica.pt%")
+          .limit(BATCH_SIZE);
 
-      if (data.success) {
-        setReimportStats(data.stats);
-        fetchIncompleteCount(); // Refresh count
-        toast({
-          title: "Reimportação concluída!",
-          description: `${data.stats.updated} diplomas atualizados`,
+        if (fetchError) throw fetchError;
+
+        if (!incomplete || incomplete.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        const links = incomplete
+          .map(l => l.document_url)
+          .filter((url): url is string => url !== null);
+
+        if (links.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        batchNumber++;
+        console.log(`Processing batch ${batchNumber} with ${links.length} links`);
+
+        const { data, error } = await supabase.functions.invoke('import-dre-links', {
+          body: { links, updateExisting: true }
         });
-      } else {
-        throw new Error(data.error || 'Erro desconhecido');
+
+        if (error) {
+          console.error(`Batch ${batchNumber} error:`, error);
+          totalFailed += links.length;
+        } else if (data.success) {
+          totalProcessed += data.stats.total || 0;
+          totalCreated += data.stats.created || 0;
+          totalUpdated += data.stats.updated || 0;
+          totalSkipped += data.stats.skipped || 0;
+          totalFailed += data.stats.failed || 0;
+        }
+
+        setReimportProgress({ current: totalProcessed, total: totalCount });
+
+        // If we got fewer than BATCH_SIZE, we're done
+        if (incomplete.length < BATCH_SIZE) {
+          hasMore = false;
+        }
+
+        // Small delay between batches to avoid rate limiting
+        if (hasMore) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
+
+      setReimportStats({
+        total: totalProcessed,
+        created: totalCreated,
+        updated: totalUpdated,
+        skipped: totalSkipped,
+        failed: totalFailed,
+      });
+
+      fetchIncompleteCount(); // Refresh count
+
+      toast({
+        title: "Reimportação concluída!",
+        description: `${totalUpdated} diplomas atualizados, ${totalCreated} criados`,
+      });
+
     } catch (error) {
       console.error('Reimport error:', error);
       toast({
@@ -488,6 +553,7 @@ export function SyncPanel() {
       });
     } finally {
       setIsReimportingIncomplete(false);
+      setReimportProgress(null);
     }
   };
 
@@ -861,7 +927,11 @@ https://dre.pt/application/file/..."
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              {incompleteCount !== null ? (
+              {reimportProgress ? (
+                <span className="text-muted-foreground">
+                  A processar: <span className="font-medium text-amber-600">{reimportProgress.current}</span> de <span className="font-medium">{reimportProgress.total}</span> diplomas
+                </span>
+              ) : incompleteCount !== null ? (
                 <span className="text-muted-foreground">
                   <span className="font-medium text-amber-600">{incompleteCount}</span> diploma(s) com dados incompletos
                 </span>
@@ -889,10 +959,24 @@ https://dre.pt/application/file/..."
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                {isReimportingIncomplete ? 'A reimportar...' : 'Reimportar Incompletos'}
+                {isReimportingIncomplete ? `A reimportar...` : 'Reimportar Todos'}
               </Button>
             </div>
           </div>
+          
+          {reimportProgress && (
+            <div className="space-y-2">
+              <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-amber-500 transition-all duration-300"
+                  style={{ width: `${Math.round((reimportProgress.current / reimportProgress.total) * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-center text-muted-foreground">
+                {Math.round((reimportProgress.current / reimportProgress.total) * 100)}% concluído
+              </p>
+            </div>
+          )}
           
           {reimportStats && (
             <div className="rounded-lg border bg-white p-4 space-y-2">
