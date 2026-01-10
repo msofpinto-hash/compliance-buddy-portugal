@@ -1,16 +1,14 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   FileText, 
   Search, 
   ExternalLink,
-  Filter,
   ArrowLeft,
   Calendar,
   Building2
@@ -21,14 +19,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useThemesWithCategories } from "@/hooks/useThemes";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
+import { CategoryTreeFilter } from "@/components/CategoryTreeFilter";
 
 export default function Biblioteca() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTheme, setSelectedTheme] = useState<string>("all");
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("all");
+  const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
+  const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
 
-  // Fetch themes
+  // Fetch themes with categories
   const { data: themes } = useThemesWithCategories();
 
   // Fetch legislation with categories
@@ -41,7 +44,7 @@ export default function Biblioteca() {
           *,
           legislation_category_mapping(
             category_id,
-            theme_categories(id, name, theme_id, themes(id, name))
+            theme_categories(id, name, theme_id, parent_id, themes(id, name))
           )
         `)
         .order("publication_date", { ascending: false });
@@ -66,17 +69,47 @@ export default function Biblioteca() {
       // Source filter
       const matchesSource = selectedSource === "all" || leg.source === selectedSource;
 
-      // Theme filter
-      let matchesTheme = selectedTheme === "all";
-      if (!matchesTheme && leg.legislation_category_mapping) {
-        matchesTheme = leg.legislation_category_mapping.some(
-          (mapping: any) => mapping.theme_categories?.theme_id === selectedTheme
-        );
+      // Date range filter
+      let matchesDateRange = true;
+      if (filterStartDate && leg.publication_date) {
+        matchesDateRange = leg.publication_date >= filterStartDate;
+      }
+      if (matchesDateRange && filterEndDate && leg.publication_date) {
+        matchesDateRange = leg.publication_date <= filterEndDate;
+      }
+      if ((filterStartDate || filterEndDate) && !leg.publication_date) {
+        matchesDateRange = false;
       }
 
-      return matchesSearch && matchesSource && matchesTheme;
+      // Theme and category filter
+      let matchesThemeCategory = true;
+      if (selectedCategoryId && leg.legislation_category_mapping) {
+        // Filter by specific category (including children)
+        matchesThemeCategory = leg.legislation_category_mapping.some((mapping: any) => {
+          if (mapping.theme_categories?.id === selectedCategoryId) return true;
+          // Check if it's a child of the selected category
+          let currentParent = mapping.theme_categories?.parent_id;
+          while (currentParent) {
+            if (currentParent === selectedCategoryId) return true;
+            // Find the parent category
+            const parentCat = leg.legislation_category_mapping.find(
+              (m: any) => m.theme_categories?.id === currentParent
+            );
+            currentParent = parentCat?.theme_categories?.parent_id || null;
+          }
+          return false;
+        });
+      } else if (selectedThemeId && leg.legislation_category_mapping) {
+        matchesThemeCategory = leg.legislation_category_mapping.some(
+          (mapping: any) => mapping.theme_categories?.theme_id === selectedThemeId
+        );
+      } else if (selectedThemeId && !leg.legislation_category_mapping?.length) {
+        matchesThemeCategory = false;
+      }
+
+      return matchesSearch && matchesSource && matchesDateRange && matchesThemeCategory;
     });
-  }, [legislation, searchTerm, selectedSource, selectedTheme]);
+  }, [legislation, searchTerm, selectedSource, selectedThemeId, selectedCategoryId, filterStartDate, filterEndDate]);
 
   // Get unique themes from legislation mappings
   const getLegislationThemes = (leg: any) => {
@@ -88,6 +121,25 @@ export default function Biblioteca() {
       }
     });
     return Array.from(themeSet.values());
+  };
+
+  // Get categories for a legislation item
+  const getLegislationCategories = (leg: any) => {
+    if (!leg.legislation_category_mapping) return [];
+    return leg.legislation_category_mapping
+      .filter((mapping: any) => mapping.theme_categories?.name)
+      .map((mapping: any) => mapping.theme_categories.name);
+  };
+
+  const hasActiveFilters = selectedThemeId || selectedCategoryId || selectedSource !== "all" || filterStartDate || filterEndDate;
+
+  const clearAllFilters = () => {
+    setSelectedThemeId(null);
+    setSelectedCategoryId(null);
+    setSelectedSource("all");
+    setFilterStartDate(null);
+    setFilterEndDate(null);
+    setSearchTerm("");
   };
 
   return (
@@ -119,8 +171,9 @@ export default function Biblioteca() {
         {/* Search and Filters */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="flex flex-col gap-4 md:flex-row">
-              <div className="relative flex-1">
+            <div className="flex flex-col gap-4">
+              {/* Search bar */}
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Pesquisar por título, número ou entidade..."
@@ -129,32 +182,52 @@ export default function Biblioteca() {
                   className="pl-10"
                 />
               </div>
-              <div className="flex gap-2">
-                <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-                  <SelectTrigger className="w-[180px]">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Tema" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os temas</SelectItem>
-                    {themes?.map((theme) => (
-                      <SelectItem key={theme.id} value={theme.id}>
-                        {theme.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedSource} onValueChange={setSelectedSource}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Fonte" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as fontes</SelectItem>
-                    <SelectItem value="dre">DRE</SelectItem>
-                    <SelectItem value="eurlex">EUR-Lex</SelectItem>
-                    <SelectItem value="manual">Manual</SelectItem>
-                  </SelectContent>
-                </Select>
+              
+              {/* Filter buttons */}
+              <div className="flex flex-wrap gap-2 items-center">
+                {themes && (
+                  <CategoryTreeFilter
+                    themes={themes}
+                    selectedThemeId={selectedThemeId}
+                    selectedCategoryId={selectedCategoryId}
+                    onThemeSelect={setSelectedThemeId}
+                    onCategorySelect={setSelectedCategoryId}
+                  />
+                )}
+                
+                <DateRangeFilter
+                  startDate={filterStartDate}
+                  endDate={filterEndDate}
+                  onStartDateChange={setFilterStartDate}
+                  onEndDateChange={setFilterEndDate}
+                  label="Período"
+                />
+
+                <Button
+                  variant={selectedSource === "dre" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedSource(selectedSource === "dre" ? "all" : "dre")}
+                >
+                  DRE
+                </Button>
+                <Button
+                  variant={selectedSource === "eurlex" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedSource(selectedSource === "eurlex" ? "all" : "eurlex")}
+                >
+                  EUR-Lex
+                </Button>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllFilters}
+                    className="text-muted-foreground"
+                  >
+                    Limpar filtros
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -178,6 +251,7 @@ export default function Biblioteca() {
           <div className="space-y-4">
             {filteredLegislation.map((leg) => {
               const legThemes = getLegislationThemes(leg);
+              const legCategories = getLegislationCategories(leg);
               return (
                 <Card key={leg.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="pt-6">
@@ -222,16 +296,24 @@ export default function Biblioteca() {
                           )}
                         </div>
 
-                        {/* Themes */}
-                        {legThemes.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {legThemes.map((themeName, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {themeName}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                        {/* Themes and Categories */}
+                        <div className="flex flex-wrap gap-1">
+                          {legThemes.map((themeName, idx) => (
+                            <Badge key={`theme-${idx}`} variant="outline" className="text-xs">
+                              {themeName}
+                            </Badge>
+                          ))}
+                          {legCategories.slice(0, 3).map((catName, idx) => (
+                            <Badge key={`cat-${idx}`} variant="secondary" className="text-xs">
+                              {catName}
+                            </Badge>
+                          ))}
+                          {legCategories.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{legCategories.length - 3}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
                       {/* Actions */}

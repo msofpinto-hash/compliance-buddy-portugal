@@ -20,6 +20,7 @@ import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 
 type SortField = "title" | "number" | "publication_date" | "theme";
 type SortOrder = "asc" | "desc";
@@ -35,6 +36,8 @@ export function LegislationPanel() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterNoCategory, setFilterNoCategory] = useState<boolean>(false);
   const [filterProblems, setFilterProblems] = useState<boolean>(false);
+  const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
+  const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
@@ -107,6 +110,20 @@ export function LegislationPanel() {
       leg.summary?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Filter by date range (publication_date)
+    if (filterStartDate) {
+      result = result.filter(leg => {
+        if (!leg.publication_date) return false;
+        return leg.publication_date >= filterStartDate;
+      });
+    }
+    if (filterEndDate) {
+      result = result.filter(leg => {
+        if (!leg.publication_date) return false;
+        return leg.publication_date <= filterEndDate;
+      });
+    }
+
     // Filter by "problems"
     if (filterProblems) {
       result = result.filter(hasProblems);
@@ -158,7 +175,7 @@ export function LegislationPanel() {
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterStartDate, filterEndDate, sortField, sortOrder]);
 
   // Count items without category
   const noCategoryCount = useMemo(() => {
@@ -392,6 +409,20 @@ export function LegislationPanel() {
             
             {/* Sorting and Filtering Controls */}
             <div className="flex flex-wrap gap-3 items-center">
+              <DateRangeFilter
+                startDate={filterStartDate}
+                endDate={filterEndDate}
+                onStartDateChange={(date) => {
+                  setFilterStartDate(date);
+                  setCurrentPage(1);
+                }}
+                onEndDateChange={(date) => {
+                  setFilterEndDate(date);
+                  setCurrentPage(1);
+                }}
+                label="Período"
+              />
+
               <Button
                 variant={filterNoCategory ? "default" : "outline"}
                 size="sm"
