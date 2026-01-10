@@ -1,1 +1,4 @@
 project_id = "nbyrcboutdtzwslfhthe"
+
+[functions.sync-dre]
+verify_jwt = false
