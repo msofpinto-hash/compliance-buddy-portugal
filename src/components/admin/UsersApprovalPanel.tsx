@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, UserCheck, Users, Clock, CheckCircle2, XCircle, Building2 } from "lucide-react";
+import { Loader2, UserCheck, Users, Clock, CheckCircle2, XCircle, Building2, Plus, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -26,15 +26,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Profile {
   id: string;
@@ -50,9 +45,14 @@ interface Organization {
   name: string;
 }
 
-interface UserWithOrg extends Profile {
-  organization_name?: string;
-  organization_id?: string;
+interface UserRole {
+  user_id: string;
+  organization_id: string;
+  organizations: { name: string } | null;
+}
+
+interface UserWithOrgs extends Profile {
+  organizations: { id: string; name: string }[];
 }
 
 export function UsersApprovalPanel() {
@@ -61,11 +61,12 @@ export function UsersApprovalPanel() {
   const [approveDialog, setApproveDialog] = useState<{
     open: boolean;
     profile: Profile | null;
-  }>({ open: false, profile: null });
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+    mode: "approve" | "edit";
+  }>({ open: false, profile: null, mode: "approve" });
+  const [selectedOrgIds, setSelectedOrgIds] = useState<Set<string>>(new Set());
   const [revokeDialog, setRevokeDialog] = useState<{
     open: boolean;
-    profile: UserWithOrg | null;
+    profile: UserWithOrgs | null;
   }>({ open: false, profile: null });
 
   // Fetch all profiles
@@ -111,52 +112,70 @@ export function UsersApprovalPanel() {
         .eq("role", "client");
 
       if (error) throw error;
-      return data;
+      return data as UserRole[];
     },
   });
 
-  // Approve user mutation - assigns to organization
+  // Approve/Update user mutation - assigns to multiple organizations
   const approveMutation = useMutation({
-    mutationFn: async ({ profileId, organizationId }: { profileId: string; organizationId: string }) => {
-      // Add user role with organization
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
+    mutationFn: async ({ profileId, organizationIds, isEdit }: { profileId: string; organizationIds: string[]; isEdit: boolean }) => {
+      if (isEdit) {
+        // Remove all existing client roles for this user
+        const { error: deleteError } = await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", profileId)
+          .eq("role", "client");
+
+        if (deleteError) throw deleteError;
+      }
+
+      // Add user roles for each organization
+      if (organizationIds.length > 0) {
+        const rolesToInsert = organizationIds.map((orgId) => ({
           user_id: profileId,
-          organization_id: organizationId,
-          role: "client",
-        });
+          organization_id: orgId,
+          role: "client" as const,
+        }));
 
-      if (roleError) throw roleError;
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert(rolesToInsert);
 
-      // Update profile as approved
+        if (roleError) throw roleError;
+      }
+
+      // Update profile as approved (or revoke if no orgs selected in edit mode)
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
-          is_approved: true,
-          approved_at: new Date().toISOString(),
-          approved_by: user?.id,
+          is_approved: organizationIds.length > 0,
+          approved_at: organizationIds.length > 0 ? new Date().toISOString() : null,
+          approved_by: organizationIds.length > 0 ? user?.id : null,
         })
         .eq("id", profileId);
 
       if (profileError) throw profileError;
     },
-    onSuccess: () => {
-      toast.success("Utilizador aprovado e associado à organização");
+    onSuccess: (_, variables) => {
+      const message = variables.isEdit 
+        ? "Organizações atualizadas com sucesso" 
+        : "Utilizador aprovado e associado às organizações";
+      toast.success(message);
       queryClient.invalidateQueries({ queryKey: ["profiles-approval"] });
       queryClient.invalidateQueries({ queryKey: ["user-roles-all"] });
-      setApproveDialog({ open: false, profile: null });
-      setSelectedOrgId("");
+      setApproveDialog({ open: false, profile: null, mode: "approve" });
+      setSelectedOrgIds(new Set());
     },
     onError: (error: Error) => {
-      toast.error("Erro ao aprovar utilizador: " + error.message);
+      toast.error("Erro: " + error.message);
     },
   });
 
   // Revoke access mutation
   const revokeMutation = useMutation({
     mutationFn: async (profileId: string) => {
-      // Remove user role
+      // Remove all user roles
       const { error: roleError } = await supabase
         .from("user_roles")
         .delete()
@@ -188,13 +207,18 @@ export function UsersApprovalPanel() {
     },
   });
 
-  // Combine profiles with their organization info
-  const usersWithOrgs: UserWithOrg[] = (profiles || []).map((profile) => {
-    const role = userRoles?.find((r) => r.user_id === profile.id);
+  // Combine profiles with their organizations (multiple)
+  const usersWithOrgs: UserWithOrgs[] = (profiles || []).map((profile) => {
+    const roles = userRoles?.filter((r) => r.user_id === profile.id) || [];
+    const orgs = roles
+      .filter((r) => r.organization_id && r.organizations)
+      .map((r) => ({
+        id: r.organization_id,
+        name: r.organizations!.name,
+      }));
     return {
       ...profile,
-      organization_id: role?.organization_id || undefined,
-      organization_name: (role?.organizations as any)?.name || undefined,
+      organizations: orgs,
     };
   });
 
@@ -202,6 +226,32 @@ export function UsersApprovalPanel() {
   const approvedUsers = usersWithOrgs.filter((p) => p.is_approved);
 
   const isLoading = loadingProfiles || loadingOrgs;
+
+  const handleOpenApproveDialog = (profile: Profile, mode: "approve" | "edit") => {
+    setApproveDialog({ open: true, profile, mode });
+    
+    // Pre-select existing organizations if editing
+    if (mode === "edit") {
+      const existingOrgs = userRoles
+        ?.filter((r) => r.user_id === profile.id)
+        .map((r) => r.organization_id) || [];
+      setSelectedOrgIds(new Set(existingOrgs));
+    } else {
+      setSelectedOrgIds(new Set());
+    }
+  };
+
+  const toggleOrgSelection = (orgId: string) => {
+    setSelectedOrgIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(orgId)) {
+        next.delete(orgId);
+      } else {
+        next.add(orgId);
+      }
+      return next;
+    });
+  };
 
   if (isLoading) {
     return (
@@ -252,7 +302,7 @@ export function UsersApprovalPanel() {
               Utilizadores Pendentes
             </CardTitle>
             <CardDescription>
-              Aprove estes utilizadores associando-os a uma organização
+              Aprove estes utilizadores associando-os a uma ou mais organizações
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -274,7 +324,7 @@ export function UsersApprovalPanel() {
                   </div>
                   <Button
                     size="sm"
-                    onClick={() => setApproveDialog({ open: true, profile })}
+                    onClick={() => handleOpenApproveDialog(profile, "approve")}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <UserCheck className="h-4 w-4 mr-1" />
@@ -306,21 +356,29 @@ export function UsersApprovalPanel() {
                   key={profile.id}
                   className="flex items-center justify-between rounded-lg border p-4"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">{profile.full_name || "Sem nome"}</span>
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Aprovado
                       </Badge>
-                      {profile.organization_name && (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-                          <Building2 className="h-3 w-3 mr-1" />
-                          {profile.organization_name}
-                        </Badge>
-                      )}
                     </div>
                     <div className="text-sm text-muted-foreground">{profile.email}</div>
+                    {profile.organizations.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {profile.organizations.map((org) => (
+                          <Badge 
+                            key={org.id} 
+                            variant="outline" 
+                            className="bg-blue-50 text-blue-700 border-blue-300"
+                          >
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {org.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     {profile.approved_at && (
                       <div className="text-xs text-muted-foreground">
                         Aprovado em{" "}
@@ -330,15 +388,25 @@ export function UsersApprovalPanel() {
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRevokeDialog({ open: true, profile })}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Revogar
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenApproveDialog(profile, "edit")}
+                    >
+                      <Edit2 className="h-4 w-4 mr-1" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRevokeDialog({ open: true, profile })}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <XCircle className="h-4 w-4 mr-1" />
+                      Revogar
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -351,20 +419,23 @@ export function UsersApprovalPanel() {
         </CardContent>
       </Card>
 
-      {/* Approve Dialog - Select Organization */}
+      {/* Approve/Edit Dialog - Select Multiple Organizations */}
       <Dialog
         open={approveDialog.open}
         onOpenChange={(open) => {
           setApproveDialog((prev) => ({ ...prev, open }));
-          if (!open) setSelectedOrgId("");
+          if (!open) setSelectedOrgIds(new Set());
         }}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Aprovar Utilizador</DialogTitle>
+            <DialogTitle>
+              {approveDialog.mode === "edit" ? "Editar Organizações" : "Aprovar Utilizador"}
+            </DialogTitle>
             <DialogDescription>
-              Selecione a organização à qual o utilizador será associado.
-              O utilizador terá acesso apenas aos diplomas atribuídos a essa organização.
+              {approveDialog.mode === "edit" 
+                ? "Altere as organizações às quais o utilizador tem acesso."
+                : "Selecione uma ou mais organizações às quais o utilizador terá acesso."}
             </DialogDescription>
           </DialogHeader>
 
@@ -375,27 +446,40 @@ export function UsersApprovalPanel() {
             </div>
 
             <div className="space-y-2">
-              <Label>Organização</Label>
-              <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma organização..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations?.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        {org.name}
+              <Label>Organizações</Label>
+              <ScrollArea className="h-64 rounded-md border p-3">
+                {organizations?.length === 0 ? (
+                  <p className="text-sm text-amber-600 text-center py-4">
+                    Não existem organizações. Crie uma primeiro no separador "Clientes".
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {organizations?.map((org) => (
+                      <div
+                        key={org.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedOrgIds.has(org.id)
+                            ? "border-primary bg-primary/5"
+                            : "hover:bg-muted/50"
+                        }`}
+                        onClick={() => toggleOrgSelection(org.id)}
+                      >
+                        <Checkbox
+                          checked={selectedOrgIds.has(org.id)}
+                          onCheckedChange={() => toggleOrgSelection(org.id)}
+                        />
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <span>{org.name}</span>
+                        </div>
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {organizations?.length === 0 && (
-                <p className="text-xs text-amber-600">
-                  Não existem organizações. Crie uma primeiro no separador "Clientes".
-                </p>
-              )}
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+              <p className="text-xs text-muted-foreground">
+                {selectedOrgIds.size} organização(ões) selecionada(s)
+              </p>
             </div>
           </div>
 
@@ -403,26 +487,27 @@ export function UsersApprovalPanel() {
             <Button
               variant="outline"
               onClick={() => {
-                setApproveDialog({ open: false, profile: null });
-                setSelectedOrgId("");
+                setApproveDialog({ open: false, profile: null, mode: "approve" });
+                setSelectedOrgIds(new Set());
               }}
             >
               Cancelar
             </Button>
             <Button
               onClick={() => {
-                if (approveDialog.profile && selectedOrgId) {
+                if (approveDialog.profile) {
                   approveMutation.mutate({
                     profileId: approveDialog.profile.id,
-                    organizationId: selectedOrgId,
+                    organizationIds: Array.from(selectedOrgIds),
+                    isEdit: approveDialog.mode === "edit",
                   });
                 }
               }}
-              disabled={!selectedOrgId || approveMutation.isPending}
+              disabled={selectedOrgIds.size === 0 || approveMutation.isPending}
               className="bg-green-600 hover:bg-green-700"
             >
               {approveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Aprovar e Associar
+              {approveDialog.mode === "edit" ? "Guardar Alterações" : "Aprovar e Associar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -439,9 +524,9 @@ export function UsersApprovalPanel() {
             <AlertDialogDescription>
               Tem a certeza que deseja revogar o acesso de{" "}
               <strong>{revokeDialog.profile?.full_name || revokeDialog.profile?.email}</strong>?
-              O utilizador deixará de poder aceder à aplicação e será desassociado da organização{" "}
-              {revokeDialog.profile?.organization_name && (
-                <strong>{revokeDialog.profile.organization_name}</strong>
+              O utilizador deixará de poder aceder à aplicação e será desassociado de todas as organizações
+              {revokeDialog.profile?.organizations && revokeDialog.profile.organizations.length > 0 && (
+                <> ({revokeDialog.profile.organizations.map((o) => o.name).join(", ")})</>
               )}
               .
             </AlertDialogDescription>
