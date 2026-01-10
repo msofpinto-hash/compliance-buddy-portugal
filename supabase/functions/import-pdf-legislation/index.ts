@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-ignore - PDF.js for Deno
+import * as pdfjs from "https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +40,44 @@ function parseDateFromDiploma(diploma: string): string | null {
   return null;
 }
 
+// Extract text from PDF using PDF.js
+async function extractTextFromPdf(base64Content: string): Promise<string> {
+  try {
+    // Decode base64 to Uint8Array
+    const binaryString = atob(base64Content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Load the PDF document
+    const loadingTask = pdfjs.getDocument({ data: bytes });
+    const pdf = await loadingTask.promise;
+    
+    console.log(`PDF loaded with ${pdf.numPages} pages`);
+    
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      // Concatenate text items
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += `\n## Page ${pageNum}\n${pageText}\n`;
+    }
+    
+    return fullText;
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 // Parse the PDF text content to extract legislation entries
 function parsePdfContent(content: string): ParsedLegislation[] {
   const legislation: ParsedLegislation[] = [];
@@ -48,8 +88,8 @@ function parsePdfContent(content: string): ParsedLegislation[] {
   let currentSummary = '';
   
   // Patterns to identify different elements
-  const categoryPattern = /^#\s*(Ambiente|Segurança|Qualidade|Energia|Alimentar)\s*\/\s*(.+)$/;
-  const diplomaPattern = /^(?:#\s*)?(Lei|Decreto-Lei|Decreto|Portaria|Despacho|Resolução|Regulamento|Declaração|Aviso|Acórdão|Deliberação)\s+(?:n\.º\s*)?[\w\-\.\/]+.*(?:de\s+\d{1,2}\s+de\s+\w+)?/i;
+  const categoryPattern = /^#?\s*(Ambiente|Segurança|Qualidade|Energia|Alimentar)\s*[\/\|]\s*(.+)$/i;
+  const diplomaPattern = /^(?:#\s*)?(Lei|Decreto-Lei|Decreto|Portaria|Despacho|Resolução|Regulamento|Declaração|Aviso|Acórdão|Deliberação|Diretiva|Decisão)\s+(?:n\.º\s*)?[\w\-\.\/]+.*(?:de\s+\d{1,2}\s+de\s+\w+)?/i;
   const skipPatterns = [
     /^##\s*Page\s+\d+/i,
     /^###\s*Images/i,
@@ -134,7 +174,7 @@ async function findMatchingCategory(
   categoriesCache: Map<string, { id: string; theme_id: string; name: string; parent_id: string | null }[]>
 ): Promise<string | null> {
   // Split the category path: "Ambiente / Legislação Nacional / Água / Mar, Oceanos e Orla Costeira"
-  const parts = categoryPath.split('/').map(p => p.trim()).filter(p => p);
+  const parts = categoryPath.split(/[\/\|]/).map(p => p.trim()).filter(p => p);
   
   if (parts.length < 2) return null;
   
@@ -208,10 +248,7 @@ serve(async (req) => {
 
     const { pdfContent, textContent } = await req.json();
 
-    // Accept either raw text content or base64 PDF
-    const contentToProcess = textContent || pdfContent;
-
-    if (!contentToProcess) {
+    if (!pdfContent && !textContent) {
       return new Response(
         JSON.stringify({ error: 'pdfContent or textContent is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -219,17 +256,19 @@ serve(async (req) => {
     }
 
     console.log('Starting PDF import...');
-    console.log(`Content length: ${contentToProcess.length} characters`);
 
-    // Parse the content - if it looks like base64, decode it first
-    let textToProcess = contentToProcess;
-    if (!textToProcess.includes('\n') && textToProcess.length > 1000) {
-      // Likely base64, but we can't parse binary PDF in Deno easily
-      // Return error asking for text content
-      return new Response(
-        JSON.stringify({ error: 'Please provide textContent (parsed PDF text) instead of binary PDF' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let textToProcess: string;
+    
+    if (textContent) {
+      // Direct text content provided
+      textToProcess = textContent;
+      console.log(`Text content length: ${textToProcess.length} characters`);
+    } else {
+      // PDF content provided - extract text
+      console.log(`PDF content length: ${pdfContent.length} base64 characters`);
+      console.log('Extracting text from PDF...');
+      textToProcess = await extractTextFromPdf(pdfContent);
+      console.log(`Extracted text length: ${textToProcess.length} characters`);
     }
     
     const parsedLegislation = parsePdfContent(textToProcess);
