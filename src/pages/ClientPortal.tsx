@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   FileText, 
   CheckCircle2, 
@@ -1040,22 +1041,55 @@ export default function ClientPortal() {
                 </div>
               </div>
 
-              {/* Theme Filter Badge */}
-              {themeFilter && (
-                <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                  <FolderTree className="h-4 w-4 text-primary" />
-                  <span className="text-sm">
-                    A filtrar por tema: <strong>{assignedThemes?.find((t: any) => t.id === themeFilter)?.name || "Tema"}</strong>
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="ml-auto h-7 px-2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setThemeFilter(null)}
+              {/* Theme Filter Selector */}
+              {assignedThemes && assignedThemes.length > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <FolderTree className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Tema:</span>
+                  </div>
+                  <Select 
+                    value={themeFilter || "all"} 
+                    onValueChange={(value) => setThemeFilter(value === "all" ? null : value)}
                   >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Limpar filtro
-                  </Button>
+                    <SelectTrigger className="w-full sm:w-[250px]">
+                      <SelectValue placeholder="Todos os temas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        <div className="flex items-center gap-2">
+                          <span>Todos os temas</span>
+                          <Badge variant="secondary" className="ml-auto text-xs">
+                            {assignedLegislation?.length || 0}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                      {assignedThemes.map((theme: any) => {
+                        const themeCount = legislationByCategory?.byTheme?.get(theme.id)?.size || 0;
+                        return (
+                          <SelectItem key={theme.id} value={theme.id}>
+                            <div className="flex items-center gap-2">
+                              {theme.icon && <span>{theme.icon}</span>}
+                              <span>{theme.name}</span>
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                {themeCount}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {themeFilter && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setThemeFilter(null)}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               )}
 
