@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.import-dre-links]
 verify_jwt = false
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.fix-legislation-metadata]
+verify_jwt = false
