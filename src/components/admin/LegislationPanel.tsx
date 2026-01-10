@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -232,9 +233,10 @@ export function LegislationPanel() {
     );
   }
 
-  const dreCount = legislation?.filter(l => l.source === 'dre').length || 0;
-  const eurlexCount = legislation?.filter(l => l.source === 'eurlex').length || 0;
-  const manualCount = legislation?.filter(l => l.source === 'manual' || !l.source).length || 0;
+  // Count by origin field (PT = DRE, EU = EUR-Lex)
+  const dreCount = legislation?.filter(l => l.origin === 'PT').length || 0;
+  const eurlexCount = legislation?.filter(l => l.origin === 'EU').length || 0;
+  const otherCount = legislation?.filter(l => !l.origin || (l.origin !== 'PT' && l.origin !== 'EU')).length || 0;
 
   const openCategoriesDialog = (leg: LegislationWithCategories) => {
     setSelectedLegislation(leg);
@@ -280,8 +282,8 @@ export function LegislationPanel() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Manual / Importados</CardDescription>
-            <CardTitle className="text-3xl">{manualCount}</CardTitle>
+            <CardDescription>Outros</CardDescription>
+            <CardTitle className="text-3xl">{otherCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card className={noCategoryCount > 0 ? "border-amber-300 bg-amber-50/50" : ""}>
@@ -466,21 +468,32 @@ export function LegislationPanel() {
                         <Badge 
                           variant="outline"
                           className={
-                            leg.source === 'dre' 
+                            leg.origin === 'PT' 
                               ? 'bg-green-500/10 text-green-700 border-green-300' 
-                              : leg.source === 'eurlex'
+                              : leg.origin === 'EU'
                                 ? 'bg-blue-500/10 text-blue-700 border-blue-300'
-                                : ''
+                                : 'bg-gray-500/10 text-gray-700 border-gray-300'
                           }
                         >
-                          {leg.source === 'dre' ? 'DRE' : leg.source === 'eurlex' ? 'EUR-Lex' : 'Manual'}
+                          {leg.origin === 'PT' ? (
+                            <><Flag className="h-3 w-3 mr-1" />DRE</>
+                          ) : leg.origin === 'EU' ? (
+                            <><Globe className="h-3 w-3 mr-1" />EUR-Lex</>
+                          ) : (
+                            'Manual'
+                          )}
                         </Badge>
                         <span className="font-mono text-sm text-muted-foreground">
                           {leg.number}
                         </span>
                       </div>
                       
-                      <h4 className="font-semibold">{leg.title}</h4>
+                      <Link 
+                        to={`/legislacao/${leg.id}`} 
+                        className="font-semibold hover:text-primary hover:underline transition-colors"
+                      >
+                        {leg.title}
+                      </Link>
                       
                       {leg.summary && (
                         <p className="text-sm text-muted-foreground line-clamp-2">
@@ -562,6 +575,15 @@ export function LegislationPanel() {
                       >
                         <Link2 className="h-4 w-4" />
                         Relações
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                      >
+                        <Link to={`/legislacao/${leg.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
                       </Button>
                       {leg.document_url && (
                         <Button
