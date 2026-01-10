@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
+import { ManageOrganizationRequirementsDialog } from "./ManageOrganizationRequirementsDialog";
 
 type Organization = Tables<"organizations">;
 
@@ -23,6 +24,7 @@ export function ClientsPanel() {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [assignLegislationOrg, setAssignLegislationOrg] = useState<Organization | null>(null);
+  const [manageRequirementsOrg, setManageRequirementsOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -339,6 +341,17 @@ export function ClientsPanel() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Gerir Requisitos"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setManageRequirementsOrg(org);
+                        }}
+                      >
+                        <ClipboardCheck className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title="Atribuir Diplomas"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -580,6 +593,13 @@ export function ClientsPanel() {
           onOpenChange={(open) => !open && setAssignLegislationOrg(null)}
         />
       )}
+
+      {/* Manage Requirements Dialog */}
+      <ManageOrganizationRequirementsDialog
+        organization={manageRequirementsOrg}
+        open={!!manageRequirementsOrg}
+        onOpenChange={(open) => !open && setManageRequirementsOrg(null)}
+      />
     </div>
   );
 }
