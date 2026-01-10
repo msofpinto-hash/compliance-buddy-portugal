@@ -22,19 +22,21 @@ const Index = () => {
             </div>
           </div>
           <nav className="flex items-center gap-2">
-            <Link to="/biblioteca">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <BookOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Biblioteca</span>
-              </Button>
-            </Link>
             {user ? (
-              <Link to="/dashboard">
-                <Button size="sm" className="gap-2 shadow-md">
-                  <Settings className="h-4 w-4" />
-                  Dashboard
-                </Button>
-              </Link>
+              <>
+                <Link to="/biblioteca">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    <span className="hidden sm:inline">Biblioteca</span>
+                  </Button>
+                </Link>
+                <Link to="/dashboard">
+                  <Button size="sm" className="gap-2 shadow-md">
+                    <Settings className="h-4 w-4" />
+                    Dashboard
+                  </Button>
+                </Link>
+              </>
             ) : (
               <Link to="/auth">
                 <Button size="sm" className="gap-2 shadow-md">
@@ -92,28 +94,39 @@ const Index = () => {
 
             {/* CTA Buttons */}
             <div className="animate-fade-in mt-10 flex flex-col sm:flex-row items-center justify-center gap-4" style={{ animationDelay: "0.3s" }}>
-              <Link to="/biblioteca">
-                <Button size="lg" className="gap-2 text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
-                  <BookOpen className="h-5 w-5" />
-                  Explorar Biblioteca
-                  <ArrowRight className="h-4 w-4 ml-1" />
-                </Button>
-              </Link>
-              <Link to={user ? "/dashboard" : "/auth"}>
-                <Button variant="outline" size="lg" className="gap-2 text-base hover:bg-primary/5 transition-all">
-                  {user ? (
-                    <>
+              {user ? (
+                <>
+                  <Link to="/biblioteca">
+                    <Button size="lg" className="gap-2 text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
+                      <BookOpen className="h-5 w-5" />
+                      Explorar Biblioteca
+                      <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
+                  <Link to="/dashboard">
+                    <Button variant="outline" size="lg" className="gap-2 text-base hover:bg-primary/5 transition-all">
                       <Settings className="h-5 w-5" />
                       Aceder ao Dashboard
-                    </>
-                  ) : (
-                    <>
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button size="lg" className="gap-2 text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
                       <LogIn className="h-5 w-5" />
                       Começar Agora
-                    </>
-                  )}
-                </Button>
-              </Link>
+                      <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
+                  <Link to="/auth">
+                    <Button variant="outline" size="lg" className="gap-2 text-base hover:bg-primary/5 transition-all">
+                      <Shield className="h-5 w-5" />
+                      Saber Mais
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Stats */}
@@ -182,9 +195,9 @@ const Index = () => {
                     Requisitos legais detalhados
                   </li>
                 </ul>
-                <Link to="/biblioteca">
+                <Link to={user ? "/biblioteca" : "/auth"}>
                   <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    Explorar Biblioteca
+                    {user ? "Explorar Biblioteca" : "Entrar para Aceder"}
                   </Button>
                 </Link>
               </CardContent>

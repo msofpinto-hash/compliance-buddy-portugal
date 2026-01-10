@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Shield, AlertCircle } from "lucide-react";
+import { Loader2, Scale, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
@@ -19,11 +19,16 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect if already logged in as admin
-  if (!authLoading && user && isAdmin) {
-    navigate("/admin");
-    return null;
-  }
+  // Redirect authenticated users based on their role
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [authLoading, user, isAdmin, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +47,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Login efetuado",
-          description: "A verificar permissões...",
+          description: "Bem-vindo de volta!",
         });
         // Auth state change will trigger redirect
       }
@@ -76,7 +81,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Conta criada",
-          description: "Verifique o seu email para confirmar a conta",
+          description: "A sua conta foi criada com sucesso!",
         });
       }
     } catch (err) {
@@ -86,33 +91,20 @@ const Auth = () => {
     }
   };
 
-  // Show message if logged in but not admin
-  if (!authLoading && user && !isAdmin) {
+  // Show loading while checking auth state
+  if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-              <AlertCircle className="h-6 w-6" />
-            </div>
-            <CardTitle>Acesso Negado</CardTitle>
-            <CardDescription>
-              A sua conta não tem permissões de administrador.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                supabase.auth.signOut();
-                navigate("/");
-              }}
-            >
-              Voltar ao início
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Don't render form if already authenticated (redirect will happen)
+  if (user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -122,11 +114,11 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Shield className="h-6 w-6" />
+            <Scale className="h-6 w-6" />
           </div>
-          <CardTitle>Área de Administração</CardTitle>
+          <CardTitle>Área de Cliente</CardTitle>
           <CardDescription>
-            Acesso restrito a administradores do sistema
+            Aceda à sua área de gestão de conformidade legal
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -214,7 +206,7 @@ const Auth = () => {
                 </Button>
 
                 <p className="text-center text-xs text-muted-foreground">
-                  Nota: Após registar, um administrador existente terá de atribuir permissões à sua conta.
+                  Ao criar conta, concorda com os termos de utilização do serviço.
                 </p>
               </form>
             </TabsContent>
@@ -226,6 +218,3 @@ const Auth = () => {
 };
 
 export default Auth;
-
-// Need to import supabase for sign out in the access denied section
-import { supabase } from "@/integrations/supabase/client";
