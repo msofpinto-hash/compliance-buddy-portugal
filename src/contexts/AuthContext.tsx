@@ -6,9 +6,11 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAdmin: boolean;
+  isApproved: boolean;
+  isPendingApproval: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -18,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,13 +30,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer role check with setTimeout to prevent deadlock
+        // Defer role and approval check with setTimeout to prevent deadlock
         if (session?.user) {
           setTimeout(() => {
-            checkAdminRole(session.user.id);
+            checkUserStatus(session.user.id);
           }, 0);
         } else {
           setIsAdmin(false);
+          setIsApproved(false);
           setIsLoading(false);
         }
       }
@@ -45,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        checkAdminRole(session.user.id);
+        checkUserStatus(session.user.id);
       } else {
         setIsLoading(false);
       }
@@ -54,24 +58,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkAdminRole = async (userId: string) => {
+  const checkUserStatus = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Check admin role
+      const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .eq("role", "admin")
         .maybeSingle();
 
-      if (error) {
-        console.error("Error checking admin role:", error);
-        setIsAdmin(false);
+      if (roleError) {
+        console.error("Error checking admin role:", roleError);
+      }
+      
+      const userIsAdmin = !!roleData;
+      setIsAdmin(userIsAdmin);
+
+      // If admin, they're automatically approved
+      if (userIsAdmin) {
+        setIsApproved(true);
       } else {
-        setIsAdmin(!!data);
+        // Check approval status from profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("is_approved")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error("Error checking approval status:", profileError);
+          setIsApproved(false);
+        } else {
+          setIsApproved(profileData?.is_approved ?? false);
+        }
       }
     } catch (err) {
-      console.error("Error checking admin role:", err);
+      console.error("Error checking user status:", err);
       setIsAdmin(false);
+      setIsApproved(false);
     } finally {
       setIsLoading(false);
     }
@@ -85,23 +110,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
       },
     });
+
+    // Create profile with is_approved = false (default)
+    if (!error && data.user) {
+      await supabase.from("profiles").upsert({
+        id: data.user.id,
+        email: email,
+        full_name: fullName,
+        is_approved: false,
+      });
+    }
+
     return { error: error as Error | null };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setIsAdmin(false);
+    setIsApproved(false);
   };
+
+  // Computed property: user is pending if logged in but not approved (and not admin)
+  const isPendingApproval = !!user && !isApproved && !isAdmin && !isLoading;
 
   return (
     <AuthContext.Provider
@@ -109,6 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         isAdmin,
+        isApproved,
+        isPendingApproval,
         isLoading,
         signIn,
         signUp,
