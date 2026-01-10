@@ -60,6 +60,7 @@ export default function ClientPortal() {
   const { user, signOut, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [themeFilter, setThemeFilter] = useState<string | null>(null);
   const [exportingType, setExportingType] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>("overview");
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
@@ -397,6 +398,17 @@ export default function ClientPortal() {
     const matchesSearch = !searchTerm || 
       leg.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       leg.title.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by theme
+    let matchesTheme = true;
+    if (themeFilter) {
+      const legCategories = leg.legislation_category_mapping || [];
+      matchesTheme = legCategories.some((mapping: any) => 
+        mapping.theme_categories?.themes?.id === themeFilter
+      );
+    }
+    
+    if (!matchesTheme) return false;
     
     if (statusFilter === "all") return matchesSearch;
     
@@ -877,19 +889,28 @@ export default function ClientPortal() {
                         const themeCount = legislationByCategory?.byTheme?.get(theme.id)?.size || 0;
                         const rootCategories = theme.theme_categories?.filter((c: any) => !c.parent_id) || [];
                         
+                        const handleThemeClick = () => {
+                          setThemeFilter(theme.id);
+                          setActiveTab("legislation");
+                        };
+                        
                         return (
                           <div 
                             key={theme.id} 
-                            className="p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                            className="p-4 rounded-lg border bg-card hover:bg-primary/5 hover:border-primary/30 transition-colors cursor-pointer group"
+                            onClick={handleThemeClick}
                           >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2">
                                 {theme.icon && <span className="text-xl">{theme.icon}</span>}
-                                <span className="font-semibold">{theme.name}</span>
+                                <span className="font-semibold group-hover:text-primary transition-colors">{theme.name}</span>
                               </div>
-                              <Badge variant="secondary" className="shrink-0">
-                                {themeCount} {themeCount === 1 ? "diploma" : "diplomas"}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="shrink-0">
+                                  {themeCount} {themeCount === 1 ? "diploma" : "diplomas"}
+                                </Badge>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
                             </div>
                             
                             {rootCategories.length > 0 && (
@@ -1019,6 +1040,25 @@ export default function ClientPortal() {
                 </div>
               </div>
 
+              {/* Theme Filter Badge */}
+              {themeFilter && (
+                <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                  <FolderTree className="h-4 w-4 text-primary" />
+                  <span className="text-sm">
+                    A filtrar por tema: <strong>{assignedThemes?.find((t: any) => t.id === themeFilter)?.name || "Tema"}</strong>
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="ml-auto h-7 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setThemeFilter(null)}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Limpar filtro
+                  </Button>
+                </div>
+              )}
+
               {/* Status Filter Tabs */}
               <Tabs value={statusFilter} onValueChange={setStatusFilter}>
                 <TabsList className="flex-wrap h-auto gap-1">
@@ -1051,10 +1091,19 @@ export default function ClientPortal() {
                   <CardContent className="py-12 text-center">
                     <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                     <p className="text-muted-foreground">Nenhum diploma encontrado</p>
-                    {statusFilter !== "all" && (
-                      <Button variant="link" onClick={() => setStatusFilter("all")}>
-                        Ver todos os diplomas
-                      </Button>
+                    {(statusFilter !== "all" || themeFilter) && (
+                      <div className="flex flex-wrap justify-center gap-2 mt-3">
+                        {themeFilter && (
+                          <Button variant="outline" size="sm" onClick={() => setThemeFilter(null)}>
+                            Limpar filtro de tema
+                          </Button>
+                        )}
+                        {statusFilter !== "all" && (
+                          <Button variant="link" onClick={() => setStatusFilter("all")}>
+                            Ver todos os estados
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
