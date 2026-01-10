@@ -142,6 +142,7 @@ export type Database = {
         Row: {
           compliance_status: string | null
           created_at: string
+          evidence_files: string[] | null
           id: string
           is_applicable: boolean
           notes: string | null
@@ -152,6 +153,7 @@ export type Database = {
         Insert: {
           compliance_status?: string | null
           created_at?: string
+          evidence_files?: string[] | null
           id?: string
           is_applicable?: boolean
           notes?: string | null
@@ -162,6 +164,7 @@ export type Database = {
         Update: {
           compliance_status?: string | null
           created_at?: string
+          evidence_files?: string[] | null
           id?: string
           is_applicable?: boolean
           notes?: string | null

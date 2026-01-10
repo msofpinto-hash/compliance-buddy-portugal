@@ -31,8 +31,10 @@ import {
   Home,
   LayoutDashboard,
   ChevronRight,
-  FolderTree
+  FolderTree,
+  Upload
 } from "lucide-react";
+import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { Link, useLocation } from "react-router-dom";
@@ -55,7 +57,7 @@ const COLORS = {
   inProgress: "hsl(45, 93%, 47%)",
 };
 
-type TabValue = "overview" | "legislation" | "actions";
+type TabValue = "overview" | "legislation" | "actions" | "documents";
 
 export default function ClientPortal() {
   const { user, signOut, isAdmin } = useAuth();
@@ -484,6 +486,7 @@ export default function ClientPortal() {
   const navItems = [
     { id: "overview" as TabValue, label: "Visão Geral", icon: LayoutDashboard },
     { id: "legislation" as TabValue, label: "Diplomas", icon: FileText, count: overallStats.totalLegislation },
+    { id: "documents" as TabValue, label: "Documentos", icon: Upload },
     { id: "actions" as TabValue, label: "Planos de Ação", icon: ClipboardList, count: actionPlanStats.pending + actionPlanStats.inProgress },
   ];
 
@@ -1389,6 +1392,11 @@ export default function ClientPortal() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Documents Tab */}
+          {activeTab === "documents" && (
+            <DocumentsPanel organizationIds={organizationIds} />
           )}
         </main>
       </div>
