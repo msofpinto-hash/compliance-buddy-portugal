@@ -13,16 +13,40 @@ import {
   LogOut,
   Settings,
   ExternalLink,
-  BookOpen
+  BookOpen,
+  PieChart as PieChartIcon,
+  BarChart3
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, subDays, startOfMonth, eachDayOfInterval } from "date-fns";
 import { pt } from "date-fns/locale";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  AreaChart,
+  Area,
+  CartesianGrid,
+} from "recharts";
+
+const COLORS = {
+  compliant: "hsl(142, 76%, 36%)",
+  nonCompliant: "hsl(0, 84%, 60%)",
+  inProgress: "hsl(45, 93%, 47%)",
+  pending: "hsl(215, 20%, 65%)",
+};
 
 export default function Dashboard() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
 
   // Fetch user's organization
   const { data: userRole } = useQuery({
@@ -72,47 +96,116 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Fetch action plans stats
-  const { data: actionPlanStats, isLoading: loadingStats } = useQuery({
-    queryKey: ["action-plan-stats", userRole?.organization_id],
+  // Fetch action plans with details
+  const { data: actionPlans } = useQuery({
+    queryKey: ["action-plans", userRole?.organization_id],
     queryFn: async () => {
-      if (!userRole?.organization_id) return { pending: 0, inProgress: 0, completed: 0, overdue: 0 };
-      
+      if (!userRole?.organization_id) return [];
       const { data, error } = await supabase
         .from("action_plans")
-        .select("status, due_date")
+        .select("*")
         .eq("organization_id", userRole.organization_id);
-      
       if (error) throw error;
-
-      const today = new Date();
-      const stats = {
-        pending: 0,
-        inProgress: 0,
-        completed: 0,
-        overdue: 0,
-      };
-
-      data?.forEach((plan) => {
-        if (plan.status === "concluido") stats.completed++;
-        else if (plan.status === "em_curso") stats.inProgress++;
-        else stats.pending++;
-
-        if (plan.due_date && new Date(plan.due_date) < today && plan.status !== "concluido") {
-          stats.overdue++;
-        }
-      });
-
-      return stats;
+      return data;
     },
     enabled: !!userRole?.organization_id,
   });
 
-  // Fetch compliance stats
+  // Fetch compliance data by theme
+  const { data: complianceByTheme } = useQuery({
+    queryKey: ["compliance-by-theme", userRole?.organization_id],
+    queryFn: async () => {
+      if (!userRole?.organization_id) return [];
+      
+      const { data: applicabilities, error } = await supabase
+        .from("applicabilities")
+        .select(`
+          *,
+          legal_requirements(
+            legislation(
+              legislation_category_mapping(
+                theme_categories(
+                  themes(id, name)
+                )
+              )
+            )
+          )
+        `)
+        .eq("organization_id", userRole.organization_id)
+        .eq("is_applicable", true);
+      
+      if (error) throw error;
+
+      // Group by theme
+      const themeStats: Record<string, { name: string; compliant: number; nonCompliant: number; inProgress: number }> = {};
+      
+      applicabilities?.forEach((app: any) => {
+        const themes = app.legal_requirements?.legislation?.legislation_category_mapping || [];
+        themes.forEach((mapping: any) => {
+          const theme = mapping.theme_categories?.themes;
+          if (theme) {
+            if (!themeStats[theme.id]) {
+              themeStats[theme.id] = { name: theme.name, compliant: 0, nonCompliant: 0, inProgress: 0 };
+            }
+            if (app.compliance_status === "conforme") themeStats[theme.id].compliant++;
+            else if (app.compliance_status === "nao_conforme") themeStats[theme.id].nonCompliant++;
+            else themeStats[theme.id].inProgress++;
+          }
+        });
+      });
+
+      return Object.values(themeStats).slice(0, 5);
+    },
+    enabled: !!userRole?.organization_id,
+  });
+
+  // Fetch legislation trend (last 30 days)
+  const { data: legislationTrend } = useQuery({
+    queryKey: ["legislation-trend"],
+    queryFn: async () => {
+      const thirtyDaysAgo = subDays(new Date(), 30);
+      
+      const { data, error } = await supabase
+        .from("legislation")
+        .select("publication_date, source")
+        .gte("publication_date", thirtyDaysAgo.toISOString().split("T")[0])
+        .order("publication_date", { ascending: true });
+      
+      if (error) throw error;
+
+      // Group by date
+      const dateRange = eachDayOfInterval({ start: thirtyDaysAgo, end: new Date() });
+      const trend = dateRange.map(date => {
+        const dateStr = format(date, "yyyy-MM-dd");
+        const dayData = data?.filter(d => d.publication_date === dateStr) || [];
+        return {
+          date: format(date, "d MMM", { locale: pt }),
+          dre: dayData.filter(d => d.source === "dre").length,
+          eurlex: dayData.filter(d => d.source === "eurlex").length,
+          total: dayData.length,
+        };
+      });
+
+      return trend;
+    },
+  });
+
+  // Calculate stats from action plans
+  const actionPlanStats = {
+    pending: actionPlans?.filter(p => p.status === "pendente").length || 0,
+    inProgress: actionPlans?.filter(p => p.status === "em_curso").length || 0,
+    completed: actionPlans?.filter(p => p.status === "concluido").length || 0,
+    overdue: actionPlans?.filter(p => {
+      if (!p.due_date || p.status === "concluido") return false;
+      return new Date(p.due_date) < new Date();
+    }).length || 0,
+  };
+
+  // Compliance stats
   const { data: complianceStats } = useQuery({
     queryKey: ["compliance-stats", userRole?.organization_id],
     queryFn: async () => {
-      if (!userRole?.organization_id) return { applicable: 0, compliant: 0, nonCompliant: 0 };
+      if (!userRole?.organization_id) return { applicable: 0, compliant: 0, nonCompliant: 0, inProgress: 0 };
       
       const { data, error } = await supabase
         .from("applicabilities")
@@ -121,12 +214,13 @@ export default function Dashboard() {
       
       if (error) throw error;
 
-      const stats = { applicable: 0, compliant: 0, nonCompliant: 0 };
+      const stats = { applicable: 0, compliant: 0, nonCompliant: 0, inProgress: 0 };
       data?.forEach((app) => {
         if (app.is_applicable) {
           stats.applicable++;
           if (app.compliance_status === "conforme") stats.compliant++;
           else if (app.compliance_status === "nao_conforme") stats.nonCompliant++;
+          else stats.inProgress++;
         }
       });
 
@@ -138,6 +232,20 @@ export default function Dashboard() {
   const complianceRate = complianceStats?.applicable 
     ? Math.round((complianceStats.compliant / complianceStats.applicable) * 100) 
     : 0;
+
+  // Pie chart data for compliance
+  const compliancePieData = [
+    { name: "Conforme", value: complianceStats?.compliant || 0, color: COLORS.compliant },
+    { name: "Não Conforme", value: complianceStats?.nonCompliant || 0, color: COLORS.nonCompliant },
+    { name: "Em Avaliação", value: complianceStats?.inProgress || 0, color: COLORS.inProgress },
+  ].filter(d => d.value > 0);
+
+  // Pie chart data for action plans
+  const actionPlanPieData = [
+    { name: "Concluído", value: actionPlanStats.completed, color: COLORS.compliant },
+    { name: "Em Curso", value: actionPlanStats.inProgress, color: COLORS.inProgress },
+    { name: "Pendente", value: actionPlanStats.pending, color: COLORS.pending },
+  ].filter(d => d.value > 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -162,7 +270,7 @@ export default function Dashboard() {
                 Biblioteca
               </Button>
             </Link>
-            {userRole?.role === "admin" && (
+            {isAdmin && (
               <Link to="/admin">
                 <Button variant="ghost" className="gap-2">
                   <Settings className="h-4 w-4" />
@@ -198,7 +306,9 @@ export default function Dashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{complianceRate}%</div>
+              <div className="text-2xl font-bold" style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}>
+                {complianceRate}%
+              </div>
               <p className="text-xs text-muted-foreground">
                 {complianceStats?.compliant || 0} de {complianceStats?.applicable || 0} requisitos
               </p>
@@ -211,9 +321,9 @@ export default function Dashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{actionPlanStats?.pending || 0}</div>
+              <div className="text-2xl font-bold">{actionPlanStats.pending}</div>
               <p className="text-xs text-muted-foreground">
-                {actionPlanStats?.inProgress || 0} em curso
+                {actionPlanStats.inProgress} em curso
               </p>
             </CardContent>
           </Card>
@@ -225,7 +335,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-destructive">
-                {actionPlanStats?.overdue || 0}
+                {actionPlanStats.overdue}
               </div>
               <p className="text-xs text-muted-foreground">
                 Requerem atenção imediata
@@ -246,6 +356,205 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Charts Row */}
+        <div className="grid gap-6 lg:grid-cols-3 mb-8">
+          {/* Compliance Pie Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <PieChartIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Estado de Conformidade</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {compliancePieData.length > 0 ? (
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={compliancePieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {compliancePieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [`${value} requisitos`, ""]}
+                        contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        formatter={(value) => <span className="text-sm">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  Sem dados de conformidade
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Action Plans Pie Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <PieChartIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Planos de Ação</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {actionPlanPieData.length > 0 ? (
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={actionPlanPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {actionPlanPieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [`${value} ações`, ""]}
+                        contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        formatter={(value) => <span className="text-sm">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  Sem planos de ação
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Compliance by Theme Bar Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Conformidade por Tema</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {complianceByTheme && complianceByTheme.length > 0 ? (
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={complianceByTheme} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" fontSize={12} />
+                      <YAxis 
+                        type="category" 
+                        dataKey="name" 
+                        width={80} 
+                        fontSize={11}
+                        tickFormatter={(value) => value.length > 12 ? value.slice(0, 12) + "..." : value}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                      />
+                      <Bar dataKey="compliant" stackId="a" fill={COLORS.compliant} name="Conforme" />
+                      <Bar dataKey="inProgress" stackId="a" fill={COLORS.inProgress} name="Em Avaliação" />
+                      <Bar dataKey="nonCompliant" stackId="a" fill={COLORS.nonCompliant} name="Não Conforme" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  Sem dados por tema
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Legislation Trend */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Tendência de Publicações (últimos 30 dias)</CardTitle>
+            <CardDescription>Nova legislação publicada no DRE e EUR-Lex</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {legislationTrend && legislationTrend.some(d => d.total > 0) ? (
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={legislationTrend}>
+                    <defs>
+                      <linearGradient id="colorDre" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorEurlex" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(220, 70%, 50%)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(220, 70%, 50%)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                      dataKey="date" 
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                    />
+                    <Legend />
+                    <Area 
+                      type="monotone" 
+                      dataKey="dre" 
+                      name="DRE"
+                      stroke="hsl(var(--primary))" 
+                      fillOpacity={1} 
+                      fill="url(#colorDre)" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="eurlex" 
+                      name="EUR-Lex"
+                      stroke="hsl(220, 70%, 50%)" 
+                      fillOpacity={1} 
+                      fill="url(#colorEurlex)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                Sem publicações nos últimos 30 dias
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Content Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
