@@ -196,29 +196,60 @@ export function SyncPanel() {
     setExcelImportStats(null);
 
     try {
-      // Read Excel file as text - we'll parse the markdown table format
       toast({
         title: "Processamento iniciado",
-        description: "A analisar o Excel... Isto pode demorar alguns minutos.",
+        description: "A carregar e analisar o Excel... Isto pode demorar alguns minutos.",
       });
 
-      // For Excel files, we need to convert to a parseable format
-      // The edge function expects markdown table format from parsed Excel
       const reader = new FileReader();
       
       reader.onload = async (e) => {
-        // Since we can't parse Excel directly in browser without a library,
-        // we'll prompt user to paste the table content
-        toast({
-          title: "Excel carregado",
-          description: "Por favor use a área de texto para colar o conteúdo do Excel em formato de tabela.",
-          variant: "destructive",
-        });
-        setIsImportingExcel(false);
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          
+          // Convert to base64
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64Content = btoa(binary);
+
+          // Call edge function with XLSX content
+          const { data, error } = await supabase.functions.invoke('import-excel-legislation', {
+            body: { xlsxContent: base64Content }
+          });
+
+          if (error) throw error;
+
+          if (data.success) {
+            setExcelImportStats(data.stats);
+            toast({
+              title: "Importação concluída!",
+              description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
+            });
+          } else {
+            throw new Error(data.error || 'Erro desconhecido');
+          }
+        } catch (err) {
+          console.error('Excel processing error:', err);
+          toast({
+            title: "Erro no processamento",
+            description: err instanceof Error ? err.message : "Erro desconhecido",
+            variant: "destructive",
+          });
+        } finally {
+          setIsImportingExcel(false);
+        }
       };
 
       reader.onerror = () => {
-        throw new Error('Erro ao ler o ficheiro');
+        toast({
+          title: "Erro ao ler ficheiro",
+          description: "Não foi possível ler o ficheiro Excel",
+          variant: "destructive",
+        });
+        setIsImportingExcel(false);
       };
 
       reader.readAsArrayBuffer(file);
@@ -371,7 +402,7 @@ export function SyncPanel() {
         </CardContent>
       </Card>
 
-      {/* Excel Import */}
+      {/* Excel Import - File Upload */}
       <Card className="border-emerald-200 bg-emerald-50/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -379,38 +410,73 @@ export function SyncPanel() {
             Importar Legislação (Excel)
           </CardTitle>
           <CardDescription>
-            Cole o conteúdo de um ficheiro Excel com a estrutura: Temas | Descritor | Diploma | Sumário | Alterado por | Aplicabilidade | Condição
+            Carregue um ficheiro Excel (.xlsx) com colunas: Temas | Descritor | Diploma | Sumário | Alterado por | Aplicabilidade | Condição
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Textarea
-            placeholder="Cole aqui o conteúdo da tabela Excel...
-
-Exemplo de formato esperado:
-|Q/S/CF|Constituição da República Portuguesa|Lei Constitucional n.º 1/2005, de 12 de agosto|Sétima revisão constitucional...||Aplicável - Directa||
-|Q|Licenciamento - RJUE - A - Diplomas gerais|Portaria n.º 71-B/2024, de 27 de fevereiro|Aprova os modelos...||Não aplicável condicionado|Existência de Obras|"
-            value={textContent}
-            onChange={(e) => setTextContent(e.target.value)}
-            className="min-h-[200px] font-mono text-sm"
+          <input
+            ref={excelInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleExcelUpload}
+            className="hidden"
             disabled={isImportingExcel}
           />
           
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {textContent.length > 0 ? `${textContent.length.toLocaleString()} caracteres` : 'Sem conteúdo'}
-            </p>
+          <div className="flex flex-col gap-4">
             <Button
-              onClick={handleExcelTextImport}
-              disabled={isImportingExcel || !textContent.trim()}
+              onClick={() => excelInputRef.current?.click()}
+              disabled={isImportingExcel}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               {isImportingExcel ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Send className="mr-2 h-4 w-4" />
+                <Upload className="mr-2 h-4 w-4" />
               )}
-              {isImportingExcel ? 'A importar...' : 'Importar Excel'}
+              {isImportingExcel ? 'A importar...' : 'Selecionar Ficheiro Excel'}
             </Button>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-emerald-50/30 px-2 text-muted-foreground">ou cole o conteúdo</span>
+              </div>
+            </div>
+            
+            <Textarea
+              placeholder="Cole aqui o conteúdo da tabela Excel em formato de texto...
+
+Exemplo:
+|Q/S/CF|Constituição da República Portuguesa|Lei Constitucional n.º 1/2005|Sétima revisão...||Aplicável||"
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              className="min-h-[120px] font-mono text-sm"
+              disabled={isImportingExcel}
+            />
+            
+            {textContent.trim() && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {textContent.length.toLocaleString()} caracteres
+                </p>
+                <Button
+                  onClick={handleExcelTextImport}
+                  disabled={isImportingExcel || !textContent.trim()}
+                  variant="outline"
+                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                >
+                  {isImportingExcel ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  Importar Texto
+                </Button>
+              </div>
+            )}
           </div>
           
           {excelImportStats && (
