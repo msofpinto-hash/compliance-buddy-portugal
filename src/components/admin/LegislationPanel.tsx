@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -18,12 +18,16 @@ import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 type SortField = "title" | "number" | "publication_date" | "theme";
 type SortOrder = "asc" | "desc";
 
+const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("publication_date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [filterTheme, setFilterTheme] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
@@ -89,8 +93,35 @@ export function LegislationPanel() {
     return result;
   }, [legislation, searchTerm, filterTheme, sortField, sortOrder]);
 
+  // Pagination calculations
+  const totalItems = filteredAndSortedLegislation.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedLegislation = filteredAndSortedLegislation.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleThemeChange = (value: string) => {
+    setFilterTheme(value);
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  };
+
   const toggleSortOrder = () => {
     setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+  };
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
   if (isLoading) {
@@ -184,7 +215,7 @@ export function LegislationPanel() {
                 <Input
                   placeholder="Pesquisar legislação..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-9"
                 />
               </div>
@@ -194,7 +225,7 @@ export function LegislationPanel() {
             <div className="flex flex-wrap gap-3 items-center">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Filtrar por tema:</span>
-                <Select value={filterTheme} onValueChange={setFilterTheme}>
+                <Select value={filterTheme} onValueChange={handleThemeChange}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Todos os temas" />
                   </SelectTrigger>
@@ -237,9 +268,9 @@ export function LegislationPanel() {
           </div>
         </CardHeader>
         <CardContent>
-          {filteredAndSortedLegislation.length > 0 ? (
+          {paginatedLegislation.length > 0 ? (
             <div className="space-y-4">
-              {filteredAndSortedLegislation.map((leg) => (
+              {paginatedLegislation.map((leg) => (
                 <div
                   key={leg.id}
                   className="rounded-lg border p-4 transition-all hover:bg-accent/50"
@@ -356,6 +387,100 @@ export function LegislationPanel() {
                   </div>
                 </div>
               ))}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Mostrar</span>
+                    <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                      <SelectTrigger className="w-20 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                          <SelectItem key={option} value={option.toString()}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span>por página</span>
+                    <span className="ml-2">
+                      ({startIndex + 1}-{endIndex} de {totalItems})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => goToPage(1)}
+                      disabled={currentPage === 1}
+                      title="Primeira página"
+                    >
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      title="Página anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    
+                    <div className="flex items-center gap-1 mx-2">
+                      {/* Show page numbers */}
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum: number;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => goToPage(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      title="Próxima página"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => goToPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      title="Última página"
+                    >
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="py-8 text-center text-muted-foreground">
