@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -18,6 +18,8 @@ export function SyncPanel() {
   const [isImportingText, setIsImportingText] = useState(false);
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [isImportingLinks, setIsImportingLinks] = useState(false);
+  const [isReimportingIncomplete, setIsReimportingIncomplete] = useState(false);
+  const [incompleteCount, setIncompleteCount] = useState<number | null>(null);
   const [textContent, setTextContent] = useState("");
   const [linksContent, setLinksContent] = useState("");
   const [importStats, setImportStats] = useState<{
@@ -40,6 +42,13 @@ export function SyncPanel() {
     errors: number;
   } | null>(null);
   const [linksImportStats, setLinksImportStats] = useState<{
+    total: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    failed: number;
+  } | null>(null);
+  const [reimportStats, setReimportStats] = useState<{
     total: number;
     created: number;
     updated: number;
@@ -402,6 +411,86 @@ export function SyncPanel() {
     }
   };
 
+  const fetchIncompleteCount = async () => {
+    const { count, error } = await supabase
+      .from("legislation")
+      .select("*", { count: "exact", head: true })
+      .or("summary.is.null,summary.eq.")
+      .not("document_url", "is", null)
+      .like("document_url", "%diariodarepublica.pt%");
+    
+    if (!error && count !== null) {
+      setIncompleteCount(count);
+    }
+  };
+
+  // Fetch count on mount
+  useState(() => {
+    fetchIncompleteCount();
+  });
+
+  const handleReimportIncomplete = async () => {
+    setIsReimportingIncomplete(true);
+    setReimportStats(null);
+
+    try {
+      // Fetch all legislation with empty summary and DRE document_url
+      const { data: incomplete, error: fetchError } = await supabase
+        .from("legislation")
+        .select("document_url")
+        .or("summary.is.null,summary.eq.")
+        .not("document_url", "is", null)
+        .like("document_url", "%diariodarepublica.pt%")
+        .limit(50); // Process in batches of 50
+
+      if (fetchError) throw fetchError;
+
+      if (!incomplete || incomplete.length === 0) {
+        toast({
+          title: "Nenhum diploma incompleto",
+          description: "Todos os diplomas do DRE já têm sumário preenchido",
+        });
+        setIsReimportingIncomplete(false);
+        return;
+      }
+
+      const links = incomplete
+        .map(l => l.document_url)
+        .filter((url): url is string => url !== null);
+
+      toast({
+        title: "Reimportação iniciada",
+        description: `A processar ${links.length} diploma(s) com dados incompletos...`,
+      });
+
+      const { data, error } = await supabase.functions.invoke('import-dre-links', {
+        body: { links, updateExisting: true }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setReimportStats(data.stats);
+        fetchIncompleteCount(); // Refresh count
+        toast({
+          title: "Reimportação concluída!",
+          description: `${data.stats.updated} diplomas atualizados`,
+        });
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Reimport error:', error);
+      toast({
+        title: "Erro na reimportação",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReimportingIncomplete(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -750,6 +839,81 @@ https://dre.pt/application/file/..."
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Falharam:</span>
                     <span className="font-medium text-destructive">{linksImportStats.failed}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Reimport Incomplete Legislation */}
+      <Card className="border-amber-200 bg-amber-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+            Reimportar Diplomas Incompletos
+          </CardTitle>
+          <CardDescription>
+            Reimporta automaticamente todos os diplomas do DRE que não têm sumário preenchido
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              {incompleteCount !== null ? (
+                <span className="text-muted-foreground">
+                  <span className="font-medium text-amber-600">{incompleteCount}</span> diploma(s) com dados incompletos
+                </span>
+              ) : (
+                <span className="text-muted-foreground">A verificar...</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={fetchIncompleteCount}
+                disabled={isReimportingIncomplete}
+                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Atualizar
+              </Button>
+              <Button
+                onClick={handleReimportIncomplete}
+                disabled={isReimportingIncomplete || incompleteCount === 0}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {isReimportingIncomplete ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {isReimportingIncomplete ? 'A reimportar...' : 'Reimportar Incompletos'}
+              </Button>
+            </div>
+          </div>
+          
+          {reimportStats && (
+            <div className="rounded-lg border bg-white p-4 space-y-2">
+              <h4 className="font-medium text-sm">Resultado da Reimportação:</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Diplomas processados:</span>
+                  <span className="font-medium">{reimportStats.total}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Atualizados:</span>
+                  <span className="font-medium text-blue-600">{reimportStats.updated}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Novos criados:</span>
+                  <span className="font-medium text-green-600">{reimportStats.created}</span>
+                </div>
+                {reimportStats.failed > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Falharam:</span>
+                    <span className="font-medium text-destructive">{reimportStats.failed}</span>
                   </div>
                 )}
               </div>
