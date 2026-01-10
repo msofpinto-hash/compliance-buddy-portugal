@@ -29,7 +29,8 @@ import {
   Loader2,
   Home,
   LayoutDashboard,
-  ChevronRight
+  ChevronRight,
+  FolderTree
 } from "lucide-react";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
@@ -240,6 +241,36 @@ export default function ClientPortal() {
       
       if (error) throw error;
       return data;
+    },
+    enabled: organizationIds.length > 0,
+  });
+
+  // Fetch organization's assigned themes
+  const { data: assignedThemes } = useQuery({
+    queryKey: ["org-themes-client", organizationIds],
+    queryFn: async () => {
+      if (organizationIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from("organization_themes")
+        .select(`
+          id,
+          theme_id,
+          themes(id, name, icon, description)
+        `)
+        .in("organization_id", organizationIds);
+      
+      if (error) throw error;
+      
+      // Remove duplicates
+      const uniqueThemes = new Map();
+      data?.forEach(item => {
+        const theme = item.themes as any;
+        if (theme?.id && !uniqueThemes.has(theme.id)) {
+          uniqueThemes.set(theme.id, theme);
+        }
+      });
+      return Array.from(uniqueThemes.values());
     },
     enabled: organizationIds.length > 0,
   });
@@ -579,7 +610,18 @@ export default function ClientPortal() {
               </div>
 
               {/* Quick Stats */}
-              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Temas</CardTitle>
+                    <FolderTree className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{assignedThemes?.length || 0}</div>
+                    <p className="text-xs text-muted-foreground">Áreas de legislação</p>
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Diplomas</CardTitle>
@@ -753,6 +795,33 @@ export default function ClientPortal() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Assigned Themes */}
+              {assignedThemes && assignedThemes.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FolderTree className="h-5 w-5" />
+                      Temas Disponíveis
+                    </CardTitle>
+                    <CardDescription>Áreas de legislação atribuídas à sua organização</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {assignedThemes.map((theme: any) => (
+                        <Badge 
+                          key={theme.id} 
+                          variant="secondary"
+                          className="text-sm py-1.5 px-3 gap-1.5"
+                        >
+                          {theme.icon && <span>{theme.icon}</span>}
+                          {theme.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Recent Legislation */}
               {assignedLegislation && assignedLegislation.length > 0 && (
