@@ -270,6 +270,12 @@ export default function Dashboard() {
                 Biblioteca
               </Button>
             </Link>
+            <Link to="/cliente">
+              <Button variant="ghost" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Meus Diplomas
+              </Button>
+            </Link>
             {isAdmin && (
               <Link to="/admin">
                 <Button variant="ghost" className="gap-2">

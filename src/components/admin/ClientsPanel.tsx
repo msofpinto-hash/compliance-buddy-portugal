@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
+import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
 
 type Organization = Tables<"organizations">;
 
@@ -21,6 +22,7 @@ export function ClientsPanel() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [assignLegislationOrg, setAssignLegislationOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -322,7 +324,10 @@ export function ClientsPanel() {
                         <Building2 className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="font-medium">{org.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{org.name}</p>
+                          <OrganizationLegislationBadge organizationId={org.id} />
+                        </div>
                         {org.description && (
                           <p className="text-sm text-muted-foreground line-clamp-1">
                             {org.description}
@@ -331,6 +336,17 @@ export function ClientsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Atribuir Diplomas"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAssignLegislationOrg(org);
+                        }}
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -555,6 +571,15 @@ export function ClientsPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Assign Legislation Dialog */}
+      {assignLegislationOrg && (
+        <AssignLegislationDialog
+          organization={assignLegislationOrg}
+          open={!!assignLegislationOrg}
+          onOpenChange={(open) => !open && setAssignLegislationOrg(null)}
+        />
+      )}
     </div>
   );
 }
