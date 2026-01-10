@@ -2,3 +2,6 @@ project_id = "nbyrcboutdtzwslfhthe"
 
 [functions.sync-dre]
 verify_jwt = false
+
+[functions.sync-eurlex]
+verify_jwt = false

@@ -42,6 +42,7 @@ export function LegislationPanel() {
   );
 
   const dreCount = legislation?.filter(l => l.source === 'dre').length || 0;
+  const eurlexCount = legislation?.filter(l => l.source === 'eurlex').length || 0;
   const manualCount = legislation?.filter(l => l.source === 'manual' || !l.source).length || 0;
 
   const openCategoriesDialog = (leg: LegislationWithCategories) => {
@@ -57,7 +58,7 @@ export function LegislationPanel() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total de Legislação</CardDescription>
@@ -66,13 +67,19 @@ export function LegislationPanel() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Sincronizado (DRE)</CardDescription>
-            <CardTitle className="text-3xl text-primary">{dreCount}</CardTitle>
+            <CardDescription>DRE (Portugal)</CardDescription>
+            <CardTitle className="text-3xl text-green-600">{dreCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Adicionado Manual</CardDescription>
+            <CardDescription>EUR-Lex (UE)</CardDescription>
+            <CardTitle className="text-3xl text-blue-600">{eurlexCount}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Manual</CardDescription>
             <CardTitle className="text-3xl">{manualCount}</CardTitle>
           </CardHeader>
         </Card>
@@ -113,8 +120,17 @@ export function LegislationPanel() {
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant={leg.source === 'dre' ? 'default' : 'secondary'}>
-                          {leg.source === 'dre' ? 'DRE' : 'Manual'}
+                        <Badge 
+                          variant="outline"
+                          className={
+                            leg.source === 'dre' 
+                              ? 'bg-green-500/10 text-green-700 border-green-300' 
+                              : leg.source === 'eurlex'
+                                ? 'bg-blue-500/10 text-blue-700 border-blue-300'
+                                : ''
+                          }
+                        >
+                          {leg.source === 'dre' ? 'DRE' : leg.source === 'eurlex' ? 'EUR-Lex' : 'Manual'}
                         </Badge>
                         <span className="font-mono text-sm text-muted-foreground">
                           {leg.number}

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -12,9 +12,9 @@ export function SyncPanel() {
   const triggerSync = useTriggerSync();
   const { toast } = useToast();
 
-  const handleSync = async (syncType: string) => {
+  const handleSync = async (syncType: string, source: string = 'dre') => {
     try {
-      const result = await triggerSync.mutateAsync({ syncType });
+      const result = await triggerSync.mutateAsync({ syncType, source });
       toast({
         title: "Sincronização concluída",
         description: result.message || `${result.itemsAdded} adicionados, ${result.itemsUpdated} atualizados`,
@@ -41,14 +41,27 @@ export function SyncPanel() {
     }
   };
 
+  const getSourceBadge = (syncType: string) => {
+    if (syncType.includes('eurlex')) {
+      return <Badge variant="outline" className="text-blue-600 border-blue-300"><Globe className="mr-1 h-3 w-3" />EUR-Lex</Badge>;
+    }
+    return <Badge variant="outline" className="text-green-600 border-green-300"><Flag className="mr-1 h-3 w-3" />DRE</Badge>;
+  };
+
+  const formatSyncType = (syncType: string) => {
+    if (syncType.includes('daily')) return 'Diária';
+    if (syncType.includes('monthly')) return 'Mensal';
+    return syncType.replace('eurlex-', '').replace('dre-', '');
+  };
+
   return (
     <div className="space-y-6">
-      {/* Sync Actions */}
+      {/* DRE Sync */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Sincronização com DRE
+            <Flag className="h-5 w-5 text-green-600" />
+            Diário da República (Portugal)
           </CardTitle>
           <CardDescription>
             Sincronize legislação do Diário da República Eletrónico
@@ -56,19 +69,53 @@ export function SyncPanel() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <Button
-            onClick={() => handleSync("daily")}
+            onClick={() => handleSync("daily", "dre")}
             disabled={triggerSync.isPending}
+            className="bg-green-600 hover:bg-green-700"
           >
             {triggerSync.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sincronização Diária
           </Button>
           <Button
             variant="outline"
-            onClick={() => handleSync("monthly")}
+            onClick={() => handleSync("monthly", "dre")}
             disabled={triggerSync.isPending}
+            className="border-green-300 text-green-700 hover:bg-green-50"
           >
             {triggerSync.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Últimos 30 dias
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* EUR-Lex Sync */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-blue-600" />
+            Jornal Oficial da UE (EUR-Lex)
+          </CardTitle>
+          <CardDescription>
+            Sincronize legislação europeia do EUR-Lex
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button
+            onClick={() => handleSync("daily", "eurlex")}
+            disabled={triggerSync.isPending}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {triggerSync.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Última Semana
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleSync("monthly", "eurlex")}
+            disabled={triggerSync.isPending}
+            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            {triggerSync.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Últimos 90 dias
           </Button>
         </CardContent>
       </Card>
@@ -94,10 +141,11 @@ export function SyncPanel() {
                   className="flex items-center justify-between rounded-lg border p-4"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {getStatusBadge(log.status)}
-                      <span className="text-sm font-medium capitalize">
-                        {log.sync_type === "daily" ? "Diária" : log.sync_type === "monthly" ? "Mensal" : log.sync_type}
+                      {getSourceBadge(log.sync_type)}
+                      <span className="text-sm font-medium">
+                        {formatSyncType(log.sync_type)}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground">

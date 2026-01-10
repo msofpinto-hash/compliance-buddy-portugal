@@ -34,8 +34,10 @@ export function useTriggerSync() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { syncType?: string; themeId?: string }) => {
-      const { data, error } = await supabase.functions.invoke("sync-dre", {
+    mutationFn: async (params: { syncType?: string; themeId?: string; source?: string }) => {
+      const functionName = params.source === 'eurlex' ? 'sync-eurlex' : 'sync-dre';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: params,
       });
 
@@ -45,6 +47,7 @@ export function useTriggerSync() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sync-logs"] });
       queryClient.invalidateQueries({ queryKey: ["legislation"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
     },
   });
 }
