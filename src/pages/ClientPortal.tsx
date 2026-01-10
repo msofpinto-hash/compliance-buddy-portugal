@@ -51,12 +51,12 @@ export default function ClientPortal() {
   const { user, signOut, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportingType, setExportingType] = useState<string | null>(null);
 
-  const handleExportReport = async () => {
+  const handleExportReport = async (reportType: "compliance" | "legislation" | "requirements") => {
     if (!userRole?.organization_id || !userRole?.organizations) return;
     
-    setIsExporting(true);
+    setExportingType(reportType);
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-compliance-report`,
@@ -66,7 +66,7 @@ export default function ClientPortal() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ organizationId: userRole.organization_id }),
+          body: JSON.stringify({ organizationId: userRole.organization_id, reportType }),
         }
       );
 
@@ -79,9 +79,15 @@ export default function ClientPortal() {
       const url = URL.createObjectURL(blob);
       
       const orgName = (userRole.organizations as any)?.name || "organizacao";
+      const filenames: Record<string, string> = {
+        compliance: `relatorio-conformidade-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
+        legislation: `legislacao-aplicavel-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
+        requirements: `requisitos-legais-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
+      };
+      
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio-conformidade-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`;
+      link.download = filenames[reportType];
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -89,7 +95,7 @@ export default function ClientPortal() {
     } catch (error) {
       console.error("Error exporting report:", error);
     } finally {
-      setIsExporting(false);
+      setExportingType(null);
     }
   };
 
@@ -341,19 +347,52 @@ export default function ClientPortal() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={handleExportReport}
-              disabled={isExporting}
-            >
-              {isExporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">Exportar</span>
-            </Button>
+            {/* Export Dropdown */}
+            <div className="relative group">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                disabled={!!exportingType}
+              >
+                {exportingType ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Exportar</span>
+              </Button>
+              <div className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <div className="p-1">
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
+                    onClick={() => handleExportReport("legislation")}
+                    disabled={!!exportingType}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Lista de Legislação
+                    {exportingType === "legislation" && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
+                    onClick={() => handleExportReport("requirements")}
+                    disabled={!!exportingType}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    Lista de Requisitos
+                    {exportingType === "requirements" && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
+                    onClick={() => handleExportReport("compliance")}
+                    disabled={!!exportingType}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Relatório de Conformidade
+                    {exportingType === "compliance" && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+                  </button>
+                </div>
+              </div>
+            </div>
             <Link to="/biblioteca">
               <Button variant="ghost" className="gap-2">
                 <BookOpen className="h-4 w-4" />
