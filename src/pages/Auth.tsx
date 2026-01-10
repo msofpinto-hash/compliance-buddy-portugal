@@ -7,28 +7,30 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Scale, AlertCircle } from "lucide-react";
+import { Loader2, Scale, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signIn, signUp, user, isAdmin, isLoading: authLoading } = useAuth();
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const { signIn, signUp, signOut, user, isAdmin, isApproved, isPendingApproval, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect authenticated users based on their role
+  // Redirect authenticated and approved users based on their role
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && isApproved) {
       if (isAdmin) {
         navigate("/admin");
       } else {
         navigate("/dashboard");
       }
     }
-  }, [authLoading, user, isAdmin, navigate]);
+  }, [authLoading, user, isAdmin, isApproved, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +49,9 @@ const Auth = () => {
       } else {
         toast({
           title: "Login efetuado",
-          description: "Bem-vindo de volta!",
+          description: "A verificar acesso...",
         });
-        // Auth state change will trigger redirect
+        // Auth state change will handle the rest
       }
     } catch (err) {
       setError("Ocorreu um erro inesperado");
@@ -69,8 +71,14 @@ const Auth = () => {
       return;
     }
 
+    if (!fullName.trim()) {
+      setError("Por favor, introduza o seu nome completo");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await signUp(email, password);
+      const { error } = await signUp(email, password, fullName);
       
       if (error) {
         if (error.message.includes("already registered")) {
@@ -79,9 +87,10 @@ const Auth = () => {
           setError(error.message);
         }
       } else {
+        setRegistrationSuccess(true);
         toast({
           title: "Conta criada",
-          description: "A sua conta foi criada com sucesso!",
+          description: "O seu registo foi submetido para aprovação.",
         });
       }
     } catch (err) {
@@ -89,6 +98,11 @@ const Auth = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setRegistrationSuccess(false);
   };
 
   // Show loading while checking auth state
@@ -100,8 +114,75 @@ const Auth = () => {
     );
   }
 
-  // Don't render form if already authenticated (redirect will happen)
-  if (user) {
+  // Show pending approval message for logged-in but unapproved users
+  if (isPendingApproval) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <Clock className="h-6 w-6" />
+            </div>
+            <CardTitle>Aguarda Aprovação</CardTitle>
+            <CardDescription>
+              A sua conta foi criada com sucesso e está a aguardar aprovação por um administrador.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <Clock className="h-4 w-4" />
+              <AlertDescription>
+                Será notificado por email quando a sua conta for aprovada. Entretanto, poderá tentar iniciar sessão novamente mais tarde.
+              </AlertDescription>
+            </Alert>
+            <div className="text-center text-sm text-muted-foreground">
+              Sessão iniciada como: <strong>{user?.email}</strong>
+            </div>
+            <Button variant="outline" className="w-full" onClick={handleSignOut}>
+              Terminar sessão
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show success message after registration
+  if (registrationSuccess && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <CardTitle>Registo Submetido</CardTitle>
+            <CardDescription>
+              A sua conta foi criada com sucesso!
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <Clock className="h-4 w-4" />
+              <AlertDescription>
+                O seu pedido de acesso será analisado por um administrador. Receberá uma notificação quando a sua conta for aprovada.
+              </AlertDescription>
+            </Alert>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => setRegistrationSuccess(false)}
+            >
+              Voltar ao login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Don't render form if already authenticated and approved (redirect will happen)
+  if (user && isApproved) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -142,7 +223,7 @@ const Auth = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@exemplo.pt"
+                    placeholder="email@exemplo.pt"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -175,13 +256,25 @@ const Auth = () => {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="reg-name">Nome Completo</Label>
+                  <Input
+                    id="reg-name"
+                    type="text"
+                    placeholder="O seu nome"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="reg-email">Email</Label>
                   <Input
                     id="reg-email"
                     type="email"
-                    placeholder="admin@exemplo.pt"
+                    placeholder="email@exemplo.pt"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -205,9 +298,12 @@ const Auth = () => {
                   Criar conta
                 </Button>
 
-                <p className="text-center text-xs text-muted-foreground">
-                  Ao criar conta, concorda com os termos de utilização do serviço.
-                </p>
+                <Alert>
+                  <Clock className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Após criar conta, o seu acesso ficará pendente de aprovação por um administrador.
+                  </AlertDescription>
+                </Alert>
               </form>
             </TabsContent>
           </Tabs>
