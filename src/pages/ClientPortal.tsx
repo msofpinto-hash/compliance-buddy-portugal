@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   FileText, 
   CheckCircle2, 
@@ -25,9 +26,12 @@ import {
   Calendar,
   User,
   Download,
-  Loader2
+  Loader2,
+  Home,
+  LayoutDashboard,
+  ChevronRight
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -47,11 +51,14 @@ const COLORS = {
   inProgress: "hsl(45, 93%, 47%)",
 };
 
+type TabValue = "overview" | "legislation" | "actions";
+
 export default function ClientPortal() {
   const { user, signOut, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [exportingType, setExportingType] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabValue>("overview");
 
   const handleExportReport = async (reportType: "compliance" | "legislation" | "requirements") => {
     if (!userRole?.organization_id || !userRole?.organizations) return;
@@ -247,6 +254,17 @@ export default function ClientPortal() {
     ? Math.round((overallStats.compliant / overallStats.totalRequirements) * 100)
     : 0;
 
+  // Action plan stats
+  const actionPlanStats = {
+    pending: actionPlans?.filter(p => p.status === "pendente").length || 0,
+    inProgress: actionPlans?.filter(p => p.status === "em_curso").length || 0,
+    completed: actionPlans?.filter(p => p.status === "concluido").length || 0,
+    overdue: actionPlans?.filter(p => {
+      if (!p.due_date || p.status === "concluido") return false;
+      return new Date(p.due_date) < new Date();
+    }).length || 0,
+  };
+
   // Filter legislation
   const filteredLegislation = assignedLegislation?.filter((item: any) => {
     const leg = item.legislation;
@@ -329,27 +347,35 @@ export default function ClientPortal() {
     );
   }
 
+  const navItems = [
+    { id: "overview" as TabValue, label: "Visão Geral", icon: LayoutDashboard },
+    { id: "legislation" as TabValue, label: "Diplomas", icon: FileText, count: overallStats.totalLegislation },
+    { id: "actions" as TabValue, label: "Planos de Ação", icon: ClipboardList, count: actionPlanStats.pending + actionPlanStats.inProgress },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+      <header className="border-b bg-card sticky top-0 z-20">
+        <div className="flex items-center justify-between px-4 lg:px-6 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-lg">
               <Scale className="h-5 w-5" />
             </div>
-            <div>
-              <h1 className="text-xl font-semibold">Portal do Cliente</h1>
-              <p className="text-sm text-muted-foreground">
-                {userRole.organizations?.name}
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-bold tracking-tight">Portal do Cliente</h1>
+              <p className="text-xs text-muted-foreground">
+                {(userRole.organizations as any)?.name}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Export Dropdown */}
+          
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Export Button */}
             <div className="relative group">
               <Button 
-                variant="outline" 
+                variant="ghost" 
+                size="sm"
                 className="gap-2"
                 disabled={!!exportingType}
               >
@@ -358,7 +384,7 @@ export default function ClientPortal() {
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                <span className="hidden sm:inline">Exportar</span>
+                <span className="hidden md:inline">Exportar</span>
               </Button>
               <div className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                 <div className="p-1">
@@ -369,7 +395,6 @@ export default function ClientPortal() {
                   >
                     <FileText className="h-4 w-4" />
                     Lista de Legislação
-                    {exportingType === "legislation" && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
                   </button>
                   <button
                     className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
@@ -378,7 +403,6 @@ export default function ClientPortal() {
                   >
                     <ClipboardList className="h-4 w-4" />
                     Lista de Requisitos
-                    {exportingType === "requirements" && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
                   </button>
                   <button
                     className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
@@ -387,32 +411,35 @@ export default function ClientPortal() {
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Relatório de Conformidade
-                    {exportingType === "compliance" && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
                   </button>
                 </div>
               </div>
             </div>
+            
             <Link to="/biblioteca">
-              <Button variant="ghost" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2">
                 <BookOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Biblioteca</span>
+                <span className="hidden md:inline">Biblioteca</span>
               </Button>
             </Link>
+            
             <Link to="/dashboard">
-              <Button variant="ghost" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2">
                 <TrendingUp className="h-4 w-4" />
-                <span className="hidden sm:inline">Dashboard</span>
+                <span className="hidden md:inline">Dashboard</span>
               </Button>
             </Link>
+            
             {isAdmin && (
               <Link to="/admin">
-                <Button variant="ghost" className="gap-2">
+                <Button variant="ghost" size="sm" className="gap-2">
                   <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Admin</span>
+                  <span className="hidden md:inline">Admin</span>
                 </Button>
               </Link>
             )}
-            <Button variant="outline" onClick={signOut} className="gap-2">
+            
+            <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Sair</span>
             </Button>
@@ -420,384 +447,639 @@ export default function ClientPortal() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats Overview */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Diplomas Atribuídos</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overallStats.totalLegislation}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Requisitos Aplicáveis</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overallStats.totalRequirements}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conforme</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{overallStats.compliant}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Não Conforme</CardTitle>
-              <XCircle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{overallStats.nonCompliant}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Taxa de Conformidade</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div 
-                className="text-2xl font-bold"
-                style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}
+      <div className="flex">
+        {/* Sidebar Navigation */}
+        <aside className="hidden lg:flex flex-col w-64 border-r bg-card min-h-[calc(100vh-57px)] sticky top-[57px]">
+          <nav className="flex-1 p-4 space-y-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                  activeTab === item.id 
+                    ? "bg-primary text-primary-foreground" 
+                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {complianceRate}%
-              </div>
-              <Progress value={complianceRate} className="mt-2 h-2" />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3 mb-8">
-          {/* Compliance Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Estado de Conformidade</CardTitle>
-              <CardDescription>Visão geral dos requisitos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pieData.length > 0 ? (
-                <div className="h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => [`${value} requisitos`, ""]}
-                        contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                      />
-                      <Legend 
-                        verticalAlign="bottom" 
-                        height={36}
-                        formatter={(value) => <span className="text-sm">{value}</span>}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>Sem requisitos avaliados</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Legend Card */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Legenda de Estados</CardTitle>
-              <CardDescription>Compreenda os diferentes estados de conformidade</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-green-700 dark:text-green-400">Conforme</p>
-                  <p className="text-sm text-muted-foreground">
-                    Todos os requisitos do diploma estão em conformidade com as obrigações legais.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-yellow-700 dark:text-yellow-400">Em Avaliação</p>
-                  <p className="text-sm text-muted-foreground">
-                    Alguns requisitos ainda estão a ser avaliados ou em processo de implementação.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-red-700 dark:text-red-400">Não Conforme</p>
-                  <p className="text-sm text-muted-foreground">
-                    Existem requisitos que não estão em conformidade e requerem ação imediata.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Action Plans Section */}
-        {actionPlans && actionPlans.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5" />
-                    Planos de Ação
-                  </CardTitle>
-                  <CardDescription>
-                    Ações corretivas pendentes e em curso
-                  </CardDescription>
-                </div>
-                <Badge variant="secondary">
-                  {actionPlans.filter(p => p.status !== "concluido").length} pendentes
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {actionPlans.filter(p => p.status !== "concluido").slice(0, 5).map((plan: any) => (
-                  <div key={plan.id} className="flex items-start justify-between gap-4 p-3 rounded-lg border">
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge 
-                          variant="outline" 
-                          className={`gap-1 ${plan.status === "em_curso" ? "bg-yellow-500 text-white border-0" : "bg-gray-500 text-white border-0"}`}
-                        >
-                          {plan.status === "em_curso" ? (
-                            <><AlertTriangle className="h-3 w-3" /> Em Curso</>
-                          ) : (
-                            <><Clock className="h-3 w-3" /> Pendente</>
-                          )}
-                        </Badge>
-                        {plan.due_date && (
-                          <Badge variant="outline" className="gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(plan.due_date), "d MMM yyyy", { locale: pt })}
-                          </Badge>
-                        )}
-                        {plan.responsible && (
-                          <Badge variant="secondary" className="gap-1">
-                            <User className="h-3 w-3" />
-                            {plan.responsible}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="font-medium">{plan.title}</p>
-                      {plan.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
-                      )}
-                      {plan.legal_requirements && (
-                        <p className="text-xs text-muted-foreground">
-                          <FileText className="h-3 w-3 inline mr-1" />
-                          {plan.legal_requirements.legislation?.number} - {plan.legal_requirements.article || "Geral"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {actionPlans.filter(p => p.status !== "concluido").length > 5 && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    + {actionPlans.filter(p => p.status !== "concluido").length - 5} mais planos de ação
-                  </p>
+                <item.icon className="h-5 w-5" />
+                <span className="flex-1 font-medium">{item.label}</span>
+                {item.count !== undefined && item.count > 0 && (
+                  <Badge 
+                    variant={activeTab === item.id ? "secondary" : "outline"} 
+                    className="ml-auto"
+                  >
+                    {item.count}
+                  </Badge>
                 )}
+              </button>
+            ))}
+          </nav>
+          
+          {/* Sidebar Stats Summary */}
+          <div className="p-4 border-t">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Taxa de Conformidade</span>
+                <span 
+                  className="font-bold"
+                  style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}
+                >
+                  {complianceRate}%
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <Progress value={complianceRate} className="h-2" />
+              
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-600">{overallStats.compliant}</div>
+                  <div className="text-[10px] text-muted-foreground">Conforme</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-yellow-600">{overallStats.inProgress}</div>
+                  <div className="text-[10px] text-muted-foreground">Em Aval.</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-red-600">{overallStats.nonCompliant}</div>
+                  <div className="text-[10px] text-muted-foreground">Não Conf.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
 
-        {/* Legislation List */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Mobile Tab Navigation */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t bg-card z-20">
+          <div className="flex">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 transition-colors ${
+                  activeTab === item.id 
+                    ? "text-primary bg-primary/5" 
+                    : "text-muted-foreground"
+                }`}
+              >
+                <div className="relative">
+                  <item.icon className="h-5 w-5" />
+                  {item.count !== undefined && item.count > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-[10px] text-primary-foreground rounded-full flex items-center justify-center">
+                      {item.count > 9 ? "9+" : item.count}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
+          {/* Overview Tab */}
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              {/* Welcome Header */}
               <div>
-                <CardTitle>Diplomas Atribuídos</CardTitle>
-                <CardDescription>
-                  Legislação aplicável à sua organização
-                </CardDescription>
+                <h2 className="text-2xl font-bold">
+                  Olá, {user?.email?.split("@")[0]}
+                </h2>
+                <p className="text-muted-foreground">
+                  Aqui está o resumo do estado de conformidade da sua organização
+                </p>
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Quick Stats */}
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Diplomas</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{overallStats.totalLegislation}</div>
+                    <p className="text-xs text-muted-foreground">Atribuídos à organização</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Requisitos</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{overallStats.totalRequirements}</div>
+                    <p className="text-xs text-muted-foreground">Aplicáveis à organização</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ações Pendentes</CardTitle>
+                    <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{actionPlanStats.pending + actionPlanStats.inProgress}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {actionPlanStats.overdue > 0 && (
+                        <span className="text-destructive">{actionPlanStats.overdue} em atraso</span>
+                      )}
+                      {actionPlanStats.overdue === 0 && "Nenhuma em atraso"}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Conformidade</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div 
+                      className="text-2xl font-bold"
+                      style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}
+                    >
+                      {complianceRate}%
+                    </div>
+                    <Progress value={complianceRate} className="mt-2 h-2" />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Charts Row */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Compliance Pie Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Estado de Conformidade</CardTitle>
+                    <CardDescription>Distribuição dos requisitos por estado</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {pieData.length > 0 ? (
+                      <div className="h-[280px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={2}
+                              dataKey="value"
+                            >
+                              {pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value: number) => [`${value} requisitos`, ""]}
+                              contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                            />
+                            <Legend 
+                              verticalAlign="bottom" 
+                              height={36}
+                              formatter={(value) => <span className="text-sm">{value}</span>}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p>Sem requisitos avaliados</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions / Recent Activity */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Ações Urgentes</CardTitle>
+                    <CardDescription>Itens que requerem a sua atenção</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {actionPlanStats.overdue > 0 && (
+                      <div 
+                        className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-colors"
+                        onClick={() => setActiveTab("actions")}
+                      >
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                        <div className="flex-1">
+                          <p className="font-medium text-destructive">Ações em Atraso</p>
+                          <p className="text-sm text-muted-foreground">
+                            {actionPlanStats.overdue} ações ultrapassaram o prazo
+                          </p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    
+                    {overallStats.nonCompliant > 0 && (
+                      <div 
+                        className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 cursor-pointer hover:bg-red-500/15 transition-colors"
+                        onClick={() => { setActiveTab("legislation"); setStatusFilter("non-compliant"); }}
+                      >
+                        <XCircle className="h-5 w-5 text-red-600" />
+                        <div className="flex-1">
+                          <p className="font-medium text-red-700 dark:text-red-400">Não Conformidades</p>
+                          <p className="text-sm text-muted-foreground">
+                            {overallStats.nonCompliant} requisitos não conformes
+                          </p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    
+                    {overallStats.inProgress > 0 && (
+                      <div 
+                        className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/15 transition-colors"
+                        onClick={() => { setActiveTab("legislation"); setStatusFilter("in-progress"); }}
+                      >
+                        <Clock className="h-5 w-5 text-yellow-600" />
+                        <div className="flex-1">
+                          <p className="font-medium text-yellow-700 dark:text-yellow-400">Em Avaliação</p>
+                          <p className="text-sm text-muted-foreground">
+                            {overallStats.inProgress} requisitos em avaliação
+                          </p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    
+                    {actionPlanStats.overdue === 0 && overallStats.nonCompliant === 0 && overallStats.inProgress === 0 && (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <div>
+                          <p className="font-medium text-green-700 dark:text-green-400">Tudo em Ordem</p>
+                          <p className="text-sm text-muted-foreground">
+                            Não existem itens urgentes
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Legislation */}
+              {assignedLegislation && assignedLegislation.length > 0 && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Diplomas Recentes</CardTitle>
+                      <CardDescription>Últimos diplomas atribuídos</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setActiveTab("legislation")} className="gap-1">
+                      Ver Todos
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {assignedLegislation.slice(0, 3).map((item: any) => {
+                        const leg = item.legislation;
+                        if (!leg) return null;
+                        const compliance = getComplianceStatus(leg.id);
+                        
+                        return (
+                          <Link
+                            key={item.id}
+                            to={`/legislacao/${leg.id}`}
+                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0 mr-4">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline" className="shrink-0">{leg.number}</Badge>
+                                <Badge variant={compliance.color as any} className="shrink-0">{compliance.label}</Badge>
+                              </div>
+                              <p className="font-medium truncate">{leg.title}</p>
+                            </div>
+                            <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Legislation Tab */}
+          {activeTab === "legislation" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Diplomas Atribuídos</h2>
+                  <p className="text-muted-foreground">
+                    Legislação aplicável à sua organização
+                  </p>
+                </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Pesquisar diplomas..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 w-64"
+                    className="pl-9 w-full sm:w-64"
                   />
                 </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Tabs for filtering */}
-            <Tabs value={statusFilter} onValueChange={setStatusFilter} className="mb-6">
-              <TabsList>
-                <TabsTrigger value="all">Todos</TabsTrigger>
-                <TabsTrigger value="compliant" className="gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Conforme
-                </TabsTrigger>
-                <TabsTrigger value="in-progress" className="gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Em Avaliação
-                </TabsTrigger>
-                <TabsTrigger value="non-compliant" className="gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Não Conforme
-                </TabsTrigger>
-                <TabsTrigger value="pending">Pendente</TabsTrigger>
-              </TabsList>
-            </Tabs>
 
-            {loadingLegislation || loadingApplicabilities ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24" />
-                ))}
-              </div>
-            ) : filteredLegislation?.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum diploma encontrado</p>
-                {statusFilter !== "all" && (
-                  <Button variant="link" onClick={() => setStatusFilter("all")}>
-                    Ver todos os diplomas
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredLegislation?.map((item: any) => {
-                  const leg = item.legislation;
-                  if (!leg) return null;
-                  
-                  const compliance = getComplianceStatus(leg.id);
-                  const stats = complianceByLegislation.get(leg.id);
-                  const themes = leg.legislation_category_mapping?.map((m: any) => m.theme_categories?.themes?.name).filter(Boolean);
-                  const uniqueThemes = [...new Set(themes)];
+              {/* Status Filter Tabs */}
+              <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+                <TabsList className="flex-wrap h-auto gap-1">
+                  <TabsTrigger value="all">Todos</TabsTrigger>
+                  <TabsTrigger value="compliant" className="gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Conforme
+                  </TabsTrigger>
+                  <TabsTrigger value="in-progress" className="gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    Em Avaliação
+                  </TabsTrigger>
+                  <TabsTrigger value="non-compliant" className="gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Não Conforme
+                  </TabsTrigger>
+                  <TabsTrigger value="pending">Pendente</TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="shrink-0">
-                              {leg.number}
-                            </Badge>
-                            <Badge 
-                              variant={compliance.color as any}
-                              className="shrink-0"
-                            >
-                              {compliance.label}
-                            </Badge>
-                            {leg.source && (
-                              <Badge variant="secondary" className="shrink-0">
-                                {leg.source === "dre" ? "DRE" : leg.source === "eurlex" ? "EUR-Lex" : leg.source}
-                              </Badge>
-                            )}
+              {/* Legislation List */}
+              {loadingLegislation || loadingApplicabilities ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-24" />
+                  ))}
+                </div>
+              ) : filteredLegislation?.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">Nenhum diploma encontrado</p>
+                    {statusFilter !== "all" && (
+                      <Button variant="link" onClick={() => setStatusFilter("all")}>
+                        Ver todos os diplomas
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {filteredLegislation?.map((item: any) => {
+                    const leg = item.legislation;
+                    if (!leg) return null;
+                    
+                    const compliance = getComplianceStatus(leg.id);
+                    const stats = complianceByLegislation.get(leg.id);
+                    const themes = leg.legislation_category_mapping?.map((m: any) => m.theme_categories?.themes?.name).filter(Boolean);
+                    const uniqueThemes = [...new Set(themes)];
+
+                    return (
+                      <Card key={item.id} className="hover:bg-muted/30 transition-colors">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <Badge variant="outline" className="shrink-0">
+                                  {leg.number}
+                                </Badge>
+                                <Badge 
+                                  variant={compliance.color as any}
+                                  className="shrink-0"
+                                >
+                                  {compliance.label}
+                                </Badge>
+                              </div>
+                              <h4 className="font-medium line-clamp-2 mb-1">{leg.title}</h4>
+                              {leg.summary && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                                  {leg.summary}
+                                </p>
+                              )}
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                {leg.publication_date && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt })}
+                                  </span>
+                                )}
+                                {stats && stats.total > 0 && (
+                                  <span>
+                                    {stats.compliant}/{stats.total} requisitos conformes
+                                  </span>
+                                )}
+                                {uniqueThemes.length > 0 && (
+                                  <span>
+                                    {uniqueThemes.slice(0, 2).join(", ")}
+                                    {uniqueThemes.length > 2 && ` +${uniqueThemes.length - 2}`}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Link to={`/legislacao/${leg.id}`}>
+                              <Button variant="outline" size="sm" className="gap-1 shrink-0">
+                                Ver Detalhes
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
                           </div>
-                          <h4 className="font-medium line-clamp-2">{leg.title}</h4>
-                          {leg.summary && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {leg.summary}
-                            </p>
+                          {stats && stats.total > 0 && (
+                            <div className="mt-3">
+                              <div className="flex gap-0.5 h-2 rounded-full overflow-hidden bg-muted">
+                                {stats.compliant > 0 && (
+                                  <div 
+                                    className="h-full bg-green-500" 
+                                    style={{ width: `${(stats.compliant / stats.total) * 100}%` }}
+                                  />
+                                )}
+                                {stats.inProgress > 0 && (
+                                  <div 
+                                    className="h-full bg-yellow-500" 
+                                    style={{ width: `${(stats.inProgress / stats.total) * 100}%` }}
+                                  />
+                                )}
+                                {stats.nonCompliant > 0 && (
+                                  <div 
+                                    className="h-full bg-red-500" 
+                                    style={{ width: `${(stats.nonCompliant / stats.total) * 100}%` }}
+                                  />
+                                )}
+                              </div>
+                            </div>
                           )}
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-                            {leg.publication_date && (
-                              <span>
-                                Publicado: {format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt })}
-                              </span>
-                            )}
-                            {stats && stats.total > 0 && (
-                              <span>
-                                {stats.compliant}/{stats.total} requisitos conformes
-                              </span>
-                            )}
-                            {uniqueThemes.length > 0 && (
-                              <span className="flex items-center gap-1">
-                                {uniqueThemes.slice(0, 2).join(", ")}
-                                {uniqueThemes.length > 2 && ` +${uniqueThemes.length - 2}`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Link to={`/legislacao/${leg.id}`}>
-                            <Button variant="outline" size="sm" className="gap-1">
-                              Ver Detalhes
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                      {stats && stats.total > 0 && (
-                        <div className="mt-3">
-                          <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-muted">
-                            {stats.compliant > 0 && (
-                              <div 
-                                className="h-full bg-green-500" 
-                                style={{ width: `${(stats.compliant / stats.total) * 100}%` }}
-                              />
-                            )}
-                            {stats.inProgress > 0 && (
-                              <div 
-                                className="h-full bg-yellow-500" 
-                                style={{ width: `${(stats.inProgress / stats.total) * 100}%` }}
-                              />
-                            )}
-                            {stats.nonCompliant > 0 && (
-                              <div 
-                                className="h-full bg-red-500" 
-                                style={{ width: `${(stats.nonCompliant / stats.total) * 100}%` }}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Plans Tab */}
+          {activeTab === "actions" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">Planos de Ação</h2>
+                <p className="text-muted-foreground">
+                  Ações corretivas pendentes e em curso
+                </p>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+
+              {/* Action Plan Stats */}
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-gray-500/10">
+                        <Clock className="h-5 w-5 text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{actionPlanStats.pending}</p>
+                        <p className="text-xs text-muted-foreground">Pendentes</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-yellow-500/10">
+                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{actionPlanStats.inProgress}</p>
+                        <p className="text-xs text-muted-foreground">Em Curso</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-green-500/10">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{actionPlanStats.completed}</p>
+                        <p className="text-xs text-muted-foreground">Concluídas</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-red-500/10">
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-destructive">{actionPlanStats.overdue}</p>
+                        <p className="text-xs text-muted-foreground">Em Atraso</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Action Plans List */}
+              {loadingActionPlans ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : !actionPlans || actionPlans.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <ClipboardList className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">Sem planos de ação</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {actionPlans.map((plan: any) => {
+                    const isOverdue = plan.due_date && plan.status !== "concluido" && new Date(plan.due_date) < new Date();
+                    
+                    return (
+                      <Card key={plan.id} className={`${isOverdue ? "border-destructive/50" : ""}`}>
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge 
+                                  variant="outline" 
+                                  className={`gap-1 ${
+                                    plan.status === "concluido" 
+                                      ? "bg-green-500 text-white border-0" 
+                                      : plan.status === "em_curso" 
+                                        ? "bg-yellow-500 text-white border-0" 
+                                        : "bg-gray-500 text-white border-0"
+                                  }`}
+                                >
+                                  {plan.status === "concluido" ? (
+                                    <><CheckCircle2 className="h-3 w-3" /> Concluído</>
+                                  ) : plan.status === "em_curso" ? (
+                                    <><AlertTriangle className="h-3 w-3" /> Em Curso</>
+                                  ) : (
+                                    <><Clock className="h-3 w-3" /> Pendente</>
+                                  )}
+                                </Badge>
+                                {plan.due_date && (
+                                  <Badge variant={isOverdue ? "destructive" : "outline"} className="gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {format(new Date(plan.due_date), "d MMM yyyy", { locale: pt })}
+                                    {isOverdue && " (atrasado)"}
+                                  </Badge>
+                                )}
+                                {plan.responsible && (
+                                  <Badge variant="secondary" className="gap-1">
+                                    <User className="h-3 w-3" />
+                                    {plan.responsible}
+                                  </Badge>
+                                )}
+                              </div>
+                              <h4 className="font-medium">{plan.title}</h4>
+                              {plan.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
+                              )}
+                              {plan.legal_requirements && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <FileText className="h-3 w-3" />
+                                  {plan.legal_requirements.legislation?.number} - {plan.legal_requirements.article || "Geral"}
+                                </p>
+                              )}
+                            </div>
+                            {plan.evidence_url && (
+                              <a 
+                                href={plan.evidence_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="shrink-0"
+                              >
+                                <Button variant="outline" size="sm" className="gap-1">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                  Evidência
+                                </Button>
+                              </a>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
