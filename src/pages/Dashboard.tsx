@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
+import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfMonth, eachDayOfInterval } from "date-fns";
@@ -47,6 +49,7 @@ const COLORS = {
 
 export default function Dashboard() {
   const { user, signOut, isAdmin } = useAuth();
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   // Fetch user's organizations (multiple)
   const { data: userRoles } = useQuery({
@@ -64,9 +67,16 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Get organization IDs
-  const organizationIds = userRoles?.map(r => r.organization_id).filter(Boolean) || [];
-  const organizationNames = userRoles?.map(r => (r.organizations as any)?.name).filter(Boolean) || [];
+  // Build organizations array for selector
+  const organizations = userRoles?.map(r => ({
+    id: r.organization_id as string,
+    name: (r.organizations as any)?.name as string
+  })).filter(o => o.id && o.name) || [];
+
+  // Get organization IDs (filtered by selection)
+  const organizationIds = selectedOrgId 
+    ? [selectedOrgId]
+    : userRoles?.map(r => r.organization_id).filter(Boolean) || [];
 
   // Fetch recent legislation
   const { data: recentLegislation, isLoading: loadingLegislation } = useQuery({
@@ -262,33 +272,34 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-xl font-semibold">Legal Compliance</h1>
-              <p className="text-sm text-muted-foreground">
-                {organizationNames.length > 0 
-                  ? organizationNames.length === 1 
-                    ? organizationNames[0] 
-                    : `${organizationNames.length} organizações`
-                  : "Dashboard"}
-              </p>
+              <p className="text-sm text-muted-foreground">Dashboard</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {organizations.length > 1 && (
+              <OrganizationSelector
+                organizations={organizations}
+                selectedOrgId={selectedOrgId}
+                onSelect={setSelectedOrgId}
+              />
+            )}
             <Link to="/biblioteca">
               <Button variant="ghost" className="gap-2">
                 <BookOpen className="h-4 w-4" />
-                Biblioteca
+                <span className="hidden sm:inline">Biblioteca</span>
               </Button>
             </Link>
             <Link to="/cliente">
               <Button variant="ghost" className="gap-2">
                 <FileText className="h-4 w-4" />
-                Meus Diplomas
+                <span className="hidden sm:inline">Meus Diplomas</span>
               </Button>
             </Link>
             {isAdmin && (
               <Link to="/admin">
                 <Button variant="ghost" className="gap-2">
                   <Settings className="h-4 w-4" />
-                  Admin
+                  <span className="hidden sm:inline">Admin</span>
                 </Button>
               </Link>
             )}
