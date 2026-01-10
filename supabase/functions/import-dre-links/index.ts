@@ -19,64 +19,93 @@ interface ParsedLegislation {
 // Extract legislation data from DRE page HTML
 function parseHtmlContent(html: string, url: string): ParsedLegislation | null {
   try {
-    // Extract title - usually in <h1> or title tag
-    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i) || 
-                       html.match(/<title>([^<]+)<\/title>/i);
-    const fullTitle = titleMatch ? titleMatch[1].trim() : '';
+    // Try to extract from article schema (more reliable)
+    const articleMatch = html.match(/headline="([^"]+)"/i);
+    const datePublishedMatch = html.match(/datepublished="([^"]+)"/i);
     
-    // Extract number from title (e.g., "Portaria n.º 15/2026/1")
-    const numberMatch = fullTitle.match(/((?:Lei|Decreto-Lei|Decreto|Portaria|Despacho|Resolução|Regulamento|Declaração|Aviso|Acórdão|Deliberação|Diretiva|Decisão)[^–—-]+)/i);
-    const number = numberMatch ? numberMatch[1].trim() : fullTitle;
+    // Extract title from breadcrumb or h1
+    let title = '';
+    if (articleMatch) {
+      title = articleMatch[1].trim();
+    } else {
+      const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+      if (h1Match) title = h1Match[1].trim();
+    }
     
-    // Extract summary - look for sumário or resumo sections
-    const summaryMatch = html.match(/Sumário[:\s]*<\/[^>]+>\s*<[^>]+>([^<]+)/i) ||
-                        html.match(/sumario[^>]*>([^<]+)/i) ||
-                        html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
-    const summary = summaryMatch ? summaryMatch[1].trim() : '';
+    // Extract number from title or URL
+    let number = title;
+    const urlNumberMatch = url.match(/detalhe\/([^\/]+)\/([^\/]+)/);
+    if (urlNumberMatch && !title) {
+      // Convert URL slug to number: "portaria/15-2026-1002139945" -> "Portaria n.º 15/2026"
+      const type = urlNumberMatch[1].charAt(0).toUpperCase() + urlNumberMatch[1].slice(1);
+      const numParts = urlNumberMatch[2].split('-');
+      if (numParts.length >= 2) {
+        number = `${type} n.º ${numParts[0]}/${numParts[1]}`;
+        title = number;
+      }
+    }
+    
+    // Extract summary - look for SUMÁRIO section
+    let summary = '';
+    const sumarioIndex = html.indexOf('SUMÁRIO');
+    if (sumarioIndex !== -1) {
+      const afterSumario = html.substring(sumarioIndex + 10, sumarioIndex + 2000);
+      // Get text until TEXTO section
+      const textoIndex = afterSumario.indexOf('TEXTO');
+      const sumarioText = textoIndex !== -1 ? afterSumario.substring(0, textoIndex) : afterSumario;
+      // Clean HTML tags
+      summary = sumarioText
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 1000);
+    }
     
     // Extract entity/emissor
-    const entityMatch = html.match(/Entidade[:\s]*<\/[^>]+>\s*<[^>]+>([^<]+)/i) ||
-                       html.match(/emissor[^>]*>([^<]+)/i) ||
-                       html.match(/Ministério[^<]*/i);
-    const entity = entityMatch ? entityMatch[0].replace(/<[^>]+>/g, '').trim() : '';
+    let entity = '';
+    const emissorMatch = html.match(/Emissor[:\s]*(?:<[^>]+>)*\s*([^<]+)/i);
+    if (emissorMatch) {
+      entity = emissorMatch[1].trim();
+    }
     
     // Extract publication date
-    const dateMatch = html.match(/(\d{4}-\d{2}-\d{2})/) ||
-                     html.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
     let publicationDate: string | null = null;
+    if (datePublishedMatch) {
+      const dateStr = datePublishedMatch[1];
+      // Parse date from various formats
+      const dateObj = new Date(dateStr);
+      if (!isNaN(dateObj.getTime())) {
+        publicationDate = dateObj.toISOString().split('T')[0];
+      }
+    }
     
-    if (dateMatch) {
-      if (dateMatch[0].includes('-')) {
-        publicationDate = dateMatch[0];
-      } else {
-        const months: Record<string, string> = {
-          'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
-          'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
-          'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
-        };
-        const day = dateMatch[1].padStart(2, '0');
-        const month = months[dateMatch[2].toLowerCase()] || '01';
-        const year = dateMatch[3];
-        publicationDate = `${year}-${month}-${day}`;
+    // Fallback: extract date from URL or text
+    if (!publicationDate) {
+      const dateMatch = html.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) {
+        publicationDate = dateMatch[1];
       }
     }
     
     // Extract external ID from URL
-    const idMatch = url.match(/(\d+)(?:\?|$|\/)/);
-    const externalId = idMatch ? idMatch[1] : url;
+    const idMatch = url.match(/(\d+)(?:\?|$)/);
+    const externalId = idMatch ? `dre-${idMatch[1]}` : `dre-${Date.now()}`;
     
-    if (!number && !fullTitle) {
+    if (!number && !title) {
+      console.log('Could not extract number or title from HTML');
       return null;
     }
     
+    console.log(`Parsed: ${number}, Entity: ${entity}, Date: ${publicationDate}`);
+    
     return {
-      number: number || fullTitle,
-      title: fullTitle,
+      number: number || title,
+      title: title || number,
       summary,
       entity,
       publicationDate,
       documentUrl: url,
-      externalId: `dre-link-${externalId}`
+      externalId
     };
   } catch (error) {
     console.error('Error parsing HTML:', error);
