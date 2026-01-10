@@ -323,6 +323,179 @@ function parseMarkdownContent(markdown: string, url: string): ParsedLegislation 
   }
 }
 
+// Parse HTML content directly (fallback when Firecrawl fails)
+function parseHtmlContent(html: string, url: string): ParsedLegislation | null {
+  try {
+    console.log('Parsing HTML content, length:', html.length);
+    
+    // Check for error page
+    if (html.includes('página que acedeu não se encontra disponível') || 
+        html.includes('Lamentamos') && html.length < 1000) {
+      console.log('Error page detected in HTML');
+      return null;
+    }
+    
+    // Extract number from URL
+    let number = '';
+    let title = '';
+    const urlNumberMatch = url.match(/detalhe\/([^\/]+)\/([^\/]+)/);
+    if (urlNumberMatch) {
+      const type = urlNumberMatch[1].charAt(0).toUpperCase() + urlNumberMatch[1].slice(1).replace(/-/g, ' ');
+      const numParts = urlNumberMatch[2].split('-');
+      if (numParts.length >= 2) {
+        number = `${type} n.º ${numParts[0]}/${numParts[1]}`;
+        title = number;
+      }
+    }
+    
+    // Extract title from HTML
+    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i) || 
+                       html.match(/headline["\s]*[:=]["\s]*["']([^"']+)["']/i);
+    if (titleMatch) {
+      const extractedTitle = titleMatch[1].trim();
+      if (extractedTitle.length > 5 && !extractedTitle.includes('Diário da República')) {
+        title = extractedTitle;
+      }
+    }
+    
+    // Extract summary from SUMÁRIO section
+    let summary = '';
+    const sumarioMatch = html.match(/SUMÁRIO[\s\S]*?<[^>]*>([^<]+(?:<[^>]*>[^<]*)*)<[^>]*>[\s\S]*?(?:TEXTO|Emissor)/i);
+    if (sumarioMatch) {
+      summary = sumarioMatch[1]
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 1000);
+    }
+    
+    // Alternative: look for meta description
+    if (!summary) {
+      const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+      if (metaMatch) {
+        summary = metaMatch[1].trim().substring(0, 1000);
+      }
+    }
+    
+    // Extract entity/emissor
+    let entity = '';
+    const emissorMatch = html.match(/Emissor[:\s]*(?:<[^>]*>)*\s*([^<]+)/i);
+    if (emissorMatch) {
+      entity = emissorMatch[1].trim().substring(0, 200);
+    }
+    
+    // Extract publication date
+    let publicationDate: string | null = null;
+    const datePatterns = [
+      /datepublished["\s]*[:=]["\s]*["'](\d{4}-\d{2}-\d{2})["']/i,
+      /Data de Publicação[:\s]*(\d{4}-\d{2}-\d{2})/i,
+      /(\d{4}-\d{2}-\d{2})/,
+    ];
+    for (const pattern of datePatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        publicationDate = match[1];
+        break;
+      }
+    }
+    
+    // Fallback: extract from Diário reference
+    if (!publicationDate) {
+      const drMatch = html.match(/Diário da República[^,]*,\s*[^,]*de\s*(\d{4}-\d{2}-\d{2})/i);
+      if (drMatch) {
+        publicationDate = drMatch[1];
+      }
+    }
+    
+    // Fallback: extract year from URL
+    if (!publicationDate && urlNumberMatch) {
+      const numParts = urlNumberMatch[2].split('-');
+      if (numParts.length >= 2 && numParts[1].length === 4) {
+        publicationDate = `${numParts[1]}-01-01`;
+      }
+    }
+    
+    // Extract effective date
+    let effectiveDate: string | null = null;
+    const effectiveMatch = html.match(/entra(?:r)?\s+em\s+vigor[^<]*(\d{4}-\d{2}-\d{2})/i);
+    if (effectiveMatch) {
+      effectiveDate = effectiveMatch[1];
+    }
+    
+    // Extract relations
+    const relations: ParsedRelation[] = [];
+    
+    // Look for "Revoga" mentions
+    const revogaMatches = html.matchAll(/revoga[^<]*(?:Decreto-Lei|Portaria|Lei|Despacho)[^<]*n\.º\s*[\d\w\-\/]+/gi);
+    for (const match of revogaMatches) {
+      const refMatch = match[0].match(/(?:Decreto-Lei|Portaria|Lei|Despacho)[^\n,;]*n\.º\s*[\d\w\-\/]+/i);
+      if (refMatch) {
+        relations.push({ type: 'revoga', targetNumber: refMatch[0].trim() });
+      }
+    }
+    
+    // Look for "Altera" mentions
+    const alteraMatches = html.matchAll(/altera[^<]*(?:Decreto-Lei|Portaria|Lei|Despacho)[^<]*n\.º\s*[\d\w\-\/]+/gi);
+    for (const match of alteraMatches) {
+      const refMatch = match[0].match(/(?:Decreto-Lei|Portaria|Lei|Despacho)[^\n,;]*n\.º\s*[\d\w\-\/]+/i);
+      if (refMatch) {
+        relations.push({ type: 'altera', targetNumber: refMatch[0].trim() });
+      }
+    }
+    
+    // Extract requirements from TEXTO section
+    const requirements: ParsedRequirement[] = [];
+    const textoMatch = html.match(/TEXTO[\s\S]*?<div[^>]*>([\s\S]+?)<\/div>\s*(?:<div|$)/i);
+    if (textoMatch) {
+      const texto = textoMatch[1];
+      const articlePattern = /Artigo\s*(\d+)\.?º?[^<]*<[^>]*>([\s\S]*?)(?=Artigo\s*\d+|$)/gi;
+      const articles = texto.matchAll(articlePattern);
+      
+      for (const article of articles) {
+        const articleNum = `Artigo ${article[1]}º`;
+        const content = article[2]
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 2000);
+        
+        if (content.length > 10) {
+          requirements.push({ article: articleNum, text: content });
+        }
+      }
+    }
+    
+    console.log(`HTML Parsed: ${number}, Entity: ${entity}, PubDate: ${publicationDate}, Summary: ${summary.length} chars, Relations: ${relations.length}`);
+    
+    // Extract external ID from URL
+    const idMatch = url.match(/(\d+)(?:\?|$)/);
+    const externalId = idMatch ? `dre-${idMatch[1]}` : `dre-${Date.now()}`;
+    
+    if (!number && !title) {
+      console.log('Could not extract number or title from HTML');
+      return null;
+    }
+    
+    return {
+      number: number || title,
+      title: title || number,
+      summary,
+      entity,
+      publicationDate,
+      effectiveDate,
+      documentUrl: url,
+      externalId,
+      relations,
+      requirements
+    };
+  } catch (error) {
+    console.error('Error parsing HTML:', error);
+    return null;
+  }
+}
+
 // Fallback: extract from URL only
 function parseFromUrl(url: string): ParsedLegislation | null {
   try {
@@ -350,6 +523,33 @@ function parseFromUrl(url: string): ParsedLegislation | null {
       requirements: []
     };
   } catch {
+    return null;
+  }
+}
+
+// Fetch HTML directly from URL
+async function fetchHtmlDirect(url: string): Promise<string | null> {
+  try {
+    console.log('Fetching HTML directly...');
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+      }
+    });
+    
+    if (!response.ok) {
+      console.log(`Direct fetch failed: ${response.status}`);
+      return null;
+    }
+    
+    const html = await response.text();
+    console.log(`Direct fetch successful, HTML length: ${html.length}`);
+    return html;
+  } catch (error) {
+    console.error('Direct fetch error:', error);
     return null;
   }
 }
@@ -448,9 +648,21 @@ serve(async (req) => {
           }
         }
 
-        // Fallback to URL parsing
+        // Fallback #1: Try direct HTML fetch
         if (!parsed) {
-          console.log('Falling back to URL parsing...');
+          console.log('Firecrawl failed, trying direct HTML fetch...');
+          const html = await fetchHtmlDirect(url);
+          if (html) {
+            parsed = parseHtmlContent(html, url);
+            if (parsed) {
+              method = 'html';
+            }
+          }
+        }
+
+        // Fallback #2: URL parsing only
+        if (!parsed) {
+          console.log('HTML parsing failed, falling back to URL parsing...');
           parsed = parseFromUrl(url);
           method = 'url';
         }
