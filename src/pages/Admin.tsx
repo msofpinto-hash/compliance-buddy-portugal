@@ -1,7 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
+import { LegislationPanel } from "@/components/admin/LegislationPanel";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const Admin = () => {
   return (
@@ -10,21 +13,30 @@ const Admin = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Settings className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold">Administração</h1>
-              <p className="text-sm text-muted-foreground">Gestão de sincronização e temas</p>
-            </div>
+            <Link to="/" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Settings className="h-5 w-5" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold">Administração</h1>
+                <p className="text-sm text-muted-foreground">Gestão de sincronização e temas</p>
+              </div>
+            </Link>
           </div>
+          <Link to="/">
+            <Button variant="outline" size="sm">← Voltar</Button>
+          </Link>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="sync" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+        <Tabs defaultValue="legislation" className="space-y-6">
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
+            <TabsTrigger value="legislation" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Legislação
+            </TabsTrigger>
             <TabsTrigger value="sync" className="gap-2">
               <RefreshCw className="h-4 w-4" />
               Sincronização
@@ -34,6 +46,10 @@ const Admin = () => {
               Temas
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="legislation">
+            <LegislationPanel />
+          </TabsContent>
 
           <TabsContent value="sync">
             <SyncPanel />
