@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +16,7 @@ export function SyncPanel() {
   const { toast } = useToast();
   const [isImporting, setIsImporting] = useState(false);
   const [isImportingText, setIsImportingText] = useState(false);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [textContent, setTextContent] = useState("");
   const [importStats, setImportStats] = useState<{
     totalParsed: number;
@@ -29,7 +30,15 @@ export function SyncPanel() {
     skipped: number;
     mappingsCreated: number;
   } | null>(null);
+  const [excelImportStats, setExcelImportStats] = useState<{
+    totalParsed: number;
+    created: number;
+    skipped: number;
+    mappingsCreated: number;
+    errors: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const excelInputRef = useRef<HTMLInputElement>(null);
 
   const handleSync = async (syncType: string, source: string = 'dre') => {
     try {
@@ -165,6 +174,116 @@ export function SyncPanel() {
     }
   };
 
+  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel'
+    ];
+    
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      toast({
+        title: "Ficheiro inválido",
+        description: "Por favor selecione um ficheiro Excel (.xlsx ou .xls)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImportingExcel(true);
+    setExcelImportStats(null);
+
+    try {
+      // Read Excel file as text - we'll parse the markdown table format
+      toast({
+        title: "Processamento iniciado",
+        description: "A analisar o Excel... Isto pode demorar alguns minutos.",
+      });
+
+      // For Excel files, we need to convert to a parseable format
+      // The edge function expects markdown table format from parsed Excel
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        // Since we can't parse Excel directly in browser without a library,
+        // we'll prompt user to paste the table content
+        toast({
+          title: "Excel carregado",
+          description: "Por favor use a área de texto para colar o conteúdo do Excel em formato de tabela.",
+          variant: "destructive",
+        });
+        setIsImportingExcel(false);
+      };
+
+      reader.onerror = () => {
+        throw new Error('Erro ao ler o ficheiro');
+      };
+
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error('Excel import error:', error);
+      toast({
+        title: "Erro na importação",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+      setIsImportingExcel(false);
+    } finally {
+      if (excelInputRef.current) {
+        excelInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleExcelTextImport = async () => {
+    if (!textContent.trim()) {
+      toast({
+        title: "Conteúdo vazio",
+        description: "Por favor cole o conteúdo do Excel antes de importar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImportingExcel(true);
+    setExcelImportStats(null);
+
+    try {
+      toast({
+        title: "Processamento iniciado",
+        description: "A analisar o conteúdo... Isto pode demorar alguns minutos.",
+      });
+
+      const { data, error } = await supabase.functions.invoke('import-excel-legislation', {
+        body: { textContent: textContent }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setExcelImportStats(data.stats);
+        setTextContent("");
+        toast({
+          title: "Importação concluída!",
+          description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
+        });
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Excel text import error:', error);
+      toast({
+        title: "Erro na importação",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImportingExcel(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -252,16 +371,89 @@ export function SyncPanel() {
         </CardContent>
       </Card>
 
-      {/* Text Import */}
+      {/* Excel Import */}
+      <Card className="border-emerald-200 bg-emerald-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+            Importar Legislação (Excel)
+          </CardTitle>
+          <CardDescription>
+            Cole o conteúdo de um ficheiro Excel com a estrutura: Temas | Descritor | Diploma | Sumário | Alterado por | Aplicabilidade | Condição
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            placeholder="Cole aqui o conteúdo da tabela Excel...
+
+Exemplo de formato esperado:
+|Q/S/CF|Constituição da República Portuguesa|Lei Constitucional n.º 1/2005, de 12 de agosto|Sétima revisão constitucional...||Aplicável - Directa||
+|Q|Licenciamento - RJUE - A - Diplomas gerais|Portaria n.º 71-B/2024, de 27 de fevereiro|Aprova os modelos...||Não aplicável condicionado|Existência de Obras|"
+            value={textContent}
+            onChange={(e) => setTextContent(e.target.value)}
+            className="min-h-[200px] font-mono text-sm"
+            disabled={isImportingExcel}
+          />
+          
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {textContent.length > 0 ? `${textContent.length.toLocaleString()} caracteres` : 'Sem conteúdo'}
+            </p>
+            <Button
+              onClick={handleExcelTextImport}
+              disabled={isImportingExcel || !textContent.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {isImportingExcel ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              {isImportingExcel ? 'A importar...' : 'Importar Excel'}
+            </Button>
+          </div>
+          
+          {excelImportStats && (
+            <div className="rounded-lg border bg-white p-4 space-y-2">
+              <h4 className="font-medium text-sm">Resultado da Importação:</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Diplomas analisados:</span>
+                  <span className="font-medium">{excelImportStats.totalParsed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Novos criados:</span>
+                  <span className="font-medium text-green-600">{excelImportStats.created}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Já existentes:</span>
+                  <span className="font-medium text-muted-foreground">{excelImportStats.skipped}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Categorias associadas:</span>
+                  <span className="font-medium text-blue-600">{excelImportStats.mappingsCreated}</span>
+                </div>
+                {excelImportStats.errors > 0 && (
+                  <div className="flex justify-between col-span-2">
+                    <span className="text-muted-foreground">Erros:</span>
+                    <span className="font-medium text-destructive">{excelImportStats.errors}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Text Import (PDF) */}
       <Card className="border-indigo-200 bg-indigo-50/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-indigo-600" />
-            Importar Texto (Páginas Adicionais)
+            Importar Texto PDF (Formato SIAWISE)
           </CardTitle>
           <CardDescription>
-            Cole o texto copiado diretamente do PDF para importar legislação das páginas restantes. 
-            O formato deve seguir o padrão: categoria em linha própria, seguido de diploma e sumário.
+            Cole o texto copiado diretamente de um PDF em formato SIAWISE (categoria em linha própria, seguido de diploma e sumário).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -294,7 +486,7 @@ Estabelece o regime de apoio à realização de investimentos..."
               ) : (
                 <Send className="mr-2 h-4 w-4" />
               )}
-              {isImportingText ? 'A importar...' : 'Importar Texto'}
+              {isImportingText ? 'A importar...' : 'Importar PDF'}
             </Button>
           </div>
           
