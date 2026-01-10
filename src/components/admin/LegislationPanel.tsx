@@ -10,6 +10,7 @@ import { pt } from "date-fns/locale";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
+import { LegislationTimeline } from "./LegislationTimeline";
 
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
@@ -159,12 +160,6 @@ export function LegislationPanel() {
                             {leg.entity}
                           </span>
                         )}
-                        {leg.publication_date && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(leg.publication_date), "d 'de' MMMM 'de' yyyy", { locale: pt })}
-                          </span>
-                        )}
                       </div>
 
                       {/* Categories */}
@@ -177,6 +172,13 @@ export function LegislationPanel() {
                           ))}
                         </div>
                       )}
+
+                      {/* Timeline */}
+                      <LegislationTimeline
+                        publicationDate={leg.publication_date}
+                        effectiveDate={leg.effective_date}
+                        revocationDate={(leg as any).revocation_date}
+                      />
                     </div>
 
                     {/* Action Buttons */}
