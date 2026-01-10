@@ -4,10 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, UserCheck, UserX, Users, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, UserCheck, Users, Clock, CheckCircle2, XCircle, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +26,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Profile {
@@ -29,17 +45,31 @@ interface Profile {
   approved_at: string | null;
 }
 
+interface Organization {
+  id: string;
+  name: string;
+}
+
+interface UserWithOrg extends Profile {
+  organization_name?: string;
+  organization_id?: string;
+}
+
 export function UsersApprovalPanel() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [confirmDialog, setConfirmDialog] = useState<{
+  const [approveDialog, setApproveDialog] = useState<{
     open: boolean;
-    action: "approve" | "reject" | null;
     profile: Profile | null;
-  }>({ open: false, action: null, profile: null });
+  }>({ open: false, profile: null });
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [revokeDialog, setRevokeDialog] = useState<{
+    open: boolean;
+    profile: UserWithOrg | null;
+  }>({ open: false, profile: null });
 
   // Fetch all profiles
-  const { data: profiles, isLoading } = useQuery({
+  const { data: profiles, isLoading: loadingProfiles } = useQuery({
     queryKey: ["profiles-approval"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -52,10 +82,55 @@ export function UsersApprovalPanel() {
     },
   });
 
-  // Approve user mutation
+  // Fetch organizations
+  const { data: organizations, isLoading: loadingOrgs } = useQuery({
+    queryKey: ["organizations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      return data as Organization[];
+    },
+  });
+
+  // Fetch user roles to get organization assignments
+  const { data: userRoles } = useQuery({
+    queryKey: ["user-roles-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select(`
+          user_id,
+          organization_id,
+          role,
+          organizations:organization_id (name)
+        `)
+        .eq("role", "client");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Approve user mutation - assigns to organization
   const approveMutation = useMutation({
-    mutationFn: async (profileId: string) => {
-      const { error } = await supabase
+    mutationFn: async ({ profileId, organizationId }: { profileId: string; organizationId: string }) => {
+      // Add user role with organization
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({
+          user_id: profileId,
+          organization_id: organizationId,
+          role: "client",
+        });
+
+      if (roleError) throw roleError;
+
+      // Update profile as approved
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({
           is_approved: true,
@@ -64,22 +139,34 @@ export function UsersApprovalPanel() {
         })
         .eq("id", profileId);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
     },
     onSuccess: () => {
-      toast.success("Utilizador aprovado com sucesso");
+      toast.success("Utilizador aprovado e associado à organização");
       queryClient.invalidateQueries({ queryKey: ["profiles-approval"] });
-      setConfirmDialog({ open: false, action: null, profile: null });
+      queryClient.invalidateQueries({ queryKey: ["user-roles-all"] });
+      setApproveDialog({ open: false, profile: null });
+      setSelectedOrgId("");
     },
     onError: (error: Error) => {
       toast.error("Erro ao aprovar utilizador: " + error.message);
     },
   });
 
-  // Reject (revoke approval) mutation
-  const rejectMutation = useMutation({
+  // Revoke access mutation
+  const revokeMutation = useMutation({
     mutationFn: async (profileId: string) => {
-      const { error } = await supabase
+      // Remove user role
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", profileId)
+        .eq("role", "client");
+
+      if (roleError) throw roleError;
+
+      // Update profile as not approved
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({
           is_approved: false,
@@ -88,30 +175,33 @@ export function UsersApprovalPanel() {
         })
         .eq("id", profileId);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
     },
     onSuccess: () => {
-      toast.success("Aprovação revogada");
+      toast.success("Acesso revogado");
       queryClient.invalidateQueries({ queryKey: ["profiles-approval"] });
-      setConfirmDialog({ open: false, action: null, profile: null });
+      queryClient.invalidateQueries({ queryKey: ["user-roles-all"] });
+      setRevokeDialog({ open: false, profile: null });
     },
     onError: (error: Error) => {
-      toast.error("Erro ao revogar aprovação: " + error.message);
+      toast.error("Erro ao revogar acesso: " + error.message);
     },
   });
 
-  const pendingUsers = profiles?.filter((p) => !p.is_approved) || [];
-  const approvedUsers = profiles?.filter((p) => p.is_approved) || [];
+  // Combine profiles with their organization info
+  const usersWithOrgs: UserWithOrg[] = (profiles || []).map((profile) => {
+    const role = userRoles?.find((r) => r.user_id === profile.id);
+    return {
+      ...profile,
+      organization_id: role?.organization_id || undefined,
+      organization_name: (role?.organizations as any)?.name || undefined,
+    };
+  });
 
-  const handleAction = () => {
-    if (!confirmDialog.profile) return;
+  const pendingUsers = usersWithOrgs.filter((p) => !p.is_approved);
+  const approvedUsers = usersWithOrgs.filter((p) => p.is_approved);
 
-    if (confirmDialog.action === "approve") {
-      approveMutation.mutate(confirmDialog.profile.id);
-    } else if (confirmDialog.action === "reject") {
-      rejectMutation.mutate(confirmDialog.profile.id);
-    }
-  };
+  const isLoading = loadingProfiles || loadingOrgs;
 
   if (isLoading) {
     return (
@@ -162,7 +252,7 @@ export function UsersApprovalPanel() {
               Utilizadores Pendentes
             </CardTitle>
             <CardDescription>
-              Estes utilizadores registaram-se e aguardam aprovação para aceder à aplicação
+              Aprove estes utilizadores associando-os a uma organização
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -182,18 +272,14 @@ export function UsersApprovalPanel() {
                       })}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        setConfirmDialog({ open: true, action: "approve", profile })
-                      }
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <UserCheck className="h-4 w-4 mr-1" />
-                      Aprovar
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setApproveDialog({ open: true, profile })}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <UserCheck className="h-4 w-4 mr-1" />
+                    Aprovar
+                  </Button>
                 </div>
               ))}
             </div>
@@ -221,12 +307,18 @@ export function UsersApprovalPanel() {
                   className="flex items-center justify-between rounded-lg border p-4"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">{profile.full_name || "Sem nome"}</span>
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Aprovado
                       </Badge>
+                      {profile.organization_name && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          {profile.organization_name}
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-sm text-muted-foreground">{profile.email}</div>
                     {profile.approved_at && (
@@ -241,9 +333,7 @@ export function UsersApprovalPanel() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      setConfirmDialog({ open: true, action: "reject", profile })
-                    }
+                    onClick={() => setRevokeDialog({ open: true, profile })}
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <XCircle className="h-4 w-4 mr-1" />
@@ -261,45 +351,112 @@ export function UsersApprovalPanel() {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
+      {/* Approve Dialog - Select Organization */}
+      <Dialog
+        open={approveDialog.open}
+        onOpenChange={(open) => {
+          setApproveDialog((prev) => ({ ...prev, open }));
+          if (!open) setSelectedOrgId("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aprovar Utilizador</DialogTitle>
+            <DialogDescription>
+              Selecione a organização à qual o utilizador será associado.
+              O utilizador terá acesso apenas aos diplomas atribuídos a essa organização.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <div className="font-medium">{approveDialog.profile?.full_name || "Sem nome"}</div>
+              <div className="text-sm text-muted-foreground">{approveDialog.profile?.email}</div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Organização</Label>
+              <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma organização..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations?.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        {org.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {organizations?.length === 0 && (
+                <p className="text-xs text-amber-600">
+                  Não existem organizações. Crie uma primeiro no separador "Clientes".
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApproveDialog({ open: false, profile: null });
+                setSelectedOrgId("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (approveDialog.profile && selectedOrgId) {
+                  approveMutation.mutate({
+                    profileId: approveDialog.profile.id,
+                    organizationId: selectedOrgId,
+                  });
+                }
+              }}
+              disabled={!selectedOrgId || approveMutation.isPending}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {approveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Aprovar e Associar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke Confirmation Dialog */}
       <AlertDialog
-        open={confirmDialog.open}
-        onOpenChange={(open) =>
-          setConfirmDialog((prev) => ({ ...prev, open }))
-        }
+        open={revokeDialog.open}
+        onOpenChange={(open) => setRevokeDialog((prev) => ({ ...prev, open }))}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmDialog.action === "approve" ? "Aprovar Utilizador" : "Revogar Aprovação"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Revogar Acesso</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDialog.action === "approve" ? (
-                <>
-                  Tem a certeza que deseja aprovar o acesso de{" "}
-                  <strong>{confirmDialog.profile?.full_name || confirmDialog.profile?.email}</strong>?
-                  O utilizador poderá aceder à aplicação após esta ação.
-                </>
-              ) : (
-                <>
-                  Tem a certeza que deseja revogar o acesso de{" "}
-                  <strong>{confirmDialog.profile?.full_name || confirmDialog.profile?.email}</strong>?
-                  O utilizador deixará de poder aceder à aplicação.
-                </>
+              Tem a certeza que deseja revogar o acesso de{" "}
+              <strong>{revokeDialog.profile?.full_name || revokeDialog.profile?.email}</strong>?
+              O utilizador deixará de poder aceder à aplicação e será desassociado da organização{" "}
+              {revokeDialog.profile?.organization_name && (
+                <strong>{revokeDialog.profile.organization_name}</strong>
               )}
+              .
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleAction}
-              className={
-                confirmDialog.action === "approve"
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-red-600 hover:bg-red-700"
-              }
+              onClick={() => {
+                if (revokeDialog.profile) {
+                  revokeMutation.mutate(revokeDialog.profile.id);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
             >
-              {confirmDialog.action === "approve" ? "Aprovar" : "Revogar"}
+              Revogar Acesso
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
