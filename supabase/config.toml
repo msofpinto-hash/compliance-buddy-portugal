@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.import-excel-legislation]
 verify_jwt = false
+
+[functions.import-dre-links]
+verify_jwt = false

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -17,7 +17,9 @@ export function SyncPanel() {
   const [isImporting, setIsImporting] = useState(false);
   const [isImportingText, setIsImportingText] = useState(false);
   const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const [isImportingLinks, setIsImportingLinks] = useState(false);
   const [textContent, setTextContent] = useState("");
+  const [linksContent, setLinksContent] = useState("");
   const [importStats, setImportStats] = useState<{
     totalParsed: number;
     created: number;
@@ -36,6 +38,12 @@ export function SyncPanel() {
     skipped: number;
     mappingsCreated: number;
     errors: number;
+  } | null>(null);
+  const [linksImportStats, setLinksImportStats] = useState<{
+    total: number;
+    created: number;
+    skipped: number;
+    failed: number;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
@@ -329,6 +337,68 @@ export function SyncPanel() {
     }
   };
 
+  const handleLinksImport = async () => {
+    if (!linksContent.trim()) {
+      toast({
+        title: "Conteúdo vazio",
+        description: "Por favor cole os links do DRE antes de importar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Parse links - one per line, filter empty lines
+    const links = linksContent
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0 && (line.includes('dre.pt') || line.includes('diariodarepublica.pt')));
+
+    if (links.length === 0) {
+      toast({
+        title: "Nenhum link válido",
+        description: "Por favor cole links válidos do DRE (dre.pt ou diariodarepublica.pt)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImportingLinks(true);
+    setLinksImportStats(null);
+
+    try {
+      toast({
+        title: "Processamento iniciado",
+        description: `A processar ${links.length} link(s)... Isto pode demorar alguns minutos.`,
+      });
+
+      const { data, error } = await supabase.functions.invoke('import-dre-links', {
+        body: { links }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setLinksImportStats(data.stats);
+        setLinksContent("");
+        toast({
+          title: "Importação concluída!",
+          description: `${data.stats.created} diplomas criados, ${data.stats.skipped} já existentes`,
+        });
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Links import error:', error);
+      toast({
+        title: "Erro na importação",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImportingLinks(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -590,6 +660,76 @@ Estabelece o regime de apoio à realização de investimentos..."
                   <span className="text-muted-foreground">Categorias associadas:</span>
                   <span className="font-medium text-blue-600">{textImportStats.mappingsCreated}</span>
                 </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* DRE Links Import */}
+      <Card className="border-teal-200 bg-teal-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link className="h-5 w-5 text-teal-600" />
+            Importar Links do DRE
+          </CardTitle>
+          <CardDescription>
+            Cole links diretos do diariodarepublica.pt ou dre.pt (um por linha) para importar a legislação automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            placeholder="Cole aqui os links do DRE (um por linha)...
+
+https://diariodarepublica.pt/dr/detalhe/portaria/15-2026-1002139945
+https://diariodarepublica.pt/dr/detalhe/decreto-lei/1-2026-1002139123
+https://dre.pt/application/file/..."
+            value={linksContent}
+            onChange={(e) => setLinksContent(e.target.value)}
+            className="min-h-[150px] font-mono text-sm"
+            disabled={isImportingLinks}
+          />
+          
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {linksContent.trim() ? `${linksContent.split('\n').filter(l => l.trim()).length} link(s)` : 'Sem links'}
+            </p>
+            <Button
+              onClick={handleLinksImport}
+              disabled={isImportingLinks || !linksContent.trim()}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              {isImportingLinks ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              {isImportingLinks ? 'A importar...' : 'Importar Links'}
+            </Button>
+          </div>
+          
+          {linksImportStats && (
+            <div className="rounded-lg border bg-white p-4 space-y-2">
+              <h4 className="font-medium text-sm">Resultado da Importação:</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Links processados:</span>
+                  <span className="font-medium">{linksImportStats.total}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Novos criados:</span>
+                  <span className="font-medium text-green-600">{linksImportStats.created}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Já existentes:</span>
+                  <span className="font-medium text-muted-foreground">{linksImportStats.skipped}</span>
+                </div>
+                {linksImportStats.failed > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Falharam:</span>
+                    <span className="font-medium text-destructive">{linksImportStats.failed}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
