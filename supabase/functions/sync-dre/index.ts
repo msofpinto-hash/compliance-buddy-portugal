@@ -271,64 +271,101 @@ function getDatesBetween(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-// Get Diários published on a specific date using the new API
+// Get Diários published on a specific date using Firecrawl for JS rendering
 async function getDiariosForDate(date: string): Promise<{ dbId: number; serie: string }[]> {
   const diarios: { dbId: number; serie: string }[] = [];
+  const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
+  
+  if (!firecrawlApiKey) {
+    console.warn('FIRECRAWL_API_KEY not set, using fallback method');
+    return getDiariosForDateFallback(date);
+  }
   
   try {
-    // Build the payload for the DRE API
-    const payload = {
-      versionInfo: {
-        moduleVersion: "1.0.0",
-        apiVersion: "1.0.0"
+    // Use Firecrawl to scrape the DRE calendar page
+    const formattedDate = date.split('-').reverse().join('-'); // Convert to DD-MM-YYYY
+    const url = `https://diariodarepublica.pt/dr/home/calendario/${formattedDate}`;
+    
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${firecrawlApiKey}`
       },
-      viewName: "Home.home",
-      screenData: {
-        variables: {
-          DataCalendario: date,
-          DataUltimaPublicacao: "2030-12-31"
-        }
-      },
-      clientVariables: {}
-    };
-
-    const response = await fetch(
-      `${DRE_BASE_URL}/dre/screenservices/DRE/Home/home/DataActionGetDRByDataCalendario`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'X-CSRFToken': 'bypass',
-          'User-Agent': 'LegalCompliance/1.0'
-        },
-        body: JSON.stringify(payload)
-      }
-    );
+      body: JSON.stringify({
+        url: url,
+        formats: ['markdown', 'links'],
+        waitFor: 3000
+      })
+    });
 
     if (!response.ok) {
-      console.warn(`DRE API returned status ${response.status} for date ${date}`);
-      return diarios;
+      console.warn(`Firecrawl returned status ${response.status} for date ${date}`);
+      return getDiariosForDateFallback(date);
     }
 
     const data = await response.json();
     
-    // Parse the nested JSON response
-    if (data?.data?.Json_Out) {
-      const jsonOut = JSON.parse(data.data.Json_Out);
-      const hits = jsonOut?.hits?.hits || [];
-      
-      for (const hit of hits) {
-        const source = hit._source;
-        if (source?.dbId) {
-          // Determine series from title
-          const title = source.conteudoTitle || '';
-          const serie = title.includes('Série II') ? 'Série II' : 'Série I';
-          diarios.push({ dbId: source.dbId, serie });
+    // Extract diário links from the scraped content
+    const links = data?.data?.links || [];
+    for (const link of links) {
+      if (link.includes('/dr/detalhe/')) {
+        const match = link.match(/\/dr\/detalhe\/(\d+)/);
+        if (match) {
+          const dbId = parseInt(match[1], 10);
+          const serie = link.includes('serie-ii') ? 'Série II' : 'Série I';
+          if (!diarios.some(d => d.dbId === dbId)) {
+            diarios.push({ dbId, serie });
+          }
         }
       }
     }
+    
+    console.log(`Firecrawl found ${diarios.length} diários for ${date}`);
   } catch (error) {
     console.error(`Error fetching diários for ${date}:`, error);
+    return getDiariosForDateFallback(date);
+  }
+  
+  return diarios;
+}
+
+// Fallback method using DRE search API
+async function getDiariosForDateFallback(date: string): Promise<{ dbId: number; serie: string }[]> {
+  const diarios: { dbId: number; serie: string }[] = [];
+  
+  try {
+    // Try the DRE search endpoint
+    const searchUrl = `${DRE_BASE_URL}/dr/pesquisa-avancada/-/pesquisa/${encodeURIComponent(JSON.stringify({
+      dataPublicacao: date,
+      perPage: 50
+    }))}`;
+    
+    const response = await fetch(searchUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'LegalCompliance/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      console.warn(`DRE search API returned status ${response.status} for date ${date}`);
+      return diarios;
+    }
+
+    const data = await response.json();
+    const items = data?.items || data?.results || [];
+    
+    for (const item of items) {
+      if (item.id || item.dbId) {
+        const dbId = item.id || item.dbId;
+        const serie = (item.serie || item.title || '').includes('II') ? 'Série II' : 'Série I';
+        diarios.push({ dbId, serie });
+      }
+    }
+  } catch (error) {
+    console.error(`Fallback method failed for ${date}:`, error);
   }
   
   return diarios;
