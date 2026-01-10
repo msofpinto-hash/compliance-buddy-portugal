@@ -23,7 +23,9 @@ import {
   XCircle,
   ClipboardList,
   Calendar,
-  User
+  User,
+  Download,
+  Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -49,6 +51,47 @@ export default function ClientPortal() {
   const { user, signOut, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportReport = async () => {
+    if (!userRole?.organization_id || !userRole?.organizations) return;
+    
+    setIsExporting(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-compliance-report`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ organizationId: userRole.organization_id }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Falha ao gerar relatório");
+      }
+
+      const html = await response.text();
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      
+      const orgName = (userRole.organizations as any)?.name || "organizacao";
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `relatorio-conformidade-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exporting report:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Fetch user's organization
   const { data: userRole, isLoading: loadingRole } = useQuery({
@@ -298,6 +341,19 @@ export default function ClientPortal() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={handleExportReport}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">Exportar</span>
+            </Button>
             <Link to="/biblioteca">
               <Button variant="ghost" className="gap-2">
                 <BookOpen className="h-4 w-4" />

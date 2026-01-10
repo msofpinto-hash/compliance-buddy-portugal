@@ -11,11 +11,42 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
 import { ManageOrganizationRequirementsDialog } from "./ManageOrganizationRequirementsDialog";
 import { ManageActionPlansDialog } from "./ManageActionPlansDialog";
+
+// Export report function
+async function exportComplianceReport(organizationId: string, organizationName: string) {
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-compliance-report`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ organizationId }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Falha ao gerar relatório");
+  }
+
+  const html = await response.text();
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `relatorio-conformidade-${organizationName.replace(/[^a-zA-Z0-9]/g, "-")}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 type Organization = Tables<"organizations">;
 
@@ -27,10 +58,23 @@ export function ClientsPanel() {
   const [assignLegislationOrg, setAssignLegislationOrg] = useState<Organization | null>(null);
   const [manageRequirementsOrg, setManageRequirementsOrg] = useState<Organization | null>(null);
   const [actionPlansOrg, setActionPlansOrg] = useState<Organization | null>(null);
+  const [exportingOrgId, setExportingOrgId] = useState<string | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
+
+  const handleExportReport = async (org: Organization) => {
+    setExportingOrgId(org.id);
+    try {
+      await exportComplianceReport(org.id, org.name);
+      toast.success("Relatório exportado com sucesso");
+    } catch (error) {
+      toast.error("Erro ao exportar relatório");
+    } finally {
+      setExportingOrgId(null);
+    }
+  };
 
   // Fetch organizations
   const { data: organizations, isLoading } = useQuery({
@@ -340,6 +384,22 @@ export function ClientsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Exportar Relatório"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExportReport(org);
+                        }}
+                        disabled={exportingOrgId === org.id}
+                      >
+                        {exportingOrgId === org.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
