@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, FileText, RefreshCw } from "lucide-react";
+import { Settings, FileText, RefreshCw, BookOpen, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -18,12 +21,29 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Gestão de Legislação</p>
             </div>
           </div>
-          <Link to="/admin">
-            <Button variant="outline" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Administração
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/biblioteca">
+              <Button variant="ghost" className="gap-2">
+                <BookOpen className="h-4 w-4" />
+                Biblioteca
+              </Button>
+            </Link>
+            {user ? (
+              <Link to="/dashboard">
+                <Button className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button className="gap-2">
+                  <LogIn className="h-4 w-4" />
+                  Entrar
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
@@ -35,11 +55,28 @@ const Index = () => {
               Sistema de Compliance Legal
             </h2>
             <p className="mt-2 text-lg text-muted-foreground">
-              Sincronização automática de legislação portuguesa do DRE
+              Sincronização automática de legislação portuguesa e europeia
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="transition-all hover:shadow-lg">
+              <CardHeader>
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <BookOpen className="h-6 w-6" />
+                </div>
+                <CardTitle className="mt-4">Biblioteca de Legislação</CardTitle>
+                <CardDescription>
+                  Pesquise e explore toda a legislação disponível organizada por temas e categorias.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to="/biblioteca">
+                  <Button className="w-full">Explorar Biblioteca</Button>
+                </Link>
+              </CardContent>
+            </Card>
+
             <Card className="transition-all hover:shadow-lg">
               <CardHeader>
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -47,13 +84,14 @@ const Index = () => {
                 </div>
                 <CardTitle className="mt-4">Sincronização Automática</CardTitle>
                 <CardDescription>
-                  Importação automática de legislação do Diário da República Eletrónico
-                  com categorização inteligente por temas.
+                  Importação automática do DRE e EUR-Lex com categorização inteligente por temas.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link to="/admin">
-                  <Button className="w-full">Ir para Sincronização</Button>
+                <Link to={user ? "/dashboard" : "/auth"}>
+                  <Button variant="outline" className="w-full">
+                    {user ? "Ver Dashboard" : "Entrar"}
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
@@ -63,15 +101,16 @@ const Index = () => {
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Settings className="h-6 w-6" />
                 </div>
-                <CardTitle className="mt-4">Gestão de Temas</CardTitle>
+                <CardTitle className="mt-4">Gestão de Conformidade</CardTitle>
                 <CardDescription>
-                  Configure temas e subcategorias com keywords para
-                  categorização automática de legislação.
+                  Acompanhe a conformidade da sua organização com planos de ação e alertas.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link to="/admin">
-                  <Button variant="outline" className="w-full">Gerir Temas</Button>
+                <Link to={user ? "/dashboard" : "/auth"}>
+                  <Button variant="outline" className="w-full">
+                    {user ? "Gerir Conformidade" : "Criar Conta"}
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
