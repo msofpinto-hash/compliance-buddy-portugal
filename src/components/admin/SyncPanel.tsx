@@ -1,16 +1,26 @@
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
 export function SyncPanel() {
   const { data: syncLogs, isLoading: logsLoading } = useSyncLogs();
   const triggerSync = useTriggerSync();
   const { toast } = useToast();
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStats, setImportStats] = useState<{
+    totalParsed: number;
+    created: number;
+    skipped: number;
+    mappingsCreated: number;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSync = async (syncType: string, source: string = 'dre') => {
     try {
@@ -25,6 +35,77 @@ export function SyncPanel() {
         description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
+    }
+  };
+
+  const handlePdfUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: "Ficheiro inválido",
+        description: "Por favor selecione um ficheiro PDF",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    setImportStats(null);
+
+    try {
+      // Read file and convert to text (we'll parse it server-side)
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        
+        // For now, we'll send the PDF content as base64 to be parsed
+        // In production, you'd use a proper PDF parser
+        const base64 = btoa(
+          new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+
+        toast({
+          title: "Processamento iniciado",
+          description: "A analisar o PDF... Isto pode demorar alguns minutos.",
+        });
+
+        // Call the edge function
+        const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
+          body: { pdfContent: base64 }
+        });
+
+        if (error) throw error;
+
+        if (data.success) {
+          setImportStats(data.stats);
+          toast({
+            title: "Importação concluída!",
+            description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
+          });
+        } else {
+          throw new Error(data.error || 'Erro desconhecido');
+        }
+      };
+
+      reader.onerror = () => {
+        throw new Error('Erro ao ler o ficheiro');
+      };
+
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: "Erro na importação",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -56,6 +137,65 @@ export function SyncPanel() {
 
   return (
     <div className="space-y-6">
+      {/* PDF Import */}
+      <Card className="border-purple-200 bg-purple-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileUp className="h-5 w-5 text-purple-600" />
+            Importar Legislação (PDF)
+          </CardTitle>
+          <CardDescription>
+            Carregue um relatório PDF de legislação para importar diplomas e associar às categorias existentes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handlePdfUpload}
+            className="hidden"
+            disabled={isImporting}
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            {isImporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="mr-2 h-4 w-4" />
+            )}
+            {isImporting ? 'A importar...' : 'Selecionar PDF'}
+          </Button>
+          
+          {importStats && (
+            <div className="rounded-lg border bg-white p-4 space-y-2">
+              <h4 className="font-medium text-sm">Resultado da Importação:</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Diplomas analisados:</span>
+                  <span className="font-medium">{importStats.totalParsed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Novos criados:</span>
+                  <span className="font-medium text-green-600">{importStats.created}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Já existentes:</span>
+                  <span className="font-medium text-muted-foreground">{importStats.skipped}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Categorias associadas:</span>
+                  <span className="font-medium text-blue-600">{importStats.mappingsCreated}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* DRE Sync */}
       <Card>
         <CardHeader>
