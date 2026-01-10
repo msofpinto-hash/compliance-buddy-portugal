@@ -565,7 +565,7 @@ serve(async (req) => {
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { links } = await req.json();
+    const { links, updateExisting = false } = await req.json();
 
     if (!links || !Array.isArray(links) || links.length === 0) {
       return new Response(
@@ -574,19 +574,20 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Starting import of ${links.length} DRE links...`);
+    console.log(`Starting import of ${links.length} DRE links... (updateExisting: ${updateExisting})`);
     console.log(`Firecrawl API key available: ${!!firecrawlApiKey}`);
 
-    // Get existing legislation to avoid duplicates
+    // Get existing legislation
     const { data: existingLegislation } = await supabase
       .from('legislation')
-      .select('id, external_id, document_url, number');
+      .select('id, external_id, document_url, number, summary');
     
-    const existingUrls = new Set((existingLegislation || []).map(l => l.document_url));
+    const existingByUrl = new Map((existingLegislation || []).map(l => [l.document_url, l]));
     const existingIds = new Set((existingLegislation || []).map(l => l.external_id));
     const legislationByNumber = new Map((existingLegislation || []).map(l => [l.number?.toLowerCase(), l.id]));
 
     let created = 0;
+    let updated = 0;
     let skipped = 0;
     let failed = 0;
     let requirementsCreated = 0;
@@ -599,7 +600,8 @@ serve(async (req) => {
       if (!url) continue;
       
       // Check if already exists
-      if (existingUrls.has(url)) {
+      const existingLeg = existingByUrl.get(url);
+      if (existingLeg && !updateExisting) {
         skipped++;
         results.push({ url, status: 'skipped', number: 'Já existe' });
         continue;
@@ -671,41 +673,82 @@ serve(async (req) => {
           throw new Error('Could not parse legislation data (page may not exist)');
         }
 
-        // Check if external_id already exists
-        if (existingIds.has(parsed.externalId)) {
+        // Check if external_id already exists (for new imports)
+        if (!existingLeg && existingIds.has(parsed.externalId)) {
           skipped++;
           results.push({ url, status: 'skipped', number: parsed.number });
           continue;
         }
 
-        // Insert legislation
-        const { data: insertedLeg, error: insertError } = await supabase
-          .from('legislation')
-          .insert({
-            external_id: parsed.externalId,
-            source: 'dre-link',
-            number: parsed.number,
-            title: parsed.title,
-            summary: parsed.summary,
-            entity: parsed.entity,
-            origin: 'PT',
-            publication_date: parsed.publicationDate,
-            effective_date: parsed.effectiveDate,
-            document_url: parsed.documentUrl
-          })
-          .select('id')
-          .single();
+        let legislationId: string;
+        let isUpdate = false;
 
-        if (insertError) {
-          throw new Error(insertError.message);
+        if (existingLeg && updateExisting) {
+          // Update existing legislation
+          const updateData: Record<string, unknown> = {};
+          
+          // Only update fields that have new data
+          if (parsed.summary && parsed.summary.length > (existingLeg.summary?.length || 0)) {
+            updateData.summary = parsed.summary;
+          }
+          if (parsed.entity) updateData.entity = parsed.entity;
+          if (parsed.publicationDate) updateData.publication_date = parsed.publicationDate;
+          if (parsed.effectiveDate) updateData.effective_date = parsed.effectiveDate;
+          if (parsed.title && parsed.title !== parsed.number) updateData.title = parsed.title;
+          
+          if (Object.keys(updateData).length > 0) {
+            updateData.updated_at = new Date().toISOString();
+            
+            const { error: updateError } = await supabase
+              .from('legislation')
+              .update(updateData)
+              .eq('id', existingLeg.id);
+
+            if (updateError) {
+              throw new Error(updateError.message);
+            }
+            
+            legislationId = existingLeg.id;
+            isUpdate = true;
+            updated++;
+            console.log(`Updated: ${parsed.number} with ${Object.keys(updateData).length} fields`);
+          } else {
+            skipped++;
+            results.push({ url, status: 'skipped', number: 'Sem novos dados' });
+            continue;
+          }
+        } else {
+          // Insert new legislation
+          const { data: insertedLeg, error: insertError } = await supabase
+            .from('legislation')
+            .insert({
+              external_id: parsed.externalId,
+              source: 'dre-link',
+              number: parsed.number,
+              title: parsed.title,
+              summary: parsed.summary,
+              entity: parsed.entity,
+              origin: 'PT',
+              publication_date: parsed.publicationDate,
+              effective_date: parsed.effectiveDate,
+              document_url: parsed.documentUrl
+            })
+            .select('id')
+            .single();
+
+          if (insertError) {
+            throw new Error(insertError.message);
+          }
+          
+          legislationId = insertedLeg.id;
+          created++;
         }
 
-        const legislationId = insertedLeg.id;
         let reqCount = 0;
         let relCount = 0;
 
-        // Insert requirements
-        if (parsed.requirements.length > 0) {
+        // Insert requirements (only for new records or if updating)
+        if (parsed.requirements.length > 0 && !isUpdate) {
           const requirementsToInsert = parsed.requirements.map(req => ({
             legislation_id: legislationId,
             article: req.article,
@@ -724,8 +767,8 @@ serve(async (req) => {
           }
         }
 
-        // Insert relations
-        if (parsed.relations.length > 0) {
+        // Insert relations (only for new records or if updating)
+        if (parsed.relations.length > 0 && !isUpdate) {
           for (const relation of parsed.relations) {
             // Try to find the target legislation by number
             const targetNumber = relation.targetNumber.toLowerCase();
@@ -768,19 +811,21 @@ serve(async (req) => {
           }
         }
 
-        created++;
-        existingUrls.add(url);
-        existingIds.add(parsed.externalId);
-        legislationByNumber.set(parsed.number.toLowerCase(), legislationId);
+        if (!isUpdate) {
+          existingByUrl.set(url, { id: legislationId, external_id: parsed.externalId, document_url: url, number: parsed.number, summary: parsed.summary });
+          existingIds.add(parsed.externalId);
+          legislationByNumber.set(parsed.number.toLowerCase(), legislationId);
+        }
+        
         results.push({ 
           url, 
-          status: 'created', 
+          status: isUpdate ? 'updated' : 'created', 
           number: parsed.number, 
           method,
           requirements: reqCount,
           relations: relCount
         });
-        console.log(`Created: ${parsed.number} (via ${method}) with ${reqCount} requirements, ${relCount} relations`);
+        console.log(`${isUpdate ? 'Updated' : 'Created'}: ${parsed.number} (via ${method}) with ${reqCount} requirements, ${relCount} relations`);
 
       } catch (error) {
         failed++;
@@ -791,7 +836,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Import complete: ${created} created, ${skipped} skipped, ${failed} failed, ${requirementsCreated} requirements, ${relationsCreated} relations`);
+    console.log(`Import complete: ${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed, ${requirementsCreated} requirements, ${relationsCreated} relations`);
 
     return new Response(
       JSON.stringify({
@@ -799,6 +844,7 @@ serve(async (req) => {
         stats: {
           total: links.length,
           created,
+          updated,
           skipped,
           failed,
           requirementsCreated,

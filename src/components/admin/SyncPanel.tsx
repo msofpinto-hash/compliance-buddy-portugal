@@ -42,9 +42,11 @@ export function SyncPanel() {
   const [linksImportStats, setLinksImportStats] = useState<{
     total: number;
     created: number;
+    updated: number;
     skipped: number;
     failed: number;
   } | null>(null);
+  const [updateExisting, setUpdateExisting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
 
@@ -372,7 +374,7 @@ export function SyncPanel() {
       });
 
       const { data, error } = await supabase.functions.invoke('import-dre-links', {
-        body: { links }
+        body: { links, updateExisting }
       });
 
       if (error) throw error;
@@ -380,9 +382,10 @@ export function SyncPanel() {
       if (data.success) {
         setLinksImportStats(data.stats);
         setLinksContent("");
+        const updatedText = data.stats.updated > 0 ? `, ${data.stats.updated} atualizados` : '';
         toast({
           title: "Importação concluída!",
-          description: `${data.stats.created} diplomas criados, ${data.stats.skipped} já existentes`,
+          description: `${data.stats.created} diplomas criados${updatedText}, ${data.stats.skipped} ignorados`,
         });
       } else {
         throw new Error(data.error || 'Erro desconhecido');
@@ -690,6 +693,19 @@ https://dre.pt/application/file/..."
             disabled={isImportingLinks}
           />
           
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={updateExisting}
+                onChange={(e) => setUpdateExisting(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+                disabled={isImportingLinks}
+              />
+              <span className="text-muted-foreground">Atualizar diplomas existentes com novos dados</span>
+            </label>
+          </div>
+          
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               {linksContent.trim() ? `${linksContent.split('\n').filter(l => l.trim()).length} link(s)` : 'Sem links'}
@@ -704,7 +720,7 @@ https://dre.pt/application/file/..."
               ) : (
                 <Send className="mr-2 h-4 w-4" />
               )}
-              {isImportingLinks ? 'A importar...' : 'Importar Links'}
+              {isImportingLinks ? 'A importar...' : updateExisting ? 'Importar e Atualizar' : 'Importar Links'}
             </Button>
           </div>
           
@@ -720,8 +736,14 @@ https://dre.pt/application/file/..."
                   <span className="text-muted-foreground">Novos criados:</span>
                   <span className="font-medium text-green-600">{linksImportStats.created}</span>
                 </div>
+                {linksImportStats.updated > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Atualizados:</span>
+                    <span className="font-medium text-blue-600">{linksImportStats.updated}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Já existentes:</span>
+                  <span className="text-muted-foreground">Ignorados:</span>
                   <span className="font-medium text-muted-foreground">{linksImportStats.skipped}</span>
                 </div>
                 {linksImportStats.failed > 0 && (
