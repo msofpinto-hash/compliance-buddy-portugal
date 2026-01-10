@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil, Wrench } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
@@ -15,6 +15,7 @@ import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
 import { EditLegislationDialog } from "./EditLegislationDialog";
 import { BulkEditLegislationDatesDialog } from "./BulkEditLegislationDatesDialog";
+import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
@@ -44,6 +45,7 @@ export function LegislationPanel() {
   const [datesDialogOpen, setDatesDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
+  const [bulkFixDialogOpen, setBulkFixDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Extract unique themes from legislation categories
@@ -364,14 +366,27 @@ export function LegislationPanel() {
                   Gerencie categorias e requisitos legais ({filteredAndSortedLegislation.length} resultados)
                 </CardDescription>
               </div>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar legislação..."
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-9"
-                />
+              <div className="flex items-center gap-2">
+                {problemsCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkFixDialogOpen(true)}
+                    className="border-red-300 text-red-700 hover:bg-red-50 gap-2"
+                  >
+                    <Wrench className="h-4 w-4" />
+                    Corrigir em Massa
+                  </Button>
+                )}
+                <div className="relative w-full sm:w-60">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Pesquisar legislação..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
             </div>
             
@@ -834,6 +849,11 @@ export function LegislationPanel() {
             clearSelection();
           }
         }}
+      />
+      <BulkFixMetadataDialog
+        open={bulkFixDialogOpen}
+        onOpenChange={setBulkFixDialogOpen}
+        problemsCount={problemsCount}
       />
     </div>
   );
