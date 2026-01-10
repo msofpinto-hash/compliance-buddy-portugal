@@ -3,12 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
+import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
 
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
@@ -16,6 +17,7 @@ export function LegislationPanel() {
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
+  const [datesDialogOpen, setDatesDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -53,6 +55,11 @@ export function LegislationPanel() {
   const openRequirementsDialog = (leg: LegislationWithCategories) => {
     setSelectedLegislation(leg);
     setRequirementsDialogOpen(true);
+  };
+
+  const openDatesDialog = (leg: LegislationWithCategories) => {
+    setSelectedLegislation(leg);
+    setDatesDialogOpen(true);
   };
 
   return (
@@ -177,6 +184,15 @@ export function LegislationPanel() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => openDatesDialog(leg)}
+                        className="gap-2"
+                      >
+                        <CalendarDays className="h-4 w-4" />
+                        Datas
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => openCategoriesDialog(leg)}
                         className="gap-2"
                       >
@@ -234,6 +250,11 @@ export function LegislationPanel() {
         legislation={selectedLegislation}
         open={requirementsDialogOpen}
         onOpenChange={setRequirementsDialogOpen}
+      />
+      <EditLegislationDatesDialog
+        legislation={selectedLegislation}
+        open={datesDialogOpen}
+        onOpenChange={setDatesDialogOpen}
       />
     </div>
   );
