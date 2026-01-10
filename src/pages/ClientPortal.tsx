@@ -245,7 +245,7 @@ export default function ClientPortal() {
     enabled: organizationIds.length > 0,
   });
 
-  // Fetch organization's assigned themes
+  // Fetch organization's assigned themes with categories
   const { data: assignedThemes } = useQuery({
     queryKey: ["org-themes-client", organizationIds],
     queryFn: async () => {
@@ -256,7 +256,17 @@ export default function ClientPortal() {
         .select(`
           id,
           theme_id,
-          themes(id, name, icon, description)
+          themes(
+            id, 
+            name, 
+            icon, 
+            description,
+            theme_categories(
+              id,
+              name,
+              parent_id
+            )
+          )
         `)
         .in("organization_id", organizationIds);
       
@@ -271,6 +281,61 @@ export default function ClientPortal() {
         }
       });
       return Array.from(uniqueThemes.values());
+    },
+    enabled: organizationIds.length > 0,
+  });
+
+  // Fetch legislation count per theme/category
+  const { data: legislationByCategory } = useQuery({
+    queryKey: ["legislation-by-category", organizationIds],
+    queryFn: async () => {
+      if (organizationIds.length === 0) return { byCategory: new Map<string, number>(), byTheme: new Map<string, Set<string>>() };
+      
+      // Get all legislation IDs for these organizations
+      const { data: orgLeg, error: orgError } = await supabase
+        .from("organization_legislation")
+        .select("legislation_id")
+        .in("organization_id", organizationIds);
+      
+      if (orgError) throw orgError;
+      
+      const legislationIds = orgLeg?.map(l => l.legislation_id) || [];
+      if (legislationIds.length === 0) return { byCategory: new Map<string, number>(), byTheme: new Map<string, Set<string>>() };
+      
+      // Get category mappings for these legislations
+      const { data: mappings, error: mapError } = await supabase
+        .from("legislation_category_mapping")
+        .select(`
+          legislation_id,
+          category_id,
+          theme_categories(id, name, theme_id, parent_id)
+        `)
+        .in("legislation_id", legislationIds);
+      
+      if (mapError) throw mapError;
+      
+      // Count per category and per theme
+      const countByCategory = new Map<string, number>();
+      const countByTheme = new Map<string, Set<string>>();
+      
+      mappings?.forEach((m: any) => {
+        const catId = m.category_id;
+        const themeId = m.theme_categories?.theme_id;
+        const legId = m.legislation_id;
+        
+        // Count by category
+        countByCategory.set(catId, (countByCategory.get(catId) || 0) + 1);
+        
+        // Count unique legislations by theme
+        if (themeId) {
+          if (!countByTheme.has(themeId)) {
+            countByTheme.set(themeId, new Set());
+          }
+          countByTheme.get(themeId)!.add(legId);
+        }
+      });
+      
+      return { byCategory: countByCategory, byTheme: countByTheme };
     },
     enabled: organizationIds.length > 0,
   });
@@ -796,7 +861,7 @@ export default function ClientPortal() {
                 </Card>
               </div>
 
-              {/* Assigned Themes */}
+              {/* Assigned Themes with Categories */}
               {assignedThemes && assignedThemes.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -807,17 +872,83 @@ export default function ClientPortal() {
                     <CardDescription>Áreas de legislação atribuídas à sua organização</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {assignedThemes.map((theme: any) => (
-                        <Badge 
-                          key={theme.id} 
-                          variant="secondary"
-                          className="text-sm py-1.5 px-3 gap-1.5"
-                        >
-                          {theme.icon && <span>{theme.icon}</span>}
-                          {theme.name}
-                        </Badge>
-                      ))}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {assignedThemes.map((theme: any) => {
+                        const themeCount = legislationByCategory?.byTheme?.get(theme.id)?.size || 0;
+                        const rootCategories = theme.theme_categories?.filter((c: any) => !c.parent_id) || [];
+                        
+                        return (
+                          <div 
+                            key={theme.id} 
+                            className="p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                {theme.icon && <span className="text-xl">{theme.icon}</span>}
+                                <span className="font-semibold">{theme.name}</span>
+                              </div>
+                              <Badge variant="secondary" className="shrink-0">
+                                {themeCount} {themeCount === 1 ? "diploma" : "diplomas"}
+                              </Badge>
+                            </div>
+                            
+                            {rootCategories.length > 0 && (
+                              <div className="space-y-1.5">
+                                {rootCategories.slice(0, 5).map((cat: any) => {
+                                  const catCount = legislationByCategory?.byCategory?.get(cat.id) || 0;
+                                  // Find subcategories
+                                  const subCategories = theme.theme_categories?.filter((c: any) => c.parent_id === cat.id) || [];
+                                  
+                                  return (
+                                    <div key={cat.id}>
+                                      <div className="flex items-center justify-between text-sm py-1 px-2 rounded bg-muted/50">
+                                        <span className="text-muted-foreground truncate">{cat.name}</span>
+                                        {catCount > 0 && (
+                                          <span className="text-xs font-medium text-primary ml-2">{catCount}</span>
+                                        )}
+                                      </div>
+                                      {subCategories.length > 0 && (
+                                        <div className="ml-3 mt-1 space-y-0.5">
+                                          {subCategories.slice(0, 3).map((sub: any) => {
+                                            const subCount = legislationByCategory?.byCategory?.get(sub.id) || 0;
+                                            return (
+                                              <div 
+                                                key={sub.id}
+                                                className="flex items-center justify-between text-xs py-0.5 px-2 text-muted-foreground"
+                                              >
+                                                <span className="truncate">↳ {sub.name}</span>
+                                                {subCount > 0 && (
+                                                  <span className="font-medium text-primary/70 ml-2">{subCount}</span>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                          {subCategories.length > 3 && (
+                                            <span className="text-xs text-muted-foreground pl-2">
+                                              +{subCategories.length - 3} mais...
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                {rootCategories.length > 5 && (
+                                  <p className="text-xs text-muted-foreground pt-1">
+                                    +{rootCategories.length - 5} categorias...
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
+                            {rootCategories.length === 0 && (
+                              <p className="text-xs text-muted-foreground italic">
+                                Sem categorias definidas
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
