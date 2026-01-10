@@ -448,6 +448,45 @@ export type Database = {
           },
         ]
       }
+      organization_themes: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          organization_id: string
+          theme_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          organization_id: string
+          theme_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          organization_id?: string
+          theme_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_themes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_themes_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
