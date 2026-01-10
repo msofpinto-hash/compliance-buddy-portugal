@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -14,14 +15,83 @@ import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 
+type SortField = "title" | "number" | "publication_date" | "theme";
+type SortOrder = "asc" | "desc";
+
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<SortField>("publication_date");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [filterTheme, setFilterTheme] = useState<string>("all");
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
   const [datesDialogOpen, setDatesDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
+
+  // Extract unique themes from legislation categories
+  const availableThemes = useMemo(() => {
+    if (!legislation) return [];
+    const themes = new Set<string>();
+    legislation.forEach(leg => {
+      leg.categories.forEach(cat => {
+        if (cat.theme_name) themes.add(cat.theme_name);
+      });
+    });
+    return Array.from(themes).sort();
+  }, [legislation]);
+
+  // Filter and sort legislation
+  const filteredAndSortedLegislation = useMemo(() => {
+    if (!legislation) return [];
+
+    // First filter by search term
+    let result = legislation.filter(leg =>
+      leg.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leg.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leg.summary?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Then filter by theme
+    if (filterTheme !== "all") {
+      result = result.filter(leg =>
+        leg.categories.some(cat => cat.theme_name === filterTheme)
+      );
+    }
+
+    // Sort the results
+    result.sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case "title":
+          comparison = a.title.localeCompare(b.title, 'pt');
+          break;
+        case "number":
+          comparison = a.number.localeCompare(b.number, 'pt');
+          break;
+        case "publication_date":
+          const dateA = a.publication_date ? new Date(a.publication_date).getTime() : 0;
+          const dateB = b.publication_date ? new Date(b.publication_date).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+        case "theme":
+          const themeA = a.categories[0]?.theme_name || "";
+          const themeB = b.categories[0]?.theme_name || "";
+          comparison = themeA.localeCompare(themeB, 'pt');
+          break;
+      }
+
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [legislation, searchTerm, filterTheme, sortField, sortOrder]);
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+  };
 
   if (isLoading) {
     return (
@@ -40,12 +110,6 @@ export function LegislationPanel() {
       </Card>
     );
   }
-
-  const filteredLegislation = legislation?.filter(leg =>
-    leg.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    leg.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    leg.summary?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const dreCount = legislation?.filter(l => l.source === 'dre').length || 0;
   const eurlexCount = legislation?.filter(l => l.source === 'eurlex').length || 0;
@@ -104,31 +168,78 @@ export function LegislationPanel() {
       {/* Legislation List */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Legislação Importada
-              </CardTitle>
-              <CardDescription>
-                Gerencie categorias e requisitos legais
-              </CardDescription>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Legislação Importada
+                </CardTitle>
+                <CardDescription>
+                  Gerencie categorias e requisitos legais ({filteredAndSortedLegislation.length} resultados)
+                </CardDescription>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar legislação..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar legislação..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+            
+            {/* Sorting and Filtering Controls */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Filtrar por tema:</span>
+                <Select value={filterTheme} onValueChange={setFilterTheme}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Todos os temas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os temas</SelectItem>
+                    {availableThemes.map(theme => (
+                      <SelectItem key={theme} value={theme}>{theme}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Ordenar por:</span>
+                <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="publication_date">Data de Publicação</SelectItem>
+                    <SelectItem value="title">Título</SelectItem>
+                    <SelectItem value="number">Número</SelectItem>
+                    <SelectItem value="theme">Tema</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleSortOrder}
+                  title={sortOrder === "asc" ? "Ordem ascendente" : "Ordem descendente"}
+                >
+                  {sortOrder === "asc" ? (
+                    <ArrowUp className="h-4 w-4" />
+                  ) : (
+                    <ArrowDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {filteredLegislation && filteredLegislation.length > 0 ? (
+          {filteredAndSortedLegislation.length > 0 ? (
             <div className="space-y-4">
-              {filteredLegislation.map((leg) => (
+              {filteredAndSortedLegislation.map((leg) => (
                 <div
                   key={leg.id}
                   className="rounded-lg border p-4 transition-all hover:bg-accent/50"
