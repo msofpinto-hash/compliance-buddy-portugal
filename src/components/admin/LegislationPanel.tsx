@@ -26,6 +26,7 @@ export function LegislationPanel() {
   const [sortField, setSortField] = useState<SortField>("publication_date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [filterTheme, setFilterTheme] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
@@ -46,6 +47,28 @@ export function LegislationPanel() {
     return Array.from(themes).sort();
   }, [legislation]);
 
+  // Extract unique categories (full paths) for the selected theme
+  const availableCategories = useMemo(() => {
+    if (!legislation) return [];
+    const categories = new Map<string, string>(); // id -> full_path
+    
+    legislation.forEach(leg => {
+      leg.categories.forEach(cat => {
+        // If filtering by theme, only show categories from that theme
+        if (filterTheme === "all" || cat.theme_name === filterTheme) {
+          if (cat.id && cat.full_path) {
+            categories.set(cat.id, cat.full_path);
+          }
+        }
+      });
+    });
+    
+    // Convert to array and sort by path
+    return Array.from(categories.entries())
+      .map(([id, path]) => ({ id, path }))
+      .sort((a, b) => a.path.localeCompare(b.path, 'pt'));
+  }, [legislation, filterTheme]);
+
   // Filter and sort legislation
   const filteredAndSortedLegislation = useMemo(() => {
     if (!legislation) return [];
@@ -61,6 +84,13 @@ export function LegislationPanel() {
     if (filterTheme !== "all") {
       result = result.filter(leg =>
         leg.categories.some(cat => cat.theme_name === filterTheme)
+      );
+    }
+
+    // Then filter by specific category
+    if (filterCategory !== "all") {
+      result = result.filter(leg =>
+        leg.categories.some(cat => cat.id === filterCategory)
       );
     }
 
@@ -91,7 +121,7 @@ export function LegislationPanel() {
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, sortField, sortOrder]);
 
   // Pagination calculations
   const totalItems = filteredAndSortedLegislation.length;
@@ -108,6 +138,12 @@ export function LegislationPanel() {
 
   const handleThemeChange = (value: string) => {
     setFilterTheme(value);
+    setFilterCategory("all"); // Reset category when theme changes
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setFilterCategory(value);
     setCurrentPage(1);
   };
 
@@ -224,9 +260,9 @@ export function LegislationPanel() {
             {/* Sorting and Filtering Controls */}
             <div className="flex flex-wrap gap-3 items-center">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filtrar por tema:</span>
+                <span className="text-sm text-muted-foreground">Tema:</span>
                 <Select value={filterTheme} onValueChange={handleThemeChange}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-44">
                     <SelectValue placeholder="Todos os temas" />
                   </SelectTrigger>
                   <SelectContent>
@@ -239,31 +275,48 @@ export function LegislationPanel() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Ordenar por:</span>
-                <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
+                <span className="text-sm text-muted-foreground">Categoria:</span>
+                <Select value={filterCategory} onValueChange={handleCategoryChange}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Todas as categorias" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="publication_date">Data de Publicação</SelectItem>
-                    <SelectItem value="title">Título</SelectItem>
-                    <SelectItem value="number">Número</SelectItem>
-                    <SelectItem value="theme">Tema</SelectItem>
+                  <SelectContent className="max-h-80">
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {availableCategories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id} className="text-xs">
+                        {cat.path}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toggleSortOrder}
-                  title={sortOrder === "asc" ? "Ordem ascendente" : "Ordem descendente"}
-                >
-                  {sortOrder === "asc" ? (
-                    <ArrowUp className="h-4 w-4" />
-                  ) : (
-                    <ArrowDown className="h-4 w-4" />
-                  )}
-                </Button>
               </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-center">
+              <span className="text-sm text-muted-foreground">Ordenar por:</span>
+              <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="publication_date">Data de Publicação</SelectItem>
+                  <SelectItem value="title">Título</SelectItem>
+                  <SelectItem value="number">Número</SelectItem>
+                  <SelectItem value="theme">Tema</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleSortOrder}
+                title={sortOrder === "asc" ? "Ordem ascendente" : "Ordem descendente"}
+              >
+                {sortOrder === "asc" ? (
+                  <ArrowUp className="h-4 w-4" />
+                ) : (
+                  <ArrowDown className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </div>
         </CardHeader>
