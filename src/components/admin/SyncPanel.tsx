@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -14,7 +15,15 @@ export function SyncPanel() {
   const triggerSync = useTriggerSync();
   const { toast } = useToast();
   const [isImporting, setIsImporting] = useState(false);
+  const [isImportingText, setIsImportingText] = useState(false);
+  const [textContent, setTextContent] = useState("");
   const [importStats, setImportStats] = useState<{
+    totalParsed: number;
+    created: number;
+    skipped: number;
+    mappingsCreated: number;
+  } | null>(null);
+  const [textImportStats, setTextImportStats] = useState<{
     totalParsed: number;
     created: number;
     skipped: number;
@@ -109,6 +118,53 @@ export function SyncPanel() {
     }
   };
 
+  const handleTextImport = async () => {
+    if (!textContent.trim()) {
+      toast({
+        title: "Conteúdo vazio",
+        description: "Por favor cole o texto do PDF antes de importar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImportingText(true);
+    setTextImportStats(null);
+
+    try {
+      toast({
+        title: "Processamento iniciado",
+        description: "A analisar o texto... Isto pode demorar alguns minutos.",
+      });
+
+      const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
+        body: { textContent: textContent }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setTextImportStats(data.stats);
+        setTextContent(""); // Clear the textarea after success
+        toast({
+          title: "Importação concluída!",
+          description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
+        });
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Text import error:', error);
+      toast({
+        title: "Erro na importação",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImportingText(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -189,6 +245,78 @@ export function SyncPanel() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Categorias associadas:</span>
                   <span className="font-medium text-blue-600">{importStats.mappingsCreated}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Text Import */}
+      <Card className="border-indigo-200 bg-indigo-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-indigo-600" />
+            Importar Texto (Páginas Adicionais)
+          </CardTitle>
+          <CardDescription>
+            Cole o texto copiado diretamente do PDF para importar legislação das páginas restantes. 
+            O formato deve seguir o padrão: categoria em linha própria, seguido de diploma e sumário.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            placeholder="Cole aqui o texto copiado do PDF...
+
+Exemplo de formato esperado:
+# Ambiente / Legislação Nacional / Geral / Diplomas Gerais
+
+Portaria n.º 481/2025/1 de 31 de dezembro
+
+Estabelece o regime de apoio à realização de investimentos..."
+            value={textContent}
+            onChange={(e) => setTextContent(e.target.value)}
+            className="min-h-[200px] font-mono text-sm"
+            disabled={isImportingText}
+          />
+          
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {textContent.length > 0 ? `${textContent.length.toLocaleString()} caracteres` : 'Sem conteúdo'}
+            </p>
+            <Button
+              onClick={handleTextImport}
+              disabled={isImportingText || !textContent.trim()}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {isImportingText ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              {isImportingText ? 'A importar...' : 'Importar Texto'}
+            </Button>
+          </div>
+          
+          {textImportStats && (
+            <div className="rounded-lg border bg-white p-4 space-y-2">
+              <h4 className="font-medium text-sm">Resultado da Importação:</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Diplomas analisados:</span>
+                  <span className="font-medium">{textImportStats.totalParsed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Novos criados:</span>
+                  <span className="font-medium text-green-600">{textImportStats.created}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Já existentes:</span>
+                  <span className="font-medium text-muted-foreground">{textImportStats.skipped}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Categorias associadas:</span>
+                  <span className="font-medium text-blue-600">{textImportStats.mappingsCreated}</span>
                 </div>
               </div>
             </div>
