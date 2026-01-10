@@ -20,8 +20,10 @@ interface DREDocument {
   series?: string;
 }
 
+// DRE API base URL - now uses diariodarepublica.pt
+const DRE_BASE_URL = 'https://diariodarepublica.pt';
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -73,7 +75,7 @@ serve(async (req) => {
     if (startDate) {
       fromDate = startDate;
     } else {
-      const daysBack = syncType === 'daily' ? 1 : 30;
+      const daysBack = syncType === 'daily' ? 7 : 30;
       const from = new Date(today);
       from.setDate(from.getDate() - daysBack);
       fromDate = from.toISOString().split('T')[0];
@@ -83,7 +85,7 @@ serve(async (req) => {
 
     console.log(`Fetching DRE documents from ${fromDate} to ${toDate}`);
 
-    // Fetch from DRE API - Both Series I and II
+    // Fetch from DRE API
     let allDocuments: DREDocument[] = [];
     
     // Generate dates between fromDate and toDate
@@ -93,15 +95,20 @@ serve(async (req) => {
     for (const date of dates) {
       console.log(`Fetching documents for date: ${date}`);
       
-      // Series I - Main legislation
-      const seriesI = await fetchDRESeries(date, 1);
-      console.log(`Series I (${date}): ${seriesI.length} documents`);
-      allDocuments.push(...seriesI);
-      
-      // Series II - Secondary legislation
-      const seriesII = await fetchDRESeries(date, 2);
-      console.log(`Series II (${date}): ${seriesII.length} documents`);
-      allDocuments.push(...seriesII);
+      try {
+        // Get list of Diários for this date
+        const diarios = await getDiariosForDate(date);
+        console.log(`Found ${diarios.length} diários for ${date}`);
+        
+        // Get documents from each Diário
+        for (const diario of diarios) {
+          const docs = await getDocumentsFromDiario(diario.dbId, date, diario.serie);
+          console.log(`Diário ${diario.dbId} (${diario.serie}): ${docs.length} documents`);
+          allDocuments.push(...docs);
+        }
+      } catch (error) {
+        console.error(`Error processing date ${date}:`, error);
+      }
     }
 
     console.log(`Total documents fetched: ${allDocuments.length}`);
@@ -159,7 +166,7 @@ serve(async (req) => {
             title: doc.title,
             summary: doc.summary,
             entity: doc.entity,
-            origin: 'Nacional',
+            origin: 'PT',
             publication_date: doc.publicationDate || null,
             effective_date: doc.effectiveDate || null,
             document_url: doc.documentUrl,
@@ -264,92 +271,169 @@ function getDatesBetween(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-// Fetch documents from a specific series for a specific date
-async function fetchDRESeries(date: string, series: number): Promise<DREDocument[]> {
-  const documents: DREDocument[] = [];
+// Get Diários published on a specific date using the new API
+async function getDiariosForDate(date: string): Promise<{ dbId: number; serie: string }[]> {
+  const diarios: { dbId: number; serie: string }[] = [];
   
   try {
-    // DRE.pt API endpoint for searching by date and series
-    // Format: YYYY-MM-DD
-    const dreApiUrl = `https://dre.pt/web/rest/diplomas?dataPublicacao=${date}&serie=${series}&formato=json`;
-    
-    console.log(`Fetching from: ${dreApiUrl}`);
-    
-    const response = await fetch(dreApiUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'LegalCompliance/1.0'
+    // Build the payload for the DRE API
+    const payload = {
+      versionInfo: {
+        moduleVersion: "1.0.0",
+        apiVersion: "1.0.0"
+      },
+      viewName: "Home.home",
+      screenData: {
+        variables: {
+          DataCalendario: date,
+          DataUltimaPublicacao: "2030-12-31"
+        }
+      },
+      clientVariables: {}
+    };
+
+    const response = await fetch(
+      `${DRE_BASE_URL}/dre/screenservices/DRE/Home/home/DataActionGetDRByDataCalendario`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'X-CSRFToken': 'bypass',
+          'User-Agent': 'LegalCompliance/1.0'
+        },
+        body: JSON.stringify(payload)
       }
-    });
+    );
 
     if (!response.ok) {
-      console.warn(`DRE API returned status ${response.status} for series ${series} on ${date}`);
-      
-      // Try alternative endpoint
-      const altUrl = `https://dre.pt/home/-/dre/${date}/serie-${series === 1 ? 'i' : 'ii'}?json=true`;
-      console.log(`Trying alternative URL: ${altUrl}`);
-      
-      const altResponse = await fetch(altUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'LegalCompliance/1.0'
-        }
-      });
-      
-      if (altResponse.ok) {
-        const altData = await altResponse.json();
-        return parseDREResponse(altData, date, series);
-      }
-      
-      return [];
+      console.warn(`DRE API returned status ${response.status} for date ${date}`);
+      return diarios;
     }
 
     const data = await response.json();
-    return parseDREResponse(data, date, series);
-
+    
+    // Parse the nested JSON response
+    if (data?.data?.Json_Out) {
+      const jsonOut = JSON.parse(data.data.Json_Out);
+      const hits = jsonOut?.hits?.hits || [];
+      
+      for (const hit of hits) {
+        const source = hit._source;
+        if (source?.dbId) {
+          // Determine series from title
+          const title = source.conteudoTitle || '';
+          const serie = title.includes('Série II') ? 'Série II' : 'Série I';
+          diarios.push({ dbId: source.dbId, serie });
+        }
+      }
+    }
   } catch (error) {
-    console.error(`Error fetching DRE series ${series} for ${date}:`, error);
-    return [];
+    console.error(`Error fetching diários for ${date}:`, error);
   }
+  
+  return diarios;
 }
 
-// Parse DRE API response into our document format
-function parseDREResponse(data: any, date: string, series: number): DREDocument[] {
+// Get documents from a specific Diário
+async function getDocumentsFromDiario(
+  diarioId: number, 
+  date: string, 
+  serie: string
+): Promise<DREDocument[]> {
   const documents: DREDocument[] = [];
   
-  // Handle different response formats
-  const diplomas = data?.diplomas || data?.results || data?.data || [];
-  
-  if (!Array.isArray(diplomas)) {
-    console.warn('Unexpected DRE response format:', typeof data);
-    return [];
-  }
-  
-  for (const doc of diplomas) {
-    try {
-      const dreDoc: DREDocument = {
-        id: doc.id?.toString() || doc.dreId || doc.numero || `dre-${date}-${series}-${Math.random().toString(36).substr(2, 9)}`,
-        number: doc.numero || doc.tipoENumero || doc.designacao || '',
-        title: doc.titulo || doc.descricao || doc.sumario?.substring(0, 200) || '',
-        summary: doc.sumario || doc.texto || doc.descricao || '',
-        entity: doc.entidadeEmissora || doc.fonte || doc.emissor || '',
-        publicationDate: doc.dataPublicacao || doc.data || date,
-        effectiveDate: doc.dataEntradaVigor || doc.dataVigencia || null,
-        documentUrl: doc.url || doc.ligacao || doc.linkDRE || `https://dre.pt/application/file/${doc.id || doc.dreId}`,
-        category: doc.tipo || doc.categoria || doc.tipoDocumento || '',
-        series: series === 1 ? 'Série I' : 'Série II'
+  try {
+    const payload = {
+      versionInfo: {
+        moduleVersion: "1.0.0",
+        apiVersion: "1.0.0"
+      },
+      viewName: "Legislacao_Conteudos.ListaDiplomas",
+      screenData: {
+        variables: {
+          DiarioId: diarioId
+        }
+      },
+      clientVariables: {}
+    };
+
+    const response = await fetch(
+      `${DRE_BASE_URL}/dre/screenservices/DRE/Legislacao_Conteudos/ListaDiplomas/DataActionGetDados`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'X-CSRFToken': 'bypass',
+          'User-Agent': 'LegalCompliance/1.0'
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    if (!response.ok) {
+      console.warn(`DRE API returned status ${response.status} for diário ${diarioId}`);
+      return documents;
+    }
+
+    const data = await response.json();
+    
+    // Parse response - structure may vary
+    const diplomas = extractDiplomasFromResponse(data);
+    
+    for (const diploma of diplomas) {
+      const doc: DREDocument = {
+        id: diploma.id?.toString() || diploma.dbId?.toString() || `dre-${diarioId}-${Math.random().toString(36).substr(2, 9)}`,
+        number: diploma.numero || diploma.tipoENumero || diploma.designacao || '',
+        title: diploma.titulo || diploma.sumario?.substring(0, 200) || '',
+        summary: diploma.sumario || diploma.resumo || '',
+        entity: diploma.entidadeEmissora || diploma.emissor || '',
+        publicationDate: diploma.dataPublicacao || date,
+        effectiveDate: diploma.dataEntradaVigor || null,
+        documentUrl: diploma.url || `${DRE_BASE_URL}/dr/detalhe/${diploma.id || diploma.dbId}`,
+        category: diploma.tipo || diploma.tipoDocumento || '',
+        series: serie
       };
       
-      // Only add if we have at least a number or title
-      if (dreDoc.number || dreDoc.title) {
-        documents.push(dreDoc);
+      if (doc.number || doc.title) {
+        documents.push(doc);
       }
-    } catch (parseError) {
-      console.error('Error parsing document:', parseError);
     }
+  } catch (error) {
+    console.error(`Error fetching documents from diário ${diarioId}:`, error);
   }
   
   return documents;
+}
+
+// Extract diplomas from various response formats
+function extractDiplomasFromResponse(data: any): any[] {
+  // Try different possible response structures
+  if (data?.data?.Json_Out) {
+    try {
+      const jsonOut = JSON.parse(data.data.Json_Out);
+      return jsonOut?.hits?.hits?.map((h: any) => h._source) || jsonOut?.diplomas || jsonOut?.data || [];
+    } catch {
+      // Fall through to other options
+    }
+  }
+  
+  if (data?.data?.Diplomas) {
+    return data.data.Diplomas;
+  }
+  
+  if (data?.data?.ListaDiplomas) {
+    return data.data.ListaDiplomas;
+  }
+  
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+  
+  if (data?.diplomas) {
+    return data.diplomas;
+  }
+  
+  return [];
 }
 
 // Match legislation text against category keywords
