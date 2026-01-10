@@ -580,14 +580,80 @@ serve(async (req) => {
     // Get existing legislation
     const { data: existingLegislation } = await supabase
       .from('legislation')
-      .select('id, external_id, document_url, number, summary');
+      .select('id, external_id, document_url, number, summary, title, entity, publication_date, effective_date');
     
     const existingByUrl = new Map((existingLegislation || []).map(l => [l.document_url, l]));
     const existingIds = new Set((existingLegislation || []).map(l => l.external_id));
     const legislationByNumber = new Map((existingLegislation || []).map(l => [l.number?.toLowerCase(), l.id]));
+    
+    // Build a normalized number index for duplicate detection
+    const normalizeNumber = (num: string): string => {
+      return num
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/,\s*/g, ' ')
+        .replace(/n\.º\s*/g, 'n.º ')
+        .replace(/de\s+(\d)/g, '$1')
+        .replace(/\s+de\s+\d{1,2}\s+de\s+\w+$/i, '') // Remove "de DD de Mês"
+        .trim();
+    };
+    
+    const existingByNormalizedNumber = new Map<string, any>();
+    for (const leg of existingLegislation || []) {
+      const normalized = normalizeNumber(leg.number || '');
+      if (normalized && !existingByNormalizedNumber.has(normalized)) {
+        existingByNormalizedNumber.set(normalized, leg);
+      }
+    }
+    
+    // Smart merge function - keeps the best data from both records
+    const smartMerge = (existing: any, newData: any): Record<string, unknown> => {
+      const merged: Record<string, unknown> = {};
+      
+      // Title: prefer longer, more descriptive title (not just the number)
+      if (newData.title && newData.title !== newData.number) {
+        if (!existing.title || existing.title === existing.number || 
+            (newData.title.length > existing.title.length && !newData.title.includes('http'))) {
+          merged.title = newData.title;
+        }
+      }
+      
+      // Summary: prefer longer, non-error summary
+      if (newData.summary && newData.summary.length > 20 && !newData.summary.includes('Lamentamos')) {
+        if (!existing.summary || existing.summary.length < newData.summary.length || 
+            existing.summary.includes('Lamentamos')) {
+          merged.summary = newData.summary;
+        }
+      }
+      
+      // Entity: prefer non-empty, clean entity (no markdown links)
+      if (newData.entity && !newData.entity.includes('[') && !newData.entity.includes('http')) {
+        if (!existing.entity || existing.entity.includes('[') || existing.entity.includes('http')) {
+          merged.entity = newData.entity;
+        }
+      }
+      
+      // Publication date: prefer existing if both have it, otherwise use new
+      if (newData.publicationDate && !existing.publication_date) {
+        merged.publication_date = newData.publicationDate;
+      }
+      
+      // Effective date: prefer new if existing is empty
+      if (newData.effectiveDate && !existing.effective_date) {
+        merged.effective_date = newData.effectiveDate;
+      }
+      
+      // Document URL: prefer DRE URL
+      if (newData.documentUrl && !existing.document_url) {
+        merged.document_url = newData.documentUrl;
+      }
+      
+      return merged;
+    };
 
     let created = 0;
     let updated = 0;
+    let merged = 0;
     let skipped = 0;
     let failed = 0;
     let requirementsCreated = 0;
@@ -599,8 +665,9 @@ serve(async (req) => {
       const url = link.trim();
       if (!url) continue;
       
-      // Check if already exists
-      const existingLeg = existingByUrl.get(url);
+      // Check if already exists by URL
+      let existingLeg = existingByUrl.get(url);
+      
       if (existingLeg && !updateExisting) {
         skipped++;
         results.push({ url, status: 'skipped', number: 'Já existe' });
@@ -677,6 +744,38 @@ serve(async (req) => {
         if (!existingLeg && existingIds.has(parsed.externalId)) {
           skipped++;
           results.push({ url, status: 'skipped', number: parsed.number });
+          continue;
+        }
+        
+        // DUPLICATE DETECTION: Check if similar number already exists
+        const normalizedNewNumber = normalizeNumber(parsed.number);
+        const duplicateByNumber = existingByNormalizedNumber.get(normalizedNewNumber);
+        
+        if (duplicateByNumber && duplicateByNumber.id && !existingLeg) {
+          // Found a potential duplicate - merge instead of creating new
+          console.log(`Duplicate detected: "${parsed.number}" matches existing "${duplicateByNumber.number}"`);
+          
+          const mergedData = smartMerge(duplicateByNumber, parsed);
+          
+          if (Object.keys(mergedData).length > 0) {
+            mergedData.updated_at = new Date().toISOString();
+            
+            const { error: mergeError } = await supabase
+              .from('legislation')
+              .update(mergedData)
+              .eq('id', duplicateByNumber.id);
+            
+            if (mergeError) {
+              console.error(`Merge error for ${parsed.number}:`, mergeError.message);
+            } else {
+              merged++;
+              console.log(`Merged data into existing: ${duplicateByNumber.number} with ${Object.keys(mergedData).length} fields`);
+              results.push({ url, status: 'merged', number: parsed.number, method });
+            }
+          } else {
+            skipped++;
+            results.push({ url, status: 'skipped', number: 'Duplicado sem novos dados' });
+          }
           continue;
         }
 
@@ -812,9 +911,10 @@ serve(async (req) => {
         }
 
         if (!isUpdate) {
-          existingByUrl.set(url, { id: legislationId, external_id: parsed.externalId, document_url: url, number: parsed.number, summary: parsed.summary });
+          existingByUrl.set(url, { id: legislationId, external_id: parsed.externalId, document_url: url, number: parsed.number, summary: parsed.summary, title: parsed.title, entity: parsed.entity, publication_date: parsed.publicationDate, effective_date: parsed.effectiveDate });
           existingIds.add(parsed.externalId);
           legislationByNumber.set(parsed.number.toLowerCase(), legislationId);
+          existingByNormalizedNumber.set(normalizeNumber(parsed.number), { id: legislationId, number: parsed.number });
         }
         
         results.push({ 
@@ -836,7 +936,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Import complete: ${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed, ${requirementsCreated} requirements, ${relationsCreated} relations`);
+    console.log(`Import complete: ${created} created, ${updated} updated, ${merged} merged, ${skipped} skipped, ${failed} failed, ${requirementsCreated} requirements, ${relationsCreated} relations`);
 
     return new Response(
       JSON.stringify({
@@ -845,6 +945,7 @@ serve(async (req) => {
           total: links.length,
           created,
           updated,
+          merged,
           skipped,
           failed,
           requirementsCreated,
