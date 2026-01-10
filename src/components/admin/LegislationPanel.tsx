@@ -312,12 +312,17 @@ export function LegislationPanel() {
                         )}
                       </div>
 
-                      {/* Categories */}
+                      {/* Categories with full path */}
                       {leg.categories.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1">
                           {leg.categories.map((cat) => (
-                            <Badge key={cat.id} variant="outline" className="text-xs">
-                              {cat.theme_name} → {cat.name}
+                            <Badge 
+                              key={cat.id} 
+                              variant="outline" 
+                              className="text-xs"
+                              title={cat.full_path}
+                            >
+                              {cat.full_path}
                             </Badge>
                           ))}
                         </div>
