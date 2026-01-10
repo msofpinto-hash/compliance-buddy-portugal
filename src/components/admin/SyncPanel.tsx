@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar } from "lucide-react";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -64,6 +64,22 @@ export function SyncPanel() {
   const [reimportType, setReimportType] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
+  
+  // Metadata fix states
+  const [isFixingEurlexTitles, setIsFixingEurlexTitles] = useState(false);
+  const [isFixingDreMetadata, setIsFixingDreMetadata] = useState(false);
+  const [eurlexTitlesStats, setEurlexTitlesStats] = useState<{
+    processed: number;
+    fixed: number;
+    failed: number;
+  } | null>(null);
+  const [dreMetadataStats, setDreMetadataStats] = useState<{
+    processed: number;
+    fixed: number;
+    failed: number;
+  } | null>(null);
+  const [genericTitlesCount, setGenericTitlesCount] = useState<number | null>(null);
+  const [missingDatesCount, setMissingDatesCount] = useState<number | null>(null);
 
   const LEGISLATION_TYPES = [
     { value: "all", label: "Todos os tipos" },
@@ -498,7 +514,185 @@ export function SyncPanel() {
   // Fetch count on mount and when filters change
   useEffect(() => {
     fetchIncompleteCount();
+    fetchMetadataCounts();
   }, [reimportDateFrom, reimportDateTo, reimportType]);
+
+  // Fetch metadata counts
+  const fetchMetadataCounts = async () => {
+    // Count EUR-Lex with generic titles
+    const { count: eurlexCount } = await supabase
+      .from("legislation")
+      .select("*", { count: "exact", head: true })
+      .eq("origin", "EU")
+      .like("title", "Documento %");
+    
+    if (eurlexCount !== null) {
+      setGenericTitlesCount(eurlexCount);
+    }
+
+    // Count DRE with missing dates  
+    const { count: dreCount } = await supabase
+      .from("legislation")
+      .select("*", { count: "exact", head: true })
+      .eq("origin", "PT")
+      .is("publication_date", null);
+    
+    if (dreCount !== null) {
+      setMissingDatesCount(dreCount);
+    }
+  };
+
+  const handleFixEurlexTitles = async () => {
+    setIsFixingEurlexTitles(true);
+    setEurlexTitlesStats(null);
+
+    let totalProcessed = 0;
+    let totalFixed = 0;
+    let totalFailed = 0;
+
+    try {
+      toast({
+        title: "Correção iniciada",
+        description: "A corrigir títulos genéricos EUR-Lex...",
+      });
+
+      // Run in batches until all are fixed
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabase.functions.invoke('fix-eurlex-titles', {
+          body: { batchSize: 50 }
+        });
+
+        if (error) {
+          console.error('Fix titles error:', error);
+          break;
+        }
+
+        if (data.success) {
+          totalProcessed += data.processed || 0;
+          totalFixed += data.fixed || 0;
+          totalFailed += data.failed || 0;
+
+          // Check if there are more to process
+          const { count } = await supabase
+            .from("legislation")
+            .select("*", { count: "exact", head: true })
+            .eq("origin", "EU")
+            .like("title", "Documento %");
+
+          if (!count || count === 0) {
+            hasMore = false;
+          }
+        } else {
+          break;
+        }
+
+        // Small delay between batches
+        if (hasMore) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      setEurlexTitlesStats({
+        processed: totalProcessed,
+        fixed: totalFixed,
+        failed: totalFailed,
+      });
+
+      fetchMetadataCounts();
+
+      toast({
+        title: "Correção concluída!",
+        description: `${totalFixed} títulos corrigidos`,
+      });
+
+    } catch (error) {
+      console.error('Fix titles error:', error);
+      toast({
+        title: "Erro na correção",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingEurlexTitles(false);
+    }
+  };
+
+  const handleFixDreMetadata = async () => {
+    setIsFixingDreMetadata(true);
+    setDreMetadataStats(null);
+
+    let totalProcessed = 0;
+    let totalFixed = 0;
+    let totalFailed = 0;
+
+    try {
+      toast({
+        title: "Correção iniciada",
+        description: "A corrigir metadados DRE...",
+      });
+
+      // Run in batches
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabase.functions.invoke('fix-legislation-metadata', {
+          body: { batchSize: 30, source: 'dre' }
+        });
+
+        if (error) {
+          console.error('Fix metadata error:', error);
+          break;
+        }
+
+        if (data.success) {
+          totalProcessed += data.processed || 0;
+          totalFixed += data.fixed || 0;
+          totalFailed += data.failed || 0;
+
+          // Check if there are more to process
+          const { count } = await supabase
+            .from("legislation")
+            .select("*", { count: "exact", head: true })
+            .eq("origin", "PT")
+            .is("publication_date", null);
+
+          if (!count || count === 0) {
+            hasMore = false;
+          }
+        } else {
+          break;
+        }
+
+        // Small delay between batches
+        if (hasMore) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      setDreMetadataStats({
+        processed: totalProcessed,
+        fixed: totalFixed,
+        failed: totalFailed,
+      });
+
+      fetchMetadataCounts();
+
+      toast({
+        title: "Correção concluída!",
+        description: `${totalFixed} diplomas corrigidos`,
+      });
+
+    } catch (error) {
+      console.error('Fix metadata error:', error);
+      toast({
+        title: "Erro na correção",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingDreMetadata(false);
+    }
+  };
 
   const handleReimportIncomplete = async () => {
     setIsReimportingIncomplete(true);
@@ -1134,6 +1328,132 @@ https://dre.pt/application/file/..."
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Metadata Fix */}
+      <Card className="border-violet-200 bg-violet-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wrench className="h-5 w-5 text-violet-600" />
+            Correção de Metadados
+          </CardTitle>
+          <CardDescription>
+            Corrija títulos genéricos e datas em falta nos diplomas importados
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* EUR-Lex Titles */}
+            <div className="rounded-lg border bg-white p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Type className="h-4 w-4 text-blue-600" />
+                <h4 className="font-medium text-sm">Títulos EUR-Lex</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Corrige títulos genéricos (ex: "Documento 32025D0001") buscando os títulos reais do EUR-Lex
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">
+                  {genericTitlesCount !== null ? (
+                    <span>
+                      <span className="font-medium text-blue-600">{genericTitlesCount}</span> títulos genéricos
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">A verificar...</span>
+                  )}
+                </span>
+                <Button
+                  onClick={handleFixEurlexTitles}
+                  disabled={isFixingEurlexTitles || genericTitlesCount === 0}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isFixingEurlexTitles ? (
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Type className="mr-2 h-3 w-3" />
+                  )}
+                  {isFixingEurlexTitles ? 'A corrigir...' : 'Corrigir Títulos'}
+                </Button>
+              </div>
+              {eurlexTitlesStats && (
+                <div className="text-xs space-y-1 pt-2 border-t">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Corrigidos:</span>
+                    <span className="font-medium text-green-600">{eurlexTitlesStats.fixed}</span>
+                  </div>
+                  {eurlexTitlesStats.failed > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Falharam:</span>
+                      <span className="font-medium text-destructive">{eurlexTitlesStats.failed}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* DRE Metadata */}
+            <div className="rounded-lg border bg-white p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-green-600" />
+                <h4 className="font-medium text-sm">Metadados DRE</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Corrige datas de publicação em falta nos diplomas do Diário da República
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">
+                  {missingDatesCount !== null ? (
+                    <span>
+                      <span className="font-medium text-green-600">{missingDatesCount}</span> sem data
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">A verificar...</span>
+                  )}
+                </span>
+                <Button
+                  onClick={handleFixDreMetadata}
+                  disabled={isFixingDreMetadata || missingDatesCount === 0}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isFixingDreMetadata ? (
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Calendar className="mr-2 h-3 w-3" />
+                  )}
+                  {isFixingDreMetadata ? 'A corrigir...' : 'Corrigir Datas'}
+                </Button>
+              </div>
+              {dreMetadataStats && (
+                <div className="text-xs space-y-1 pt-2 border-t">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Corrigidos:</span>
+                    <span className="font-medium text-green-600">{dreMetadataStats.fixed}</span>
+                  </div>
+                  {dreMetadataStats.failed > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Falharam:</span>
+                      <span className="font-medium text-destructive">{dreMetadataStats.failed}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={fetchMetadataCounts}
+              disabled={isFixingEurlexTitles || isFixingDreMetadata}
+              className="border-violet-300 text-violet-700 hover:bg-violet-50"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Atualizar Contagens
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
