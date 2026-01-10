@@ -13,6 +13,7 @@ import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
+import { BulkEditLegislationDatesDialog } from "./BulkEditLegislationDatesDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
@@ -36,6 +37,7 @@ export function LegislationPanel() {
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
   const [bulkCategoriesDialogOpen, setBulkCategoriesDialogOpen] = useState(false);
+  const [bulkDatesDialogOpen, setBulkDatesDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
   const [datesDialogOpen, setDatesDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
@@ -437,6 +439,14 @@ export function LegislationPanel() {
                       <Layers className="h-4 w-4 mr-1" />
                       Atribuir Categorias ({selectedIds.size})
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setBulkDatesDialogOpen(true)}
+                    >
+                      <CalendarDays className="h-4 w-4 mr-1" />
+                      Editar Datas ({selectedIds.size})
+                    </Button>
                   </>
                 )}
               </div>
@@ -737,6 +747,16 @@ export function LegislationPanel() {
         open={bulkCategoriesDialogOpen}
         onOpenChange={(open) => {
           setBulkCategoriesDialogOpen(open);
+          if (!open) {
+            clearSelection();
+          }
+        }}
+      />
+      <BulkEditLegislationDatesDialog
+        legislationList={selectedLegislationList}
+        open={bulkDatesDialogOpen}
+        onOpenChange={(open) => {
+          setBulkDatesDialogOpen(open);
           if (!open) {
             clearSelection();
           }
