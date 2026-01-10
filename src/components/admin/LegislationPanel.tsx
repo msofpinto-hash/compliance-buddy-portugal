@@ -3,13 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2 } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
+import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
 
 export function LegislationPanel() {
@@ -19,6 +20,7 @@ export function LegislationPanel() {
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
   const [datesDialogOpen, setDatesDialogOpen] = useState(false);
+  const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -61,6 +63,11 @@ export function LegislationPanel() {
   const openDatesDialog = (leg: LegislationWithCategories) => {
     setSelectedLegislation(leg);
     setDatesDialogOpen(true);
+  };
+
+  const openRelationsDialog = (leg: LegislationWithCategories) => {
+    setSelectedLegislation(leg);
+    setRelationsDialogOpen(true);
   };
 
   return (
@@ -210,6 +217,15 @@ export function LegislationPanel() {
                         <FileEdit className="h-4 w-4" />
                         Requisitos
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openRelationsDialog(leg)}
+                        className="gap-2"
+                      >
+                        <Link2 className="h-4 w-4" />
+                        Relações
+                      </Button>
                       {leg.document_url && (
                         <Button
                           variant="ghost"
@@ -257,6 +273,11 @@ export function LegislationPanel() {
         legislation={selectedLegislation}
         open={datesDialogOpen}
         onOpenChange={setDatesDialogOpen}
+      />
+      <ManageRelationsDialog
+        legislation={selectedLegislation}
+        open={relationsDialogOpen}
+        onOpenChange={setRelationsDialogOpen}
       />
     </div>
   );

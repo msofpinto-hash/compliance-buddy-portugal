@@ -361,6 +361,51 @@ export type Database = {
           },
         ]
       }
+      legislation_relations: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          relation_type: string
+          source_legislation_id: string
+          target_legislation_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relation_type: string
+          source_legislation_id: string
+          target_legislation_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relation_type?: string
+          source_legislation_id?: string
+          target_legislation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislation_relations_source_legislation_id_fkey"
+            columns: ["source_legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legislation_relations_target_legislation_id_fkey"
+            columns: ["target_legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
