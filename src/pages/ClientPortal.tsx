@@ -32,6 +32,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
+import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,9 +61,37 @@ export default function ClientPortal() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [exportingType, setExportingType] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>("overview");
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+
+  // Fetch user's organizations (multiple)
+  const { data: userRoles, isLoading: loadingRole } = useQuery({
+    queryKey: ["user-roles", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("*, organizations(*)")
+        .eq("user_id", user.id)
+        .eq("role", "client");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Build organizations array for selector
+  const organizations = userRoles?.map(r => ({
+    id: r.organization_id as string,
+    name: (r.organizations as any)?.name as string
+  })).filter(o => o.id && o.name) || [];
+
+  // Get organization IDs (filtered by selection)
+  const organizationIds = selectedOrgId 
+    ? [selectedOrgId]
+    : userRoles?.map(r => r.organization_id).filter(Boolean) || [];
 
   const handleExportReport = async (reportType: "compliance" | "legislation" | "requirements", orgId?: string) => {
-    const targetOrgId = orgId || (userRoles && userRoles.length > 0 ? userRoles[0].organization_id : null);
+    const targetOrgId = orgId || selectedOrgId || (userRoles && userRoles.length > 0 ? userRoles[0].organization_id : null);
     if (!targetOrgId) return;
     
     const targetOrg = userRoles?.find(r => r.organization_id === targetOrgId);
@@ -109,26 +138,6 @@ export default function ClientPortal() {
       setExportingType(null);
     }
   };
-
-  // Fetch user's organizations (multiple)
-  const { data: userRoles, isLoading: loadingRole } = useQuery({
-    queryKey: ["user-roles", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("*, organizations(*)")
-        .eq("user_id", user.id)
-        .eq("role", "client");
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Get organization IDs
-  const organizationIds = userRoles?.map(r => r.organization_id).filter(Boolean) || [];
-  const organizationNames = userRoles?.map(r => (r.organizations as any)?.name).filter(Boolean) || [];
 
   // Fetch assigned legislation for ALL organizations
   const { data: assignedLegislation, isLoading: loadingLegislation } = useQuery({
@@ -380,19 +389,24 @@ export default function ClientPortal() {
             </div>
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold tracking-tight">Portal do Cliente</h1>
-              <p className="text-xs text-muted-foreground">
-                {organizationNames.length === 1 
-                  ? organizationNames[0] 
-                  : `${organizationNames.length} organizações`}
-              </p>
+              <p className="text-xs text-muted-foreground">Gestão de Conformidade</p>
             </div>
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Organization Selector */}
+            {organizations.length > 1 && (
+              <OrganizationSelector
+                organizations={organizations}
+                selectedOrgId={selectedOrgId}
+                onSelect={setSelectedOrgId}
+              />
+            )}
+            
             {/* Export Button */}
             <div className="relative group">
               <Button 
-                variant="ghost" 
+                variant="ghost"
                 size="sm"
                 className="gap-2"
                 disabled={!!exportingType}
