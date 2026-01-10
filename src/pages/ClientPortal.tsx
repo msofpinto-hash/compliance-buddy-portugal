@@ -135,7 +135,6 @@ export default function ClientPortal() {
             publication_date,
             effective_date,
             revocation_date,
-            source,
             document_url,
             entity,
             legislation_category_mapping(
