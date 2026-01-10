@@ -20,7 +20,10 @@ import {
   Scale,
   Building2,
   TrendingUp,
-  XCircle
+  XCircle,
+  ClipboardList,
+  Calendar,
+  User
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -125,6 +128,32 @@ export default function ClientPortal() {
           )
         `)
         .eq("organization_id", userRole.organization_id);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userRole?.organization_id,
+  });
+
+  // Fetch action plans for this organization
+  const { data: actionPlans, isLoading: loadingActionPlans } = useQuery({
+    queryKey: ["client-action-plans", userRole?.organization_id],
+    queryFn: async () => {
+      if (!userRole?.organization_id) return [];
+      
+      const { data, error } = await supabase
+        .from("action_plans")
+        .select(`
+          *,
+          legal_requirements(
+            id,
+            article,
+            requirement_text,
+            legislation(number, title)
+          )
+        `)
+        .eq("organization_id", userRole.organization_id)
+        .order("due_date", { ascending: true, nullsFirst: false });
       
       if (error) throw error;
       return data;
@@ -443,6 +472,77 @@ export default function ClientPortal() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Action Plans Section */}
+        {actionPlans && actionPlans.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5" />
+                    Planos de Ação
+                  </CardTitle>
+                  <CardDescription>
+                    Ações corretivas pendentes e em curso
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary">
+                  {actionPlans.filter(p => p.status !== "concluido").length} pendentes
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {actionPlans.filter(p => p.status !== "concluido").slice(0, 5).map((plan: any) => (
+                  <div key={plan.id} className="flex items-start justify-between gap-4 p-3 rounded-lg border">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge 
+                          variant="outline" 
+                          className={`gap-1 ${plan.status === "em_curso" ? "bg-yellow-500 text-white border-0" : "bg-gray-500 text-white border-0"}`}
+                        >
+                          {plan.status === "em_curso" ? (
+                            <><AlertTriangle className="h-3 w-3" /> Em Curso</>
+                          ) : (
+                            <><Clock className="h-3 w-3" /> Pendente</>
+                          )}
+                        </Badge>
+                        {plan.due_date && (
+                          <Badge variant="outline" className="gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {format(new Date(plan.due_date), "d MMM yyyy", { locale: pt })}
+                          </Badge>
+                        )}
+                        {plan.responsible && (
+                          <Badge variant="secondary" className="gap-1">
+                            <User className="h-3 w-3" />
+                            {plan.responsible}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="font-medium">{plan.title}</p>
+                      {plan.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
+                      )}
+                      {plan.legal_requirements && (
+                        <p className="text-xs text-muted-foreground">
+                          <FileText className="h-3 w-3 inline mr-1" />
+                          {plan.legal_requirements.legislation?.number} - {plan.legal_requirements.article || "Geral"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {actionPlans.filter(p => p.status !== "concluido").length > 5 && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    + {actionPlans.filter(p => p.status !== "concluido").length - 5} mais planos de ação
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Legislation List */}
         <Card>
