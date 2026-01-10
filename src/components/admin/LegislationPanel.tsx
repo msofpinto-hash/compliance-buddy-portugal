@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
@@ -13,6 +13,7 @@ import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
+import { EditLegislationDialog } from "./EditLegislationDialog";
 import { BulkEditLegislationDatesDialog } from "./BulkEditLegislationDatesDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
@@ -32,6 +33,7 @@ export function LegislationPanel() {
   const [filterTheme, setFilterTheme] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterNoCategory, setFilterNoCategory] = useState<boolean>(false);
+  const [filterProblems, setFilterProblems] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
@@ -40,6 +42,7 @@ export function LegislationPanel() {
   const [bulkDatesDialogOpen, setBulkDatesDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
   const [datesDialogOpen, setDatesDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -77,6 +80,20 @@ export function LegislationPanel() {
       .sort((a, b) => a.path.localeCompare(b.path, 'pt'));
   }, [legislation, filterTheme]);
 
+  // Helper to check if legislation has problems
+  const hasProblems = (leg: LegislationWithCategories) => {
+    const hasGenericTitle = leg.title.startsWith("Documento ") || leg.title.length < 10;
+    const hasMissingOrigin = !leg.origin || (leg.origin !== "PT" && leg.origin !== "EU");
+    const hasMissingDates = !leg.publication_date || !leg.effective_date;
+    return hasGenericTitle || hasMissingOrigin || hasMissingDates;
+  };
+
+  // Count items with problems
+  const problemsCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(hasProblems).length;
+  }, [legislation]);
+
   // Filter and sort legislation
   const filteredAndSortedLegislation = useMemo(() => {
     if (!legislation) return [];
@@ -88,20 +105,25 @@ export function LegislationPanel() {
       leg.summary?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Filter by "problems"
+    if (filterProblems) {
+      result = result.filter(hasProblems);
+    }
+
     // Filter by "no category"
     if (filterNoCategory) {
       result = result.filter(leg => leg.categories.length === 0);
     }
 
     // Then filter by theme (only if not filtering by "no category")
-    if (!filterNoCategory && filterTheme !== "all") {
+    if (!filterNoCategory && !filterProblems && filterTheme !== "all") {
       result = result.filter(leg =>
         leg.categories.some(cat => cat.theme_name === filterTheme)
       );
     }
 
     // Then filter by specific category (only if not filtering by "no category")
-    if (!filterNoCategory && filterCategory !== "all") {
+    if (!filterNoCategory && !filterProblems && filterCategory !== "all") {
       result = result.filter(leg =>
         leg.categories.some(cat => cat.id === filterCategory)
       );
@@ -134,7 +156,7 @@ export function LegislationPanel() {
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, sortField, sortOrder]);
 
   // Count items without category
   const noCategoryCount = useMemo(() => {
@@ -173,6 +195,17 @@ export function LegislationPanel() {
     if (!filterNoCategory) {
       setFilterTheme("all");
       setFilterCategory("all");
+      setFilterProblems(false);
+    }
+    setCurrentPage(1);
+  };
+
+  const toggleProblemsFilter = () => {
+    setFilterProblems(prev => !prev);
+    if (!filterProblems) {
+      setFilterTheme("all");
+      setFilterCategory("all");
+      setFilterNoCategory(false);
     }
     setCurrentPage(1);
   };
@@ -260,10 +293,15 @@ export function LegislationPanel() {
     setRelationsDialogOpen(true);
   };
 
+  const openEditDialog = (leg: LegislationWithCategories) => {
+    setSelectedLegislation(leg);
+    setEditDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total de Legislação</CardDescription>
@@ -296,6 +334,17 @@ export function LegislationPanel() {
             </CardDescription>
             <CardTitle className={`text-3xl ${noCategoryCount > 0 ? "text-amber-600" : ""}`}>
               {noCategoryCount}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className={problemsCount > 0 ? "border-red-300 bg-red-50/50" : ""}>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1">
+              {problemsCount > 0 && <AlertTriangle className="h-3 w-3 text-red-600" />}
+              Com Problemas
+            </CardDescription>
+            <CardTitle className={`text-3xl ${problemsCount > 0 ? "text-red-600" : ""}`}>
+              {problemsCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -338,9 +387,19 @@ export function LegislationPanel() {
                 Sem Categoria ({noCategoryCount})
               </Button>
 
+              <Button
+                variant={filterProblems ? "default" : "outline"}
+                size="sm"
+                onClick={toggleProblemsFilter}
+                className={filterProblems ? "bg-red-600 hover:bg-red-700" : "border-red-300 text-red-700 hover:bg-red-50"}
+              >
+                <AlertTriangle className="h-4 w-4 mr-1" />
+                Com Problemas ({problemsCount})
+              </Button>
+
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Tema:</span>
-                <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory}>
+                <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory || filterProblems}>
                   <SelectTrigger className="w-44">
                     <SelectValue placeholder="Todos os temas" />
                   </SelectTrigger>
@@ -355,7 +414,7 @@ export function LegislationPanel() {
 
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Categoria:</span>
-                <Select value={filterCategory} onValueChange={handleCategoryChange} disabled={filterNoCategory}>
+                <Select value={filterCategory} onValueChange={handleCategoryChange} disabled={filterNoCategory || filterProblems}>
                   <SelectTrigger className="w-64">
                     <SelectValue placeholder="Todas as categorias" />
                   </SelectTrigger>
@@ -551,6 +610,15 @@ export function LegislationPanel() {
                     {/* Action Buttons */}
                     <div className="flex gap-2 lg:flex-col">
                       <Button
+                        variant={hasProblems(leg) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => openEditDialog(leg)}
+                        className={hasProblems(leg) ? "bg-red-600 hover:bg-red-700 gap-2" : "gap-2"}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Editar
+                      </Button>
+                      <Button
                         variant="outline"
                         size="sm"
                         onClick={() => openDatesDialog(leg)}
@@ -741,6 +809,11 @@ export function LegislationPanel() {
         legislation={selectedLegislation}
         open={relationsDialogOpen}
         onOpenChange={setRelationsDialogOpen}
+      />
+      <EditLegislationDialog
+        legislation={selectedLegislation}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
       />
       <BulkAssignCategoriesDialog
         legislationList={selectedLegislationList}
