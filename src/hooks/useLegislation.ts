@@ -26,8 +26,16 @@ export interface LegislationRelation {
   target_id: string;
 }
 
+export interface LegislationCategory {
+  id: string;
+  name: string;
+  theme_name: string;
+  parent_id: string | null;
+  full_path: string;
+}
+
 export interface LegislationWithCategories extends Legislation {
-  categories: { id: string; name: string; theme_name: string }[];
+  categories: LegislationCategory[];
   relations: LegislationRelation[];
 }
 
@@ -60,8 +68,7 @@ export function useLegislationWithCategories() {
       const { data: legislation, error: legError } = await supabase
         .from("legislation")
         .select("*")
-        .order("publication_date", { ascending: false })
-        .limit(100);
+        .order("publication_date", { ascending: false });
 
       if (legError) throw legError;
 
@@ -75,6 +82,7 @@ export function useLegislationWithCategories() {
             id,
             name,
             theme_id,
+            parent_id,
             themes (
               name
             )
@@ -82,6 +90,31 @@ export function useLegislationWithCategories() {
         `);
 
       if (mapError) throw mapError;
+
+      // Fetch all categories to build paths
+      const { data: allCategories, error: catError } = await supabase
+        .from("theme_categories")
+        .select("id, name, parent_id, theme_id");
+
+      if (catError) throw catError;
+
+      // Build a function to get full path for a category
+      const buildFullPath = (categoryId: string, themeName: string): string => {
+        const pathParts: string[] = [];
+        let currentId: string | null = categoryId;
+        
+        while (currentId) {
+          const category = allCategories?.find(c => c.id === currentId);
+          if (category) {
+            pathParts.unshift(category.name);
+            currentId = category.parent_id;
+          } else {
+            break;
+          }
+        }
+        
+        return [themeName, ...pathParts].join(" → ");
+      };
 
       // Fetch relations
       const { data: relations, error: relError } = await supabase
@@ -102,11 +135,17 @@ export function useLegislationWithCategories() {
         
         return {
           ...leg,
-          categories: legMappings.map((m: any) => ({
-            id: m.theme_categories?.id,
-            name: m.theme_categories?.name,
-            theme_name: m.theme_categories?.themes?.name,
-          })).filter((c: any) => c.id),
+          categories: legMappings.map((m: any) => {
+            const themeName = m.theme_categories?.themes?.name || "";
+            const categoryId = m.theme_categories?.id;
+            return {
+              id: categoryId,
+              name: m.theme_categories?.name,
+              theme_name: themeName,
+              parent_id: m.theme_categories?.parent_id,
+              full_path: categoryId ? buildFullPath(categoryId, themeName) : themeName,
+            };
+          }).filter((c: any) => c.id),
           relations: legRelations.map((r: any) => ({
             id: r.id,
             relation_type: r.relation_type,
