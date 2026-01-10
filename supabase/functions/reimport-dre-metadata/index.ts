@@ -180,16 +180,19 @@ Deno.serve(async (req) => {
       .not('document_url', 'is', null);
     
     if (all2026) {
-      // Get all 2026 DRE legislation with missing data
+      // Get all 2026+ DRE legislation with missing data
       query = query.gte('publication_date', '2026-01-01');
     } else if (legislationIds && legislationIds.length > 0) {
       query = query.in('id', legislationIds);
     } else {
-      return new Response(
-        JSON.stringify({ success: false, error: 'No legislation IDs provided' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Default: get recent legislation (last 60 days) with missing metadata
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      query = query.gte('publication_date', sixtyDaysAgo.toISOString().split('T')[0]);
     }
+    
+    // Filter to only get items with missing/bad data
+    query = query.or('summary.is.null,summary.eq.,entity.is.null,entity.eq.');
     
     const { data: legislation, error: fetchError } = await query;
     
