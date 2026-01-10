@@ -11,6 +11,7 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Biblioteca from "./pages/Biblioteca";
+import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/biblioteca" element={<Biblioteca />} />
+            <Route path="/legislacao/:id" element={<LegislacaoDetalhes />} />
             <Route
               path="/dashboard"
               element={
