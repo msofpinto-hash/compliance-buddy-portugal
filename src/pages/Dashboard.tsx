@@ -10,7 +10,6 @@ import {
   AlertTriangle, 
   Clock, 
   TrendingUp,
-  LogOut,
   Settings,
   ExternalLink,
   BookOpen,
@@ -18,6 +17,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfMonth, eachDayOfInterval } from "date-fns";
@@ -284,10 +284,7 @@ export default function Dashboard() {
                 </Button>
               </Link>
             )}
-            <Button variant="outline" onClick={signOut} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
+            <LogoutConfirmDialog onConfirm={signOut} className="gap-2" />
           </div>
         </div>
       </header>

@@ -31,6 +31,7 @@ import {
   LayoutDashboard,
   ChevronRight
 } from "lucide-react";
+import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -327,10 +328,7 @@ export default function ClientPortal() {
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </div>
-            <Button variant="outline" onClick={signOut} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
+            <LogoutConfirmDialog onConfirm={signOut} className="gap-2" />
           </div>
         </header>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -439,10 +437,7 @@ export default function ClientPortal() {
               </Link>
             )}
             
-            <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Sair</span>
-            </Button>
+            <LogoutConfirmDialog onConfirm={signOut} size="sm" className="gap-2" />
           </div>
         </div>
       </header>
