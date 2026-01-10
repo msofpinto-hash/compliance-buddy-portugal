@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,20 +44,111 @@ function parseDateFromDiploma(diploma: string): string | null {
   return null;
 }
 
-// Parse markdown table rows into structured data
+// Parse XLSX file content (base64) into structured data
+function parseXlsxContent(base64Content: string): ExcelRow[] {
+  const rows: ExcelRow[] = [];
+  
+  // Decode base64 to binary
+  const binaryString = atob(base64Content);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  // Parse workbook
+  const workbook = XLSX.read(bytes, { type: 'array' });
+  
+  // Process first sheet
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  
+  // Convert to JSON (array of arrays)
+  const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as string[][];
+  
+  console.log(`Parsed ${jsonData.length} rows from XLSX`);
+  
+  // Find header row to determine column mapping
+  let headerRowIndex = -1;
+  let columnMap: { [key: string]: number } = {};
+  
+  for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+    const row = jsonData[i];
+    const rowLower = row.map(cell => String(cell).toLowerCase().trim());
+    
+    // Look for header patterns
+    if (rowLower.some(cell => cell.includes('diploma') || cell.includes('legislação'))) {
+      headerRowIndex = i;
+      
+      rowLower.forEach((cell, idx) => {
+        if (cell.includes('tema')) columnMap.temas = idx;
+        else if (cell.includes('descritor') || cell.includes('categoria')) columnMap.descritor = idx;
+        else if (cell.includes('diploma') || cell.includes('legislação')) columnMap.diploma = idx;
+        else if (cell.includes('sumário') || cell.includes('sumario') || cell.includes('resumo')) columnMap.sumario = idx;
+        else if (cell.includes('alterado') || cell.includes('altera')) columnMap.alteradoPor = idx;
+        else if (cell.includes('aplicabilidade') || cell.includes('aplicável')) columnMap.aplicabilidade = idx;
+        else if (cell.includes('condição') || cell.includes('condicao')) columnMap.condicao = idx;
+      });
+      
+      break;
+    }
+  }
+  
+  // If no header found, try common column positions
+  if (headerRowIndex === -1) {
+    console.log('No header row found, using default column positions');
+    headerRowIndex = 0; // Start from first row
+    columnMap = { temas: 0, descritor: 1, diploma: 2, sumario: 3, alteradoPor: 4, aplicabilidade: 5, condicao: 6 };
+  } else {
+    headerRowIndex++; // Data starts after header
+  }
+  
+  console.log('Column mapping:', columnMap);
+  
+  // Process data rows
+  const diplomaPatterns = ['lei', 'decreto', 'portaria', 'regulamento', 'despacho', 'resolução', 'diretiva', 'decisão'];
+  
+  for (let i = headerRowIndex; i < jsonData.length; i++) {
+    const row = jsonData[i];
+    if (!row || row.length < 3) continue;
+    
+    const temas = String(row[columnMap.temas] ?? '').trim();
+    const descritor = String(row[columnMap.descritor] ?? '').trim();
+    const diploma = String(row[columnMap.diploma] ?? '').trim();
+    const sumario = String(row[columnMap.sumario] ?? '').trim();
+    const alteradoPor = String(row[columnMap.alteradoPor] ?? '').trim();
+    const aplicabilidade = String(row[columnMap.aplicabilidade] ?? '').trim();
+    const condicao = String(row[columnMap.condicao] ?? '').trim();
+    
+    // Validate diploma
+    const isValidDiploma = diplomaPatterns.some(p => diploma.toLowerCase().includes(p));
+    
+    if (diploma && isValidDiploma) {
+      rows.push({
+        temas,
+        descritor,
+        diploma,
+        sumario,
+        alteradoPor,
+        aplicabilidade,
+        condicao
+      });
+    }
+  }
+  
+  return rows;
+}
+
+// Parse markdown table rows into structured data (legacy support)
 function parseMarkdownTable(content: string): ExcelRow[] {
   const rows: ExcelRow[] = [];
   const lines = content.split('\n');
   
   for (const line of lines) {
-    // Skip header rows and separator rows
     if (!line.startsWith('|') || line.includes('|-') || line.includes('Temas|Descritor')) continue;
     
-    // Parse table row
     const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
     
     if (cells.length >= 4) {
-      // Find the diploma cell (contains patterns like "Lei", "Decreto", "Portaria", etc.)
       let temas = '';
       let descritor = '';
       let diploma = '';
@@ -65,7 +157,6 @@ function parseMarkdownTable(content: string): ExcelRow[] {
       let aplicabilidade = '';
       let condicao = '';
       
-      // The structure is: Temas | Descritor | Diploma | Sumário | Alterado por | Aplicabilidade | Condição
       if (cells.length >= 7) {
         temas = cells[0] || '';
         descritor = cells[1] || '';
@@ -84,7 +175,6 @@ function parseMarkdownTable(content: string): ExcelRow[] {
         if (cells.length > 6) condicao = cells[6] || '';
       }
       
-      // Validate that diploma looks like legislation
       const diplomaPatterns = ['lei', 'decreto', 'portaria', 'regulamento', 'despacho', 'resolução', 'diretiva', 'decisão'];
       const isValidDiploma = diplomaPatterns.some(p => diploma.toLowerCase().includes(p));
       
@@ -105,7 +195,7 @@ function parseMarkdownTable(content: string): ExcelRow[] {
   return rows;
 }
 
-// Build category hierarchy from descritor (e.g., "Licenciamento - Licenciamento municipal - A - Diplomas")
+// Build category hierarchy from descritor
 async function getOrCreateCategoryHierarchy(
   supabase: any, 
   themeId: string, 
@@ -119,7 +209,6 @@ async function getOrCreateCategoryHierarchy(
     return categoryCache.get(cacheKey)!;
   }
   
-  // Split by " - " to get hierarchy parts
   const parts = descritor.split(' - ').map(p => p.trim()).filter(p => p);
   
   let parentId: string | null = null;
@@ -134,7 +223,6 @@ async function getOrCreateCategoryHierarchy(
       continue;
     }
     
-    // Check if category exists
     let query = supabase
       .from('theme_categories')
       .select('id')
@@ -153,7 +241,6 @@ async function getOrCreateCategoryHierarchy(
       lastCategoryId = existing.id;
       categoryCache.set(partCacheKey, existing.id);
     } else {
-      // Create new category
       const { data: newCat, error } = await supabase
         .from('theme_categories')
         .insert({
@@ -193,23 +280,31 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { textContent, themeName } = await req.json();
+    const { textContent, xlsxContent, themeName } = await req.json();
 
-    if (!textContent) {
+    if (!textContent && !xlsxContent) {
       return new Response(
-        JSON.stringify({ error: 'textContent is required' }),
+        JSON.stringify({ error: 'textContent or xlsxContent is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Starting Excel import...');
-    console.log(`Content length: ${textContent.length} characters`);
-
-    // Parse the markdown table
-    const rows = parseMarkdownTable(textContent);
+    
+    // Parse content based on type
+    let rows: ExcelRow[];
+    
+    if (xlsxContent) {
+      console.log(`Parsing XLSX content (base64 length: ${xlsxContent.length})`);
+      rows = parseXlsxContent(xlsxContent);
+    } else {
+      console.log(`Content length: ${textContent.length} characters`);
+      rows = parseMarkdownTable(textContent);
+    }
+    
     console.log(`Parsed ${rows.length} legislation entries`);
 
-    // Theme mapping (códigos para nomes)
+    // Theme mapping
     const themeMap: { [key: string]: string } = {
       'A': 'Ambiente',
       'Q': 'Qualidade',
@@ -221,7 +316,6 @@ serve(async (req) => {
       'CF': 'Conciliação Familiar'
     };
 
-    // Get or create themes
     const themeIdMap = new Map<string, string>();
     
     for (const [code, name] of Object.entries(themeMap)) {
@@ -246,7 +340,6 @@ serve(async (req) => {
       }
     }
 
-    // If specific theme provided, use that
     let defaultThemeId: string | null = null;
     if (themeName) {
       const { data: theme } = await supabase
@@ -260,7 +353,6 @@ serve(async (req) => {
       }
     }
 
-    // Category cache for performance
     const categoryCache = new Map<string, string>();
 
     let created = 0;
@@ -270,7 +362,6 @@ serve(async (req) => {
 
     for (const row of rows) {
       try {
-        // Check if legislation already exists
         const { data: existing } = await supabase
           .from('legislation')
           .select('id')
@@ -283,10 +374,8 @@ serve(async (req) => {
           legislationId = existing.id;
           skipped++;
         } else {
-          // Parse publication date from diploma
           const publicationDate = parseDateFromDiploma(row.diploma);
           
-          // Determine origin
           let origin = 'PT';
           if (row.diploma.toLowerCase().includes('regulamento (ue)') || 
               row.diploma.toLowerCase().includes('diretiva') ||
@@ -318,14 +407,12 @@ serve(async (req) => {
           created++;
         }
 
-        // Parse theme codes and create category mappings
         const themeCodes = row.temas.split('/').map(t => t.trim()).filter(t => t);
         
         for (const code of themeCodes) {
           const themeId = themeIdMap.get(code) || defaultThemeId;
           if (!themeId) continue;
 
-          // Get or create category hierarchy
           const categoryId = await getOrCreateCategoryHierarchy(
             supabase,
             themeId,
@@ -334,7 +421,6 @@ serve(async (req) => {
           );
 
           if (categoryId) {
-            // Check if mapping exists
             const { data: existingMapping } = await supabase
               .from('legislation_category_mapping')
               .select('id')
