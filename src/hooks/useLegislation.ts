@@ -18,8 +18,17 @@ export interface Legislation {
   updated_at: string;
 }
 
+export interface LegislationRelation {
+  id: string;
+  relation_type: string;
+  target_number: string;
+  target_title: string;
+  target_id: string;
+}
+
 export interface LegislationWithCategories extends Legislation {
   categories: { id: string; name: string; theme_name: string }[];
+  relations: LegislationRelation[];
 }
 
 export function useLegislation(source?: string) {
@@ -74,9 +83,23 @@ export function useLegislationWithCategories() {
 
       if (mapError) throw mapError;
 
+      // Fetch relations
+      const { data: relations, error: relError } = await supabase
+        .from("legislation_relations")
+        .select(`
+          id,
+          source_legislation_id,
+          relation_type,
+          target_legislation:legislation!legislation_relations_target_legislation_id_fkey(id, number, title)
+        `);
+
+      if (relError) throw relError;
+
       // Combine data
       const result: LegislationWithCategories[] = (legislation || []).map((leg) => {
         const legMappings = (mappings || []).filter((m: any) => m.legislation_id === leg.id);
+        const legRelations = (relations || []).filter((r: any) => r.source_legislation_id === leg.id);
+        
         return {
           ...leg,
           categories: legMappings.map((m: any) => ({
@@ -84,6 +107,13 @@ export function useLegislationWithCategories() {
             name: m.theme_categories?.name,
             theme_name: m.theme_categories?.themes?.name,
           })).filter((c: any) => c.id),
+          relations: legRelations.map((r: any) => ({
+            id: r.id,
+            relation_type: r.relation_type,
+            target_id: r.target_legislation?.id,
+            target_number: r.target_legislation?.number,
+            target_title: r.target_legislation?.title,
+          })).filter((r: any) => r.target_id),
         };
       });
 
