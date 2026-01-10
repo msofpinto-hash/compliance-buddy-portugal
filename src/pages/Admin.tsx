@@ -1,12 +1,15 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText, LogOut } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
 import { LegislationPanel } from "@/components/admin/LegislationPanel";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Admin = () => {
+  const { user, signOut } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -19,13 +22,16 @@ const Admin = () => {
               </div>
               <div>
                 <h1 className="text-xl font-semibold">Administração</h1>
-                <p className="text-sm text-muted-foreground">Gestão de sincronização e temas</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </Link>
           </div>
-          <Link to="/">
-            <Button variant="outline" size="sm">← Voltar</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={signOut} className="gap-2 text-muted-foreground">
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
+          </div>
         </div>
       </header>
 

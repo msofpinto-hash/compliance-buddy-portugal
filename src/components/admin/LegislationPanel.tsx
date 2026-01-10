@@ -1,13 +1,21 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, FileText, Loader2, Calendar, Building2 } from "lucide-react";
-import { useLegislationWithCategories } from "@/hooks/useLegislation";
+import { Input } from "@/components/ui/input";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search } from "lucide-react";
+import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
+import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
+  const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
+  const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -27,8 +35,24 @@ export function LegislationPanel() {
     );
   }
 
+  const filteredLegislation = legislation?.filter(leg =>
+    leg.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    leg.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    leg.summary?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const dreCount = legislation?.filter(l => l.source === 'dre').length || 0;
   const manualCount = legislation?.filter(l => l.source === 'manual' || !l.source).length || 0;
+
+  const openCategoriesDialog = (leg: LegislationWithCategories) => {
+    setSelectedLegislation(leg);
+    setCategoriesDialogOpen(true);
+  };
+
+  const openRequirementsDialog = (leg: LegislationWithCategories) => {
+    setSelectedLegislation(leg);
+    setRequirementsDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -57,23 +81,36 @@ export function LegislationPanel() {
       {/* Legislation List */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Legislação Importada
-          </CardTitle>
-          <CardDescription>
-            Documentos legislativos sincronizados do DRE
-          </CardDescription>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Legislação Importada
+              </CardTitle>
+              <CardDescription>
+                Gerencie categorias e requisitos legais
+              </CardDescription>
+            </div>
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar legislação..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {legislation && legislation.length > 0 ? (
+          {filteredLegislation && filteredLegislation.length > 0 ? (
             <div className="space-y-4">
-              {legislation.map((leg) => (
+              {filteredLegislation.map((leg) => (
                 <div
                   key={leg.id}
                   className="rounded-lg border p-4 transition-all hover:bg-accent/50"
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant={leg.source === 'dre' ? 'default' : 'secondary'}>
@@ -119,17 +156,38 @@ export function LegislationPanel() {
                       )}
                     </div>
 
-                    {leg.document_url && (
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 lg:flex-col">
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openCategoriesDialog(leg)}
+                        className="gap-2"
                       >
-                        <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+                        <Tags className="h-4 w-4" />
+                        Categorias
                       </Button>
-                    )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openRequirementsDialog(leg)}
+                        className="gap-2"
+                      >
+                        <FileEdit className="h-4 w-4" />
+                        Requisitos
+                      </Button>
+                      {leg.document_url && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -137,12 +195,30 @@ export function LegislationPanel() {
           ) : (
             <div className="py-8 text-center text-muted-foreground">
               <FileText className="mx-auto mb-2 h-8 w-8 opacity-50" />
-              <p>Nenhuma legislação importada ainda</p>
-              <p className="text-sm">Execute uma sincronização para importar documentos</p>
+              {searchTerm ? (
+                <p>Nenhuma legislação encontrada para "{searchTerm}"</p>
+              ) : (
+                <>
+                  <p>Nenhuma legislação importada ainda</p>
+                  <p className="text-sm">Execute uma sincronização para importar documentos</p>
+                </>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialogs */}
+      <AssignCategoriesDialog
+        legislation={selectedLegislation}
+        open={categoriesDialogOpen}
+        onOpenChange={setCategoriesDialogOpen}
+      />
+      <ManageRequirementsDialog
+        legislation={selectedLegislation}
+        open={requirementsDialogOpen}
+        onOpenChange={setRequirementsDialogOpen}
+      />
     </div>
   );
 }
