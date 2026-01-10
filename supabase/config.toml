@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.import-pdf-legislation]
 verify_jwt = false
+
+[functions.import-excel-legislation]
+verify_jwt = false
