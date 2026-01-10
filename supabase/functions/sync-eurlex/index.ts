@@ -198,7 +198,7 @@ serve(async (req) => {
             publication_date: doc.publicationDate || null,
             document_url: doc.documentUrl,
             category: doc.documentType,
-            origin: 'UE'
+            origin: 'EU'
           })
           .select()
           .single();
