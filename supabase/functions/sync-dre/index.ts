@@ -85,30 +85,66 @@ serve(async (req) => {
 
     console.log(`Fetching DRE documents from ${fromDate} to ${toDate}`);
 
-    // Fetch from DRE API
+    // Fetch from DRE using Firecrawl scraping
     let allDocuments: DREDocument[] = [];
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     
-    // Generate dates between fromDate and toDate
-    const dates = getDatesBetween(fromDate, toDate);
-    console.log(`Will search ${dates.length} day(s)`);
+    if (!firecrawlApiKey) {
+      console.error('FIRECRAWL_API_KEY not configured');
+      throw new Error('FIRECRAWL_API_KEY is required for DRE sync');
+    }
+    
+    // Scrape DRE homepage to get recent documents
+    console.log('Scraping DRE homepage for recent documents...');
+    
+    try {
+      const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${firecrawlApiKey}`
+        },
+        body: JSON.stringify({
+          url: 'https://diariodarepublica.pt/dr/home',
+          formats: ['markdown', 'links'],
+          waitFor: 5000
+        })
+      });
 
-    for (const date of dates) {
-      console.log(`Fetching documents for date: ${date}`);
-      
-      try {
-        // Get list of Diários for this date
-        const diarios = await getDiariosForDate(date);
-        console.log(`Found ${diarios.length} diários for ${date}`);
-        
-        // Get documents from each Diário
-        for (const diario of diarios) {
-          const docs = await getDocumentsFromDiario(diario.dbId, date, diario.serie);
-          console.log(`Diário ${diario.dbId} (${diario.serie}): ${docs.length} documents`);
-          allDocuments.push(...docs);
-        }
-      } catch (error) {
-        console.error(`Error processing date ${date}:`, error);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Firecrawl error:', errorText);
+        throw new Error(`Firecrawl returned status ${response.status}`);
       }
+
+      const scrapeData = await response.json();
+      const links = scrapeData?.data?.links || [];
+      const markdown = scrapeData?.data?.markdown || '';
+      
+      console.log(`Found ${links.length} links on DRE homepage`);
+      
+      // Extract diploma links (format: /dr/detalhe/TYPE/NUMBER-YEAR-ID)
+      const diplomaLinks = links.filter((link: string) => 
+        link.includes('/dr/detalhe/') && 
+        !link.includes('diario-republica') &&
+        !link.includes('legislacao-consolidada')
+      );
+      
+      console.log(`Found ${diplomaLinks.length} diploma links`);
+      
+      // Process each diploma link
+      for (const link of diplomaLinks) {
+        try {
+          const doc = await scrapeDiplomaPage(link, firecrawlApiKey);
+          if (doc) {
+            allDocuments.push(doc);
+          }
+        } catch (error) {
+          console.error(`Error processing ${link}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Error scraping DRE homepage:', error);
     }
 
     console.log(`Total documents fetched: ${allDocuments.length}`);
@@ -271,104 +307,84 @@ function getDatesBetween(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-// Get Diários published on a specific date using Firecrawl for JS rendering
-async function getDiariosForDate(date: string): Promise<{ dbId: number; serie: string }[]> {
-  const diarios: { dbId: number; serie: string }[] = [];
-  const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-  
-  if (!firecrawlApiKey) {
-    console.warn('FIRECRAWL_API_KEY not set, using fallback method');
-    return getDiariosForDateFallback(date);
-  }
-  
+// Scrape a single diploma page to extract its details
+async function scrapeDiplomaPage(url: string, apiKey: string): Promise<DREDocument | null> {
   try {
-    // Use Firecrawl to scrape the DRE calendar page
-    const formattedDate = date.split('-').reverse().join('-'); // Convert to DD-MM-YYYY
-    const url = `https://diariodarepublica.pt/dr/home/calendario/${formattedDate}`;
+    console.log(`Scraping diploma: ${url}`);
     
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${firecrawlApiKey}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         url: url,
-        formats: ['markdown', 'links'],
-        waitFor: 3000
+        formats: ['markdown'],
+        waitFor: 3000,
+        onlyMainContent: true
       })
     });
 
     if (!response.ok) {
-      console.warn(`Firecrawl returned status ${response.status} for date ${date}`);
-      return getDiariosForDateFallback(date);
+      console.warn(`Firecrawl returned ${response.status} for ${url}`);
+      return null;
     }
 
     const data = await response.json();
+    const markdown = data?.data?.markdown || '';
+    const metadata = data?.data?.metadata || {};
     
-    // Extract diário links from the scraped content
-    const links = data?.data?.links || [];
-    for (const link of links) {
-      if (link.includes('/dr/detalhe/')) {
-        const match = link.match(/\/dr\/detalhe\/(\d+)/);
-        if (match) {
-          const dbId = parseInt(match[1], 10);
-          const serie = link.includes('serie-ii') ? 'Série II' : 'Série I';
-          if (!diarios.some(d => d.dbId === dbId)) {
-            diarios.push({ dbId, serie });
-          }
+    // Extract info from URL: /dr/detalhe/TYPE/NUMBER-YEAR-ID
+    const urlMatch = url.match(/\/dr\/detalhe\/([^\/]+)\/([^\/]+)/);
+    const docType = urlMatch ? urlMatch[1].replace(/-/g, ' ') : '';
+    const docRef = urlMatch ? urlMatch[2] : '';
+    
+    // Parse the reference: number-year-id (e.g., "15-2026-1002139945")
+    const refMatch = docRef.match(/^(\d+)-(\d{4})-(\d+)$/);
+    const docNumber = refMatch ? refMatch[1] : '';
+    const docYear = refMatch ? refMatch[2] : '';
+    const docId = refMatch ? refMatch[3] : docRef;
+    
+    // Build the document number (e.g., "Portaria n.º 15/2026")
+    const capitalizedType = docType.charAt(0).toUpperCase() + docType.slice(1);
+    const formattedNumber = `${capitalizedType} n.º ${docNumber}/${docYear}`;
+    
+    // Extract entity and summary from markdown
+    const lines = markdown.split('\n').filter((l: string) => l.trim());
+    let entity = '';
+    let summary = '';
+    
+    // First non-empty line after title is usually the entity
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line && !line.startsWith('#') && !line.startsWith('[')) {
+        if (!entity) {
+          entity = line;
+        } else if (!summary) {
+          summary = line;
+          break;
         }
       }
     }
     
-    console.log(`Firecrawl found ${diarios.length} diários for ${date}`);
-  } catch (error) {
-    console.error(`Error fetching diários for ${date}:`, error);
-    return getDiariosForDateFallback(date);
-  }
-  
-  return diarios;
-}
-
-// Fallback method using DRE search API
-async function getDiariosForDateFallback(date: string): Promise<{ dbId: number; serie: string }[]> {
-  const diarios: { dbId: number; serie: string }[] = [];
-  
-  try {
-    // Try the DRE search endpoint
-    const searchUrl = `${DRE_BASE_URL}/dr/pesquisa-avancada/-/pesquisa/${encodeURIComponent(JSON.stringify({
-      dataPublicacao: date,
-      perPage: 50
-    }))}`;
+    // Use title from metadata if available
+    const title = metadata.title || metadata.ogTitle || formattedNumber;
     
-    const response = await fetch(searchUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'LegalCompliance/1.0'
-      }
-    });
-
-    if (!response.ok) {
-      console.warn(`DRE search API returned status ${response.status} for date ${date}`);
-      return diarios;
-    }
-
-    const data = await response.json();
-    const items = data?.items || data?.results || [];
-    
-    for (const item of items) {
-      if (item.id || item.dbId) {
-        const dbId = item.id || item.dbId;
-        const serie = (item.serie || item.title || '').includes('II') ? 'Série II' : 'Série I';
-        diarios.push({ dbId, serie });
-      }
-    }
+    return {
+      id: docId,
+      number: formattedNumber,
+      title: title,
+      summary: summary || markdown.substring(0, 500),
+      entity: entity,
+      publicationDate: new Date().toISOString().split('T')[0], // Today's date for homepage items
+      documentUrl: url,
+      category: capitalizedType
+    };
   } catch (error) {
-    console.error(`Fallback method failed for ${date}:`, error);
+    console.error(`Error scraping ${url}:`, error);
+    return null;
   }
-  
-  return diarios;
 }
 
 // Get documents from a specific Diário
