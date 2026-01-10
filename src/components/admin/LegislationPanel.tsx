@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -27,6 +27,7 @@ export function LegislationPanel() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [filterTheme, setFilterTheme] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterNoCategory, setFilterNoCategory] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
@@ -80,15 +81,20 @@ export function LegislationPanel() {
       leg.summary?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Then filter by theme
-    if (filterTheme !== "all") {
+    // Filter by "no category"
+    if (filterNoCategory) {
+      result = result.filter(leg => leg.categories.length === 0);
+    }
+
+    // Then filter by theme (only if not filtering by "no category")
+    if (!filterNoCategory && filterTheme !== "all") {
       result = result.filter(leg =>
         leg.categories.some(cat => cat.theme_name === filterTheme)
       );
     }
 
-    // Then filter by specific category
-    if (filterCategory !== "all") {
+    // Then filter by specific category (only if not filtering by "no category")
+    if (!filterNoCategory && filterCategory !== "all") {
       result = result.filter(leg =>
         leg.categories.some(cat => cat.id === filterCategory)
       );
@@ -121,7 +127,13 @@ export function LegislationPanel() {
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, sortField, sortOrder]);
+
+  // Count items without category
+  const noCategoryCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(leg => leg.categories.length === 0).length;
+  }, [legislation]);
 
   // Pagination calculations
   const totalItems = filteredAndSortedLegislation.length;
@@ -138,12 +150,23 @@ export function LegislationPanel() {
 
   const handleThemeChange = (value: string) => {
     setFilterTheme(value);
-    setFilterCategory("all"); // Reset category when theme changes
+    setFilterCategory("all");
+    setFilterNoCategory(false);
     setCurrentPage(1);
   };
 
   const handleCategoryChange = (value: string) => {
     setFilterCategory(value);
+    setFilterNoCategory(false);
+    setCurrentPage(1);
+  };
+
+  const toggleNoCategoryFilter = () => {
+    setFilterNoCategory(prev => !prev);
+    if (!filterNoCategory) {
+      setFilterTheme("all");
+      setFilterCategory("all");
+    }
     setCurrentPage(1);
   };
 
@@ -205,7 +228,7 @@ export function LegislationPanel() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total de Legislação</CardDescription>
@@ -226,8 +249,19 @@ export function LegislationPanel() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Manual</CardDescription>
+            <CardDescription>Manual / Importados</CardDescription>
             <CardTitle className="text-3xl">{manualCount}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className={noCategoryCount > 0 ? "border-amber-300 bg-amber-50/50" : ""}>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1">
+              {noCategoryCount > 0 && <AlertCircle className="h-3 w-3 text-amber-600" />}
+              Sem Categoria
+            </CardDescription>
+            <CardTitle className={`text-3xl ${noCategoryCount > 0 ? "text-amber-600" : ""}`}>
+              {noCategoryCount}
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -259,9 +293,19 @@ export function LegislationPanel() {
             
             {/* Sorting and Filtering Controls */}
             <div className="flex flex-wrap gap-3 items-center">
+              <Button
+                variant={filterNoCategory ? "default" : "outline"}
+                size="sm"
+                onClick={toggleNoCategoryFilter}
+                className={filterNoCategory ? "bg-amber-600 hover:bg-amber-700" : "border-amber-300 text-amber-700 hover:bg-amber-50"}
+              >
+                <AlertCircle className="h-4 w-4 mr-1" />
+                Sem Categoria ({noCategoryCount})
+              </Button>
+
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Tema:</span>
-                <Select value={filterTheme} onValueChange={handleThemeChange}>
+                <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory}>
                   <SelectTrigger className="w-44">
                     <SelectValue placeholder="Todos os temas" />
                   </SelectTrigger>
@@ -276,7 +320,7 @@ export function LegislationPanel() {
 
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Categoria:</span>
-                <Select value={filterCategory} onValueChange={handleCategoryChange}>
+                <Select value={filterCategory} onValueChange={handleCategoryChange} disabled={filterNoCategory}>
                   <SelectTrigger className="w-64">
                     <SelectValue placeholder="Todas as categorias" />
                   </SelectTrigger>
