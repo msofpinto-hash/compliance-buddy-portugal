@@ -89,10 +89,28 @@ serve(async (req) => {
 
     console.log(`Loaded ${categories?.length || 0} categories for keyword matching`);
 
-    // Calculate date range
-    const today = new Date();
-    const daysBack = syncType === 'daily' ? 7 : 90;
-    const fromDate = startDate || new Date(today.setDate(today.getDate() - daysBack)).toISOString().split('T')[0];
+    // Calculate date range based on sync type
+    let fromDate: string;
+    if (startDate) {
+      fromDate = startDate;
+    } else {
+      const today = new Date();
+      switch (syncType) {
+        case 'yearly':
+          fromDate = `${today.getFullYear()}-01-01`;
+          break;
+        case 'monthly':
+          fromDate = new Date(today.setMonth(today.getMonth() - 1)).toISOString().split('T')[0];
+          break;
+        case 'quarterly':
+          fromDate = new Date(today.setMonth(today.getMonth() - 3)).toISOString().split('T')[0];
+          break;
+        case 'daily':
+        default:
+          fromDate = new Date(today.setDate(today.getDate() - 7)).toISOString().split('T')[0];
+          break;
+      }
+    }
 
     console.log(`Fetching EUR-Lex documents from ${fromDate}`);
 
