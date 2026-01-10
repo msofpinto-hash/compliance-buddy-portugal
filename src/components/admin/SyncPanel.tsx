@@ -69,61 +69,15 @@ export function SyncPanel() {
       return;
     }
 
-    setIsImporting(true);
-    setImportStats(null);
-
-    try {
-      // Read file and convert to text (we'll parse it server-side)
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        
-        // For now, we'll send the PDF content as base64 to be parsed
-        // In production, you'd use a proper PDF parser
-        const base64 = btoa(
-          new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-
-        toast({
-          title: "Processamento iniciado",
-          description: "A analisar o PDF... Isto pode demorar alguns minutos.",
-        });
-
-        // Call the edge function
-        const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
-          body: { pdfContent: base64 }
-        });
-
-        if (error) throw error;
-
-        if (data.success) {
-          setImportStats(data.stats);
-          toast({
-            title: "Importação concluída!",
-            description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
-          });
-        } else {
-          throw new Error(data.error || 'Erro desconhecido');
-        }
-      };
-
-      reader.onerror = () => {
-        throw new Error('Erro ao ler o ficheiro');
-      };
-
-      reader.readAsArrayBuffer(file);
-    } catch (error) {
-      console.error('Import error:', error);
-      toast({
-        title: "Erro na importação",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    } finally {
-      setIsImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    // Show message that direct PDF upload isn't supported
+    toast({
+      title: "Importação de PDF não suportada",
+      description: "Por favor use a opção 'Importar Texto' abaixo. Copie o texto do PDF e cole na área de texto.",
+      variant: "destructive",
+    });
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
