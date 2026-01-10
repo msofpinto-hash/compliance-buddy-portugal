@@ -12,6 +12,7 @@ import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
+import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
@@ -186,6 +187,9 @@ export function LegislationPanel() {
                         effectiveDate={leg.effective_date}
                         revocationDate={(leg as any).revocation_date}
                       />
+
+                      {/* Relations */}
+                      <LegislationRelationsBadges relations={leg.relations} />
                     </div>
 
                     {/* Action Buttons */}

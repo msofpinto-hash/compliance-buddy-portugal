@@ -109,6 +109,7 @@ export function ManageRelationsDialog({
       setSelectedType("");
       setSelectedTargetId("");
       refetchRelations();
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
     } catch (error: any) {
       if (error.code === "23505") {
         toast.error("Esta relação já existe");
@@ -132,6 +133,7 @@ export function ManageRelationsDialog({
 
       toast.success("Relação removida");
       refetchRelations();
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
     } catch (error: any) {
       toast.error("Erro ao remover relação: " + error.message);
     } finally {
