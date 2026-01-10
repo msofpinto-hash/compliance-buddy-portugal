@@ -17,6 +17,7 @@ interface DREDocument {
   effectiveDate?: string;
   documentUrl: string;
   category?: string;
+  series?: string;
 }
 
 serve(async (req) => {
@@ -38,7 +39,7 @@ serve(async (req) => {
     const { data: syncLog, error: syncLogError } = await supabase
       .from('sync_logs')
       .insert({
-        sync_type: syncType,
+        sync_type: `dre-${syncType}`,
         status: 'in_progress',
         started_at: new Date().toISOString(),
       })
@@ -66,57 +67,50 @@ serve(async (req) => {
 
     // Calculate date range for sync
     const today = new Date();
-    const fromDate = startDate || new Date(today.setDate(today.getDate() - (syncType === 'daily' ? 1 : 30))).toISOString().split('T')[0];
-    const toDate = endDate || new Date().toISOString().split('T')[0];
+    let fromDate: string;
+    let toDate: string;
+    
+    if (startDate) {
+      fromDate = startDate;
+    } else {
+      const daysBack = syncType === 'daily' ? 1 : 30;
+      const from = new Date(today);
+      from.setDate(from.getDate() - daysBack);
+      fromDate = from.toISOString().split('T')[0];
+    }
+    
+    toDate = endDate || new Date().toISOString().split('T')[0];
 
     console.log(`Fetching DRE documents from ${fromDate} to ${toDate}`);
 
-    // Fetch from DRE API
-    // DRE.pt provides an open data API for Portuguese legislation
-    const dreApiUrl = `https://dre.pt/opendata/diplomas?dataPublicacaoInicio=${fromDate}&dataPublicacaoFim=${toDate}&formato=json`;
+    // Fetch from DRE API - Both Series I and II
+    let allDocuments: DREDocument[] = [];
     
-    let dreDocuments: DREDocument[] = [];
-    
-    try {
-      const dreResponse = await fetch(dreApiUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'LegalCompliance/1.0'
-        }
-      });
+    // Generate dates between fromDate and toDate
+    const dates = getDatesBetween(fromDate, toDate);
+    console.log(`Will search ${dates.length} day(s)`);
 
-      if (dreResponse.ok) {
-        const dreData = await dreResponse.json();
-        console.log(`DRE API returned ${dreData?.diplomas?.length || 0} documents`);
-        
-        dreDocuments = (dreData?.diplomas || []).map((doc: any) => ({
-          id: doc.id || doc.numero,
-          number: doc.numero || '',
-          title: doc.titulo || doc.descricao || '',
-          summary: doc.sumario || doc.descricao || '',
-          entity: doc.entidadeEmissora || doc.fonte || '',
-          publicationDate: doc.dataPublicacao || doc.data || '',
-          effectiveDate: doc.dataEntradaVigor || null,
-          documentUrl: doc.url || doc.ligacao || `https://dre.pt/application/file/${doc.id}`,
-          category: doc.tipo || doc.categoria || ''
-        }));
-      } else {
-        console.warn(`DRE API returned status ${dreResponse.status}, using fallback data`);
-        // Use sample data for demo purposes when API is unavailable
-        dreDocuments = generateSampleLegislation(fromDate, toDate);
-      }
-    } catch (apiError) {
-      console.warn('DRE API error, using fallback sample data:', apiError);
-      dreDocuments = generateSampleLegislation(fromDate, toDate);
+    for (const date of dates) {
+      console.log(`Fetching documents for date: ${date}`);
+      
+      // Series I - Main legislation
+      const seriesI = await fetchDRESeries(date, 1);
+      console.log(`Series I (${date}): ${seriesI.length} documents`);
+      allDocuments.push(...seriesI);
+      
+      // Series II - Secondary legislation
+      const seriesII = await fetchDRESeries(date, 2);
+      console.log(`Series II (${date}): ${seriesII.length} documents`);
+      allDocuments.push(...seriesII);
     }
 
-    console.log(`Processing ${dreDocuments.length} documents`);
+    console.log(`Total documents fetched: ${allDocuments.length}`);
 
     let itemsProcessed = 0;
     let itemsAdded = 0;
     let itemsUpdated = 0;
 
-    for (const doc of dreDocuments) {
+    for (const doc of allDocuments) {
       itemsProcessed++;
 
       // Check if legislation already exists
@@ -165,6 +159,7 @@ serve(async (req) => {
             title: doc.title,
             summary: doc.summary,
             entity: doc.entity,
+            origin: 'Nacional',
             publication_date: doc.publicationDate || null,
             effective_date: doc.effectiveDate || null,
             document_url: doc.documentUrl,
@@ -255,6 +250,108 @@ serve(async (req) => {
   }
 });
 
+// Generate array of dates between start and end
+function getDatesBetween(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+  
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+}
+
+// Fetch documents from a specific series for a specific date
+async function fetchDRESeries(date: string, series: number): Promise<DREDocument[]> {
+  const documents: DREDocument[] = [];
+  
+  try {
+    // DRE.pt API endpoint for searching by date and series
+    // Format: YYYY-MM-DD
+    const dreApiUrl = `https://dre.pt/web/rest/diplomas?dataPublicacao=${date}&serie=${series}&formato=json`;
+    
+    console.log(`Fetching from: ${dreApiUrl}`);
+    
+    const response = await fetch(dreApiUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'LegalCompliance/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      console.warn(`DRE API returned status ${response.status} for series ${series} on ${date}`);
+      
+      // Try alternative endpoint
+      const altUrl = `https://dre.pt/home/-/dre/${date}/serie-${series === 1 ? 'i' : 'ii'}?json=true`;
+      console.log(`Trying alternative URL: ${altUrl}`);
+      
+      const altResponse = await fetch(altUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'LegalCompliance/1.0'
+        }
+      });
+      
+      if (altResponse.ok) {
+        const altData = await altResponse.json();
+        return parseDREResponse(altData, date, series);
+      }
+      
+      return [];
+    }
+
+    const data = await response.json();
+    return parseDREResponse(data, date, series);
+
+  } catch (error) {
+    console.error(`Error fetching DRE series ${series} for ${date}:`, error);
+    return [];
+  }
+}
+
+// Parse DRE API response into our document format
+function parseDREResponse(data: any, date: string, series: number): DREDocument[] {
+  const documents: DREDocument[] = [];
+  
+  // Handle different response formats
+  const diplomas = data?.diplomas || data?.results || data?.data || [];
+  
+  if (!Array.isArray(diplomas)) {
+    console.warn('Unexpected DRE response format:', typeof data);
+    return [];
+  }
+  
+  for (const doc of diplomas) {
+    try {
+      const dreDoc: DREDocument = {
+        id: doc.id?.toString() || doc.dreId || doc.numero || `dre-${date}-${series}-${Math.random().toString(36).substr(2, 9)}`,
+        number: doc.numero || doc.tipoENumero || doc.designacao || '',
+        title: doc.titulo || doc.descricao || doc.sumario?.substring(0, 200) || '',
+        summary: doc.sumario || doc.texto || doc.descricao || '',
+        entity: doc.entidadeEmissora || doc.fonte || doc.emissor || '',
+        publicationDate: doc.dataPublicacao || doc.data || date,
+        effectiveDate: doc.dataEntradaVigor || doc.dataVigencia || null,
+        documentUrl: doc.url || doc.ligacao || doc.linkDRE || `https://dre.pt/application/file/${doc.id || doc.dreId}`,
+        category: doc.tipo || doc.categoria || doc.tipoDocumento || '',
+        series: series === 1 ? 'Série I' : 'Série II'
+      };
+      
+      // Only add if we have at least a number or title
+      if (dreDoc.number || dreDoc.title) {
+        documents.push(dreDoc);
+      }
+    } catch (parseError) {
+      console.error('Error parsing document:', parseError);
+    }
+  }
+  
+  return documents;
+}
+
 // Match legislation text against category keywords
 function matchLegislationToCategories(doc: DREDocument, categories: any[]): string[] {
   const matchedIds: string[] = [];
@@ -274,62 +371,4 @@ function matchLegislationToCategories(doc: DREDocument, categories: any[]): stri
   }
 
   return matchedIds;
-}
-
-// Generate sample legislation for demo/testing when DRE API is unavailable
-function generateSampleLegislation(fromDate: string, toDate: string): DREDocument[] {
-  const samples: DREDocument[] = [
-    {
-      id: 'DL-2025-001',
-      number: 'Decreto-Lei n.º 1/2025',
-      title: 'Regime jurídico da gestão de resíduos',
-      summary: 'Estabelece o regime jurídico da prevenção, produção e gestão de resíduos, transpondo a Diretiva 2018/851/UE.',
-      entity: 'Ministério do Ambiente',
-      publicationDate: toDate,
-      documentUrl: 'https://dre.pt/sample/dl-1-2025',
-      category: 'Decreto-Lei'
-    },
-    {
-      id: 'P-2025-002',
-      number: 'Portaria n.º 15/2025',
-      title: 'Segurança e saúde no trabalho em estaleiros',
-      summary: 'Aprova as condições de segurança e saúde no trabalho em estaleiros temporários ou móveis.',
-      entity: 'Ministério do Trabalho',
-      publicationDate: toDate,
-      documentUrl: 'https://dre.pt/sample/p-15-2025',
-      category: 'Portaria'
-    },
-    {
-      id: 'DL-2025-003',
-      number: 'Decreto-Lei n.º 8/2025',
-      title: 'Eficiência energética de edifícios',
-      summary: 'Transpõe a Diretiva 2024/1275/UE relativa ao desempenho energético dos edifícios.',
-      entity: 'Ministério do Ambiente',
-      publicationDate: toDate,
-      documentUrl: 'https://dre.pt/sample/dl-8-2025',
-      category: 'Decreto-Lei'
-    },
-    {
-      id: 'L-2025-004',
-      number: 'Lei n.º 5/2025',
-      title: 'Código do Trabalho - Conciliação',
-      summary: 'Altera o Código do Trabalho reforçando os direitos de conciliação entre a vida profissional e familiar.',
-      entity: 'Assembleia da República',
-      publicationDate: toDate,
-      documentUrl: 'https://dre.pt/sample/l-5-2025',
-      category: 'Lei'
-    },
-    {
-      id: 'R-2025-005',
-      number: 'Regulamento n.º 22/2025',
-      title: 'Qualidade da água para consumo humano',
-      summary: 'Estabelece os parâmetros de qualidade da água destinada ao consumo humano e respetivo controlo.',
-      entity: 'Entidade Reguladora',
-      publicationDate: toDate,
-      documentUrl: 'https://dre.pt/sample/r-22-2025',
-      category: 'Regulamento'
-    }
-  ];
-
-  return samples;
 }
