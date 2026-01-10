@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,13 @@ interface CreateCategoryDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface CategoryOption {
+  id: string;
+  name: string;
+  level: number;
+  fullPath: string;
+}
+
 export function CreateCategoryDialog({ theme, categories, open, onOpenChange }: CreateCategoryDialogProps) {
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState<string | null>(null);
@@ -24,8 +31,43 @@ export function CreateCategoryDialog({ theme, categories, open, onOpenChange }: 
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Filter to show only top-level categories as potential parents
-  const parentOptions = categories.filter(cat => !cat.parent_id);
+  // Build hierarchical list of all categories with indentation
+  const categoryOptions = useMemo(() => {
+    const options: CategoryOption[] = [];
+    
+    const buildPath = (catId: string): string => {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return "";
+      if (!cat.parent_id) return cat.name;
+      return `${buildPath(cat.parent_id)} > ${cat.name}`;
+    };
+
+    const getLevel = (catId: string): number => {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat || !cat.parent_id) return 0;
+      return 1 + getLevel(cat.parent_id);
+    };
+
+    const addCategoryAndChildren = (parentId: string | null, level: number) => {
+      const children = categories.filter(c => c.parent_id === parentId);
+      children.sort((a, b) => a.name.localeCompare(b.name));
+      
+      for (const child of children) {
+        options.push({
+          id: child.id,
+          name: child.name,
+          level,
+          fullPath: buildPath(child.id),
+        });
+        addCategoryAndChildren(child.id, level + 1);
+      }
+    };
+
+    // Start with top-level categories
+    addCategoryAndChildren(null, 0);
+    
+    return options;
+  }, [categories]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -68,9 +110,12 @@ export function CreateCategoryDialog({ theme, categories, open, onOpenChange }: 
     },
   });
 
+  // Get selected category display name
+  const selectedCategory = categoryOptions.find(c => c.id === parentId);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Criar Nova Categoria</DialogTitle>
           <DialogDescription>
@@ -93,19 +138,24 @@ export function CreateCategoryDialog({ theme, categories, open, onOpenChange }: 
             <Label htmlFor="parent">Categoria Pai (opcional)</Label>
             <Select value={parentId || "none"} onValueChange={(v) => setParentId(v === "none" ? null : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione uma categoria pai" />
+                <SelectValue>
+                  {parentId ? selectedCategory?.fullPath : "Nenhuma (categoria principal)"}
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px]">
                 <SelectItem value="none">Nenhuma (categoria principal)</SelectItem>
-                {parentOptions.map((cat) => (
+                {categoryOptions.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
+                    <span style={{ paddingLeft: `${cat.level * 16}px` }} className="flex items-center">
+                      {cat.level > 0 && <span className="text-muted-foreground mr-1">└</span>}
+                      {cat.name}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Deixe vazio para criar uma categoria principal
+              Selecione qualquer categoria para criar uma subcategoria dentro dela
             </p>
           </div>
 
