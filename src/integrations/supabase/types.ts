@@ -276,10 +276,12 @@ export type Database = {
           document_url: string | null
           effective_date: string | null
           entity: string | null
+          external_id: string | null
           id: string
           number: string
           origin: string | null
           publication_date: string | null
+          source: string | null
           summary: string | null
           title: string
           updated_at: string
@@ -291,10 +293,12 @@ export type Database = {
           document_url?: string | null
           effective_date?: string | null
           entity?: string | null
+          external_id?: string | null
           id?: string
           number: string
           origin?: string | null
           publication_date?: string | null
+          source?: string | null
           summary?: string | null
           title: string
           updated_at?: string
@@ -306,15 +310,53 @@ export type Database = {
           document_url?: string | null
           effective_date?: string | null
           entity?: string | null
+          external_id?: string | null
           id?: string
           number?: string
           origin?: string | null
           publication_date?: string | null
+          source?: string | null
           summary?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      legislation_category_mapping: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          legislation_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          legislation_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          legislation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislation_category_mapping_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "theme_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legislation_category_mapping_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organizations: {
         Row: {
@@ -360,6 +402,117 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          completed_at: string | null
+          created_by: string | null
+          error_message: string | null
+          id: string
+          items_added: number | null
+          items_processed: number | null
+          items_updated: number | null
+          started_at: string
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          items_added?: number | null
+          items_processed?: number | null
+          items_updated?: number | null
+          started_at?: string
+          status?: string
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          items_added?: number | null
+          items_processed?: number | null
+          items_updated?: number | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+        }
+        Relationships: []
+      }
+      theme_categories: {
+        Row: {
+          created_at: string
+          id: string
+          keywords: string[] | null
+          name: string
+          parent_id: string | null
+          theme_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          keywords?: string[] | null
+          name: string
+          parent_id?: string | null
+          theme_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          keywords?: string[] | null
+          name?: string
+          parent_id?: string | null
+          theme_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "theme_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "theme_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "theme_categories_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      themes: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
           updated_at?: string
         }
         Relationships: []
