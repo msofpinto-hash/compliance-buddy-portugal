@@ -406,6 +406,48 @@ export type Database = {
           },
         ]
       }
+      organization_legislation: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          legislation_id: string
+          notes: string | null
+          organization_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          legislation_id: string
+          notes?: string | null
+          organization_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          legislation_id?: string
+          notes?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_legislation_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_legislation_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string

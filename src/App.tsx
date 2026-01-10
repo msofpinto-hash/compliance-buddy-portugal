@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Biblioteca from "./pages/Biblioteca";
 import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
+import ClientPortal from "./pages/ClientPortal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,14 @@ const App = () => (
               element={
                 <RequireAuth>
                   <Dashboard />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/cliente"
+              element={
+                <RequireAuth>
+                  <ClientPortal />
                 </RequireAuth>
               }
             />
