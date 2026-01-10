@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.sync-eurlex]
 verify_jwt = false
+
+[functions.import-legislation]
+verify_jwt = false
