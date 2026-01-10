@@ -149,48 +149,106 @@ serve(async (req) => {
 
     console.log(`Total documents fetched: ${allDocuments.length}`);
 
+    // Build normalized number index for duplicate detection
+    const { data: existingLegislation } = await supabase
+      .from('legislation')
+      .select('id, number, title, summary, entity, publication_date, effective_date, external_id');
+    
+    const normalizeNumber = (num: string): string => {
+      return num
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/,\s*/g, ' ')
+        .replace(/n\.º\s*/g, 'n.º ')
+        .replace(/de\s+(\d)/g, '$1')
+        .replace(/\s+de\s+\d{1,2}\s+de\s+\w+$/i, '')
+        .trim();
+    };
+    
+    const existingByNormalizedNumber = new Map<string, any>();
+    const existingByExternalId = new Map<string, any>();
+    for (const leg of existingLegislation || []) {
+      const normalized = normalizeNumber(leg.number || '');
+      if (normalized) existingByNormalizedNumber.set(normalized, leg);
+      if (leg.external_id) existingByExternalId.set(leg.external_id, leg);
+    }
+    
+    // Smart merge function
+    const smartMerge = (existing: any, doc: any): Record<string, unknown> => {
+      const merged: Record<string, unknown> = {};
+      
+      if (doc.title && doc.title !== doc.number && (!existing.title || existing.title === existing.number || doc.title.length > existing.title.length)) {
+        merged.title = doc.title;
+      }
+      if (doc.summary && doc.summary.length > 20 && (!existing.summary || existing.summary.length < doc.summary.length)) {
+        merged.summary = doc.summary;
+      }
+      if (doc.entity && !doc.entity.includes('[') && (!existing.entity || existing.entity.includes('['))) {
+        merged.entity = doc.entity;
+      }
+      if (doc.publicationDate && !existing.publication_date) {
+        merged.publication_date = doc.publicationDate;
+      }
+      if (doc.effectiveDate && !existing.effective_date) {
+        merged.effective_date = doc.effectiveDate;
+      }
+      
+      return merged;
+    };
+
     let itemsProcessed = 0;
     let itemsAdded = 0;
     let itemsUpdated = 0;
+    let itemsMerged = 0;
 
     for (const doc of allDocuments) {
       itemsProcessed++;
 
-      // Check if legislation already exists
-      const { data: existing } = await supabase
-        .from('legislation')
-        .select('id')
-        .eq('external_id', doc.id)
-        .eq('source', 'dre')
-        .maybeSingle();
+      // Check for existing by external_id first
+      let existing = existingByExternalId.get(doc.id);
+      
+      // If not found, check by normalized number (duplicate detection)
+      if (!existing) {
+        const normalizedNum = normalizeNumber(doc.number);
+        existing = existingByNormalizedNumber.get(normalizedNum);
+        
+        if (existing) {
+          console.log(`Duplicate detected: "${doc.number}" matches existing "${existing.number}"`);
+        }
+      }
 
       let legislationId: string;
 
       if (existing) {
-        // Update existing legislation
-        const { error: updateError } = await supabase
-          .from('legislation')
-          .update({
-            number: doc.number,
-            title: doc.title,
-            summary: doc.summary,
-            entity: doc.entity,
-            publication_date: doc.publicationDate || null,
-            effective_date: doc.effectiveDate || null,
-            document_url: doc.documentUrl,
-            category: doc.category,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id);
+        // Use smart merge for existing legislation
+        const mergedData = smartMerge(existing, doc);
+        
+        if (Object.keys(mergedData).length > 0) {
+          mergedData.updated_at = new Date().toISOString();
+          
+          const { error: updateError } = await supabase
+            .from('legislation')
+            .update(mergedData)
+            .eq('id', existing.id);
 
-        if (updateError) {
-          console.error(`Error updating legislation ${doc.id}:`, updateError);
-          continue;
+          if (updateError) {
+            console.error(`Error updating legislation ${doc.id}:`, updateError);
+            continue;
+          }
+          
+          // Check if this was a merge of a duplicate vs an update of same external_id
+          if (existing.external_id !== doc.id) {
+            itemsMerged++;
+            console.log(`Merged duplicate: ${doc.number} into ${existing.number}`);
+          } else {
+            itemsUpdated++;
+            console.log(`Updated legislation: ${doc.number}`);
+          }
+        } else {
+          console.log(`No updates needed for: ${doc.number}`);
         }
 
         legislationId = existing.id;
-        itemsUpdated++;
-        console.log(`Updated legislation: ${doc.number}`);
       } else {
         // Insert new legislation
         const { data: newLeg, error: insertError } = await supabase
@@ -218,6 +276,12 @@ serve(async (req) => {
 
         legislationId = newLeg.id;
         itemsAdded++;
+        
+        // Add to index for future duplicate detection in same batch
+        const normalized = normalizeNumber(doc.number);
+        existingByNormalizedNumber.set(normalized, { ...doc, id: newLeg.id, external_id: doc.id });
+        existingByExternalId.set(doc.id, { ...doc, id: newLeg.id });
+        
         console.log(`Added legislation: ${doc.number}`);
       }
 
@@ -271,7 +335,8 @@ serve(async (req) => {
       itemsProcessed,
       itemsAdded,
       itemsUpdated,
-      message: `Sync completed: ${itemsAdded} added, ${itemsUpdated} updated out of ${itemsProcessed} processed`
+      itemsMerged,
+      message: `Sync completed: ${itemsAdded} added, ${itemsUpdated} updated, ${itemsMerged} merged (duplicates) out of ${itemsProcessed} processed`
     };
 
     console.log('Sync completed:', result);
