@@ -4,16 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
+import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type SortField = "title" | "number" | "publication_date" | "theme";
 type SortOrder = "asc" | "desc";
@@ -32,9 +34,11 @@ export function LegislationPanel() {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
+  const [bulkCategoriesDialogOpen, setBulkCategoriesDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
   const [datesDialogOpen, setDatesDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Extract unique themes from legislation categories
   const availableThemes = useMemo(() => {
@@ -169,6 +173,33 @@ export function LegislationPanel() {
     }
     setCurrentPage(1);
   };
+
+  // Selection helpers
+  const toggleSelectLegislation = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    const allFilteredIds = new Set(filteredAndSortedLegislation.map(leg => leg.id));
+    setSelectedIds(allFilteredIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const selectedLegislationList = useMemo(() => {
+    if (!legislation) return [];
+    return legislation.filter(leg => selectedIds.has(leg.id));
+  }, [legislation, selectedIds]);
 
   const handleItemsPerPageChange = (value: string) => {
     setItemsPerPage(Number(value));
@@ -362,6 +393,52 @@ export function LegislationPanel() {
                 )}
               </Button>
             </div>
+
+            {/* Bulk selection bar */}
+            {filteredAndSortedLegislation.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="select-all"
+                    checked={selectedIds.size > 0 && selectedIds.size === filteredAndSortedLegislation.length}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        selectAllFiltered();
+                      } else {
+                        clearSelection();
+                      }
+                    }}
+                  />
+                  <label htmlFor="select-all" className="text-sm cursor-pointer">
+                    Selecionar todos ({filteredAndSortedLegislation.length})
+                  </label>
+                </div>
+                
+                {selectedIds.size > 0 && (
+                  <>
+                    <div className="h-4 w-px bg-border" />
+                    <span className="text-sm text-muted-foreground">
+                      {selectedIds.size} selecionado(s)
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSelection}
+                    >
+                      Limpar seleção
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setBulkCategoriesDialogOpen(true)}
+                      className="bg-primary"
+                    >
+                      <Layers className="h-4 w-4 mr-1" />
+                      Atribuir Categorias ({selectedIds.size})
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -370,10 +447,21 @@ export function LegislationPanel() {
               {paginatedLegislation.map((leg) => (
                 <div
                   key={leg.id}
-                  className="rounded-lg border p-4 transition-all hover:bg-accent/50"
+                  className={`rounded-lg border p-4 transition-all hover:bg-accent/50 ${
+                    selectedIds.has(leg.id) ? 'ring-2 ring-primary/50 bg-primary/5' : ''
+                  }`}
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex-1 space-y-2">
+                    <div className="flex gap-3 flex-1">
+                      {/* Checkbox for selection */}
+                      <div className="pt-1">
+                        <Checkbox
+                          checked={selectedIds.has(leg.id)}
+                          onCheckedChange={() => toggleSelectLegislation(leg.id)}
+                        />
+                      </div>
+                      
+                      <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge 
                           variant="outline"
@@ -434,6 +522,7 @@ export function LegislationPanel() {
 
                       {/* Relations */}
                       <LegislationRelationsBadges relations={leg.relations} />
+                      </div>
                     </div>
 
                     {/* Action Buttons */}
@@ -620,6 +709,16 @@ export function LegislationPanel() {
         legislation={selectedLegislation}
         open={relationsDialogOpen}
         onOpenChange={setRelationsDialogOpen}
+      />
+      <BulkAssignCategoriesDialog
+        legislationList={selectedLegislationList}
+        open={bulkCategoriesDialogOpen}
+        onOpenChange={(open) => {
+          setBulkCategoriesDialogOpen(open);
+          if (!open) {
+            clearSelection();
+          }
+        }}
       />
     </div>
   );
