@@ -119,16 +119,14 @@ export function UsersApprovalPanel() {
   // Approve/Update user mutation - assigns to multiple organizations
   const approveMutation = useMutation({
     mutationFn: async ({ profileId, organizationIds, isEdit }: { profileId: string; organizationIds: string[]; isEdit: boolean }) => {
-      if (isEdit) {
-        // Remove all existing client roles for this user
-        const { error: deleteError } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", profileId)
-          .eq("role", "client");
+      // Always remove existing client roles first to prevent duplicates
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", profileId)
+        .eq("role", "client");
 
-        if (deleteError) throw deleteError;
-      }
+      if (deleteError) throw deleteError;
 
       // Add user roles for each organization
       if (organizationIds.length > 0) {
