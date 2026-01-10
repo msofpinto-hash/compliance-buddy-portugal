@@ -61,8 +61,11 @@ export default function ClientPortal() {
   const [exportingType, setExportingType] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>("overview");
 
-  const handleExportReport = async (reportType: "compliance" | "legislation" | "requirements") => {
-    if (!userRole?.organization_id || !userRole?.organizations) return;
+  const handleExportReport = async (reportType: "compliance" | "legislation" | "requirements", orgId?: string) => {
+    const targetOrgId = orgId || (userRoles && userRoles.length > 0 ? userRoles[0].organization_id : null);
+    if (!targetOrgId) return;
+    
+    const targetOrg = userRoles?.find(r => r.organization_id === targetOrgId);
     
     setExportingType(reportType);
     try {
@@ -74,7 +77,7 @@ export default function ClientPortal() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ organizationId: userRole.organization_id, reportType }),
+          body: JSON.stringify({ organizationId: targetOrgId, reportType }),
         }
       );
 
@@ -86,7 +89,7 @@ export default function ClientPortal() {
       const blob = new Blob([html], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       
-      const orgName = (userRole.organizations as any)?.name || "organizacao";
+      const orgName = (targetOrg?.organizations as any)?.name || "organizacao";
       const filenames: Record<string, string> = {
         compliance: `relatorio-conformidade-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
         legislation: `legislacao-aplicavel-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
@@ -107,27 +110,31 @@ export default function ClientPortal() {
     }
   };
 
-  // Fetch user's organization
-  const { data: userRole, isLoading: loadingRole } = useQuery({
-    queryKey: ["user-role", user?.id],
+  // Fetch user's organizations (multiple)
+  const { data: userRoles, isLoading: loadingRole } = useQuery({
+    queryKey: ["user-roles", user?.id],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!user?.id) return [];
       const { data, error } = await supabase
         .from("user_roles")
         .select("*, organizations(*)")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("role", "client");
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user?.id,
   });
 
-  // Fetch assigned legislation for the organization
+  // Get organization IDs
+  const organizationIds = userRoles?.map(r => r.organization_id).filter(Boolean) || [];
+  const organizationNames = userRoles?.map(r => (r.organizations as any)?.name).filter(Boolean) || [];
+
+  // Fetch assigned legislation for ALL organizations
   const { data: assignedLegislation, isLoading: loadingLegislation } = useQuery({
-    queryKey: ["org-legislation", userRole?.organization_id],
+    queryKey: ["org-legislation-all", organizationIds],
     queryFn: async () => {
-      if (!userRole?.organization_id) return [];
+      if (organizationIds.length === 0) return [];
       
       const { data, error } = await supabase
         .from("organization_legislation")
@@ -135,6 +142,7 @@ export default function ClientPortal() {
           id,
           assigned_at,
           notes,
+          organization_id,
           legislation(
             id,
             number,
@@ -154,20 +162,29 @@ export default function ClientPortal() {
             )
           )
         `)
-        .eq("organization_id", userRole.organization_id)
+        .in("organization_id", organizationIds)
         .order("assigned_at", { ascending: false });
       
       if (error) throw error;
-      return data;
+      
+      // Remove duplicates (same legislation might be assigned to multiple orgs)
+      const uniqueLegislation = new Map();
+      data?.forEach(item => {
+        const legId = (item.legislation as any)?.id;
+        if (legId && !uniqueLegislation.has(legId)) {
+          uniqueLegislation.set(legId, item);
+        }
+      });
+      return Array.from(uniqueLegislation.values());
     },
-    enabled: !!userRole?.organization_id,
+    enabled: organizationIds.length > 0,
   });
 
-  // Fetch applicabilities for this organization
+  // Fetch applicabilities for ALL organizations
   const { data: applicabilities, isLoading: loadingApplicabilities } = useQuery({
-    queryKey: ["org-applicabilities", userRole?.organization_id],
+    queryKey: ["org-applicabilities-all", organizationIds],
     queryFn: async () => {
-      if (!userRole?.organization_id) return [];
+      if (organizationIds.length === 0) return [];
       
       const { data, error } = await supabase
         .from("applicabilities")
@@ -176,6 +193,7 @@ export default function ClientPortal() {
           is_applicable,
           compliance_status,
           notes,
+          organization_id,
           legal_requirements(
             id,
             article,
@@ -183,19 +201,19 @@ export default function ClientPortal() {
             legislation_id
           )
         `)
-        .eq("organization_id", userRole.organization_id);
+        .in("organization_id", organizationIds);
       
       if (error) throw error;
       return data;
     },
-    enabled: !!userRole?.organization_id,
+    enabled: organizationIds.length > 0,
   });
 
-  // Fetch action plans for this organization
+  // Fetch action plans for ALL organizations
   const { data: actionPlans, isLoading: loadingActionPlans } = useQuery({
-    queryKey: ["client-action-plans", userRole?.organization_id],
+    queryKey: ["client-action-plans-all", organizationIds],
     queryFn: async () => {
-      if (!userRole?.organization_id) return [];
+      if (organizationIds.length === 0) return [];
       
       const { data, error } = await supabase
         .from("action_plans")
@@ -208,13 +226,13 @@ export default function ClientPortal() {
             legislation(number, title)
           )
         `)
-        .eq("organization_id", userRole.organization_id)
+        .in("organization_id", organizationIds)
         .order("due_date", { ascending: true, nullsFirst: false });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!userRole?.organization_id,
+    enabled: organizationIds.length > 0,
   });
 
   // Build compliance map by legislation
@@ -314,7 +332,7 @@ export default function ClientPortal() {
     );
   }
 
-  if (!userRole?.organization_id) {
+  if (organizationIds.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b bg-card">
@@ -363,7 +381,9 @@ export default function ClientPortal() {
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold tracking-tight">Portal do Cliente</h1>
               <p className="text-xs text-muted-foreground">
-                {(userRole.organizations as any)?.name}
+                {organizationNames.length === 1 
+                  ? organizationNames[0] 
+                  : `${organizationNames.length} organizações`}
               </p>
             </div>
           </div>

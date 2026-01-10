@@ -48,21 +48,25 @@ const COLORS = {
 export default function Dashboard() {
   const { user, signOut, isAdmin } = useAuth();
 
-  // Fetch user's organization
-  const { data: userRole } = useQuery({
-    queryKey: ["user-role", user?.id],
+  // Fetch user's organizations (multiple)
+  const { data: userRoles } = useQuery({
+    queryKey: ["user-roles", user?.id],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!user?.id) return [];
       const { data, error } = await supabase
         .from("user_roles")
         .select("*, organizations(*)")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("role", "client");
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user?.id,
   });
+
+  // Get organization IDs
+  const organizationIds = userRoles?.map(r => r.organization_id).filter(Boolean) || [];
+  const organizationNames = userRoles?.map(r => (r.organizations as any)?.name).filter(Boolean) || [];
 
   // Fetch recent legislation
   const { data: recentLegislation, isLoading: loadingLegislation } = useQuery({
@@ -96,26 +100,26 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Fetch action plans with details
+  // Fetch action plans for ALL organizations
   const { data: actionPlans } = useQuery({
-    queryKey: ["action-plans", userRole?.organization_id],
+    queryKey: ["action-plans-all", organizationIds],
     queryFn: async () => {
-      if (!userRole?.organization_id) return [];
+      if (organizationIds.length === 0) return [];
       const { data, error } = await supabase
         .from("action_plans")
         .select("*")
-        .eq("organization_id", userRole.organization_id);
+        .in("organization_id", organizationIds);
       if (error) throw error;
       return data;
     },
-    enabled: !!userRole?.organization_id,
+    enabled: organizationIds.length > 0,
   });
 
-  // Fetch compliance data by theme
+  // Fetch compliance data by theme for ALL organizations
   const { data: complianceByTheme } = useQuery({
-    queryKey: ["compliance-by-theme", userRole?.organization_id],
+    queryKey: ["compliance-by-theme-all", organizationIds],
     queryFn: async () => {
-      if (!userRole?.organization_id) return [];
+      if (organizationIds.length === 0) return [];
       
       const { data: applicabilities, error } = await supabase
         .from("applicabilities")
@@ -131,7 +135,7 @@ export default function Dashboard() {
             )
           )
         `)
-        .eq("organization_id", userRole.organization_id)
+        .in("organization_id", organizationIds)
         .eq("is_applicable", true);
       
       if (error) throw error;
@@ -156,7 +160,7 @@ export default function Dashboard() {
 
       return Object.values(themeStats).slice(0, 5);
     },
-    enabled: !!userRole?.organization_id,
+    enabled: organizationIds.length > 0,
   });
 
   // Fetch legislation trend (last 30 days)
@@ -201,16 +205,16 @@ export default function Dashboard() {
     }).length || 0,
   };
 
-  // Compliance stats
+  // Compliance stats for ALL organizations
   const { data: complianceStats } = useQuery({
-    queryKey: ["compliance-stats", userRole?.organization_id],
+    queryKey: ["compliance-stats-all", organizationIds],
     queryFn: async () => {
-      if (!userRole?.organization_id) return { applicable: 0, compliant: 0, nonCompliant: 0, inProgress: 0 };
+      if (organizationIds.length === 0) return { applicable: 0, compliant: 0, nonCompliant: 0, inProgress: 0 };
       
       const { data, error } = await supabase
         .from("applicabilities")
         .select("is_applicable, compliance_status")
-        .eq("organization_id", userRole.organization_id);
+        .in("organization_id", organizationIds);
       
       if (error) throw error;
 
@@ -226,7 +230,7 @@ export default function Dashboard() {
 
       return stats;
     },
-    enabled: !!userRole?.organization_id,
+    enabled: organizationIds.length > 0,
   });
 
   const complianceRate = complianceStats?.applicable 
@@ -259,7 +263,11 @@ export default function Dashboard() {
             <div>
               <h1 className="text-xl font-semibold">Legal Compliance</h1>
               <p className="text-sm text-muted-foreground">
-                {userRole?.organizations?.name || "Dashboard"}
+                {organizationNames.length > 0 
+                  ? organizationNames.length === 1 
+                    ? organizationNames[0] 
+                    : `${organizationNames.length} organizações`
+                  : "Dashboard"}
               </p>
             </div>
           </div>
