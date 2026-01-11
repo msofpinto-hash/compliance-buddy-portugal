@@ -24,6 +24,7 @@ export type Database = {
           evidence_url: string | null
           id: string
           organization_id: string
+          priority: string | null
           requirement_id: string | null
           responsible: string | null
           status: string | null
@@ -39,6 +40,7 @@ export type Database = {
           evidence_url?: string | null
           id?: string
           organization_id: string
+          priority?: string | null
           requirement_id?: string | null
           responsible?: string | null
           status?: string | null
@@ -54,6 +56,7 @@ export type Database = {
           evidence_url?: string | null
           id?: string
           organization_id?: string
+          priority?: string | null
           requirement_id?: string | null
           responsible?: string | null
           status?: string | null

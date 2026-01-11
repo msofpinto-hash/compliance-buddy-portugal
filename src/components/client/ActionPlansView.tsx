@@ -66,6 +66,12 @@ const typeConfig = {
   adhoc: { label: "Ad-hoc", color: "bg-purple-100 text-purple-700 border-purple-300" },
 };
 
+const priorityConfig: Record<string, { label: string; color: string; bgColor: string; dotColor: string }> = {
+  alta: { label: "Alta", color: "text-red-700", bgColor: "bg-red-100 border-red-300", dotColor: "bg-red-500" },
+  media: { label: "Média", color: "text-amber-700", bgColor: "bg-amber-100 border-amber-300", dotColor: "bg-amber-500" },
+  baixa: { label: "Baixa", color: "text-green-700", bgColor: "bg-green-100 border-green-300", dotColor: "bg-green-500" },
+};
+
 interface ActionPlansViewProps {
   organizationIds: string[];
   organizations: Array<{ id: string; name: string }>;
@@ -76,6 +82,7 @@ interface ActionPlan {
   title: string;
   description: string | null;
   status: string | null;
+  priority: string | null;
   due_date: string | null;
   responsible: string | null;
   evidence_url: string | null;
@@ -116,6 +123,7 @@ function CreateActionPlanDialog({
     description: "",
     responsible: "",
     due_date: "",
+    priority: "media",
   });
 
   const handleCreate = async () => {
@@ -132,6 +140,7 @@ function CreateActionPlanDialog({
         description: form.description || null,
         responsible: form.responsible || null,
         due_date: form.due_date || null,
+        priority: form.priority,
         created_by: user?.id,
         status: "pendente",
       });
@@ -139,7 +148,7 @@ function CreateActionPlanDialog({
       if (error) throw error;
 
       toast({ title: "Plano de ação criado" });
-      setForm({ organization_id: organizations.length === 1 ? organizations[0].id : "", title: "", description: "", responsible: "", due_date: "" });
+      setForm({ organization_id: organizations.length === 1 ? organizations[0].id : "", title: "", description: "", responsible: "", due_date: "", priority: "media" });
       setOpen(false);
       onCreated();
     } catch (error) {
@@ -198,7 +207,35 @@ function CreateActionPlanDialog({
               rows={3}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Prioridade</Label>
+              <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alta">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                      Alta
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="media">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-amber-500" />
+                      Média
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="baixa">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-green-500" />
+                      Baixa
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Responsável</Label>
               <Input
@@ -1167,6 +1204,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]"></TableHead>
                   <TableHead className="w-[100px]">Tipo</TableHead>
                   <TableHead>Título</TableHead>
                   <TableHead className="w-[120px]">Prazo</TableHead>
@@ -1179,6 +1217,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                 {filteredPlans.map((plan) => {
                   const typeInfo = getTypeInfo(plan);
                   const statusInfo = statusConfig[plan.status || "pendente"];
+                  const priorityInfo = priorityConfig[plan.priority || "media"];
                   const overdue = isOverdue(plan);
                   const StatusIcon = statusInfo.icon;
 
@@ -1188,6 +1227,12 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                       className={`cursor-pointer hover:bg-muted/50 ${overdue ? "bg-destructive/5" : ""}`}
                       onClick={() => setSelectedPlan(plan)}
                     >
+                      <TableCell>
+                        <span 
+                          className={`h-3 w-3 rounded-full inline-block ${priorityInfo.dotColor}`} 
+                          title={`Prioridade: ${priorityInfo.label}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={typeInfo.color}>
                           {typeInfo.label}
@@ -1257,9 +1302,15 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
               >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <Badge variant="outline" className={typeInfo.color}>
-                      {typeInfo.label}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className={`h-3 w-3 rounded-full ${priorityConfig[plan.priority || "media"].dotColor}`} 
+                        title={`Prioridade: ${priorityConfig[plan.priority || "media"].label}`}
+                      />
+                      <Badge variant="outline" className={typeInfo.color}>
+                        {typeInfo.label}
+                      </Badge>
+                    </div>
                     <Badge variant="outline" className={`gap-1 ${statusInfo.bgColor} ${statusInfo.color}`}>
                       <StatusIcon className="h-3 w-3" />
                       {statusInfo.label}
@@ -1315,7 +1366,16 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                   <p className="text-sm">{selectedPlan.description}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Prioridade</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`h-3 w-3 rounded-full ${priorityConfig[selectedPlan.priority || "media"].dotColor}`} />
+                    <span className={priorityConfig[selectedPlan.priority || "media"].color}>
+                      {priorityConfig[selectedPlan.priority || "media"].label}
+                    </span>
+                  </div>
+                </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Estado</Label>
                   <Select value={selectedPlan.status || "pendente"} onValueChange={(v) => {
