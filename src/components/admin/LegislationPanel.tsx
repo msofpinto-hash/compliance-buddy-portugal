@@ -315,6 +315,35 @@ export function LegislationPanel() {
         .from("legal_requirements")
         .delete()
         .in("legislation_id", idsToDelete);
+
+      // Delete alerts related to this legislation
+      await supabase
+        .from("alerts")
+        .delete()
+        .in("related_legislation_id", idsToDelete);
+
+      // Delete applicabilities (through legal requirements - already handled above)
+      // First get requirement IDs for these legislation items
+      const { data: requirements } = await supabase
+        .from("legal_requirements")
+        .select("id")
+        .in("legislation_id", idsToDelete);
+      
+      if (requirements && requirements.length > 0) {
+        const requirementIds = requirements.map(r => r.id);
+        
+        // Delete action plans for these requirements
+        await supabase
+          .from("action_plans")
+          .delete()
+          .in("requirement_id", requirementIds);
+        
+        // Delete applicabilities for these requirements
+        await supabase
+          .from("applicabilities")
+          .delete()
+          .in("requirement_id", requirementIds);
+      }
       
       // Delete legislation
       const { error } = await supabase
