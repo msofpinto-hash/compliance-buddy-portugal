@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +12,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Brain, 
-  FileText, 
   Loader2, 
   CheckCircle2, 
   XCircle, 
   AlertTriangle,
   Play,
-  BarChart3
+  BarChart3,
+  Zap,
+  Square,
+  RefreshCw
 } from "lucide-react";
 
 interface ExtractionResult {
@@ -31,8 +33,10 @@ export function RequirementsExtractionPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isContinuousExtracting, setIsContinuousExtracting] = useState(false);
   const [limit, setLimit] = useState(10);
-  const [dryRun, setDryRun] = useState(true);
+  const [batchSize, setBatchSize] = useState(50);
+  const [dryRun, setDryRun] = useState(false);
   const [results, setResults] = useState<ExtractionResult[] | null>(null);
   const [stats, setStats] = useState<{
     processed: number;
@@ -40,9 +44,17 @@ export function RequirementsExtractionPanel() {
     failed: number;
     totalRequirements: number;
   } | null>(null);
+  const [continuousStats, setContinuousStats] = useState<{
+    totalProcessed: number;
+    totalSuccessful: number;
+    totalFailed: number;
+    totalRequirements: number;
+    batchesCompleted: number;
+  } | null>(null);
+  const stopContinuousRef = useRef(false);
 
   // Fetch statistics
-  const { data: dbStats, isLoading: loadingStats } = useQuery({
+  const { data: dbStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
     queryKey: ["requirements-stats"],
     queryFn: async () => {
       const [legislationResult, requirementsResult, withReqsResult] = await Promise.all([
@@ -109,6 +121,91 @@ export function RequirementsExtractionPanel() {
     }
   };
 
+  const handleContinuousExtraction = async () => {
+    setIsContinuousExtracting(true);
+    stopContinuousRef.current = false;
+    setContinuousStats({
+      totalProcessed: 0,
+      totalSuccessful: 0,
+      totalFailed: 0,
+      totalRequirements: 0,
+      batchesCompleted: 0,
+    });
+    setResults(null);
+    setStats(null);
+
+    let totalProcessed = 0;
+    let totalSuccessful = 0;
+    let totalFailed = 0;
+    let totalRequirements = 0;
+    let batchesCompleted = 0;
+
+    try {
+      while (!stopContinuousRef.current) {
+        // Check how many are left
+        const statsCheck = await refetchStats();
+        const remaining = statsCheck.data?.legislationWithoutRequirements || 0;
+        
+        if (remaining === 0) {
+          toast({
+            title: "Extração completa!",
+            description: `Todos os diplomas foram processados. Total: ${totalRequirements} requisitos extraídos.`,
+          });
+          break;
+        }
+
+        const { data, error } = await supabase.functions.invoke("extract-requirements", {
+          body: { limit: Math.min(batchSize, remaining), dryRun: false },
+        });
+
+        if (error) {
+          console.error("Batch error:", error);
+          // Continue despite errors
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+
+        if (data.success) {
+          totalProcessed += data.processed;
+          totalSuccessful += data.successful;
+          totalFailed += data.failed;
+          totalRequirements += data.totalRequirements;
+          batchesCompleted++;
+
+          setContinuousStats({
+            totalProcessed,
+            totalSuccessful,
+            totalFailed,
+            totalRequirements,
+            batchesCompleted,
+          });
+
+          // Small delay between batches to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    } catch (error) {
+      console.error("Continuous extraction error:", error);
+      toast({
+        title: "Erro na extração contínua",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsContinuousExtracting(false);
+      queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+    }
+  };
+
+  const handleStopContinuous = () => {
+    stopContinuousRef.current = true;
+    toast({
+      title: "A parar extração",
+      description: "A extração será parada após o lote atual terminar.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Statistics */}
@@ -156,9 +253,19 @@ export function RequirementsExtractionPanel() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Progresso da extração</span>
-              <span className="text-sm font-medium">
-                {Math.round((dbStats.legislationWithRequirements / dbStats.totalLegislation) * 100)}%
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {Math.round((dbStats.legislationWithRequirements / dbStats.totalLegislation) * 100)}%
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6"
+                  onClick={() => refetchStats()}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
             <Progress 
               value={(dbStats.legislationWithRequirements / dbStats.totalLegislation) * 100} 
@@ -168,15 +275,96 @@ export function RequirementsExtractionPanel() {
         </Card>
       )}
 
-      {/* Extraction Controls */}
+      {/* Continuous Extraction */}
+      <Card className="border-primary/50 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            Extração Contínua
+          </CardTitle>
+          <CardDescription>
+            Processa automaticamente todos os diplomas em lotes até terminar
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-end gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="batch-size">Tamanho do lote</Label>
+              <Input
+                id="batch-size"
+                type="number"
+                min={10}
+                max={100}
+                value={batchSize}
+                onChange={(e) => setBatchSize(Number(e.target.value))}
+                className="w-24"
+                disabled={isContinuousExtracting}
+              />
+            </div>
+
+            {isContinuousExtracting ? (
+              <Button
+                onClick={handleStopContinuous}
+                variant="destructive"
+                className="gap-2"
+              >
+                <Square className="h-4 w-4" />
+                Parar
+              </Button>
+            ) : (
+              <Button
+                onClick={handleContinuousExtraction}
+                disabled={isExtracting || !dbStats?.legislationWithoutRequirements}
+                className="gap-2"
+              >
+                <Zap className="h-4 w-4" />
+                Iniciar Extração de Todos
+              </Button>
+            )}
+          </div>
+
+          {/* Continuous Stats */}
+          {continuousStats && (
+            <div className="p-4 rounded-lg bg-background border">
+              <div className="flex items-center gap-2 mb-3">
+                {isContinuousExtracting && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span className="font-medium">
+                  {isContinuousExtracting ? "A processar..." : "Extração terminada"}
+                </span>
+                <Badge variant="outline">Lote {continuousStats.batchesCompleted}</Badge>
+              </div>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <p className="text-2xl font-bold">{continuousStats.totalProcessed}</p>
+                  <p className="text-sm text-muted-foreground">Processados</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600">{continuousStats.totalSuccessful}</p>
+                  <p className="text-sm text-muted-foreground">Sucesso</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-red-600">{continuousStats.totalFailed}</p>
+                  <p className="text-sm text-muted-foreground">Falhados</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-blue-600">{continuousStats.totalRequirements}</p>
+                  <p className="text-sm text-muted-foreground">Requisitos</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Manual Extraction Controls */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5" />
-            Extração de Requisitos com IA
+            Extração Manual
           </CardTitle>
           <CardDescription>
-            Usa inteligência artificial para analisar diplomas e extrair requisitos legais automaticamente
+            Extrai requisitos de um número específico de diplomas
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -191,6 +379,7 @@ export function RequirementsExtractionPanel() {
                 value={limit}
                 onChange={(e) => setLimit(Number(e.target.value))}
                 className="w-24"
+                disabled={isContinuousExtracting}
               />
             </div>
 
@@ -199,6 +388,7 @@ export function RequirementsExtractionPanel() {
                 id="dry-run"
                 checked={dryRun}
                 onCheckedChange={setDryRun}
+                disabled={isContinuousExtracting}
               />
               <Label htmlFor="dry-run" className="cursor-pointer">
                 Modo simulação (não insere dados)
@@ -207,7 +397,7 @@ export function RequirementsExtractionPanel() {
 
             <Button
               onClick={handleExtract}
-              disabled={isExtracting || !dbStats?.legislationWithoutRequirements}
+              disabled={isExtracting || isContinuousExtracting || !dbStats?.legislationWithoutRequirements}
               className="gap-2"
             >
               {isExtracting ? (
@@ -219,7 +409,7 @@ export function RequirementsExtractionPanel() {
             </Button>
           </div>
 
-          {!dryRun && (
+          {!dryRun && !isContinuousExtracting && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
               <span>
