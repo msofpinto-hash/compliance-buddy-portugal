@@ -20,7 +20,8 @@ import {
   Mail,
   Building2,
   Calendar,
-  Trash2
+  Trash2,
+  KeyRound
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -38,6 +40,7 @@ export default function Settings() {
   const [weeklyDigest, setWeeklyDigest] = useState(true);
   const [deadlineAlerts, setDeadlineAlerts] = useState(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   // Fetch user profile
   const { data: profile, isLoading } = useQuery({
@@ -452,7 +455,8 @@ export default function Settings() {
                     Atualizar a password da sua conta
                   </p>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setShowPasswordDialog(true)}>
+                  <KeyRound className="h-4 w-4 mr-1" />
                   Alterar
                 </Button>
               </div>
@@ -472,6 +476,12 @@ export default function Settings() {
           </Card>
         </div>
       </main>
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog 
+        open={showPasswordDialog} 
+        onOpenChange={setShowPasswordDialog} 
+      />
     </div>
   );
 }
