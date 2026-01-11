@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { legislationIds, limit = 10, dryRun = false, replaceExisting = false } = await req.json();
+    const { legislationIds, limit = 10, dryRun = false, replaceExisting = false, origin } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -209,11 +209,21 @@ Deno.serve(async (req) => {
       
       const idsWithReqs = new Set(existingReqs?.map(r => r.legislation_id) || []);
       
-      const { data: allLegislation } = await supabase
+      // Build query with optional origin filter
+      let query = supabase
         .from('legislation')
         .select('id, number, title, summary, document_url, origin')
         .not('document_url', 'is', null)
         .order('publication_date', { ascending: false });
+      
+      // Apply origin filter
+      if (origin === 'PT') {
+        query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+      } else if (origin === 'EU') {
+        query = query.or('origin.eq.EU,origin.eq.eurlex');
+      }
+      
+      const { data: allLegislation } = await query;
       
       const toProcess = replaceExisting 
         ? allLegislation 
@@ -234,7 +244,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${legislationToProcess.length} legislation items with URL scraping`);
+    console.log(`Processing ${legislationToProcess.length} legislation items with URL scraping (origin filter: ${origin || 'all'})`);
 
     const results: ScrapeResult[] = [];
     let totalRequirements = 0;
@@ -262,16 +272,22 @@ Deno.serve(async (req) => {
         const textContent = scraped.markdown || scraped.html;
         console.log(`Scraped ${textContent.length} characters for ${leg.number}`);
 
-        // Check for error pages
-        if (textContent.includes('página que acedeu não se encontra disponível') ||
-            textContent.includes('Lamentamos') && textContent.length < 500) {
-          console.log(`Error page detected for ${leg.number}`);
+        // Check for error pages (DRE and EUR-Lex)
+        const isEurlexError = textContent.includes('The requested document does not exist') ||
+                              textContent.includes('Access denied') ||
+                              textContent.includes('Page not found');
+        const isDreError = textContent.includes('página que acedeu não se encontra disponível') ||
+                           (textContent.includes('Lamentamos') && textContent.length < 500);
+        
+        if (isEurlexError || isDreError) {
+          const errorSource = isEurlexError ? 'EUR-Lex' : 'DRE';
+          console.log(`Error page detected for ${leg.number} (${errorSource})`);
           results.push({ 
             legislationId: leg.id, 
             legislationNumber: leg.number, 
             requirements: [],
             textLength: textContent.length,
-            error: 'Página de erro no DRE' 
+            error: `Página de erro no ${errorSource}` 
           });
           continue;
         }
