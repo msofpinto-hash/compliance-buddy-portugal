@@ -18,7 +18,7 @@ interface ExtractionResult {
 }
 
 // Use Lovable AI gateway - no external API key required
-const AI_ENDPOINT = 'https://ai.lovable.dev/v1/chat/completions';
+const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

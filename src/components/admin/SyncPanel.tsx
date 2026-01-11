@@ -104,6 +104,38 @@ export function SyncPanel() {
     { value: "aviso", label: "Aviso" },
   ];
 
+  // Play notification sound
+  const playNotificationSound = (success: boolean = true) => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      if (success) {
+        // Success sound: ascending two-tone chime
+        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.15); // E5
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.4);
+      } else {
+        // Error sound: descending tone
+        oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
+        oscillator.frequency.setValueAtTime(349.23, audioContext.currentTime + 0.15); // F4
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      }
+    } catch (e) {
+      console.log('Audio not supported');
+    }
+  };
+
   const handleSync = async (syncType: string, source: string = 'dre') => {
     try {
       const result = await triggerSync.mutateAsync({ syncType, source });
@@ -479,6 +511,10 @@ export function SyncPanel() {
         setLinksContent("");
         const updatedText = data.stats.updated > 0 ? `, ${data.stats.updated} atualizados` : '';
         const reqText = data.stats.requirementsCreated > 0 ? `, ${data.stats.requirementsCreated} requisitos` : '';
+        
+        // Play success sound
+        playNotificationSound(true);
+        
         toast({
           title: "Importação concluída!",
           description: `${data.stats.created} diplomas criados${updatedText}${reqText}`,
@@ -488,6 +524,10 @@ export function SyncPanel() {
       }
     } catch (error) {
       console.error('Links import error:', error);
+      
+      // Play error sound
+      playNotificationSound(false);
+      
       toast({
         title: "Erro na importação",
         description: error instanceof Error ? error.message : "Erro desconhecido",
