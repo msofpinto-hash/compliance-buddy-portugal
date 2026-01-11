@@ -2,12 +2,15 @@ import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, CheckCircle2, AlertTriangle, Clock, FileText, Building2, Scale, Filter, CheckCheck, X } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, CheckCircle2, AlertTriangle, Clock, FileText, Building2, Scale, Filter, CheckCheck, X, Plus, ChevronDown } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +64,11 @@ export function ManageOrganizationRequirementsDialog({
   const [selectedLegislationId, setSelectedLegislationId] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedRequirements, setSelectedRequirements] = useState<Set<string>>(new Set());
+  const [isAddingRequirement, setIsAddingRequirement] = useState(false);
+  const [newReqLegislationId, setNewReqLegislationId] = useState<string>("");
+  const [newReqArticle, setNewReqArticle] = useState("");
+  const [newReqText, setNewReqText] = useState("");
+  const [newReqNotes, setNewReqNotes] = useState("");
 
   // Fetch organization's assigned legislation
   const { data: orgLegislation } = useQuery({
@@ -231,6 +239,46 @@ export function ManageOrganizationRequirementsDialog({
     },
   });
 
+  // Add new requirement mutation
+  const addRequirementMutation = useMutation({
+    mutationFn: async () => {
+      if (!newReqLegislationId || !newReqText.trim()) {
+        throw new Error("Selecione o diploma e preencha o texto do requisito");
+      }
+
+      const { data, error } = await supabase
+        .from("legal_requirements")
+        .insert({
+          legislation_id: newReqLegislationId,
+          article: newReqArticle.trim() || null,
+          requirement_text: newReqText.trim(),
+          notes: newReqNotes.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-requirements", organization?.id] });
+      queryClient.invalidateQueries({ queryKey: ["legal-requirements"] });
+      setNewReqLegislationId("");
+      setNewReqArticle("");
+      setNewReqText("");
+      setNewReqNotes("");
+      setIsAddingRequirement(false);
+      toast({ title: "Requisito adicionado com sucesso" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao adicionar requisito",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Get applicability for a requirement
   const getApplicability = (requirementId: string) => {
     return applicabilities?.find(a => a.requirement_id === requirementId);
@@ -345,6 +393,98 @@ export function ManageOrganizationRequirementsDialog({
             <div className="text-xs text-muted-foreground">Não Conforme</div>
           </Card>
         </div>
+
+        {/* Add Requirement Section */}
+        <Collapsible open={isAddingRequirement} onOpenChange={setIsAddingRequirement}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full gap-2 mb-4">
+              {isAddingRequirement ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Adicionar Requisito Manual
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="mb-4">
+              <CardContent className="pt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-req-legislation">Diploma *</Label>
+                  <Select value={newReqLegislationId} onValueChange={setNewReqLegislationId}>
+                    <SelectTrigger id="new-req-legislation">
+                      <SelectValue placeholder="Selecione o diploma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orgLegislation?.map(ol => (
+                        <SelectItem key={ol.legislation_id} value={ol.legislation_id}>
+                          {(ol.legislation as any)?.number} - {(ol.legislation as any)?.title?.substring(0, 60)}...
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-req-article">Artigo</Label>
+                    <Input
+                      id="new-req-article"
+                      placeholder="Art. 5º"
+                      value={newReqArticle}
+                      onChange={(e) => setNewReqArticle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 sm:col-span-3">
+                    <Label htmlFor="new-req-text">Texto do Requisito *</Label>
+                    <Textarea
+                      id="new-req-text"
+                      placeholder="Descreva o requisito legal em falta..."
+                      value={newReqText}
+                      onChange={(e) => setNewReqText(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="new-req-notes">Notas (opcional)</Label>
+                  <Textarea
+                    id="new-req-notes"
+                    placeholder="Observações adicionais..."
+                    value={newReqNotes}
+                    onChange={(e) => setNewReqNotes(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => addRequirementMutation.mutate()}
+                    disabled={addRequirementMutation.isPending || !newReqLegislationId || !newReqText.trim()}
+                    className="gap-2"
+                  >
+                    {addRequirementMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Plus className="h-4 w-4" />
+                    Adicionar Requisito
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsAddingRequirement(false);
+                      setNewReqLegislationId("");
+                      setNewReqArticle("");
+                      setNewReqText("");
+                      setNewReqNotes("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
