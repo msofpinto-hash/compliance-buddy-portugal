@@ -14,8 +14,6 @@ import {
   Calendar,
   Building2,
   Filter,
-  List,
-  TreePine,
   X,
   Tags,
   Flag,
@@ -56,15 +54,7 @@ export default function Biblioteca() {
   const [selectedApplicability, setSelectedApplicability] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "tree">(() => {
-    const saved = localStorage.getItem("biblioteca-view-mode");
-    return saved === "tree" ? "tree" : "list";
-  });
 
-  // Persist view mode preference
-  useEffect(() => {
-    localStorage.setItem("biblioteca-view-mode", viewMode);
-  }, [viewMode]);
 
   // Fetch themes with categories
   const { data: themes } = useThemesWithCategories();
@@ -415,168 +405,27 @@ export default function Biblioteca() {
           </div>
         )}
 
-        {/* Results count and view toggle */}
-        <div className="mb-4 flex items-center justify-between">
+        {/* Results count */}
+        <div className="mb-4">
           <p className="text-sm text-muted-foreground">
             {filteredLegislation.length} diploma{filteredLegislation.length !== 1 ? "s" : ""} encontrado{filteredLegislation.length !== 1 ? "s" : ""}
           </p>
-          <div className="flex items-center gap-1 border rounded-lg p-1">
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              className="gap-2"
-            >
-              <List className="h-4 w-4" />
-              Lista
-            </Button>
-            <Button
-              variant={viewMode === "tree" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("tree")}
-              className="gap-2"
-            >
-              <TreePine className="h-4 w-4" />
-              Árvore
-            </Button>
-          </div>
         </div>
 
-        {/* Legislation View */}
-        {viewMode === "tree" ? (
-          // Tree View
-          legislationWithCategories ? (
-            <LegislationTreeView 
-              legislation={legislationWithCategories} 
-              hideFilters 
-              externalThemeId={selectedThemeId}
-              applicabilityMap={legislationApplicabilitiesMap}
-            />
-          ) : (
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-32 w-full" />
-              ))}
-            </div>
-          )
+        {/* Tree View Only */}
+        {legislationWithCategories ? (
+          <LegislationTreeView 
+            legislation={legislationWithCategories} 
+            hideFilters 
+            externalThemeId={selectedThemeId}
+            applicabilityMap={legislationApplicabilitiesMap}
+          />
         ) : (
-          // List View
-          <>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-32 w-full" />
-                ))}
-              </div>
-            ) : filteredLegislation.length > 0 ? (
-              <div className="space-y-4">
-                {filteredLegislation.map((leg) => {
-                  const legThemes = getLegislationThemes(leg);
-                  const legCategories = getLegislationCategories(leg);
-                  const applicabilityType = getLegislationApplicabilityType(leg.id);
-                  return (
-                    <Card key={leg.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            {/* Header with badges */}
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <Badge variant={leg.source === "dre" ? "default" : leg.source === "eurlex" ? "secondary" : "outline"}>
-                                {leg.source === "dre" ? "DRE" : leg.source === "eurlex" ? "EUR-Lex" : "Manual"}
-                              </Badge>
-                              <span className="font-semibold">{leg.number}</span>
-                              {leg.revocation_date && (
-                                <Badge variant="destructive">Revogado</Badge>
-                              )}
-                              {/* Applicability badge */}
-                              {userOrganization && (
-                                <LegislationApplicabilityBadge value={applicabilityType} />
-                              )}
-                            </div>
-
-                            {/* Title - Link to details */}
-                            <Link to={`/legislacao/${leg.id}`} className="block hover:underline">
-                              <h3 className="font-medium text-lg mb-2">{leg.title}</h3>
-                            </Link>
-
-                            {/* Summary */}
-                            {leg.summary && (
-                              <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                                {leg.summary}
-                              </p>
-                            )}
-
-                            {/* Metadata */}
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
-                              {leg.entity && (
-                                <div className="flex items-center gap-1">
-                                  <Building2 className="h-4 w-4" />
-                                  {leg.entity}
-                                </div>
-                              )}
-                              {leg.publication_date && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-4 w-4" />
-                                  {format(new Date(leg.publication_date), "d MMMM yyyy", { locale: pt })}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Themes and Categories */}
-                            <div className="flex flex-wrap gap-1">
-                              {legThemes.map((themeName, idx) => (
-                                <Badge key={`theme-${idx}`} variant="outline" className="text-xs">
-                                  {themeName}
-                                </Badge>
-                              ))}
-                              {legCategories.slice(0, 3).map((catName, idx) => (
-                                <Badge key={`cat-${idx}`} variant="secondary" className="text-xs">
-                                  {catName}
-                                </Badge>
-                              ))}
-                              {legCategories.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{legCategories.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex flex-col gap-2 shrink-0">
-                            <Link to={`/legislacao/${leg.id}`}>
-                              <Button variant="default" size="sm" className="gap-2 w-full">
-                                <FileText className="h-4 w-4" />
-                                Detalhes
-                              </Button>
-                            </Link>
-                            {leg.document_url && (
-                              <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
-                                <Button variant="outline" size="sm" className="gap-2 w-full">
-                                  <ExternalLink className="h-4 w-4" />
-                                  Documento
-                                </Button>
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="font-medium text-lg mb-2">Nenhum diploma encontrado</h3>
-                  <p className="text-muted-foreground">
-                    Tente ajustar os filtros de pesquisa
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
         )}
       </main>
     </div>
