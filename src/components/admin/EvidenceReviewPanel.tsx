@@ -422,6 +422,29 @@ export function EvidenceReviewPanel() {
               )}
             </div>
           </div>
+          
+          {/* Results counter */}
+          <div className="flex items-center justify-between pt-2 border-t">
+            <p className="text-sm text-muted-foreground">
+              A mostrar <span className="font-medium text-foreground">{filteredRequests?.length || 0}</span> de{" "}
+              <span className="font-medium text-foreground">{requests?.length || 0}</span> pedido(s)
+            </p>
+            {(searchTerm || statusFilter !== "submitted" || orgFilter !== "all" || areaFilters.length > 0) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("submitted");
+                  setOrgFilter("all");
+                  setAreaFilters([]);
+                }}
+              >
+                Limpar todos os filtros
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
