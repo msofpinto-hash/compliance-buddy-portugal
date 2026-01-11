@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil, Wrench, Trash2 } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil, Wrench, Trash2, List, GitBranch } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
@@ -29,6 +29,7 @@ import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
+import { LegislationTreeView } from "./LegislationTreeView";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 type SortField = "title" | "number" | "publication_date" | "theme";
 type SortOrder = "asc" | "desc";
+type ViewMode = "list" | "tree";
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
@@ -44,6 +46,7 @@ export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("publication_date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -423,6 +426,30 @@ export function LegislationPanel() {
 
   return (
     <div className="space-y-6">
+      {/* View Mode Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === "list" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="gap-2"
+          >
+            <List className="h-4 w-4" />
+            Lista
+          </Button>
+          <Button
+            variant={viewMode === "tree" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("tree")}
+            className="gap-2"
+          >
+            <GitBranch className="h-4 w-4" />
+            Árvore
+          </Button>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-6">
         <Card>
@@ -473,7 +500,13 @@ export function LegislationPanel() {
         </Card>
       </div>
 
-      {/* Legislation List */}
+      {/* Tree View */}
+      {viewMode === "tree" && legislation && (
+        <LegislationTreeView legislation={legislation} />
+      )}
+
+      {/* List View */}
+      {viewMode === "list" && (
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
@@ -699,7 +732,7 @@ export function LegislationPanel() {
                               ? 'bg-green-500/10 text-green-700 border-green-300' 
                               : leg.origin === 'EU'
                                 ? 'bg-blue-500/10 text-blue-700 border-blue-300'
-                                : 'bg-gray-500/10 text-gray-700 border-gray-300'
+                                : 'bg-amber-500/10 text-amber-700 border-amber-300'
                           }
                         >
                           {leg.origin === 'PT' ? (
@@ -707,7 +740,7 @@ export function LegislationPanel() {
                           ) : leg.origin === 'EU' ? (
                             <><Globe className="h-3 w-3 mr-1" />EUR-Lex</>
                           ) : (
-                            'Manual'
+                            'Sem Origem'
                           )}
                         </Badge>
                         <span className="font-mono text-sm text-muted-foreground">
@@ -946,6 +979,7 @@ export function LegislationPanel() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Dialogs */}
       <AssignCategoriesDialog
