@@ -74,6 +74,7 @@ export function RequirementsExtractionPanel() {
   const [autoRetry, setAutoRetry] = useState(true);
   const [maxRetries, setMaxRetries] = useState(3);
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
+  const [scrapeOriginFilter, setScrapeOriginFilter] = useState<OriginFilter>("all");
   const [results, setResults] = useState<ExtractionResult[] | null>(null);
   const [scrapeResults, setScrapeResults] = useState<ScrapeResult[] | null>(null);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
@@ -110,7 +111,8 @@ export function RequirementsExtractionPanel() {
         body: { 
           limit: scrapeLimit, 
           dryRun: scrapeDryRun,
-          replaceExisting 
+          replaceExisting,
+          origin: scrapeOriginFilter === "all" ? undefined : scrapeOriginFilter 
         },
       });
 
@@ -983,6 +985,45 @@ export function RequirementsExtractionPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Origin filter for scraping */}
+          <div className="flex items-center gap-4">
+            <Label className="text-sm font-medium">Filtrar por origem:</Label>
+            <Select
+              value={scrapeOriginFilter}
+              onValueChange={(value) => setScrapeOriginFilter(value as OriginFilter)}
+              disabled={isScraping}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <span className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Todos os diplomas
+                  </span>
+                </SelectItem>
+                <SelectItem value="PT">
+                  <span className="flex items-center gap-2">
+                    <Flag className="h-4 w-4" />
+                    🇵🇹 Portugal (DRE)
+                  </span>
+                </SelectItem>
+                <SelectItem value="EU">
+                  <span className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    🇪🇺 União Europeia (EUR-Lex)
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {scrapeOriginFilter !== "all" && (
+              <Badge variant="secondary" className="gap-1">
+                {scrapeOriginFilter === "PT" ? "🇵🇹 PT" : "🇪🇺 EU"}
+              </Badge>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-end gap-6">
             <div className="space-y-2">
               <Label htmlFor="scrape-limit">Diplomas por lote</Label>
