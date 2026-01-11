@@ -35,6 +35,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
+import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, eachDayOfInterval } from "date-fns";
@@ -759,138 +760,10 @@ export default function Dashboard() {
 
           {/* Action Plans Tab */}
           {activeTab === "actions" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold">Planos de Ação</h2>
-                <p className="text-muted-foreground">
-                  Ações corretivas pendentes e em curso
-                </p>
-              </div>
-
-              {/* Action Plan Stats */}
-              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-gray-500/10">
-                        <Clock className="h-5 w-5 text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold">{actionPlanStats.pending}</p>
-                        <p className="text-xs text-muted-foreground">Pendentes</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-yellow-500/10">
-                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold">{actionPlanStats.inProgress}</p>
-                        <p className="text-xs text-muted-foreground">Em Curso</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-green-500/10">
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold">{actionPlanStats.completed}</p>
-                        <p className="text-xs text-muted-foreground">Concluídas</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-red-500/10">
-                        <XCircle className="h-5 w-5 text-red-600" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-destructive">{actionPlanStats.overdue}</p>
-                        <p className="text-xs text-muted-foreground">Em Atraso</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Action Plans List */}
-              {!actionPlans || actionPlans.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <ClipboardList className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-muted-foreground">Sem planos de ação</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {actionPlans.map((plan) => {
-                    const isOverdue = plan.due_date && plan.status !== "concluido" && new Date(plan.due_date) < new Date();
-                    
-                    return (
-                      <Card key={plan.id} className={`${isOverdue ? "border-destructive/50" : ""}`}>
-                        <CardContent className="p-4">
-                          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                            <div className="flex-1 space-y-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`gap-1 ${
-                                    plan.status === "concluido" 
-                                      ? "bg-green-500 text-white border-0" 
-                                      : plan.status === "em_curso" 
-                                      ? "bg-yellow-500 text-white border-0" 
-                                      : "bg-gray-500 text-white border-0"
-                                  }`}
-                                >
-                                  {plan.status === "concluido" && <CheckCircle2 className="h-3 w-3" />}
-                                  {plan.status === "em_curso" && <Clock className="h-3 w-3" />}
-                                  {plan.status === "pendente" && <Clock className="h-3 w-3" />}
-                                  {plan.status === "concluido" ? "Concluída" : plan.status === "em_curso" ? "Em Curso" : "Pendente"}
-                                </Badge>
-                                {isOverdue && (
-                                  <Badge variant="destructive" className="gap-1">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    Em Atraso
-                                  </Badge>
-                                )}
-                              </div>
-                              <h3 className="font-semibold">{plan.title}</h3>
-                              {plan.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
-                              )}
-                              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                {plan.due_date && (
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4" />
-                                    <span>Prazo: {format(new Date(plan.due_date), "d MMM yyyy", { locale: pt })}</span>
-                                  </div>
-                                )}
-                                {plan.responsible && (
-                                  <div className="flex items-center gap-1">
-                                    <User className="h-4 w-4" />
-                                    <span>{plan.responsible}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <ActionPlansView 
+              organizationIds={organizationIds} 
+              organizations={organizations} 
+            />
           )}
 
           {/* Audits Tab */}
