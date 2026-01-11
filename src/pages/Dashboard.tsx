@@ -1064,7 +1064,7 @@ export default function Dashboard() {
                         </CardContent>
                       </Card>
                     ) : (
-                      <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="space-y-4">
                         {plannedAudits.map((audit) => (
                           <Card key={audit.id} className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
                             {/* Decorative gradient header */}
