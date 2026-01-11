@@ -1064,68 +1064,71 @@ export default function Dashboard() {
                         </CardContent>
                       </Card>
                     ) : (
-                      <div className="grid gap-4 md:grid-cols-2">
+                      <div className="grid gap-6 lg:grid-cols-2">
                         {plannedAudits.map((audit) => (
-                          <Card key={audit.id} className="border-l-4 border-l-primary">
-                            <CardContent className="p-4">
-                              <div className="space-y-4">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex-1 space-y-2">
+                          <Card key={audit.id} className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
+                            {/* Decorative gradient header */}
+                            <div className={`h-2 ${
+                              audit.status === "in_progress" 
+                                ? "bg-gradient-to-r from-yellow-400 to-amber-500" 
+                                : "bg-gradient-to-r from-blue-500 to-indigo-500"
+                            }`} />
+                            
+                            <CardContent className="p-6">
+                              <div className="space-y-5">
+                                {/* Header with status badges */}
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 space-y-3">
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <Badge 
                                         variant="outline" 
-                                        className={`gap-1 ${
+                                        className={`gap-1.5 px-3 py-1 ${
                                           audit.status === "in_progress" 
-                                            ? "bg-yellow-500 text-white border-0" 
-                                            : "bg-blue-500 text-white border-0"
+                                            ? "bg-yellow-500/10 text-yellow-700 border-yellow-300" 
+                                            : "bg-blue-500/10 text-blue-700 border-blue-300"
                                         }`}
                                       >
+                                        <div className={`h-2 w-2 rounded-full ${
+                                          audit.status === "in_progress" ? "bg-yellow-500 animate-pulse" : "bg-blue-500"
+                                        }`} />
                                         {audit.status === "in_progress" ? "Em Curso" : "Planeada"}
                                       </Badge>
                                       {audit.plan_approved_at && (
-                                        <Badge variant="outline" className="gap-1 bg-green-500 text-white border-0">
+                                        <Badge variant="outline" className="gap-1.5 px-3 py-1 bg-green-500/10 text-green-700 border-green-300">
                                           <ThumbsUp className="h-3 w-3" />
                                           Plano Aprovado
                                         </Badge>
                                       )}
                                       {audit.plan_feedback && !audit.plan_approved_at && (
-                                        <Badge variant="outline" className="gap-1 bg-orange-500 text-white border-0">
+                                        <Badge variant="outline" className="gap-1.5 px-3 py-1 bg-orange-500/10 text-orange-700 border-orange-300">
                                           <MessageSquare className="h-3 w-3" />
                                           Alterações Solicitadas
                                         </Badge>
                                       )}
                                     </div>
-                                    <h3 className="font-semibold">{audit.title}</h3>
+                                    
+                                    <h3 className="text-xl font-bold tracking-tight">{audit.title}</h3>
+                                    
                                     {audit.description && (
-                                      <p className="text-sm text-muted-foreground line-clamp-2">{audit.description}</p>
+                                      <p className="text-muted-foreground line-clamp-2">{audit.description}</p>
                                     )}
-                                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                                      {audit.audit_date && (
-                                        <div className="flex items-center gap-1">
-                                          <Calendar className="h-4 w-4" />
-                                          <span>{format(new Date(audit.audit_date), "d MMM yyyy", { locale: pt })}</span>
-                                        </div>
-                                      )}
-                                      {audit.auditor && (
-                                        <div className="flex items-center gap-1">
-                                          <User className="h-4 w-4" />
-                                          <span>{audit.auditor}</span>
-                                        </div>
-                                      )}
-                                    </div>
                                   </div>
-                                  <div className="flex flex-col gap-1">
+                                  
+                                  {/* Action buttons */}
+                                  <div className="flex gap-2">
                                     <Button
-                                      size="sm"
+                                      size="icon"
                                       variant="outline"
+                                      className="h-10 w-10 rounded-full"
                                       onClick={() => setViewingAuditPlan(audit)}
                                       title="Ver detalhes do plano"
                                     >
                                       <Eye className="h-4 w-4" />
                                     </Button>
                                     <Button
-                                      size="sm"
+                                      size="icon"
                                       variant="outline"
+                                      className="h-10 w-10 rounded-full"
                                       onClick={() => handleExportAuditPDF(audit.id, audit.title)}
                                       disabled={exportingAuditId === audit.id}
                                       title="Exportar PDF"
@@ -1139,14 +1142,29 @@ export default function Dashboard() {
                                   </div>
                                 </div>
                                 
+                                {/* Meta info with icons */}
+                                <div className="flex flex-wrap gap-4">
+                                  {audit.audit_date && (
+                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
+                                      <Calendar className="h-4 w-4 text-primary" />
+                                      <span className="text-sm font-medium">{format(new Date(audit.audit_date), "d 'de' MMMM 'de' yyyy", { locale: pt })}</span>
+                                    </div>
+                                  )}
+                                  {audit.auditor && (
+                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
+                                      <User className="h-4 w-4 text-primary" />
+                                      <span className="text-sm font-medium">{audit.auditor}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                
                                 {/* Plan actions - only for planned audits not yet approved */}
                                 {audit.status === "planned" && !audit.plan_approved_at && (
-                                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                                  <div className="flex flex-wrap gap-3 pt-4 border-t">
                                     <Button
-                                      size="sm"
                                       onClick={() => handleApprovePlan(audit.id)}
                                       disabled={approvingPlanId === audit.id}
-                                      className="gap-2"
+                                      className="gap-2 flex-1 sm:flex-none"
                                     >
                                       {approvingPlanId === audit.id ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1156,10 +1174,9 @@ export default function Dashboard() {
                                       Aprovar Plano
                                     </Button>
                                     <Button
-                                      size="sm"
                                       variant="outline"
                                       onClick={() => setFeedbackDialogAudit({ id: audit.id, title: audit.title })}
-                                      className="gap-2"
+                                      className="gap-2 flex-1 sm:flex-none"
                                     >
                                       <MessageSquare className="h-4 w-4" />
                                       Solicitar Alterações
@@ -1169,9 +1186,14 @@ export default function Dashboard() {
                                 
                                 {/* Show existing feedback */}
                                 {audit.plan_feedback && (
-                                  <div className="pt-2 border-t">
-                                    <p className="text-xs text-muted-foreground mb-1">Alterações solicitadas:</p>
-                                    <p className="text-sm bg-muted/50 p-2 rounded">{audit.plan_feedback}</p>
+                                  <div className="pt-4 border-t">
+                                    <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200">
+                                      <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-sm font-medium text-orange-800 mb-1">Alterações solicitadas</p>
+                                        <p className="text-sm text-orange-700">{audit.plan_feedback}</p>
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
                               </div>
