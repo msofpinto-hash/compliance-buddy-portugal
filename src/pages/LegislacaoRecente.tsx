@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,16 +17,17 @@ import {
   ArrowUpDown
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function LegislacaoRecente() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [readItems, setReadItems] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<"date" | "title">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -45,6 +46,103 @@ export default function LegislacaoRecente() {
     },
   });
 
+  // Fetch user's read items
+  const { data: readItemsData } = useQuery({
+    queryKey: ["user-legislation-reads", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("user_legislation_reads")
+        .select("legislation_id")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data.map(item => item.legislation_id);
+    },
+    enabled: !!user?.id,
+  });
+
+  // Convert to Set for easier lookup
+  const readItems = new Set(readItemsData || []);
+
+  // Mutation to mark as read
+  const markAsReadMutation = useMutation({
+    mutationFn: async (legislationId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const { error } = await supabase
+        .from("user_legislation_reads")
+        .insert({ user_id: user.id, legislation_id: legislationId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-legislation-reads", user?.id] });
+    },
+    onError: () => {
+      toast.error("Erro ao marcar como lido");
+    },
+  });
+
+  // Mutation to mark as unread
+  const markAsUnreadMutation = useMutation({
+    mutationFn: async (legislationId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const { error } = await supabase
+        .from("user_legislation_reads")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("legislation_id", legislationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-legislation-reads", user?.id] });
+    },
+    onError: () => {
+      toast.error("Erro ao desmarcar como lido");
+    },
+  });
+
+  // Mutation to mark all as read
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async (legislationIds: string[]) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const itemsToInsert = legislationIds
+        .filter(id => !readItems.has(id))
+        .map(id => ({ user_id: user.id, legislation_id: id }));
+      
+      if (itemsToInsert.length === 0) return;
+      
+      const { error } = await supabase
+        .from("user_legislation_reads")
+        .insert(itemsToInsert);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-legislation-reads", user?.id] });
+      toast.success("Todos marcados como lidos");
+    },
+    onError: () => {
+      toast.error("Erro ao marcar todos como lidos");
+    },
+  });
+
+  // Mutation to mark all as unread
+  const markAllAsUnreadMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const { error } = await supabase
+        .from("user_legislation_reads")
+        .delete()
+        .eq("user_id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-legislation-reads", user?.id] });
+      toast.success("Todos desmarcados");
+    },
+    onError: () => {
+      toast.error("Erro ao desmarcar todos");
+    },
+  });
+
   const toggleExpand = (id: string) => {
     const newExpanded = new Set(expandedItems);
     if (newExpanded.has(id)) {
@@ -56,23 +154,21 @@ export default function LegislacaoRecente() {
   };
 
   const toggleRead = (id: string) => {
-    const newRead = new Set(readItems);
-    if (newRead.has(id)) {
-      newRead.delete(id);
+    if (readItems.has(id)) {
+      markAsUnreadMutation.mutate(id);
     } else {
-      newRead.add(id);
+      markAsReadMutation.mutate(id);
     }
-    setReadItems(newRead);
   };
 
   const markAllRead = () => {
     if (legislation) {
-      setReadItems(new Set(legislation.map(l => l.id)));
+      markAllAsReadMutation.mutate(legislation.map(l => l.id));
     }
   };
 
   const markAllUnread = () => {
-    setReadItems(new Set());
+    markAllAsUnreadMutation.mutate();
   };
 
   const expandAll = () => {
@@ -152,6 +248,7 @@ export default function LegislacaoRecente() {
             variant="secondary" 
             size="sm" 
             onClick={markAllRead}
+            disabled={markAllAsReadMutation.isPending}
             className="gap-2"
           >
             <CheckSquare className="h-4 w-4" />
@@ -161,6 +258,7 @@ export default function LegislacaoRecente() {
             variant="secondary" 
             size="sm" 
             onClick={markAllUnread}
+            disabled={markAllAsUnreadMutation.isPending}
             className="gap-2"
           >
             <Square className="h-4 w-4" />
@@ -303,6 +401,7 @@ export default function LegislacaoRecente() {
                         <Checkbox 
                           checked={isRead}
                           onCheckedChange={() => toggleRead(leg.id)}
+                          disabled={markAsReadMutation.isPending || markAsUnreadMutation.isPending}
                         />
                       </div>
                     </div>
@@ -345,6 +444,7 @@ export default function LegislacaoRecente() {
                           <Checkbox 
                             checked={isRead}
                             onCheckedChange={() => toggleRead(leg.id)}
+                            disabled={markAsReadMutation.isPending || markAsUnreadMutation.isPending}
                           />
                         </div>
                       </div>
