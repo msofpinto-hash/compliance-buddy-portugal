@@ -31,6 +31,7 @@ import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
 import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
 import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
 import { FindMissingUrlsDialog } from "./FindMissingUrlsDialog";
+import { ImportUrlsCsvDialog } from "./ImportUrlsCsvDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -50,6 +51,7 @@ export function DataQualityPanel() {
   const [showFixTitlesDialog, setShowFixTitlesDialog] = useState(false);
   const [showFixEurlexTitlesDialog, setShowFixEurlexTitlesDialog] = useState(false);
   const [showFindMissingUrlsDialog, setShowFindMissingUrlsDialog] = useState(false);
+  const [showImportUrlsCsvDialog, setShowImportUrlsCsvDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
 
   // Fetch comprehensive data quality statistics
@@ -422,6 +424,8 @@ export function DataQualityPanel() {
           action="Encontrar URLs"
           onAction={() => setShowFindMissingUrlsDialog(true)}
           disabled={(qualityStats?.genericTitlesPTNoUrl || 0) === 0}
+          secondaryAction="Importar via CSV"
+          onSecondaryAction={() => setShowImportUrlsCsvDialog(true)}
         />
 
         <ProblemCard
@@ -549,6 +553,11 @@ export function DataQualityPanel() {
         onOpenChange={setShowFindMissingUrlsDialog}
         missingUrlsCount={qualityStats?.genericTitlesPTNoUrl || 0}
       />
+
+      <ImportUrlsCsvDialog
+        open={showImportUrlsCsvDialog}
+        onOpenChange={setShowImportUrlsCsvDialog}
+      />
     </div>
   );
 }
@@ -597,6 +606,8 @@ function ProblemCard({
   actionLink,
   onAction,
   disabled,
+  secondaryAction,
+  onSecondaryAction,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -608,6 +619,8 @@ function ProblemCard({
   actionLink?: string;
   onAction?: () => void;
   disabled?: boolean;
+  secondaryAction?: string;
+  onSecondaryAction?: () => void;
 }) {
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
   
@@ -660,16 +673,28 @@ function ProblemCard({
           <p className="text-xs text-muted-foreground">{description}</p>
 
           {count > 0 && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full mt-2"
-              onClick={handleAction}
-              disabled={disabled}
-            >
-              {action}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={handleAction}
+                disabled={disabled}
+              >
+                {action}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+              {secondaryAction && onSecondaryAction && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={onSecondaryAction}
+                >
+                  {secondaryAction}
+                </Button>
+              )}
+            </div>
           )}
 
           {count === 0 && (
