@@ -311,9 +311,11 @@ export default function LegislacaoDetalhes() {
                     <Badge variant="destructive">Revogado</Badge>
                   )}
                 </div>
-                <CardTitle className="text-2xl">{legislation.title}</CardTitle>
+                <CardTitle className={`text-2xl ${isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : ''}`}>
+                  {legislation.title}
+                </CardTitle>
                 {legislation.summary && (
-                  <CardDescription className="text-base mt-2">
+                  <CardDescription className={`text-base mt-2 ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>
                     {legislation.summary}
                   </CardDescription>
                 )}

@@ -656,12 +656,14 @@ export default function LegislacaoRecente() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredLegislation?.map((leg) => {
               const isRead = readItems.has(leg.id);
+              const isRevoked = !!leg.revocation_date;
               return (
                 <Card
                   key={leg.id}
                   className={cn(
                     "group hover:shadow-lg transition-all duration-300 overflow-hidden",
-                    isRead ? "bg-muted/30 border-muted" : "bg-card"
+                    isRevoked ? "opacity-75 bg-muted/50" : "",
+                    isRead && !isRevoked ? "bg-muted/30 border-muted" : "bg-card"
                   )}
                 >
                   <div className={cn(
@@ -670,9 +672,16 @@ export default function LegislacaoRecente() {
                   )} />
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">
-                      <Badge variant={leg.source === "dre" ? "default" : "secondary"} className="shrink-0">
-                        {leg.source === "dre" ? "🇵🇹 PT" : "🇪🇺 EU"}
-                      </Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant={leg.source === "dre" ? "default" : "secondary"} className="shrink-0">
+                          {leg.source === "dre" ? "🇵🇹 PT" : "🇪🇺 EU"}
+                        </Badge>
+                        {isRevoked && (
+                          <Badge variant="outline" className="shrink-0 bg-destructive/10 text-destructive border-destructive/30">
+                            Revogado
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1">
                         {leg.document_url && (
                           <a
@@ -696,8 +705,8 @@ export default function LegislacaoRecente() {
                       </div>
                     </div>
                     
-                    <Link to={`/legislacao/${leg.id}`} className="block group-hover:text-primary transition-colors">
-                      <h3 className="font-semibold text-sm mb-1 line-clamp-1">{leg.number}</h3>
+                    <Link to={`/legislacao/${leg.id}`} className={cn("block group-hover:text-primary transition-colors", isRevoked && "text-muted-foreground")}>
+                      <h3 className={cn("font-semibold text-sm mb-1 line-clamp-1", isRevoked && "line-through decoration-destructive/50")}>{leg.number}</h3>
                     </Link>
                     
                     <p className="text-xs text-muted-foreground mb-2">
@@ -707,7 +716,7 @@ export default function LegislacaoRecente() {
                       }
                     </p>
                     
-                    <p className="text-sm text-muted-foreground line-clamp-3">
+                    <p className={cn("text-sm text-muted-foreground line-clamp-3", isRevoked && "line-through decoration-destructive/50")}>
                       {leg.title}
                       {leg.summary && ` - ${leg.summary}`}
                     </p>
@@ -742,13 +751,15 @@ export default function LegislacaoRecente() {
               {filteredLegislation?.map((leg) => {
                 const isExpanded = expandedItems.has(leg.id);
                 const isRead = readItems.has(leg.id);
+                const isRevoked = !!leg.revocation_date;
                 
                 return (
                   <div 
                     key={leg.id} 
                     className={cn(
                       "transition-colors",
-                      isRead ? "bg-muted/20" : "bg-background"
+                      isRevoked ? "bg-muted/30 opacity-75" : "",
+                      isRead && !isRevoked ? "bg-muted/20" : "bg-background"
                     )}
                   >
                     {/* Desktop Row */}
@@ -762,18 +773,24 @@ export default function LegislacaoRecente() {
                       <div className="px-4 py-4">
                         <Link 
                           to={`/legislacao/${leg.id}`}
-                          className="text-sm font-medium text-primary hover:underline"
+                          className={cn("text-sm font-medium text-primary hover:underline", isRevoked && "line-through decoration-destructive/50 text-muted-foreground")}
                         >
                           {leg.number}
                         </Link>
                         <Badge variant="outline" className="ml-2 text-xs">
                           {leg.source === "dre" ? "🇵🇹" : "🇪🇺"}
                         </Badge>
+                        {isRevoked && (
+                          <Badge variant="outline" className="ml-2 text-xs bg-destructive/10 text-destructive border-destructive/30">
+                            Revogado
+                          </Badge>
+                        )}
                       </div>
                       <div className="px-4 py-4">
                         <p className={cn(
                           "text-sm text-muted-foreground",
-                          !isExpanded && "line-clamp-2"
+                          !isExpanded && "line-clamp-2",
+                          isRevoked && "line-through decoration-destructive/50"
                         )}>
                           {leg.title}
                           {leg.summary && ` - ${leg.summary}`}
