@@ -88,6 +88,7 @@ import moduleDocuments from "@/assets/module-documents.jpg";
 import auditHero from "@/assets/audit-hero.png";
 import evidenceHero from "@/assets/evidence-hero.png";
 import indicatorsHero from "@/assets/indicators-hero.png";
+import logoIdCompliance from "@/assets/logo-id-compliance.png";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
@@ -560,10 +561,11 @@ export default function Dashboard() {
           />
         ) : (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Scale className="h-5 w-5" />
-            </div>
-            <span className="font-semibold text-sidebar-foreground">I&D Compliance-ex</span>
+            <img 
+              src={logoIdCompliance} 
+              alt="I&D Compliance-ex" 
+              className="h-10 w-auto object-contain"
+            />
           </div>
         )}
       </Link>
