@@ -57,22 +57,22 @@ declare module "jspdf" {
   }
 }
 
-const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
-  pendente: { label: "Pendente", color: "text-gray-700", bgColor: "bg-gray-100 border-gray-300", icon: Clock },
-  em_curso: { label: "Em Curso", color: "text-amber-700", bgColor: "bg-amber-100 border-amber-300", icon: AlertCircle },
-  concluido: { label: "Concluído", color: "text-green-700", bgColor: "bg-green-100 border-green-300", icon: CheckCircle2 },
-  cancelado: { label: "Cancelado", color: "text-gray-500", bgColor: "bg-gray-100 border-gray-300", icon: XCircle },
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType; gradient?: string }> = {
+  pendente: { label: "Pendente", color: "text-slate-700", bgColor: "bg-slate-50 border-slate-200", icon: Clock, gradient: "from-slate-400 to-slate-500" },
+  em_curso: { label: "Em Curso", color: "text-amber-700", bgColor: "bg-amber-50 border-amber-200", icon: AlertCircle, gradient: "from-amber-400 to-amber-500" },
+  concluido: { label: "Concluído", color: "text-emerald-700", bgColor: "bg-emerald-50 border-emerald-200", icon: CheckCircle2, gradient: "from-emerald-400 to-emerald-500" },
+  cancelado: { label: "Cancelado", color: "text-slate-500", bgColor: "bg-slate-50 border-slate-200", icon: XCircle, gradient: "from-slate-300 to-slate-400" },
 };
 
 const typeConfig = {
-  audit: { label: "Auditoria", color: "bg-blue-100 text-blue-700 border-blue-300" },
-  adhoc: { label: "Ad-hoc", color: "bg-purple-100 text-purple-700 border-purple-300" },
+  audit: { label: "Auditoria", color: "bg-sky-50 text-sky-700 border-sky-200", icon: "📋" },
+  adhoc: { label: "Ad-hoc", color: "bg-violet-50 text-violet-700 border-violet-200", icon: "⚡" },
 };
 
-const priorityConfig: Record<string, { label: string; color: string; bgColor: string; dotColor: string }> = {
-  alta: { label: "Alta", color: "text-red-700", bgColor: "bg-red-100 border-red-300", dotColor: "bg-red-500" },
-  media: { label: "Média", color: "text-amber-700", bgColor: "bg-amber-100 border-amber-300", dotColor: "bg-amber-500" },
-  baixa: { label: "Baixa", color: "text-green-700", bgColor: "bg-green-100 border-green-300", dotColor: "bg-green-500" },
+const priorityConfig: Record<string, { label: string; color: string; bgColor: string; dotColor: string; ringColor: string }> = {
+  alta: { label: "Alta", color: "text-rose-700", bgColor: "bg-rose-50 border-rose-200", dotColor: "bg-gradient-to-br from-rose-400 to-rose-600", ringColor: "ring-rose-200" },
+  media: { label: "Média", color: "text-amber-700", bgColor: "bg-amber-50 border-amber-200", dotColor: "bg-gradient-to-br from-amber-400 to-amber-500", ringColor: "ring-amber-200" },
+  baixa: { label: "Baixa", color: "text-emerald-700", bgColor: "bg-emerald-50 border-emerald-200", dotColor: "bg-gradient-to-br from-emerald-400 to-emerald-500", ringColor: "ring-emerald-200" },
 };
 
 interface ActionPlansViewProps {
@@ -1044,112 +1044,175 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Planos de Ação</h2>
-          <p className="text-muted-foreground">Gestão de ações corretivas e preventivas</p>
+          <h2 className="text-2xl font-bold tracking-tight">Planos de Ação</h2>
+          <p className="text-muted-foreground mt-1">Gestão de ações corretivas e preventivas</p>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={exportToExcel} title="Exportar Excel">
-            <FileSpreadsheet className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={exportToPDF} title="Exportar PDF">
-            <Download className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={handlePrint} title="Imprimir">
-            <Printer className="h-5 w-5" />
-          </Button>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToExcel} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF} className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint} className="gap-2">
+                <Printer className="h-4 w-4" />
+                Imprimir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Stats Row */}
+      {/* Stats Row - Enhanced */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => clearFilters()}>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-xs text-muted-foreground">Total</p>
+        <Card 
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${!filters.status.length && filters.type === "all" ? "ring-2 ring-primary/20 border-primary/30" : ""}`}
+          onClick={() => clearFilters()}
+        >
+          <CardContent className="p-4 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-3xl font-bold text-primary">{stats.total}</p>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Total</p>
           </CardContent>
         </Card>
-        <Card className={`cursor-pointer hover:border-primary/50 transition-colors ${filters.status.includes("pendente") ? "border-primary" : ""}`} onClick={() => toggleStatusFilter("pendente")}>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-gray-600">{stats.pendente}</p>
-            <p className="text-xs text-muted-foreground">Pendentes</p>
+        
+        <Card 
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.status.includes("pendente") ? "ring-2 ring-slate-300 border-slate-400" : ""}`}
+          onClick={() => toggleStatusFilter("pendente")}
+        >
+          <CardContent className="p-4 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center justify-center gap-2">
+              <Clock className="h-4 w-4 text-slate-500" />
+              <p className="text-3xl font-bold text-slate-600">{stats.pendente}</p>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Pendentes</p>
           </CardContent>
         </Card>
-        <Card className={`cursor-pointer hover:border-primary/50 transition-colors ${filters.status.includes("em_curso") ? "border-primary" : ""}`} onClick={() => toggleStatusFilter("em_curso")}>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-amber-600">{stats.em_curso}</p>
-            <p className="text-xs text-muted-foreground">Em Curso</p>
+        
+        <Card 
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.status.includes("em_curso") ? "ring-2 ring-amber-300 border-amber-400" : ""}`}
+          onClick={() => toggleStatusFilter("em_curso")}
+        >
+          <CardContent className="p-4 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center justify-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <p className="text-3xl font-bold text-amber-600">{stats.em_curso}</p>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Em Curso</p>
           </CardContent>
         </Card>
-        <Card className={`cursor-pointer hover:border-primary/50 transition-colors ${filters.status.includes("concluido") ? "border-primary" : ""}`} onClick={() => toggleStatusFilter("concluido")}>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-green-600">{stats.concluido}</p>
-            <p className="text-xs text-muted-foreground">Concluídas</p>
+        
+        <Card 
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.status.includes("concluido") ? "ring-2 ring-emerald-300 border-emerald-400" : ""}`}
+          onClick={() => toggleStatusFilter("concluido")}
+        >
+          <CardContent className="p-4 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <p className="text-3xl font-bold text-emerald-600">{stats.concluido}</p>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Concluídas</p>
           </CardContent>
         </Card>
-        <Card className="border-destructive/30">
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-destructive">{stats.overdue}</p>
-            <p className="text-xs text-muted-foreground">Em Atraso</p>
+        
+        <Card className="border-rose-200 bg-rose-50/50">
+          <CardContent className="p-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <XCircle className="h-4 w-4 text-rose-500" />
+              <p className="text-3xl font-bold text-rose-600">{stats.overdue}</p>
+            </div>
+            <p className="text-xs text-rose-600/80 font-medium mt-1">Em Atraso</p>
           </CardContent>
         </Card>
-        <Card className={`cursor-pointer hover:border-primary/50 transition-colors ${filters.type === "audit" ? "border-primary" : ""}`} onClick={() => setFilters(p => ({ ...p, type: p.type === "audit" ? "all" : "audit" }))}>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-blue-600">{stats.fromAudit}</p>
-            <p className="text-xs text-muted-foreground">Auditoria</p>
+        
+        <Card 
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.type === "audit" ? "ring-2 ring-sky-300 border-sky-400" : ""}`}
+          onClick={() => setFilters(p => ({ ...p, type: p.type === "audit" ? "all" : "audit" }))}
+        >
+          <CardContent className="p-4 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-3xl font-bold text-sky-600">{stats.fromAudit}</p>
+            <p className="text-xs text-muted-foreground font-medium mt-1">📋 Auditoria</p>
           </CardContent>
         </Card>
-        <Card className={`cursor-pointer hover:border-primary/50 transition-colors ${filters.type === "adhoc" ? "border-primary" : ""}`} onClick={() => setFilters(p => ({ ...p, type: p.type === "adhoc" ? "all" : "adhoc" }))}>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-purple-600">{stats.adhoc}</p>
-            <p className="text-xs text-muted-foreground">Ad-hoc</p>
+        
+        <Card 
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.type === "adhoc" ? "ring-2 ring-violet-300 border-violet-400" : ""}`}
+          onClick={() => setFilters(p => ({ ...p, type: p.type === "adhoc" ? "all" : "adhoc" }))}
+        >
+          <CardContent className="p-4 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-3xl font-bold text-violet-600">{stats.adhoc}</p>
+            <p className="text-xs text-muted-foreground font-medium mt-1">⚡ Ad-hoc</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3">
+      {/* Toolbar - Enhanced */}
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <CreateActionPlanDialog organizations={organizations} onCreated={refetch} />
+            <ImportFromAuditDialog organizations={organizations} onImported={refetch} />
+            
+            <div className="h-6 w-px bg-border hidden sm:block" />
+            
             <Button 
-              variant={filtersOpen ? "default" : "outline"} 
+              variant={filtersOpen ? "secondary" : "outline"} 
               size="sm" 
               className="gap-2"
               onClick={() => setFiltersOpen(!filtersOpen)}
             >
               <Filter className="h-4 w-4" />
-              {filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+              Filtros
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                  {activeFiltersCount}
+                </Badge>
+              )}
             </Button>
+            
             {activeFiltersCount > 0 && (
-              <Badge variant="secondary" className="gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {activeFiltersCount} filtro(s) aplicado(s)
-                <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1" onClick={clearFilters}>
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+                Limpar
+              </Button>
             )}
-            <CreateActionPlanDialog organizations={organizations} onCreated={refetch} />
-            <ImportFromAuditDialog organizations={organizations} onImported={refetch} />
           </div>
-          <div className="flex items-center gap-2">
+          
+          <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Pesquisar..."
+                placeholder="Pesquisar ações..."
                 value={filters.search}
                 onChange={(e) => setFilters(p => ({ ...p, search: e.target.value }))}
-                className="pl-9 w-64"
+                className="pl-9 w-64 h-9"
               />
             </div>
-            <div className="flex border rounded-md">
+            <div className="flex bg-muted rounded-lg p-1">
               <Button 
                 variant={viewMode === "list" ? "secondary" : "ghost"} 
                 size="sm" 
-                className="rounded-r-none"
+                className="h-7 px-3"
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
@@ -1157,7 +1220,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
               <Button 
                 variant={viewMode === "cards" ? "secondary" : "ghost"} 
                 size="sm" 
-                className="rounded-l-none"
+                className="h-7 px-3"
                 onClick={() => setViewMode("cards")}
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -1167,66 +1230,86 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
         </div>
       </div>
 
-      {/* Filters Panel */}
+      {/* Filters Panel - Enhanced */}
       <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
         <CollapsibleContent>
-          <Card>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card className="border-dashed">
+            <CardContent className="p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Tipo de Registo</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tipo</Label>
                   <Select value={filters.type} onValueChange={(v) => setFilters(p => ({ ...p, type: v }))}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="audit">Auditoria</SelectItem>
-                      <SelectItem value="adhoc">Ad-hoc</SelectItem>
+                      <SelectItem value="all">Todos os tipos</SelectItem>
+                      <SelectItem value="audit">📋 Auditoria</SelectItem>
+                      <SelectItem value="adhoc">⚡ Ad-hoc</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Estado</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Estado</Label>
                   <Select 
                     value={filters.status.length === 1 ? filters.status[0] : "all"} 
                     onValueChange={(v) => setFilters(p => ({ ...p, status: v === "all" ? [] : [v] }))}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-9">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="em_curso">Em Curso</SelectItem>
-                      <SelectItem value="concluido">Concluído</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                      <SelectItem value="all">Todos os estados</SelectItem>
+                      <SelectItem value="pendente">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3 text-slate-500" />
+                          Pendente
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="em_curso">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-3 w-3 text-amber-500" />
+                          Em Curso
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="concluido">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          Concluído
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="cancelado">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-3 w-3 text-slate-400" />
+                          Cancelado
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Prioridade</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prioridade</Label>
                   <Select value={filters.priority} onValueChange={(v) => setFilters(p => ({ ...p, priority: v }))}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="all">Todas as prioridades</SelectItem>
                       <SelectItem value="alta">
                         <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-red-500" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-rose-400 to-rose-600" />
                           Alta
                         </div>
                       </SelectItem>
                       <SelectItem value="media">
                         <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-amber-500" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-amber-400 to-amber-500" />
                           Média
                         </div>
                       </SelectItem>
                       <SelectItem value="baixa">
                         <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-green-500" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500" />
                           Baixa
                         </div>
                       </SelectItem>
@@ -1234,9 +1317,9 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Responsável</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Responsável</Label>
                   <Select value={filters.responsible || "all"} onValueChange={(v) => setFilters(p => ({ ...p, responsible: v === "all" ? "" : v }))}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-9">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1248,32 +1331,32 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Data Prazo</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prazo</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="date"
                       value={filters.dateStart}
                       onChange={(e) => setFilters(p => ({ ...p, dateStart: e.target.value }))}
-                      className="text-xs w-full"
+                      className="text-xs w-full h-9"
                       placeholder="De"
                     />
                     <Input
                       type="date"
                       value={filters.dateEnd}
                       onChange={(e) => setFilters(p => ({ ...p, dateEnd: e.target.value }))}
-                      className="text-xs w-full"
+                      className="text-xs w-full h-9"
                       placeholder="Até"
                     />
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2 mt-5 pt-4 border-t border-dashed">
                 <Checkbox 
                   id="hideCompleted"
                   checked={filters.hideCompleted}
                   onCheckedChange={(v) => setFilters(p => ({ ...p, hideCompleted: !!v }))}
                 />
-                <Label htmlFor="hideCompleted" className="text-sm cursor-pointer">
+                <Label htmlFor="hideCompleted" className="text-sm cursor-pointer text-muted-foreground">
                   Ocultar ações concluídas
                 </Label>
               </div>
@@ -1284,70 +1367,82 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
 
       {/* Content */}
       {filteredPlans.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-muted-foreground">
-              {actionPlans?.length === 0 ? "Sem planos de ação" : "Nenhum resultado com os filtros aplicados"}
+        <Card className="border-dashed">
+          <CardContent className="py-16 text-center">
+            <div className="flex h-16 w-16 mx-auto mb-4 items-center justify-center rounded-full bg-muted">
+              <FileText className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium text-foreground mb-1">
+              {actionPlans?.length === 0 ? "Sem planos de ação" : "Nenhum resultado encontrado"}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              {actionPlans?.length === 0 
+                ? "Crie o seu primeiro plano de ação para começar a gerir as suas ações corretivas." 
+                : "Tente ajustar os filtros para encontrar o que procura."}
             </p>
+            {actionPlans?.length === 0 && (
+              <div className="mt-6">
+                <CreateActionPlanDialog organizations={organizations} onCreated={refetch} />
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : viewMode === "list" ? (
-        <Card>
+        <Card className="overflow-hidden">
           <ScrollArea className="w-full">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead 
-                    className="w-[40px] cursor-pointer hover:bg-muted/50"
+                    className="w-[50px] cursor-pointer hover:bg-muted transition-colors"
                     onClick={() => handleSort("priority")}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center justify-center">
                       <SortIcon column="priority" />
                     </div>
                   </TableHead>
-                  <TableHead className="w-[100px]">Tipo</TableHead>
+                  <TableHead className="w-[100px] font-semibold">Tipo</TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="cursor-pointer hover:bg-muted transition-colors font-semibold"
                     onClick={() => handleSort("title")}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-1">
                       Ação
                       <SortIcon column="title" />
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[120px] cursor-pointer hover:bg-muted/50"
+                    className="w-[120px] cursor-pointer hover:bg-muted transition-colors font-semibold"
                     onClick={() => handleSort("due_date")}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-1">
                       Prazo
                       <SortIcon column="due_date" />
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[120px] cursor-pointer hover:bg-muted/50"
+                    className="w-[130px] cursor-pointer hover:bg-muted transition-colors font-semibold"
                     onClick={() => handleSort("status")}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-1">
                       Estado
                       <SortIcon column="status" />
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[150px] cursor-pointer hover:bg-muted/50"
+                    className="w-[150px] cursor-pointer hover:bg-muted transition-colors font-semibold"
                     onClick={() => handleSort("responsible")}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-1">
                       Responsável
                       <SortIcon column="responsible" />
                     </div>
                   </TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
+                  <TableHead className="w-[110px] font-semibold">Alterar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPlans.map((plan) => {
+                {filteredPlans.map((plan, index) => {
                   const typeInfo = getTypeInfo(plan);
                   const statusInfo = statusConfig[plan.status || "pendente"];
                   const priorityInfo = priorityConfig[plan.priority || "media"];
@@ -1357,61 +1452,94 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                   return (
                     <TableRow 
                       key={plan.id} 
-                      className={`cursor-pointer hover:bg-muted/50 ${overdue ? "bg-destructive/5" : ""}`}
+                      className={`cursor-pointer transition-colors group ${overdue ? "bg-rose-50/50 hover:bg-rose-50" : "hover:bg-muted/50"}`}
                       onClick={() => setSelectedPlan(plan)}
                     >
-                      <TableCell>
-                        <span 
-                          className={`h-3 w-3 rounded-full inline-block ${priorityInfo.dotColor}`} 
-                          title={`Prioridade: ${priorityInfo.label}`}
-                        />
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center">
+                          <span 
+                            className={`h-3.5 w-3.5 rounded-full shadow-sm ring-2 ${priorityInfo.dotColor} ${priorityInfo.ringColor}`} 
+                            title={`Prioridade: ${priorityInfo.label}`}
+                          />
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={typeInfo.color}>
-                          {typeInfo.label}
+                        <Badge variant="outline" className={`text-xs font-medium ${typeInfo.color}`}>
+                          {typeInfo.icon} {typeInfo.label}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium line-clamp-1">{plan.title}</p>
+                        <div className="space-y-1">
+                          <p className="font-medium line-clamp-1 group-hover:text-primary transition-colors">{plan.title}</p>
                           {plan.description && (
                             <p className="text-xs text-muted-foreground line-clamp-1">{plan.description}</p>
                           )}
                           {plan.audit_requirements?.audits && (
-                            <p className="text-xs text-muted-foreground">
-                              Auditoria: {plan.audit_requirements.audits.title}
-                            </p>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className="text-sky-600">📋</span>
+                              <span className="line-clamp-1">{plan.audit_requirements.audits.title}</span>
+                            </div>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
                         {plan.due_date ? (
-                          <span className={overdue ? "text-destructive font-medium" : ""}>
+                          <div className={`flex items-center gap-1.5 ${overdue ? "text-rose-600 font-semibold" : "text-muted-foreground"}`}>
+                            <Calendar className={`h-3.5 w-3.5 ${overdue ? "text-rose-500" : ""}`} />
                             {format(new Date(plan.due_date), "dd/MM/yyyy")}
-                          </span>
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground/50">—</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`gap-1 ${statusInfo.bgColor} ${statusInfo.color}`}>
-                          <StatusIcon className="h-3 w-3" />
+                        <Badge variant="outline" className={`gap-1.5 font-medium ${statusInfo.bgColor} ${statusInfo.color}`}>
+                          <StatusIcon className="h-3.5 w-3.5" />
                           {statusInfo.label}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">{plan.responsible || "-"}</span>
+                        {plan.responsible ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                              {plan.responsible.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm">{plan.responsible}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground/50">—</span>
+                        )}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Select value={plan.status || "pendente"} onValueChange={(v) => handleStatusChange(plan.id, v)}>
-                          <SelectTrigger className="h-8 w-[100px]">
+                          <SelectTrigger className="h-8 w-[100px] text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pendente">Pendente</SelectItem>
-                            <SelectItem value="em_curso">Em Curso</SelectItem>
-                            <SelectItem value="concluido">Concluído</SelectItem>
-                            <SelectItem value="cancelado">Cancelado</SelectItem>
+                            <SelectItem value="pendente">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-3 w-3 text-slate-500" />
+                                Pendente
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="em_curso">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-3 w-3 text-amber-500" />
+                                Em Curso
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="concluido">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                Concluído
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="cancelado">
+                              <div className="flex items-center gap-2">
+                                <XCircle className="h-3 w-3 text-slate-400" />
+                                Cancelado
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -1427,45 +1555,59 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
           {filteredPlans.map((plan) => {
             const typeInfo = getTypeInfo(plan);
             const statusInfo = statusConfig[plan.status || "pendente"];
+            const priorityInfo = priorityConfig[plan.priority || "media"];
             const overdue = isOverdue(plan);
             const StatusIcon = statusInfo.icon;
 
             return (
               <Card 
                 key={plan.id} 
-                className={`cursor-pointer hover:shadow-md transition-shadow ${overdue ? "border-destructive/50" : ""}`}
+                className={`group cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${overdue ? "border-rose-300 bg-rose-50/30" : "hover:border-primary/30"}`}
                 onClick={() => setSelectedPlan(plan)}
               >
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
+                <CardContent className="p-5 space-y-4">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <span 
-                        className={`h-3 w-3 rounded-full ${priorityConfig[plan.priority || "media"].dotColor}`} 
-                        title={`Prioridade: ${priorityConfig[plan.priority || "media"].label}`}
+                        className={`h-3.5 w-3.5 rounded-full shadow-sm ring-2 ${priorityInfo.dotColor} ${priorityInfo.ringColor}`} 
+                        title={`Prioridade: ${priorityInfo.label}`}
                       />
-                      <Badge variant="outline" className={typeInfo.color}>
-                        {typeInfo.label}
+                      <Badge variant="outline" className={`text-xs font-medium ${typeInfo.color}`}>
+                        {typeInfo.icon} {typeInfo.label}
                       </Badge>
                     </div>
-                    <Badge variant="outline" className={`gap-1 ${statusInfo.bgColor} ${statusInfo.color}`}>
+                    <Badge variant="outline" className={`gap-1.5 font-medium text-xs ${statusInfo.bgColor} ${statusInfo.color}`}>
                       <StatusIcon className="h-3 w-3" />
                       {statusInfo.label}
                     </Badge>
                   </div>
-                  <div>
-                    <h4 className="font-medium line-clamp-2">{plan.title}</h4>
+                  
+                  {/* Content */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors">{plan.title}</h4>
                     {plan.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{plan.description}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
                     )}
                   </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      {plan.responsible || "Sem responsável"}
+                  
+                  {/* Footer */}
+                  <div className="flex items-center justify-between pt-3 border-t border-dashed">
+                    <div className="flex items-center gap-2">
+                      {plan.responsible ? (
+                        <>
+                          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                            {plan.responsible.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{plan.responsible}</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">Sem responsável</span>
+                      )}
                     </div>
                     {plan.due_date && (
-                      <div className={`flex items-center gap-1 ${overdue ? "text-destructive" : ""}`}>
-                        <Calendar className="h-3 w-3" />
+                      <div className={`flex items-center gap-1.5 text-xs ${overdue ? "text-rose-600 font-semibold" : "text-muted-foreground"}`}>
+                        <Calendar className={`h-3.5 w-3.5 ${overdue ? "text-rose-500" : ""}`} />
                         {format(new Date(plan.due_date), "dd/MM/yyyy")}
                       </div>
                     )}
@@ -1477,86 +1619,134 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
         </div>
       )}
 
-      {/* Detail Dialog */}
+      {/* Detail Dialog - Enhanced */}
       <Dialog open={!!selectedPlan} onOpenChange={() => setSelectedPlan(null)}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+          <DialogHeader className="pb-4 border-b">
+            <div className="flex items-center gap-3">
               {selectedPlan && (
-                <Badge variant="outline" className={getTypeInfo(selectedPlan).color}>
-                  {getTypeInfo(selectedPlan).label}
+                <Badge variant="outline" className={`text-xs font-medium ${getTypeInfo(selectedPlan).color}`}>
+                  {getTypeInfo(selectedPlan).icon} {getTypeInfo(selectedPlan).label}
                 </Badge>
               )}
-              Detalhes da Ação
-            </DialogTitle>
+              {selectedPlan && isOverdue(selectedPlan) && (
+                <Badge variant="outline" className="text-xs font-medium bg-rose-50 text-rose-700 border-rose-200">
+                  ⚠️ Em Atraso
+                </Badge>
+              )}
+            </div>
+            <DialogTitle className="text-lg mt-2">Detalhes da Ação</DialogTitle>
           </DialogHeader>
           {selectedPlan && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Título</Label>
-                <p className="font-medium">{selectedPlan.title}</p>
+            <div className="space-y-5 py-2">
+              {/* Title */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Título</Label>
+                <p className="font-semibold text-foreground">{selectedPlan.title}</p>
               </div>
+              
+              {/* Description */}
               {selectedPlan.description && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Descrição</Label>
-                  <p className="text-sm">{selectedPlan.description}</p>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descrição</Label>
+                  <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">{selectedPlan.description}</p>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Prioridade</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`h-3 w-3 rounded-full ${priorityConfig[selectedPlan.priority || "media"].dotColor}`} />
-                    <span className={priorityConfig[selectedPlan.priority || "media"].color}>
+              
+              {/* Grid Info */}
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prioridade</Label>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-3.5 w-3.5 rounded-full shadow-sm ring-2 ${priorityConfig[selectedPlan.priority || "media"].dotColor} ${priorityConfig[selectedPlan.priority || "media"].ringColor}`} />
+                    <span className={`font-medium ${priorityConfig[selectedPlan.priority || "media"].color}`}>
                       {priorityConfig[selectedPlan.priority || "media"].label}
                     </span>
                   </div>
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Estado</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Estado</Label>
                   <Select value={selectedPlan.status || "pendente"} onValueChange={(v) => {
                     handleStatusChange(selectedPlan.id, v);
                     setSelectedPlan({ ...selectedPlan, status: v });
                   }}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="em_curso">Em Curso</SelectItem>
-                      <SelectItem value="concluido">Concluído</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                      <SelectItem value="pendente">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3 text-slate-500" />
+                          Pendente
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="em_curso">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-3 w-3 text-amber-500" />
+                          Em Curso
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="concluido">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          Concluído
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="cancelado">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-3 w-3 text-slate-400" />
+                          Cancelado
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Prazo</Label>
-                  <p className={`font-medium ${isOverdue(selectedPlan) ? "text-destructive" : ""}`}>
-                    {selectedPlan.due_date ? format(new Date(selectedPlan.due_date), "dd/MM/yyyy") : "-"}
-                  </p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prazo</Label>
+                  <div className={`flex items-center gap-1.5 font-medium ${isOverdue(selectedPlan) ? "text-rose-600" : "text-foreground"}`}>
+                    <Calendar className={`h-4 w-4 ${isOverdue(selectedPlan) ? "text-rose-500" : "text-muted-foreground"}`} />
+                    {selectedPlan.due_date ? format(new Date(selectedPlan.due_date), "dd/MM/yyyy") : "—"}
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Responsável</Label>
-                <p>{selectedPlan.responsible || "-"}</p>
+              
+              {/* Responsible */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Responsável</Label>
+                {selectedPlan.responsible ? (
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                      {selectedPlan.responsible.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-medium">{selectedPlan.responsible}</span>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground/50">Sem responsável atribuído</p>
+                )}
               </div>
+              
+              {/* Audit Origin */}
               {selectedPlan.audit_requirements?.audits && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Origem</Label>
-                  <p className="text-sm">Auditoria: {selectedPlan.audit_requirements.audits.title}</p>
+                <div className="space-y-1.5 p-3 bg-sky-50/50 border border-sky-100 rounded-lg">
+                  <Label className="text-xs font-semibold text-sky-700 uppercase tracking-wide flex items-center gap-1.5">
+                    📋 Origem da Auditoria
+                  </Label>
+                  <p className="text-sm font-medium text-sky-900">{selectedPlan.audit_requirements.audits.title}</p>
                 </div>
               )}
+              
+              {/* Evidence */}
               {selectedPlan.evidence_url && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Evidência</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Evidência</Label>
                   <a 
                     href={selectedPlan.evidence_url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
                   >
-                    <ExternalLink className="h-3 w-3" />
-                    Ver documento
+                    <ExternalLink className="h-4 w-4" />
+                    Ver documento anexo
                   </a>
                 </div>
               )}
