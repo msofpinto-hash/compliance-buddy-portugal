@@ -59,6 +59,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
@@ -97,6 +99,10 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [approvingAuditId, setApprovingAuditId] = useState<string | null>(null);
   const [exportingAuditId, setExportingAuditId] = useState<string | null>(null);
+  // Audit filters
+  const [auditStatusFilter, setAuditStatusFilter] = useState<string | null>(null);
+  const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
+  const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
@@ -835,30 +841,118 @@ export default function Dashboard() {
           {/* Audits Tab */}
           {activeTab === "audits" && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold">Auditorias</h2>
-                <p className="text-muted-foreground">
-                  Auditorias realizadas à sua organização
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Auditorias</h2>
+                  <p className="text-muted-foreground">
+                    Histórico de auditorias realizadas à sua organização
+                  </p>
+                </div>
+                
+                {/* Filters */}
+                <div className="flex flex-wrap gap-2">
+                  <Select 
+                    value={auditStatusFilter || "all"} 
+                    onValueChange={(v) => setAuditStatusFilter(v === "all" ? null : v)}
+                  >
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue placeholder="Todos os estados" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os estados</SelectItem>
+                      <SelectItem value="planned">Planeada</SelectItem>
+                      <SelectItem value="in_progress">Em Curso</SelectItem>
+                      <SelectItem value="pending_approval">Em Aprovação</SelectItem>
+                      <SelectItem value="closed">Encerrada</SelectItem>
+                      <SelectItem value="cancelled">Cancelada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <DateRangeFilter
+                    startDate={auditStartDate}
+                    endDate={auditEndDate}
+                    onStartDateChange={setAuditStartDate}
+                    onEndDateChange={setAuditEndDate}
+                    label="Período"
+                  />
+                </div>
               </div>
 
-              {loadingAudits ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-32" />
-                  ))}
-                </div>
-              ) : !audits || audits.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <ClipboardCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-muted-foreground">Sem auditorias registadas</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {audits.map((audit) => (
-                    <Card key={audit.id}>
+              {(() => {
+                // Filter audits
+                const filteredAudits = audits?.filter((audit) => {
+                  // Status filter
+                  if (auditStatusFilter && audit.status !== auditStatusFilter) {
+                    return false;
+                  }
+                  // Date filter
+                  if (audit.audit_date) {
+                    const auditDate = new Date(audit.audit_date);
+                    if (auditStartDate && auditDate < new Date(auditStartDate)) {
+                      return false;
+                    }
+                    if (auditEndDate && auditDate > new Date(auditEndDate)) {
+                      return false;
+                    }
+                  } else {
+                    // If no audit_date and date filter is active, exclude
+                    if (auditStartDate || auditEndDate) {
+                      return false;
+                    }
+                  }
+                  return true;
+                }) || [];
+
+                if (loadingAudits) {
+                  return (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-32" />
+                      ))}
+                    </div>
+                  );
+                }
+
+                if (!audits || audits.length === 0) {
+                  return (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <ClipboardCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                        <p className="text-muted-foreground">Sem auditorias registadas</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                if (filteredAudits.length === 0) {
+                  return (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                        <p className="text-muted-foreground">Nenhuma auditoria encontrada com os filtros selecionados</p>
+                        <Button
+                          variant="link"
+                          className="mt-2"
+                          onClick={() => {
+                            setAuditStatusFilter(null);
+                            setAuditStartDate(null);
+                            setAuditEndDate(null);
+                          }}
+                        >
+                          Limpar filtros
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      {filteredAudits.length} {filteredAudits.length === 1 ? "auditoria encontrada" : "auditorias encontradas"}
+                    </p>
+                    {filteredAudits.map((audit) => (
+                      <Card key={audit.id}>
                       <CardContent className="p-4">
                         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                           <div className="flex-1 space-y-2">
@@ -946,9 +1040,10 @@ export default function Dashboard() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
