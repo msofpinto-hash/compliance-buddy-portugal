@@ -13,10 +13,16 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Globe, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Globe, CheckCircle2, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 
 interface FixEurlexTitlesDialogProps {
   open: boolean;
@@ -40,23 +46,31 @@ export function FixEurlexTitlesDialog({
   const queryClient = useQueryClient();
   
   const [limit, setLimit] = useState(50);
-  const [dryRun, setDryRun] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<FixResult[]>([]);
   const [summary, setSummary] = useState<{ updated: number; failed: number } | null>(null);
+  const [selectedCelex, setSelectedCelex] = useState<Set<string>>(new Set());
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [appliedCount, setAppliedCount] = useState<number | null>(null);
 
-  const handleFix = async () => {
+  const successResults = results.filter(r => r.success);
+
+  const handleSimulate = async () => {
     setIsProcessing(true);
     setProgress(10);
     setResults([]);
     setSummary(null);
+    setSelectedCelex(new Set());
+    setExpandedItems(new Set());
+    setAppliedCount(null);
 
     try {
       setProgress(30);
       
       const { data, error } = await supabase.functions.invoke('fix-eurlex-titles', {
-        body: { limit, dryRun }
+        body: { limit, dryRun: true }
       });
 
       setProgress(90);
@@ -69,24 +83,22 @@ export function FixEurlexTitlesDialog({
         throw new Error(data.error || 'Erro desconhecido');
       }
 
+      const successItems = (data.results || []).filter((r: FixResult) => r.success);
       setResults(data.results || []);
       setSummary({ updated: data.updated, failed: data.failed });
+      // Pre-select all successful items
+      setSelectedCelex(new Set(successItems.map((r: FixResult) => r.celex)));
       setProgress(100);
 
       toast({
-        title: dryRun ? "Simulação concluída" : "Correção concluída",
-        description: data.message,
+        title: "Simulação concluída",
+        description: `${successItems.length} títulos podem ser corrigidos`,
       });
-
-      if (!dryRun && data.updated > 0) {
-        queryClient.invalidateQueries({ queryKey: ["data-quality-stats"] });
-        queryClient.invalidateQueries({ queryKey: ["legislation"] });
-      }
     } catch (error) {
-      console.error("Error fixing EUR-Lex titles:", error);
+      console.error("Error simulating EUR-Lex titles:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao corrigir títulos",
+        description: error instanceof Error ? error.message : "Erro ao simular correções",
         variant: "destructive",
       });
     } finally {
@@ -94,18 +106,113 @@ export function FixEurlexTitlesDialog({
     }
   };
 
+  const handleApplySelected = async () => {
+    if (selectedCelex.size === 0) {
+      toast({
+        title: "Nenhum item selecionado",
+        description: "Selecione pelo menos um diploma para aplicar a correção",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsApplying(true);
+
+    try {
+      // Filter results to only selected ones and apply them
+      const toApply = successResults.filter(r => selectedCelex.has(r.celex));
+      
+      let applied = 0;
+      for (const item of toApply) {
+        // Find legislation by external_id (celex)
+        const { data: legData } = await supabase
+          .from('legislation')
+          .select('id')
+          .eq('external_id', item.celex)
+          .single();
+
+        if (legData) {
+          const { error } = await supabase
+            .from('legislation')
+            .update({ title: item.newTitle, updated_at: new Date().toISOString() })
+            .eq('id', legData.id);
+
+          if (!error) {
+            applied++;
+          }
+        }
+      }
+
+      setAppliedCount(applied);
+      
+      toast({
+        title: "Correções aplicadas",
+        description: `${applied} de ${toApply.length} títulos corrigidos com sucesso`,
+      });
+
+      if (applied > 0) {
+        queryClient.invalidateQueries({ queryKey: ["data-quality-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["legislation"] });
+      }
+    } catch (error) {
+      console.error("Error applying EUR-Lex titles:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao aplicar correções",
+        variant: "destructive",
+      });
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
   const handleClose = () => {
-    if (!isProcessing) {
+    if (!isProcessing && !isApplying) {
       setResults([]);
       setSummary(null);
       setProgress(0);
+      setSelectedCelex(new Set());
+      setExpandedItems(new Set());
+      setAppliedCount(null);
       onOpenChange(false);
     }
   };
 
+  const toggleSelection = (celex: string) => {
+    setSelectedCelex(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(celex)) {
+        newSet.delete(celex);
+      } else {
+        newSet.add(celex);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleExpanded = (celex: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(celex)) {
+        newSet.delete(celex);
+      } else {
+        newSet.add(celex);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedCelex(new Set(successResults.map(r => r.celex)));
+  };
+
+  const deselectAll = () => {
+    setSelectedCelex(new Set());
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-blue-600" />
@@ -121,11 +228,11 @@ export function FixEurlexTitlesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Configuration */}
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+          {/* Configuration - only show if no results yet */}
+          {results.length === 0 && (
             <div className="space-y-2">
-              <Label htmlFor="limit">Limite de diplomas</Label>
+              <Label htmlFor="limit">Limite de diplomas a analisar</Label>
               <Input
                 id="limit"
                 type="number"
@@ -134,30 +241,13 @@ export function FixEurlexTitlesDialog({
                 value={limit}
                 onChange={(e) => setLimit(parseInt(e.target.value) || 50)}
                 disabled={isProcessing}
+                className="w-32"
               />
               <p className="text-xs text-muted-foreground">
-                Máximo de diplomas a processar
+                Máximo de diplomas a processar (1-200)
               </p>
             </div>
-
-            <div className="space-y-2">
-              <Label>Modo de execução</Label>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="dryRun"
-                  checked={dryRun}
-                  onCheckedChange={setDryRun}
-                  disabled={isProcessing}
-                />
-                <Label htmlFor="dryRun" className="cursor-pointer">
-                  Apenas simular
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {dryRun ? "Não faz alterações" : "Aplica as correções"}
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* Progress */}
           {isProcessing && (
@@ -175,7 +265,7 @@ export function FixEurlexTitlesDialog({
             <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="font-medium">{summary.updated} corrigidos</span>
+                <span className="font-medium">{summary.updated} podem ser corrigidos</span>
               </div>
               {summary.failed > 0 && (
                 <div className="flex items-center gap-2">
@@ -183,46 +273,152 @@ export function FixEurlexTitlesDialog({
                   <span className="font-medium">{summary.failed} sem alteração</span>
                 </div>
               )}
+              {appliedCount !== null && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <Badge variant="default" className="bg-green-600">
+                    {appliedCount} aplicados
+                  </Badge>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Results */}
-          {results.length > 0 && (
-            <div className="space-y-2">
-              <Label>Resultados ({results.length})</Label>
-              <ScrollArea className="h-[200px] border rounded-lg p-2">
-                <div className="space-y-2">
-                  {results.map((result, idx) => (
-                    <div key={idx} className="text-xs p-2 rounded bg-green-500/10">
-                      <div className="font-mono text-muted-foreground">{result.celex}</div>
-                      <div className="line-through text-muted-foreground truncate">
-                        {result.oldTitle}
-                      </div>
-                      <div className="text-green-700 dark:text-green-400 truncate">
-                        {result.newTitle}
-                      </div>
-                    </div>
-                  ))}
+          {/* Results with selection */}
+          {successResults.length > 0 && (
+            <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between">
+                <Label>Resultados ({successResults.length})</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCelex.size} selecionados
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={selectAll} disabled={isApplying}>
+                    Todos
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={deselectAll} disabled={isApplying}>
+                    Nenhum
+                  </Button>
+                </div>
+              </div>
+              
+              <ScrollArea className="flex-1 border rounded-lg">
+                <div className="p-2 space-y-1">
+                  {successResults.map((result) => {
+                    const isExpanded = expandedItems.has(result.celex);
+                    const isSelected = selectedCelex.has(result.celex);
+                    
+                    return (
+                      <Collapsible
+                        key={result.celex}
+                        open={isExpanded}
+                        onOpenChange={() => toggleExpanded(result.celex)}
+                      >
+                        <div className={`rounded-lg border transition-colors ${
+                          isSelected 
+                            ? 'bg-green-500/10 border-green-500/30' 
+                            : 'bg-muted/50 border-transparent'
+                        }`}>
+                          <div className="flex items-start gap-2 p-2">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelection(result.celex)}
+                              disabled={isApplying}
+                              className="mt-1"
+                            />
+                            
+                            <CollapsibleTrigger asChild>
+                              <button className="flex-1 text-left hover:bg-accent/50 rounded p-1 -m-1 transition-colors">
+                                <div className="flex items-center gap-2">
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <code className="text-xs font-mono text-muted-foreground">
+                                        {result.celex}
+                                      </code>
+                                    </div>
+                                    <div className="text-sm text-green-700 dark:text-green-400 truncate">
+                                      {result.newTitle}
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            </CollapsibleTrigger>
+                          </div>
+                          
+                          <CollapsibleContent>
+                            <div className="px-9 pb-3 space-y-2">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Título atual:</Label>
+                                <p className="text-sm line-through text-muted-foreground">
+                                  {result.oldTitle}
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Novo título:</Label>
+                                <p className="text-sm text-green-700 dark:text-green-400">
+                                  {result.newTitle}
+                                </p>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handleClose} disabled={isProcessing}>
-              {summary ? "Fechar" : "Cancelar"}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={handleClose} disabled={isProcessing || isApplying}>
+              {appliedCount !== null ? "Fechar" : "Cancelar"}
             </Button>
-            <Button onClick={handleFix} disabled={isProcessing}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A processar...
-                </>
-              ) : (
-                dryRun ? "Simular" : "Iniciar Correção"
-              )}
-            </Button>
+            
+            {results.length === 0 ? (
+              <Button onClick={handleSimulate} disabled={isProcessing}>
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    A processar...
+                  </>
+                ) : (
+                  "Simular"
+                )}
+              </Button>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setResults([]);
+                    setSummary(null);
+                    setAppliedCount(null);
+                  }}
+                  disabled={isApplying}
+                >
+                  Nova Simulação
+                </Button>
+                <Button 
+                  onClick={handleApplySelected} 
+                  disabled={isApplying || selectedCelex.size === 0 || appliedCount !== null}
+                >
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      A aplicar...
+                    </>
+                  ) : (
+                    `Aplicar ${selectedCelex.size} Selecionados`
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>
