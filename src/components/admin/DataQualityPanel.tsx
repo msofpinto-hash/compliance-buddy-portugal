@@ -37,6 +37,7 @@ import { ImportUrlsCsvDialog } from "./ImportUrlsCsvDialog";
 import { ImportEurlexSummariesDialog } from "./ImportEurlexSummariesDialog";
 import { ExtractRelationsDialog } from "./ExtractRelationsDialog";
 import { CompleteAutoImportedDialog } from "./CompleteAutoImportedDialog";
+import { BulkAutoFixDialog } from "./BulkAutoFixDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -60,6 +61,7 @@ export function DataQualityPanel() {
   const [showImportEurlexSummariesDialog, setShowImportEurlexSummariesDialog] = useState(false);
   const [showExtractRelationsDialog, setShowExtractRelationsDialog] = useState(false);
   const [showCompleteAutoImportedDialog, setShowCompleteAutoImportedDialog] = useState(false);
+  const [showBulkAutoFixDialog, setShowBulkAutoFixDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
 
   // Fetch comprehensive data quality statistics
@@ -370,10 +372,19 @@ export function DataQualityPanel() {
                 Análise geral da qualidade e completude da base de dados
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Atualizar
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setShowBulkAutoFixDialog(true)}
+                className="bg-gradient-to-r from-primary to-primary/80"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Corrigir Tudo
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -679,6 +690,21 @@ export function DataQualityPanel() {
         open={showCompleteAutoImportedDialog}
         onOpenChange={setShowCompleteAutoImportedDialog}
       />
+
+      {qualityStats && (
+        <BulkAutoFixDialog
+          open={showBulkAutoFixDialog}
+          onOpenChange={setShowBulkAutoFixDialog}
+          qualityStats={{
+            genericTitlesPT: qualityStats.genericTitlesPT,
+            genericTitlesEU: qualityStats.genericTitlesEU,
+            missingSummary: qualityStats.missingSummary,
+            missingUrl: qualityStats.missingUrl,
+            noRequirements: qualityStats.noRequirements,
+            noCategories: qualityStats.noCategories,
+          }}
+        />
+      )}
     </div>
   );
 }
