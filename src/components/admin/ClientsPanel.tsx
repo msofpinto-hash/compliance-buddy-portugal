@@ -133,25 +133,29 @@ export function ClientsPanel() {
     queryFn: async () => {
       if (!selectedOrg) return [];
       
-      const { data, error } = await supabase
+      // First get user roles for the organization
+      const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
-        .select(`
-          id,
-          user_id,
-          role,
-          created_at,
-          profiles:user_id (
-            email,
-            full_name,
-            user_type,
-            language,
-            calendar_type
-          )
-        `)
+        .select("id, user_id, role, created_at")
         .eq("organization_id", selectedOrg.id);
       
-      if (error) throw error;
-      return data;
+      if (rolesError) throw rolesError;
+      if (!roles || roles.length === 0) return [];
+      
+      // Then get profiles for those users
+      const userIds = roles.map(r => r.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, user_type, language, calendar_type")
+        .in("id", userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Combine the data
+      return roles.map(role => ({
+        ...role,
+        profiles: profiles?.find(p => p.id === role.user_id) || null
+      }));
     },
     enabled: !!selectedOrg,
   });
@@ -633,104 +637,75 @@ export function ClientsPanel() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {/* Export Button */}
+                    <div className="flex items-center gap-1 flex-wrap">
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         title="Exportar Relatórios"
                         onClick={(e) => {
                           e.stopPropagation();
                           setExportReportOrg(org);
                         }}
                       >
-                        <Download className="h-4 w-4" />
+                        <Download className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         title="Copiar Configurações"
                         onClick={(e) => {
                           e.stopPropagation();
                           setCopySettingsOrg(org);
                         }}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        title="Copiar Requisitos Específicos"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCopyRequirementsOrg(org);
-                        }}
-                      >
-                        <ClipboardCheck className="h-4 w-4 text-primary" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Planos de Ação"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActionPlansOrg(org);
-                        }}
-                      >
-                        <ClipboardList className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Gerir Requisitos"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setManageRequirementsOrg(org);
-                        }}
-                      >
-                        <ClipboardCheck className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                        className="h-8 w-8"
                         title="Atribuir Temas"
                         onClick={(e) => {
                           e.stopPropagation();
                           setAssignThemesOrg(org);
                         }}
                       >
-                        <FolderTree className="h-4 w-4" />
+                        <FolderTree className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         title="Atribuir Diplomas"
                         onClick={(e) => {
                           e.stopPropagation();
                           setAssignLegislationOrg(org);
                         }}
                       >
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEdit(org);
                         }}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3.5 w-3.5" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-destructive hover:text-destructive"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
