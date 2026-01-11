@@ -578,10 +578,15 @@ function DuplicateGroupCard({ group, isSelected, onToggleSelection, onSetKeepIte
                           Pub: {format(new Date(item.publication_date), "dd/MM/yyyy", { locale: pt })}
                         </span>
                       )}
-                      {item.effective_date && (
+                      {item.effective_date ? (
                         <span className="flex items-center gap-1 text-green-600">
                           <Calendar className="h-3 w-3" />
                           Vigor: {format(new Date(item.effective_date), "dd/MM/yyyy", { locale: pt })}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-amber-500">
+                          <AlertTriangle className="h-3 w-3" />
+                          Sem data de vigor
                         </span>
                       )}
                       {item.document_url && (
