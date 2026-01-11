@@ -36,7 +36,7 @@ const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 // Extract requirements using AI when HTML/markdown parsing fails or returns no results
 async function extractRequirementsWithAI(
   legislation: { number: string; title: string; summary: string },
-  supabaseAnonKey: string
+  lovableApiKey: string
 ): Promise<ParsedRequirement[]> {
   try {
     console.log(`Extracting requirements with AI for: ${legislation.number}`);
@@ -58,7 +58,7 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-supabase-anon-key': supabaseAnonKey,
+        'Authorization': `Bearer ${lovableApiKey}`,
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-lite',
@@ -653,7 +653,7 @@ serve(async (req) => {
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY') || '';
     const { links, updateExisting = false, extractRequirementsAI = true, stream = false } = await req.json();
 
     // If streaming is requested, use SSE - but for now just run normally
@@ -946,7 +946,7 @@ serve(async (req) => {
           console.log(`No requirements from parsing, using AI extraction for ${parsed.number}...`);
           requirementsToInsert = await extractRequirementsWithAI(
             { number: parsed.number, title: parsed.title, summary: parsed.summary },
-            supabaseAnonKey
+            lovableApiKey
           );
           // Small delay to avoid rate limiting
           if (requirementsToInsert.length > 0) {

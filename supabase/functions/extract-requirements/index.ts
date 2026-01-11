@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -104,7 +104,7 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-supabase-anon-key': supabaseAnonKey,
+            'Authorization': `Bearer ${lovableApiKey}`,
           },
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash-lite',
