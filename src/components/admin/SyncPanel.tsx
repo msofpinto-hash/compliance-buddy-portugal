@@ -51,6 +51,7 @@ export function SyncPanel() {
     updated: number;
     skipped: number;
     failed: number;
+    requirementsCreated?: number;
   } | null>(null);
   const [reimportStats, setReimportStats] = useState<{
     total: number;
@@ -60,6 +61,7 @@ export function SyncPanel() {
     failed: number;
   } | null>(null);
   const [updateExisting, setUpdateExisting] = useState(false);
+  const [extractRequirementsAI, setExtractRequirementsAI] = useState(true);
   const [reimportDateFrom, setReimportDateFrom] = useState("");
   const [reimportDateTo, setReimportDateTo] = useState("");
   const [reimportType, setReimportType] = useState<string>("all");
@@ -418,7 +420,7 @@ export function SyncPanel() {
       });
 
       const { data, error } = await supabase.functions.invoke('import-dre-links', {
-        body: { links, updateExisting }
+        body: { links, updateExisting, extractRequirementsAI }
       });
 
       if (error) throw error;
@@ -1107,7 +1109,7 @@ https://dre.pt/application/file/..."
             disabled={isImportingLinks}
           />
           
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -1117,6 +1119,16 @@ https://dre.pt/application/file/..."
                 disabled={isImportingLinks}
               />
               <span className="text-muted-foreground">Atualizar diplomas existentes com novos dados</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={extractRequirementsAI}
+                onChange={(e) => setExtractRequirementsAI(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+                disabled={isImportingLinks}
+              />
+              <span className="text-muted-foreground">Extrair requisitos legais automaticamente via IA</span>
             </label>
           </div>
           
@@ -1164,6 +1176,12 @@ https://dre.pt/application/file/..."
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Falharam:</span>
                     <span className="font-medium text-destructive">{linksImportStats.failed}</span>
+                  </div>
+                )}
+                {linksImportStats.requirementsCreated !== undefined && linksImportStats.requirementsCreated > 0 && (
+                  <div className="flex justify-between col-span-2 pt-2 border-t">
+                    <span className="text-muted-foreground">Requisitos extraídos (IA):</span>
+                    <span className="font-medium text-purple-600">{linksImportStats.requirementsCreated}</span>
                   </div>
                 )}
               </div>
