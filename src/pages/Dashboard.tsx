@@ -32,13 +32,16 @@ import {
   ExternalLink,
   Download,
   Loader2,
-  Lock
+  Lock,
+  MessageSquare,
+  ThumbsUp
 } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { ActionPlansView } from "@/components/client/ActionPlansView";
+import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -98,7 +101,9 @@ export default function Dashboard() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [approvingAuditId, setApprovingAuditId] = useState<string | null>(null);
+  const [approvingPlanId, setApprovingPlanId] = useState<string | null>(null);
   const [exportingAuditId, setExportingAuditId] = useState<string | null>(null);
+  const [feedbackDialogAudit, setFeedbackDialogAudit] = useState<{ id: string; title: string } | null>(null);
   // Audit filters and sorting
   const [auditStatusFilter, setAuditStatusFilter] = useState<string | null>(null);
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
@@ -293,6 +298,51 @@ export default function Dashboard() {
       toast({ title: "Erro", description: "Não foi possível aprovar a auditoria", variant: "destructive" });
     } finally {
       setApprovingAuditId(null);
+    }
+  };
+
+  // Handle plan approval (by client)
+  const handleApprovePlan = async (auditId: string) => {
+    setApprovingPlanId(auditId);
+    try {
+      const { error } = await supabase
+        .from("audits")
+        .update({ 
+          plan_approved_at: new Date().toISOString(),
+          plan_approved_by: user?.id
+        })
+        .eq("id", auditId);
+      
+      if (error) throw error;
+      
+      toast({ title: "Plano aprovado", description: "O plano de auditoria foi aprovado com sucesso." });
+      refetchAudits();
+    } catch (error) {
+      console.error("Error approving plan:", error);
+      toast({ title: "Erro", description: "Não foi possível aprovar o plano", variant: "destructive" });
+    } finally {
+      setApprovingPlanId(null);
+    }
+  };
+
+  // Handle plan feedback request
+  const handlePlanFeedback = async (auditId: string, feedback: string) => {
+    try {
+      const { error } = await supabase
+        .from("audits")
+        .update({ 
+          plan_feedback: feedback
+        })
+        .eq("id", auditId);
+      
+      if (error) throw error;
+      
+      toast({ title: "Pedido enviado", description: "O seu pedido de alterações foi registado com sucesso." });
+      refetchAudits();
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      toast({ title: "Erro", description: "Não foi possível enviar o pedido", variant: "destructive" });
+      throw error;
     }
   };
 
@@ -875,51 +925,101 @@ export default function Dashboard() {
                         {plannedAudits.map((audit) => (
                           <Card key={audit.id} className="border-l-4 border-l-primary">
                             <CardContent className="p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`gap-1 ${
-                                        audit.status === "in_progress" 
-                                          ? "bg-yellow-500 text-white border-0" 
-                                          : "bg-blue-500 text-white border-0"
-                                      }`}
-                                    >
-                                      {audit.status === "in_progress" ? "Em Curso" : "Planeada"}
-                                    </Badge>
-                                  </div>
-                                  <h3 className="font-semibold">{audit.title}</h3>
-                                  {audit.description && (
-                                    <p className="text-sm text-muted-foreground line-clamp-2">{audit.description}</p>
-                                  )}
-                                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                                    {audit.audit_date && (
-                                      <div className="flex items-center gap-1">
-                                        <Calendar className="h-4 w-4" />
-                                        <span>{format(new Date(audit.audit_date), "d MMM yyyy", { locale: pt })}</span>
-                                      </div>
+                              <div className="space-y-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 space-y-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Badge 
+                                        variant="outline" 
+                                        className={`gap-1 ${
+                                          audit.status === "in_progress" 
+                                            ? "bg-yellow-500 text-white border-0" 
+                                            : "bg-blue-500 text-white border-0"
+                                        }`}
+                                      >
+                                        {audit.status === "in_progress" ? "Em Curso" : "Planeada"}
+                                      </Badge>
+                                      {audit.plan_approved_at && (
+                                        <Badge variant="outline" className="gap-1 bg-green-500 text-white border-0">
+                                          <ThumbsUp className="h-3 w-3" />
+                                          Plano Aprovado
+                                        </Badge>
+                                      )}
+                                      {audit.plan_feedback && !audit.plan_approved_at && (
+                                        <Badge variant="outline" className="gap-1 bg-orange-500 text-white border-0">
+                                          <MessageSquare className="h-3 w-3" />
+                                          Alterações Solicitadas
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <h3 className="font-semibold">{audit.title}</h3>
+                                    {audit.description && (
+                                      <p className="text-sm text-muted-foreground line-clamp-2">{audit.description}</p>
                                     )}
-                                    {audit.auditor && (
-                                      <div className="flex items-center gap-1">
-                                        <User className="h-4 w-4" />
-                                        <span>{audit.auditor}</span>
-                                      </div>
-                                    )}
+                                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                                      {audit.audit_date && (
+                                        <div className="flex items-center gap-1">
+                                          <Calendar className="h-4 w-4" />
+                                          <span>{format(new Date(audit.audit_date), "d MMM yyyy", { locale: pt })}</span>
+                                        </div>
+                                      )}
+                                      {audit.auditor && (
+                                        <div className="flex items-center gap-1">
+                                          <User className="h-4 w-4" />
+                                          <span>{audit.auditor}</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleExportAuditPDF(audit.id, audit.title)}
+                                    disabled={exportingAuditId === audit.id}
+                                  >
+                                    {exportingAuditId === audit.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4" />
+                                    )}
+                                  </Button>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleExportAuditPDF(audit.id, audit.title)}
-                                  disabled={exportingAuditId === audit.id}
-                                >
-                                  {exportingAuditId === audit.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Download className="h-4 w-4" />
-                                  )}
-                                </Button>
+                                
+                                {/* Plan actions - only for planned audits not yet approved */}
+                                {audit.status === "planned" && !audit.plan_approved_at && (
+                                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApprovePlan(audit.id)}
+                                      disabled={approvingPlanId === audit.id}
+                                      className="gap-2"
+                                    >
+                                      {approvingPlanId === audit.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <ThumbsUp className="h-4 w-4" />
+                                      )}
+                                      Aprovar Plano
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setFeedbackDialogAudit({ id: audit.id, title: audit.title })}
+                                      className="gap-2"
+                                    >
+                                      <MessageSquare className="h-4 w-4" />
+                                      Solicitar Alterações
+                                    </Button>
+                                  </div>
+                                )}
+                                
+                                {/* Show existing feedback */}
+                                {audit.plan_feedback && (
+                                  <div className="pt-2 border-t">
+                                    <p className="text-xs text-muted-foreground mb-1">Alterações solicitadas:</p>
+                                    <p className="text-sm bg-muted/50 p-2 rounded">{audit.plan_feedback}</p>
+                                  </div>
+                                )}
                               </div>
                             </CardContent>
                           </Card>
@@ -1202,6 +1302,14 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+      
+      {/* Plan Feedback Dialog */}
+      <PlanFeedbackDialog
+        open={!!feedbackDialogAudit}
+        onOpenChange={(open) => !open && setFeedbackDialogAudit(null)}
+        auditTitle={feedbackDialogAudit?.title || ""}
+        onSubmit={(feedback) => handlePlanFeedback(feedbackDialogAudit!.id, feedback)}
+      />
     </div>
   );
 }
