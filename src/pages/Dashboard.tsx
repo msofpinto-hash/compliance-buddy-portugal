@@ -76,6 +76,9 @@ import moduleLegislation from "@/assets/module-legislation.jpg";
 import moduleActions from "@/assets/module-actions.jpg";
 import moduleAudits from "@/assets/module-audits.jpg";
 import moduleDocuments from "@/assets/module-documents.jpg";
+import auditHero from "@/assets/audit-hero.png";
+import evidenceHero from "@/assets/evidence-hero.png";
+import indicatorsHero from "@/assets/indicators-hero.png";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
@@ -1001,6 +1004,32 @@ export default function Dashboard() {
           {/* Audits Tab */}
           {activeTab === "audits" && (
             <div className="space-y-8">
+              {/* Hero Header */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600/20 via-violet-500/10 to-indigo-500/20">
+                <div className="absolute inset-0 bg-grid-white/10" />
+                <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-purple-500/20 text-purple-700 border-0">
+                        <ClipboardCheck className="h-3 w-3 mr-1" />
+                        Módulo de Auditorias
+                      </Badge>
+                    </div>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Auditorias</h1>
+                    <p className="text-muted-foreground text-lg max-w-xl">
+                      Acompanhe as auditorias planeadas, em curso e o histórico completo de auditorias realizadas
+                    </p>
+                  </div>
+                  <div className="hidden md:block w-48 h-32 relative">
+                    <img 
+                      src={auditHero} 
+                      alt="Auditorias" 
+                      className="w-full h-full object-contain drop-shadow-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Audit Plan Section - Planned and In Progress */}
               {(() => {
                 const plannedAudits = audits?.filter(
@@ -1009,11 +1038,16 @@ export default function Dashboard() {
                 
                 return (
                   <div className="space-y-4">
-                    <div>
-                      <h2 className="text-2xl font-bold">Plano de Auditoria</h2>
-                      <p className="text-muted-foreground">
-                        Auditorias planeadas e em curso
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500/10">
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold">Plano de Auditoria</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Auditorias planeadas e em curso
+                        </p>
+                      </div>
                     </div>
                     
                     {loadingAudits ? (
@@ -1153,11 +1187,16 @@ export default function Dashboard() {
               {/* Audit History Section */}
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold">Histórico de Auditorias</h2>
-                    <p className="text-muted-foreground">
-                      Auditorias realizadas e encerradas
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <ClipboardCheck className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">Histórico de Auditorias</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Auditorias realizadas e encerradas
+                      </p>
+                    </div>
                   </div>
                   
                   {/* Filters */}
@@ -1406,16 +1445,93 @@ export default function Dashboard() {
           {/* Indicators Tab */}
           {activeTab === "indicators" && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold">Indicadores</h2>
-                <p className="text-muted-foreground">
-                  Métricas e indicadores de desempenho
-                </p>
+              {/* Hero Header */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-600/20 via-blue-500/10 to-sky-500/20">
+                <div className="absolute inset-0 bg-grid-white/10" />
+                <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-700 border-0">
+                        <BarChart3 className="h-3 w-3 mr-1" />
+                        Módulo de Indicadores
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">Em breve</Badge>
+                    </div>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Indicadores</h1>
+                    <p className="text-muted-foreground text-lg max-w-xl">
+                      Métricas e indicadores de desempenho para monitorizar a conformidade legal da sua organização
+                    </p>
+                  </div>
+                  <div className="hidden md:block w-48 h-32 relative">
+                    <img 
+                      src={indicatorsHero} 
+                      alt="Indicadores" 
+                      className="w-full h-full object-contain drop-shadow-xl"
+                    />
+                  </div>
+                </div>
               </div>
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">Indicadores em desenvolvimento</p>
+              
+              {/* Coming Soon Cards */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-500/20 to-transparent rounded-bl-full" />
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      Taxa de Conformidade
+                    </CardTitle>
+                    <CardDescription>Evolução ao longo do tempo</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-24 flex items-center justify-center text-muted-foreground">
+                      <Sparkles className="h-8 w-8 opacity-30" />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-yellow-500/20 to-transparent rounded-bl-full" />
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-yellow-600" />
+                      Tempo de Resolução
+                    </CardTitle>
+                    <CardDescription>Média de tempo para corrigir não-conformidades</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-24 flex items-center justify-center text-muted-foreground">
+                      <Sparkles className="h-8 w-8 opacity-30" />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-bl-full" />
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ClipboardCheck className="h-5 w-5 text-blue-600" />
+                      Auditorias Concluídas
+                    </CardTitle>
+                    <CardDescription>Resultados e tendências de auditoria</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-24 flex items-center justify-center text-muted-foreground">
+                      <Sparkles className="h-8 w-8 opacity-30" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <Card className="border-dashed">
+                <CardContent className="py-16 text-center">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                    <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">Indicadores em Desenvolvimento</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Estamos a desenvolver dashboards interativos com métricas avançadas para acompanhar a performance da sua organização.
+                  </p>
                 </CardContent>
               </Card>
             </div>

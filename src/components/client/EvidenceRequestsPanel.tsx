@@ -33,8 +33,10 @@ import {
   Send,
   CalendarIcon,
   MessageSquare,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sparkles
 } from "lucide-react";
+import evidenceHero from "@/assets/evidence-hero.png";
 import * as XLSX from "xlsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -467,41 +469,92 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
 
   return (
     <div className="space-y-6">
-      {/* Progress Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Evidências Documentais
-          </CardTitle>
-          <CardDescription>
-            Submeta os documentos solicitados para comprovar conformidade
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span>{stats.submitted + stats.approved} de {stats.total} pedidos respondidos</span>
-              <span className="font-medium">{progressPercentage}%</span>
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-600/20 via-emerald-500/10 to-green-500/20">
+        <div className="absolute inset-0 bg-grid-white/10" />
+        <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-teal-500/20 text-teal-700 border-0">
+                <FileText className="h-3 w-3 mr-1" />
+                Evidências Documentais
+              </Badge>
             </div>
-            <Progress value={progressPercentage} className="h-2" />
-            <div className="flex gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-gray-300" />
-                <span>Pendentes: {stats.pending}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-blue-500" />
-                <span>Submetidos: {stats.submitted}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-green-500" />
-                <span>Aprovados: {stats.approved}</span>
-              </div>
-            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Gestão de Evidências</h1>
+            <p className="text-muted-foreground text-lg max-w-xl">
+              Submeta os documentos solicitados para comprovar a conformidade legal da sua organização
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="hidden md:block w-48 h-32 relative">
+            <img 
+              src={evidenceHero} 
+              alt="Evidências" 
+              className="w-full h-full object-contain drop-shadow-xl"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Overview */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-gray-400/20 to-transparent rounded-bl-full" />
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gray-100">
+                <Clock className="h-5 w-5 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.pending}</p>
+                <p className="text-sm text-muted-foreground">Pendentes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-blue-400/20 to-transparent rounded-bl-full" />
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100">
+                <Send className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.submitted}</p>
+                <p className="text-sm text-muted-foreground">Submetidos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-green-400/20 to-transparent rounded-bl-full" />
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-100">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.approved}</p>
+                <p className="text-sm text-muted-foreground">Aprovados</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-primary/20 to-transparent rounded-bl-full" />
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Progresso</span>
+                <span className="text-lg font-bold">{progressPercentage}%</span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filters */}
       <Card>
