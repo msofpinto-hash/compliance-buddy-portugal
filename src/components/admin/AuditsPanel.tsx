@@ -461,6 +461,7 @@ export function AuditsPanel() {
                           <AuditRequirementCard
                             key={ar.id}
                             requirement={ar}
+                            organizationId={auditDetails.organization_id}
                             onUpdated={() => {
                               queryClient.invalidateQueries({ queryKey: ["audit-details", selectedAudit] });
                             }}
