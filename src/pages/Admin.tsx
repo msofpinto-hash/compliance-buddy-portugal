@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo, Database, FolderOpen } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo, Database, FolderOpen, Eye } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
 import { LegislationPanel } from "@/components/admin/LegislationPanel";
@@ -11,10 +11,10 @@ import { ActionPlansPanel } from "@/components/admin/ActionPlansPanel";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
 import { DataQualityPanel } from "@/components/admin/DataQualityPanel";
 import { EvidenceTemplatesPanel } from "@/components/admin/EvidenceTemplatesPanel";
+import { EvidenceReviewPanel } from "@/components/admin/EvidenceReviewPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
-
 const Admin = () => {
   const { user, signOut } = useAuth();
 
@@ -49,7 +49,7 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="quality" className="space-y-6">
-          <TabsList className="grid w-full max-w-7xl grid-cols-10">
+          <TabsList className="grid w-full max-w-7xl grid-cols-11">
             <TabsTrigger value="quality" className="gap-2">
               <Database className="h-4 w-4" />
               <span className="hidden sm:inline">Qualidade</span>
@@ -73,6 +73,10 @@ const Admin = () => {
             <TabsTrigger value="evidence" className="gap-2">
               <FolderOpen className="h-4 w-4" />
               <span className="hidden sm:inline">Evidências</span>
+            </TabsTrigger>
+            <TabsTrigger value="review" className="gap-2">
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">Revisão</span>
             </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Building2 className="h-4 w-4" />
@@ -114,6 +118,10 @@ const Admin = () => {
 
           <TabsContent value="evidence">
             <EvidenceTemplatesPanel />
+          </TabsContent>
+
+          <TabsContent value="review">
+            <EvidenceReviewPanel />
           </TabsContent>
 
           <TabsContent value="clients">
