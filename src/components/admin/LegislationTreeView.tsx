@@ -39,6 +39,7 @@ import {
   Users,
   Briefcase,
   Calendar,
+  GitBranch,
   type LucideIcon
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -745,6 +746,54 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             </span>
                           )}
                         </div>
+
+                        {/* Relations */}
+                        {leg.relations && leg.relations.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-dashed">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <GitBranch className="h-3 w-3 text-muted-foreground" />
+                              {leg.relations.slice(0, 3).map((rel) => {
+                                const typeStyles: Record<string, { label: string; className: string }> = {
+                                  revogado: { label: "Revoga", className: "bg-gray-800 text-white" },
+                                  revogacao_parcial: { label: "Rev. Parcial", className: "bg-gray-500 text-white" },
+                                  alteracao: { label: "Altera", className: "bg-white border-2 border-gray-400 text-gray-700" },
+                                  transposicao: { label: "Transpõe", className: "bg-blue-600 text-white" },
+                                  regulamentacao: { label: "Regulamenta", className: "bg-purple-600 text-white" },
+                                };
+                                const style = typeStyles[rel.relation_type] || { label: rel.relation_type, className: "" };
+                                return (
+                                  <TooltipProvider key={rel.id} delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Link 
+                                          to={`/legislacao/${rel.target_id}`}
+                                          className="inline-block"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Badge
+                                            className={`text-[10px] cursor-pointer hover:opacity-80 transition-opacity ${style.className}`}
+                                          >
+                                            <span className="opacity-70 mr-1">{style.label}:</span>
+                                            <span className="font-mono">{rel.target_number?.split(' ').slice(0, 3).join(' ')}</span>
+                                          </Badge>
+                                        </Link>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="text-xs font-medium">{rel.target_number}</p>
+                                        <p className="text-xs text-muted-foreground line-clamp-2">{rel.target_title}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              })}
+                              {leg.relations.length > 3 && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  +{leg.relations.length - 3} mais
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
