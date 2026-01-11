@@ -307,6 +307,54 @@ function isAllowedUrl(url: string): boolean {
 }
 ```
 
+### Rate Limiting
+
+Implementado via função de base de dados `check_rate_limit()`:
+
+```typescript
+// No início da Edge Function, após autenticação
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Usar IP ou user_id como identificador
+const identifier = userId || req.headers.get('x-forwarded-for') || 'anonymous';
+
+const { data: rateLimit } = await supabase.rpc('check_rate_limit', {
+  p_identifier: identifier,
+  p_function_name: 'sync-dre',
+  p_max_requests: 10,      // máximo 10 requests
+  p_window_seconds: 60     // por minuto
+});
+
+if (!rateLimit?.allowed) {
+  return new Response(
+    JSON.stringify({ 
+      error: 'Rate limit exceeded',
+      remaining: rateLimit?.remaining || 0,
+      reset_at: rateLimit?.reset_at
+    }),
+    { 
+      status: 429, 
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json',
+        'X-RateLimit-Remaining': String(rateLimit?.remaining || 0),
+        'X-RateLimit-Reset': rateLimit?.reset_at || ''
+      } 
+    }
+  );
+}
+```
+
+**Limites recomendados por função:**
+
+| Função | Max Requests | Janela |
+|--------|--------------|--------|
+| sync-dre | 5 | 5 min |
+| sync-eurlex | 5 | 5 min |
+| import-* | 10 | 1 min |
+| extract-requirements | 20 | 1 min |
+| firecrawl-scrape | 30 | 1 min |
+
 ---
 
 ## Boas Práticas
@@ -373,7 +421,7 @@ const safeUrl = encodeURIComponent(userInput);
 |------|------------|--------|
 | Ativar Leaked Password Protection | Alta | ⚠️ Pendente (manual) |
 | Mover pg_net para schema extensions | Baixa | ❌ Não suportado |
-| Rate limiting em Edge Functions | Média | 📋 Planeado |
+| Rate limiting em Edge Functions | Média | ✅ Implementado |
 | Audit logging detalhado | Média | 📋 Planeado |
 
 ---
