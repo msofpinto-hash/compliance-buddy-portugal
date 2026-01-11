@@ -5,13 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   FileText, 
   Search, 
   ExternalLink,
   ArrowLeft,
   Calendar,
-  Building2
+  Building2,
+  Filter
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +23,19 @@ import { pt } from "date-fns/locale";
 import { useThemesWithCategories } from "@/hooks/useThemes";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { CategoryTreeFilter } from "@/components/CategoryTreeFilter";
+import { ApplicabilityBadge, getApplicabilityInfo } from "@/components/RequirementApplicabilitySelect";
+
+const applicabilityFilterOptions = [
+  { value: "all", label: "Todos" },
+  { value: "nao_avaliado", label: "Não Avaliado" },
+  { value: "aplicavel_direto", label: "Aplicável Direto" },
+  { value: "aplicavel_indireto", label: "Aplicável Indireto" },
+  { value: "aplicavel_condicionado", label: "Aplicável Condicionado" },
+  { value: "nao_aplicavel", label: "Não Aplicável" },
+  { value: "informativo", label: "Informativo" },
+  { value: "has_any", label: "Com classificação" },
+  { value: "pending", label: "Pendente de avaliação" },
+];
 
 export default function Biblioteca() {
   const { user } = useAuth();
@@ -28,11 +43,29 @@ export default function Biblioteca() {
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("all");
+  const [selectedApplicability, setSelectedApplicability] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
 
   // Fetch themes with categories
   const { data: themes } = useThemesWithCategories();
+
+  // Fetch user's organization
+  const { data: userOrganization } = useQuery({
+    queryKey: ["user-organization", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("organization_id, organizations(id, name)")
+        .eq("user_id", user.id)
+        .not("organization_id", "is", null)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.organizations || null;
+    },
+    enabled: !!user,
+  });
 
   // Fetch legislation with categories
   const { data: legislation, isLoading } = useQuery({
@@ -45,13 +78,60 @@ export default function Biblioteca() {
           legislation_category_mapping(
             category_id,
             theme_categories(id, name, theme_id, parent_id, themes(id, name))
-          )
+          ),
+          legal_requirements(id)
         `)
         .order("publication_date", { ascending: false });
       if (error) throw error;
       return data;
     },
   });
+
+  // Fetch applicabilities for user's organization
+  const { data: applicabilitiesMap } = useQuery({
+    queryKey: ["org-applicabilities", userOrganization?.id],
+    queryFn: async () => {
+      if (!userOrganization?.id) return {};
+      const { data, error } = await supabase
+        .from("applicabilities")
+        .select("requirement_id, applicability_type")
+        .eq("organization_id", userOrganization.id);
+      if (error) throw error;
+      
+      // Create a map: requirement_id -> applicability_type
+      const map: Record<string, string> = {};
+      data?.forEach((a) => {
+        map[a.requirement_id] = a.applicability_type || "nao_avaliado";
+      });
+      return map;
+    },
+    enabled: !!userOrganization?.id,
+  });
+
+  // Helper to get legislation's applicability summary
+  const getLegislationApplicability = (leg: any) => {
+    if (!leg.legal_requirements?.length) return { types: [], dominant: null, hasPending: false };
+    
+    const types: string[] = [];
+    let hasPending = false;
+    
+    leg.legal_requirements.forEach((req: any) => {
+      const type = applicabilitiesMap?.[req.id] || "nao_avaliado";
+      types.push(type);
+      if (type === "nao_avaliado") hasPending = true;
+    });
+    
+    // Find dominant type (most common)
+    const counts: Record<string, number> = {};
+    types.forEach((t) => {
+      counts[t] = (counts[t] || 0) + 1;
+    });
+    
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const dominant = sorted[0]?.[0] || null;
+    
+    return { types, dominant, hasPending };
+  };
 
   // Filter legislation
   const filteredLegislation = useMemo(() => {
@@ -81,6 +161,20 @@ export default function Biblioteca() {
         matchesDateRange = false;
       }
 
+      // Applicability filter
+      let matchesApplicability = true;
+      if (selectedApplicability !== "all" && userOrganization) {
+        const { types, hasPending } = getLegislationApplicability(leg);
+        
+        if (selectedApplicability === "pending") {
+          matchesApplicability = hasPending;
+        } else if (selectedApplicability === "has_any") {
+          matchesApplicability = types.some(t => t !== "nao_avaliado");
+        } else {
+          matchesApplicability = types.includes(selectedApplicability);
+        }
+      }
+
       // Theme and category filter
       let matchesThemeCategory = true;
       if (selectedCategoryId && leg.legislation_category_mapping) {
@@ -107,9 +201,9 @@ export default function Biblioteca() {
         matchesThemeCategory = false;
       }
 
-      return matchesSearch && matchesSource && matchesDateRange && matchesThemeCategory;
+      return matchesSearch && matchesSource && matchesDateRange && matchesThemeCategory && matchesApplicability;
     });
-  }, [legislation, searchTerm, selectedSource, selectedThemeId, selectedCategoryId, filterStartDate, filterEndDate]);
+  }, [legislation, searchTerm, selectedSource, selectedThemeId, selectedCategoryId, filterStartDate, filterEndDate, selectedApplicability, applicabilitiesMap, userOrganization]);
 
   // Get unique themes from legislation mappings
   const getLegislationThemes = (leg: any) => {
@@ -131,12 +225,13 @@ export default function Biblioteca() {
       .map((mapping: any) => mapping.theme_categories.name);
   };
 
-  const hasActiveFilters = selectedThemeId || selectedCategoryId || selectedSource !== "all" || filterStartDate || filterEndDate;
+  const hasActiveFilters = selectedThemeId || selectedCategoryId || selectedSource !== "all" || filterStartDate || filterEndDate || selectedApplicability !== "all";
 
   const clearAllFilters = () => {
     setSelectedThemeId(null);
     setSelectedCategoryId(null);
     setSelectedSource("all");
+    setSelectedApplicability("all");
     setFilterStartDate(null);
     setFilterEndDate(null);
     setSearchTerm("");
@@ -218,6 +313,26 @@ export default function Biblioteca() {
                   EUR-Lex
                 </Button>
 
+                {/* Applicability Filter */}
+                {userOrganization && (
+                  <Select
+                    value={selectedApplicability}
+                    onValueChange={setSelectedApplicability}
+                  >
+                    <SelectTrigger className="w-[200px] h-9">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Aplicabilidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {applicabilityFilterOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
@@ -252,6 +367,7 @@ export default function Biblioteca() {
             {filteredLegislation.map((leg) => {
               const legThemes = getLegislationThemes(leg);
               const legCategories = getLegislationCategories(leg);
+              const applicability = getLegislationApplicability(leg);
               return (
                 <Card key={leg.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="pt-6">
@@ -265,6 +381,15 @@ export default function Biblioteca() {
                           <span className="font-semibold">{leg.number}</span>
                           {leg.revocation_date && (
                             <Badge variant="destructive">Revogado</Badge>
+                          )}
+                          {/* Applicability badge */}
+                          {userOrganization && leg.legal_requirements?.length > 0 && applicability.dominant && (
+                            <ApplicabilityBadge value={applicability.dominant} />
+                          )}
+                          {userOrganization && applicability.hasPending && (
+                            <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-300">
+                              {applicability.types.filter(t => t === "nao_avaliado").length} pendentes
+                            </Badge>
                           )}
                         </div>
 
