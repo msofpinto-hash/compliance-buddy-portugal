@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { legislationIds, all2026 } = await req.json();
+    const { legislationIds, all2026, scheduled, batchSize = 50 } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -172,6 +172,21 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
+    // Create sync log for scheduled runs
+    let syncLogId: string | null = null;
+    if (scheduled) {
+      const { data: syncLog } = await supabase
+        .from('sync_logs')
+        .insert({
+          sync_type: 'reimport-dre-metadata',
+          status: 'running',
+          started_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      syncLogId = syncLog?.id || null;
+    }
+    
     // Determine which legislation to process
     let query = supabase
       .from('legislation')
@@ -185,6 +200,10 @@ Deno.serve(async (req) => {
       query = query.gte('publication_date', '2026-01-01');
     } else if (legislationIds && legislationIds.length > 0) {
       query = query.in('id', legislationIds);
+    } else if (scheduled) {
+      // Scheduled mode: get ALL legislation with missing data, limited by batchSize
+      // No date filter - process oldest first
+      query = query.order('publication_date', { ascending: true });
     } else {
       // Default: get recent legislation (last 60 days) with missing metadata
       const sixtyDaysAgo = new Date();
@@ -193,15 +212,32 @@ Deno.serve(async (req) => {
     }
     
     // Filter to only get items with missing/bad data
-    query = query.or('summary.is.null,summary.eq.,entity.is.null,entity.eq.');
+    query = query.or('summary.is.null,summary.eq.,summary.ilike.%Diploma referenciado%,entity.is.null,entity.eq.');
+    
+    // Apply batch size limit for scheduled runs
+    if (scheduled) {
+      query = query.limit(batchSize);
+    }
     
     const { data: legislation, error: fetchError } = await query;
     
     if (fetchError) {
+      if (syncLogId) {
+        await supabase
+          .from('sync_logs')
+          .update({ status: 'error', error_message: fetchError.message, completed_at: new Date().toISOString() })
+          .eq('id', syncLogId);
+      }
       throw fetchError;
     }
     
     if (!legislation || legislation.length === 0) {
+      if (syncLogId) {
+        await supabase
+          .from('sync_logs')
+          .update({ status: 'completed', items_processed: 0, completed_at: new Date().toISOString() })
+          .eq('id', syncLogId);
+      }
       return new Response(
         JSON.stringify({ success: true, message: 'No legislation to process', updated: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -280,6 +316,22 @@ Deno.serve(async (req) => {
     
     const updated = results.filter(r => r.success && r.updates && Object.keys(r.updates).length > 0).length;
     const failed = results.filter(r => !r.success).length;
+    
+    // Update sync log if scheduled
+    if (syncLogId) {
+      await supabase
+        .from('sync_logs')
+        .update({
+          status: failed > 0 ? 'completed_with_errors' : 'completed',
+          items_processed: legislation.length,
+          items_updated: updated,
+          error_message: failed > 0 ? `${failed} items failed` : null,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', syncLogId);
+    }
+    
+    console.log(`Reimport completed: ${updated} updated, ${failed} failed out of ${legislation.length} processed`);
     
     return new Response(
       JSON.stringify({
