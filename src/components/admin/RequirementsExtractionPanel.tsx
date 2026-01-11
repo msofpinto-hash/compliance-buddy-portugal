@@ -22,9 +22,14 @@ import {
   Square,
   RefreshCw,
   RotateCcw,
-  Download
+  Download,
+  Globe,
+  Flag
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type OriginFilter = "all" | "PT" | "EU";
 
 interface ExtractionResult {
   legislationId: string;
@@ -51,6 +56,7 @@ export function RequirementsExtractionPanel() {
   const [dryRun, setDryRun] = useState(false);
   const [autoRetry, setAutoRetry] = useState(true);
   const [maxRetries, setMaxRetries] = useState(3);
+  const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   const [results, setResults] = useState<ExtractionResult[] | null>(null);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   const [stats, setStats] = useState<{
@@ -69,25 +75,40 @@ export function RequirementsExtractionPanel() {
   } | null>(null);
   const stopContinuousRef = useRef(false);
 
-  // Fetch statistics
+  // Fetch statistics with origin filter
   const { data: dbStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
-    queryKey: ["requirements-stats"],
+    queryKey: ["requirements-stats", originFilter],
     queryFn: async () => {
+      // Get legislation filtered by origin
+      let legislationQuery = supabase.from("legislation").select("id, origin");
+      
+      if (originFilter === "PT") {
+        legislationQuery = legislationQuery.or("origin.eq.PT,origin.eq.dre,origin.is.null");
+      } else if (originFilter === "EU") {
+        legislationQuery = legislationQuery.or("origin.eq.EU,origin.eq.eurlex");
+      }
+      
       const [legislationResult, requirementsResult, withReqsResult] = await Promise.all([
-        supabase.from("legislation").select("id", { count: "exact", head: true }),
-        supabase.from("legal_requirements").select("id", { count: "exact", head: true }),
+        legislationQuery,
+        supabase.from("legal_requirements").select("id, legislation_id"),
         supabase.from("legal_requirements").select("legislation_id"),
       ]);
 
+      const legislationIds = new Set(legislationResult.data?.map(l => l.id) || []);
       const uniqueLegislationWithReqs = new Set(
-        withReqsResult.data?.map(r => r.legislation_id) || []
-      ).size;
+        withReqsResult.data
+          ?.filter(r => legislationIds.has(r.legislation_id))
+          .map(r => r.legislation_id) || []
+      );
+      
+      const totalLegislation = legislationResult.data?.length || 0;
+      const totalRequirements = requirementsResult.data?.filter(r => legislationIds.has(r.legislation_id)).length || 0;
 
       return {
-        totalLegislation: legislationResult.count || 0,
-        totalRequirements: requirementsResult.count || 0,
-        legislationWithRequirements: uniqueLegislationWithReqs,
-        legislationWithoutRequirements: (legislationResult.count || 0) - uniqueLegislationWithReqs,
+        totalLegislation,
+        totalRequirements,
+        legislationWithRequirements: uniqueLegislationWithReqs.size,
+        legislationWithoutRequirements: totalLegislation - uniqueLegislationWithReqs.size,
       };
     },
   });
@@ -216,7 +237,7 @@ export function RequirementsExtractionPanel() {
 
     try {
       const { data, error } = await supabase.functions.invoke("extract-requirements", {
-        body: { limit, dryRun },
+        body: { limit, dryRun, origin: originFilter === "all" ? undefined : originFilter },
       });
 
       if (error) throw error;
@@ -364,7 +385,11 @@ export function RequirementsExtractionPanel() {
         }
 
         const { data, error } = await supabase.functions.invoke("extract-requirements", {
-          body: { limit: Math.min(batchSize, remaining), dryRun: false },
+          body: { 
+            limit: Math.min(batchSize, remaining), 
+            dryRun: false,
+            origin: originFilter === "all" ? undefined : originFilter,
+          },
         });
 
         if (error) {
@@ -433,11 +458,61 @@ export function RequirementsExtractionPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Origin Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <Label className="text-sm font-medium">Filtrar por origem:</Label>
+            <Select
+              value={originFilter}
+              onValueChange={(value) => setOriginFilter(value as OriginFilter)}
+              disabled={isContinuousExtracting || isExtracting}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <span className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Todos os diplomas
+                  </span>
+                </SelectItem>
+                <SelectItem value="PT">
+                  <span className="flex items-center gap-2">
+                    <Flag className="h-4 w-4" />
+                    🇵🇹 Portugal (DRE)
+                  </span>
+                </SelectItem>
+                <SelectItem value="EU">
+                  <span className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    🇪🇺 União Europeia
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {originFilter !== "all" && (
+              <Badge variant="secondary" className="gap-1">
+                {originFilter === "PT" ? "🇵🇹 PT" : "🇪🇺 EU"}
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Statistics */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total de Diplomas</CardDescription>
+            <CardDescription className="flex items-center gap-1">
+              Total de Diplomas
+              {originFilter !== "all" && (
+                <Badge variant="outline" className="text-xs ml-1">
+                  {originFilter === "PT" ? "🇵🇹" : "🇪🇺"}
+                </Badge>
+              )}
+            </CardDescription>
             <CardTitle className="text-3xl">
               {loadingStats ? <Loader2 className="h-6 w-6 animate-spin" /> : dbStats?.totalLegislation}
             </CardTitle>
