@@ -37,7 +37,7 @@ import {
   Sparkles
 } from "lucide-react";
 import evidenceHero from "@/assets/evidence-hero.png";
-import * as XLSX from "xlsx";
+import { exportSimpleExcel } from "@/lib/excelUtils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -407,7 +407,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     a.click();
   };
 
-  const exportToExcel = (selectedColumns: string[]) => {
+  const exportToExcelHandler = async (selectedColumns: string[]) => {
     if (!filteredRequests?.length) {
       toast({ title: "Aviso", description: "Não há pedidos para exportar", variant: "destructive" });
       return;
@@ -443,26 +443,22 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
       const row: Record<string, string | number> = {};
       selectedColumns.forEach(col => {
         if (columnMapping[col]) {
-          row[columnLabels[col]] = columnMapping[col](req);
+          row[col] = columnMapping[col](req);
         }
       });
       return row;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Pedidos de Evidência");
-    
-    // Auto-size columns
-    if (exportData.length > 0) {
-      const colWidths = Object.keys(exportData[0]).map(key => ({
-        wch: Math.max(key.length, ...exportData.map(row => String(row[key]).length).slice(0, 50)) + 2
+    const columns = selectedColumns
+      .filter(col => columnLabels[col])
+      .map(col => ({
+        header: columnLabels[col],
+        key: col,
+        width: Math.max(columnLabels[col].length + 5, 15),
       }));
-      worksheet["!cols"] = colWidths;
-    }
 
     const fileName = `pedidos_evidencia_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
+    await exportSimpleExcel(exportData, columns, "Pedidos de Evidência", fileName);
     
     toast({ title: "Sucesso", description: `Exportados ${filteredRequests.length} pedidos para Excel` });
   };
@@ -665,7 +661,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
         columns={exportColumns}
-        onExport={exportToExcel}
+        onExport={exportToExcelHandler}
         description={`Selecione as colunas para exportar ${filteredRequests?.length || 0} pedido(s).`}
       />
 

@@ -28,7 +28,7 @@ import {
   Globe,
   Flag
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import { exportSimpleExcel } from "@/lib/excelUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type OriginFilter = "all" | "PT" | "EU";
@@ -190,7 +190,7 @@ export function RequirementsExtractionPanel() {
   });
 
   // Export failed items to Excel
-  const handleExportFailedToExcel = () => {
+  const handleExportFailedToExcel = async () => {
     if (failedItems.length === 0) {
       toast({
         title: "Sem dados",
@@ -200,33 +200,27 @@ export function RequirementsExtractionPanel() {
     }
 
     const exportData = failedItems.map((item, index) => ({
-      "#": index + 1,
-      "ID Legislação": item.legislationId,
-      "Número": item.legislationNumber,
-      "Erro": item.error,
-      "Tentativas": item.retryCount,
-      "Máx. Tentativas": maxRetries,
-      "Data Exportação": new Date().toLocaleString("pt-PT"),
+      index: index + 1,
+      legislationId: item.legislationId,
+      numero: item.legislationNumber,
+      erro: item.error,
+      tentativas: item.retryCount,
+      maxTentativas: maxRetries,
+      dataExportacao: new Date().toLocaleString("pt-PT"),
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Diplomas Falhados");
-
-    // Auto-size columns
-    const colWidths = [
-      { wch: 5 },   // #
-      { wch: 40 },  // ID
-      { wch: 25 },  // Número
-      { wch: 50 },  // Erro
-      { wch: 12 },  // Tentativas
-      { wch: 15 },  // Máx. Tentativas
-      { wch: 20 },  // Data
+    const columns = [
+      { header: "#", key: "index", width: 5 },
+      { header: "ID Legislação", key: "legislationId", width: 40 },
+      { header: "Número", key: "numero", width: 25 },
+      { header: "Erro", key: "erro", width: 50 },
+      { header: "Tentativas", key: "tentativas", width: 12 },
+      { header: "Máx. Tentativas", key: "maxTentativas", width: 15 },
+      { header: "Data Exportação", key: "dataExportacao", width: 20 },
     ];
-    worksheet["!cols"] = colWidths;
 
     const fileName = `diplomas_falhados_${new Date().toISOString().split("T")[0]}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
+    await exportSimpleExcel(exportData, columns, "Diplomas Falhados", fileName);
 
     toast({
       title: "Exportação concluída",

@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { exportToExcel, SheetData, ColumnConfig } from './excelUtils';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { supabase } from '@/integrations/supabase/client';
@@ -220,166 +220,181 @@ export async function fetchReportData(organizationId: string): Promise<ReportDat
 
 // ==================== EXCEL EXPORT ====================
 
-export function exportLegislationToExcel(data: ReportData): void {
-  const ws = XLSX.utils.json_to_sheet(
-    data.legislation.map(leg => ({
-      "Número": leg.number,
-      "Título": leg.title,
-      "Data Publicação": formatDate(leg.publicationDate),
-      "Data Vigência": formatDate(leg.effectiveDate),
-      "Origem": getSourceLabel(leg.source),
-      "Entidade": leg.entity || "-",
-      "Nº Requisitos": leg.requirementsCount,
-    }))
-  );
+export async function exportLegislationToExcel(data: ReportData): Promise<void> {
+  const rows = data.legislation.map(leg => ({
+    numero: leg.number,
+    titulo: leg.title,
+    dataPublicacao: formatDate(leg.publicationDate),
+    dataVigencia: formatDate(leg.effectiveDate),
+    origem: getSourceLabel(leg.source),
+    entidade: leg.entity || "-",
+    numRequisitos: leg.requirementsCount,
+  }));
 
-  // Set column widths
-  ws["!cols"] = [
-    { wch: 20 }, // Número
-    { wch: 60 }, // Título
-    { wch: 15 }, // Data Publicação
-    { wch: 15 }, // Data Vigência
-    { wch: 12 }, // Origem
-    { wch: 30 }, // Entidade
-    { wch: 12 }, // Nº Requisitos
+  const columns: ColumnConfig[] = [
+    { header: "Número", key: "numero", width: 20 },
+    { header: "Título", key: "titulo", width: 60 },
+    { header: "Data Publicação", key: "dataPublicacao", width: 15 },
+    { header: "Data Vigência", key: "dataVigencia", width: 15 },
+    { header: "Origem", key: "origem", width: 12 },
+    { header: "Entidade", key: "entidade", width: 30 },
+    { header: "Nº Requisitos", key: "numRequisitos", width: 12 },
   ];
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Legislação");
 
   const fileName = `legislacao-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+  await exportToExcel([{ name: "Legislação", columns, rows }], fileName);
 }
 
-export function exportRequirementsToExcel(data: ReportData): void {
-  const ws = XLSX.utils.json_to_sheet(
-    data.requirements.map(req => ({
-      "Diploma": req.legislationNumber,
-      "Título Diploma": req.legislationTitle,
-      "Artigo": req.article || "-",
-      "Requisito": req.text,
-      "Estado": getStatusLabel(req.status),
-      "Observações": req.notes || "-",
-    }))
-  );
+export async function exportRequirementsToExcel(data: ReportData): Promise<void> {
+  const reqRows = data.requirements.map(req => ({
+    diploma: req.legislationNumber,
+    tituloDiploma: req.legislationTitle,
+    artigo: req.article || "-",
+    requisito: req.text,
+    estado: getStatusLabel(req.status),
+    observacoes: req.notes || "-",
+  }));
 
-  ws["!cols"] = [
-    { wch: 20 }, // Diploma
-    { wch: 40 }, // Título Diploma
-    { wch: 12 }, // Artigo
-    { wch: 60 }, // Requisito
-    { wch: 15 }, // Estado
-    { wch: 40 }, // Observações
+  const reqColumns: ColumnConfig[] = [
+    { header: "Diploma", key: "diploma", width: 20 },
+    { header: "Título Diploma", key: "tituloDiploma", width: 40 },
+    { header: "Artigo", key: "artigo", width: 12 },
+    { header: "Requisito", key: "requisito", width: 60 },
+    { header: "Estado", key: "estado", width: 15 },
+    { header: "Observações", key: "observacoes", width: 40 },
   ];
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Requisitos");
-
-  // Add summary sheet
-  const summaryData = [
-    { "Métrica": "Total Requisitos", "Valor": data.stats.totalRequirements },
-    { "Métrica": "Conforme", "Valor": data.stats.conforme },
-    { "Métrica": "Não Conforme", "Valor": data.stats.naoConforme },
-    { "Métrica": "Em Avaliação", "Valor": data.stats.emCurso },
-    { "Métrica": "Taxa Conformidade", "Valor": `${data.stats.complianceRate}%` },
+  const summaryRows = [
+    { metrica: "Total Requisitos", valor: data.stats.totalRequirements },
+    { metrica: "Conforme", valor: data.stats.conforme },
+    { metrica: "Não Conforme", valor: data.stats.naoConforme },
+    { metrica: "Em Avaliação", valor: data.stats.emCurso },
+    { metrica: "Taxa Conformidade", valor: `${data.stats.complianceRate}%` },
   ];
-  const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-  wsSummary["!cols"] = [{ wch: 20 }, { wch: 15 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
+
+  const summaryColumns: ColumnConfig[] = [
+    { header: "Métrica", key: "metrica", width: 20 },
+    { header: "Valor", key: "valor", width: 15 },
+  ];
+
+  const sheets: SheetData[] = [
+    { name: "Requisitos", columns: reqColumns, rows: reqRows },
+    { name: "Resumo", columns: summaryColumns, rows: summaryRows },
+  ];
 
   const fileName = `requisitos-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+  await exportToExcel(sheets, fileName);
 }
 
-export function exportActionPlansToExcel(data: ReportData): void {
-  const ws = XLSX.utils.json_to_sheet(
-    data.actionPlans.map(plan => ({
-      "Título": plan.title,
-      "Descrição": plan.description || "-",
-      "Estado": getStatusLabel(plan.status),
-      "Responsável": plan.responsible || "-",
-      "Prazo": formatDate(plan.dueDate),
-      "Requisito Associado": plan.requirementText || "-",
-    }))
-  );
+export async function exportActionPlansToExcel(data: ReportData): Promise<void> {
+  const rows = data.actionPlans.map(plan => ({
+    titulo: plan.title,
+    descricao: plan.description || "-",
+    estado: getStatusLabel(plan.status),
+    responsavel: plan.responsible || "-",
+    prazo: formatDate(plan.dueDate),
+    requisito: plan.requirementText || "-",
+  }));
 
-  ws["!cols"] = [
-    { wch: 30 }, // Título
-    { wch: 50 }, // Descrição
-    { wch: 15 }, // Estado
-    { wch: 20 }, // Responsável
-    { wch: 15 }, // Prazo
-    { wch: 50 }, // Requisito
+  const columns: ColumnConfig[] = [
+    { header: "Título", key: "titulo", width: 30 },
+    { header: "Descrição", key: "descricao", width: 50 },
+    { header: "Estado", key: "estado", width: 15 },
+    { header: "Responsável", key: "responsavel", width: 20 },
+    { header: "Prazo", key: "prazo", width: 15 },
+    { header: "Requisito Associado", key: "requisito", width: 50 },
   ];
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Planos de Ação");
 
   const fileName = `planos-acao-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+  await exportToExcel([{ name: "Planos de Ação", columns, rows }], fileName);
 }
 
-export function exportFullReportToExcel(data: ReportData): void {
-  const wb = XLSX.utils.book_new();
+export async function exportFullReportToExcel(data: ReportData): Promise<void> {
+  const sheets: SheetData[] = [];
 
   // Summary sheet
-  const summaryData = [
-    { "Métrica": "Organização", "Valor": data.organization.name },
-    { "Métrica": "Data do Relatório", "Valor": new Date().toLocaleDateString("pt-PT") },
-    { "Métrica": "", "Valor": "" },
-    { "Métrica": "Total Diplomas", "Valor": data.stats.totalLegislation },
-    { "Métrica": "Total Requisitos", "Valor": data.stats.totalRequirements },
-    { "Métrica": "Conforme", "Valor": data.stats.conforme },
-    { "Métrica": "Não Conforme", "Valor": data.stats.naoConforme },
-    { "Métrica": "Em Avaliação", "Valor": data.stats.emCurso },
-    { "Métrica": "Taxa Conformidade", "Valor": `${data.stats.complianceRate}%` },
+  const summaryRows = [
+    { metrica: "Organização", valor: data.organization.name },
+    { metrica: "Data do Relatório", valor: new Date().toLocaleDateString("pt-PT") },
+    { metrica: "", valor: "" },
+    { metrica: "Total Diplomas", valor: data.stats.totalLegislation },
+    { metrica: "Total Requisitos", valor: data.stats.totalRequirements },
+    { metrica: "Conforme", valor: data.stats.conforme },
+    { metrica: "Não Conforme", valor: data.stats.naoConforme },
+    { metrica: "Em Avaliação", valor: data.stats.emCurso },
+    { metrica: "Taxa Conformidade", valor: `${data.stats.complianceRate}%` },
   ];
-  const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-  wsSummary["!cols"] = [{ wch: 25 }, { wch: 30 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
+  sheets.push({
+    name: "Resumo",
+    columns: [
+      { header: "Métrica", key: "metrica", width: 25 },
+      { header: "Valor", key: "valor", width: 30 },
+    ],
+    rows: summaryRows,
+  });
 
   // Legislation sheet
-  const wsLeg = XLSX.utils.json_to_sheet(
-    data.legislation.map(leg => ({
-      "Número": leg.number,
-      "Título": leg.title,
-      "Data Publicação": formatDate(leg.publicationDate),
-      "Origem": getSourceLabel(leg.source),
-      "Nº Requisitos": leg.requirementsCount,
-    }))
-  );
-  wsLeg["!cols"] = [{ wch: 20 }, { wch: 50 }, { wch: 15 }, { wch: 12 }, { wch: 12 }];
-  XLSX.utils.book_append_sheet(wb, wsLeg, "Legislação");
+  const legRows = data.legislation.map(leg => ({
+    numero: leg.number,
+    titulo: leg.title,
+    dataPublicacao: formatDate(leg.publicationDate),
+    origem: getSourceLabel(leg.source),
+    numRequisitos: leg.requirementsCount,
+  }));
+  sheets.push({
+    name: "Legislação",
+    columns: [
+      { header: "Número", key: "numero", width: 20 },
+      { header: "Título", key: "titulo", width: 50 },
+      { header: "Data Publicação", key: "dataPublicacao", width: 15 },
+      { header: "Origem", key: "origem", width: 12 },
+      { header: "Nº Requisitos", key: "numRequisitos", width: 12 },
+    ],
+    rows: legRows,
+  });
 
   // Requirements sheet
-  const wsReq = XLSX.utils.json_to_sheet(
-    data.requirements.map(req => ({
-      "Diploma": req.legislationNumber,
-      "Artigo": req.article || "-",
-      "Requisito": req.text,
-      "Estado": getStatusLabel(req.status),
-      "Observações": req.notes || "-",
-    }))
-  );
-  wsReq["!cols"] = [{ wch: 20 }, { wch: 10 }, { wch: 60 }, { wch: 15 }, { wch: 30 }];
-  XLSX.utils.book_append_sheet(wb, wsReq, "Requisitos");
+  const reqRows = data.requirements.map(req => ({
+    diploma: req.legislationNumber,
+    artigo: req.article || "-",
+    requisito: req.text,
+    estado: getStatusLabel(req.status),
+    observacoes: req.notes || "-",
+  }));
+  sheets.push({
+    name: "Requisitos",
+    columns: [
+      { header: "Diploma", key: "diploma", width: 20 },
+      { header: "Artigo", key: "artigo", width: 10 },
+      { header: "Requisito", key: "requisito", width: 60 },
+      { header: "Estado", key: "estado", width: 15 },
+      { header: "Observações", key: "observacoes", width: 30 },
+    ],
+    rows: reqRows,
+  });
 
   // Action Plans sheet
   if (data.actionPlans.length > 0) {
-    const wsPlans = XLSX.utils.json_to_sheet(
-      data.actionPlans.map(plan => ({
-        "Título": plan.title,
-        "Estado": getStatusLabel(plan.status),
-        "Responsável": plan.responsible || "-",
-        "Prazo": formatDate(plan.dueDate),
-      }))
-    );
-    wsPlans["!cols"] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, wsPlans, "Planos de Ação");
+    const planRows = data.actionPlans.map(plan => ({
+      titulo: plan.title,
+      estado: getStatusLabel(plan.status),
+      responsavel: plan.responsible || "-",
+      prazo: formatDate(plan.dueDate),
+    }));
+    sheets.push({
+      name: "Planos de Ação",
+      columns: [
+        { header: "Título", key: "titulo", width: 30 },
+        { header: "Estado", key: "estado", width: 15 },
+        { header: "Responsável", key: "responsavel", width: 20 },
+        { header: "Prazo", key: "prazo", width: 15 },
+      ],
+      rows: planRows,
+    });
   }
 
   const fileName = `relatorio-conformidade-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+  await exportToExcel(sheets, fileName);
 }
 
 // ==================== PDF THEME CONFIGURATION ====================
