@@ -26,7 +26,9 @@ import {
   RotateCcw,
   Download,
   Globe,
-  Flag
+  Flag,
+  CloudOff,
+  Server
 } from "lucide-react";
 import { exportSimpleExcel } from "@/lib/excelUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -63,6 +65,7 @@ export function RequirementsExtractionPanel() {
   const queryClient = useQueryClient();
   const [isExtracting, setIsExtracting] = useState(false);
   const [isContinuousExtracting, setIsContinuousExtracting] = useState(false);
+  const [isBackgroundExtracting, setIsBackgroundExtracting] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
   const [limit, setLimit] = useState(25);
@@ -758,15 +761,62 @@ export function RequirementsExtractionPanel() {
                 Parar
               </Button>
             ) : (
-              <Button
-                onClick={handleContinuousExtraction}
-                disabled={isExtracting || !dbStats?.legislationWithoutRequirements}
-                className="gap-2"
-              >
-                <Zap className="h-4 w-4" />
-                Iniciar Extração de Todos
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleContinuousExtraction}
+                  disabled={isExtracting || isBackgroundExtracting || !dbStats?.legislationWithoutRequirements}
+                  className="gap-2"
+                >
+                  <Zap className="h-4 w-4" />
+                  Extração no Browser
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setIsBackgroundExtracting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("extract-requirements-background", {
+                        body: { 
+                          batchSize, 
+                          maxBatches: 50, 
+                          origin: originFilter === "all" ? undefined : originFilter 
+                        },
+                      });
+                      
+                      if (error) throw error;
+                      
+                      toast({
+                        title: "Extração em segundo plano iniciada",
+                        description: "Pode fechar esta janela. O progresso será registado em sync_logs.",
+                      });
+                    } catch (error) {
+                      console.error("Background extraction error:", error);
+                      toast({
+                        title: "Erro ao iniciar extração",
+                        description: error instanceof Error ? error.message : "Erro desconhecido",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsBackgroundExtracting(false);
+                    }
+                  }}
+                  disabled={isExtracting || isContinuousExtracting || isBackgroundExtracting || !dbStats?.legislationWithoutRequirements}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  {isBackgroundExtracting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Server className="h-4 w-4" />
+                  )}
+                  Extração no Servidor
+                </Button>
+              </div>
             )}
+          </div>
+
+          <div className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
+            <p><strong>Browser:</strong> Mais rápido com lotes paralelos, mas para se fechar a janela.</p>
+            <p><strong>Servidor:</strong> Continua mesmo após fechar o browser. Progresso visível em Cron Jobs.</p>
           </div>
 
           {/* Continuous Stats */}
