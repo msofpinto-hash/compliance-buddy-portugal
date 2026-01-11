@@ -372,7 +372,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
       {/* Category tree */}
       {selectedTheme ? (
-        <Card className="w-64 min-w-[200px] flex-shrink-0 overflow-hidden">
+        <Card className="w-64 min-w-[200px] flex-shrink-0">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
@@ -406,12 +406,10 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-2 overflow-hidden">
-            <ScrollArea className="h-[calc(100vh-400px)]">
-              <div className="space-y-0.5 pr-2">
-                {categoryTree.map(node => renderCategoryNode(node))}
-              </div>
-            </ScrollArea>
+          <CardContent className="p-2">
+            <div className="space-y-0.5 pr-2">
+              {categoryTree.map(node => renderCategoryNode(node))}
+            </div>
           </CardContent>
         </Card>
       ) : hideThemesColumn ? (
@@ -473,131 +471,124 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             }
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-2 overflow-hidden">
-          <ScrollArea className="h-[calc(100vh-400px)]">
-            {displayedLegislation.length > 0 ? (
-              <div className="space-y-2">
-                {displayedLegislation.map(leg => {
-                  const requirementsCount = (leg as any).legal_requirements?.length || 0;
-                  const applicabilityType = applicabilityMap?.[leg.id];
-                  const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
-                  const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
-                  const isNotEvaluated = applicabilityMap && (!applicabilityType || applicabilityType === "nao_avaliado");
-                  
-                  return (
-                    <div
-                      key={leg.id}
-                      className={`rounded-lg border p-3 hover:bg-accent/50 transition-colors overflow-hidden ${
-                        isNotEvaluated ? 'border-l-4 border-l-amber-400 bg-amber-50/30' : ''
-                      }`}
-                    >
-                      {/* Header row: Source badge + Applicability/Pending + Actions */}
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                          <Badge 
+        <CardContent className="p-2">
+          {displayedLegislation.length > 0 ? (
+            <div className="space-y-2">
+              {displayedLegislation.map(leg => {
+                const requirementsCount = (leg as any).legal_requirements?.length || 0;
+                const applicabilityType = applicabilityMap?.[leg.id];
+                const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
+                const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
+                const isNotEvaluated = applicabilityMap && (!applicabilityType || applicabilityType === "nao_avaliado");
+
+                return (
+                  <div
+                    key={leg.id}
+                    className={`rounded-lg border p-3 hover:bg-accent/50 transition-colors overflow-hidden ${
+                      isNotEvaluated ? "border-l-4 border-l-amber-400 bg-amber-50/30" : ""
+                    }`}
+                  >
+                    {/* Header row: Source badge + Applicability/Pending + Actions */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${
+                            leg.origin === "PT"
+                              ? "bg-green-500/10 text-green-700 border-green-300"
+                              : "bg-blue-500/10 text-blue-700 border-blue-300"
+                          }`}
+                        >
+                          {leg.origin === "PT" ? (
+                            <>
+                              <Flag className="h-2.5 w-2.5 mr-0.5" />DRE
+                            </>
+                          ) : (
+                            <>
+                              <Globe className="h-2.5 w-2.5 mr-0.5" />EU
+                            </>
+                          )}
+                        </Badge>
+                        {showApplicability && (
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className={`shrink-0 text-[10px] px-1.5 py-0 h-5 cursor-help ${applicabilityInfo.color}`}
+                                >
+                                  {applicabilityInfo.label}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="text-xs">{applicabilityInfo.description}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {isNotEvaluated && (
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 shrink-0">
+                                  <AlertCircle className="h-3 w-3" />
+                                  Pendente
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="text-xs">Este diploma ainda não foi avaliado pela organização.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {requirementsCount > 0 && (
+                          <Badge
                             variant="outline"
-                            className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${
-                              leg.origin === 'PT' 
-                                ? 'bg-green-500/10 text-green-700 border-green-300' 
-                                : 'bg-blue-500/10 text-blue-700 border-blue-300'
-                            }`}
+                            className="shrink-0 text-[10px] px-1.5 py-0 h-5 bg-primary/10 text-primary border-primary/30"
                           >
-                            {leg.origin === 'PT' ? (
-                              <><Flag className="h-2.5 w-2.5 mr-0.5" />DRE</>
-                            ) : (
-                              <><Globe className="h-2.5 w-2.5 mr-0.5" />EU</>
-                            )}
+                            <ListChecks className="h-2.5 w-2.5 mr-0.5" />
+                            {requirementsCount}
                           </Badge>
-                          {showApplicability && (
-                            <TooltipProvider delayDuration={200}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge 
-                                    variant="outline"
-                                    className={`shrink-0 text-[10px] px-1.5 py-0 h-5 cursor-help ${applicabilityInfo.color}`}
-                                  >
-                                    {applicabilityInfo.label}
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <p className="text-xs">{applicabilityInfo.description}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {isNotEvaluated && (
-                            <TooltipProvider delayDuration={200}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 shrink-0">
-                                    <AlertCircle className="h-3 w-3" />
-                                    Pendente
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <p className="text-xs">Este diploma ainda não foi avaliado pela organização.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {requirementsCount > 0 && (
-                            <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 h-5 bg-primary/10 text-primary border-primary/30">
-                              <ListChecks className="h-2.5 w-2.5 mr-0.5" />
-                              {requirementsCount}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex gap-0.5 shrink-0">
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Ver detalhes">
-                            <Link to={`/legislacao/${leg.id}`}>
-                              <Eye className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
-                          {leg.document_url && (
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Abrir documento">
-                              <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
-                            </Button>
-                          )}
-                        </div>
+                        )}
                       </div>
-                      
-                      {/* Number + Title */}
-                      <Link 
-                        to={`/legislacao/${leg.id}`} 
-                        className="block hover:text-primary transition-colors"
-                      >
-                        <p className="font-semibold text-sm">
-                          {leg.number}
-                        </p>
-                        <p className="text-sm text-foreground/90 line-clamp-2">
-                          {leg.title}
-                        </p>
-                      </Link>
-                      
-                      {/* Summary */}
-                      {(leg as any).summary && (
-                        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
-                          {(leg as any).summary}
-                        </p>
-                      )}
+                      <div className="flex gap-0.5 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Ver detalhes">
+                          <Link to={`/legislacao/${leg.id}`}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                        {leg.document_url && (
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Abrir documento">
+                            <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-muted-foreground">
-                <FileText className="mx-auto mb-2 h-8 w-8 opacity-50" />
-                <p className="text-sm">
-                  {selectedCategoryId 
-                    ? "Nenhuma legislação nesta categoria"
-                    : "Selecione uma categoria para ver os diplomas"
-                  }
-                </p>
-              </div>
-            )}
-          </ScrollArea>
+
+                    {/* Number + Title */}
+                    <Link to={`/legislacao/${leg.id}`} className="block hover:text-primary transition-colors">
+                      <p className="font-semibold text-sm">{leg.number}</p>
+                      <p className="text-sm text-foreground/90 line-clamp-2">{leg.title}</p>
+                    </Link>
+
+                    {/* Summary */}
+                    {(leg as any).summary && (
+                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{(leg as any).summary}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              <FileText className="mx-auto mb-2 h-8 w-8 opacity-50" />
+              <p className="text-sm">
+                {selectedCategoryId ? "Nenhuma legislação nesta categoria" : "Selecione uma categoria para ver os diplomas"}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
       </div>
