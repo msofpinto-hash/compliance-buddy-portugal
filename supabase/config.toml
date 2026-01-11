@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.import-evidence-templates]
 verify_jwt = false
+
+[functions.import-eurlex-summaries]
+verify_jwt = false

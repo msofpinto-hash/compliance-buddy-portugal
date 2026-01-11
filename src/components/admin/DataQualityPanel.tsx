@@ -32,6 +32,7 @@ import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
 import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
 import { FindMissingUrlsDialog } from "./FindMissingUrlsDialog";
 import { ImportUrlsCsvDialog } from "./ImportUrlsCsvDialog";
+import { ImportEurlexSummariesDialog } from "./ImportEurlexSummariesDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -52,6 +53,7 @@ export function DataQualityPanel() {
   const [showFixEurlexTitlesDialog, setShowFixEurlexTitlesDialog] = useState(false);
   const [showFindMissingUrlsDialog, setShowFindMissingUrlsDialog] = useState(false);
   const [showImportUrlsCsvDialog, setShowImportUrlsCsvDialog] = useState(false);
+  const [showImportEurlexSummariesDialog, setShowImportEurlexSummariesDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
 
   // Fetch comprehensive data quality statistics
@@ -409,9 +411,11 @@ export function DataQualityPanel() {
           count={qualityStats?.missingSummary || 0}
           total={qualityStats?.total || 0}
           severity="warning"
-          description="Diplomas sem descrição/resumo"
-          action="Corrigir Metadados"
-          onAction={() => setShowFixMetadataDialog(true)}
+          description="Diplomas sem descrição/resumo (maioria EU)"
+          action="Importar EUR-Lex"
+          onAction={() => setShowImportEurlexSummariesDialog(true)}
+          secondaryAction="Corrigir Metadados"
+          onSecondaryAction={() => setShowFixMetadataDialog(true)}
         />
 
         <ProblemCard
@@ -557,6 +561,11 @@ export function DataQualityPanel() {
       <ImportUrlsCsvDialog
         open={showImportUrlsCsvDialog}
         onOpenChange={setShowImportUrlsCsvDialog}
+      />
+
+      <ImportEurlexSummariesDialog
+        open={showImportEurlexSummariesDialog}
+        onOpenChange={setShowImportEurlexSummariesDialog}
       />
     </div>
   );
