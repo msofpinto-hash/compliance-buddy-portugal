@@ -565,7 +565,7 @@ function DuplicateGroupCard({ group, isSelected, onToggleSelection, onSetKeepIte
                       </p>
                     )}
                     
-                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-3 mt-3 pt-2 border-t text-xs text-muted-foreground">
                       {item.entity && (
                         <span className="flex items-center gap-1">
                           <Building2 className="h-3 w-3" />
@@ -575,7 +575,13 @@ function DuplicateGroupCard({ group, isSelected, onToggleSelection, onSetKeepIte
                       {item.publication_date && (
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {format(new Date(item.publication_date), "dd/MM/yyyy", { locale: pt })}
+                          Pub: {format(new Date(item.publication_date), "dd/MM/yyyy", { locale: pt })}
+                        </span>
+                      )}
+                      {item.effective_date && (
+                        <span className="flex items-center gap-1 text-green-600">
+                          <Calendar className="h-3 w-3" />
+                          Vigor: {format(new Date(item.effective_date), "dd/MM/yyyy", { locale: pt })}
                         </span>
                       )}
                       {item.document_url && (
