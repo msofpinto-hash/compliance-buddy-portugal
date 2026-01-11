@@ -375,7 +375,7 @@ export default function Biblioteca() {
         {viewMode === "tree" ? (
           // Tree View
           legislationWithCategories ? (
-            <LegislationTreeView legislation={legislationWithCategories} />
+            <LegislationTreeView legislation={legislationWithCategories} hideFilters />
           ) : (
             <div className="space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (

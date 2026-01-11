@@ -31,6 +31,8 @@ import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 interface LegislationTreeViewProps {
   legislation: LegislationWithCategories[];
   onSelectLegislation?: (leg: LegislationWithCategories) => void;
+  /** If true, hides the internal search/filter bar (use when parent provides filters) */
+  hideFilters?: boolean;
 }
 
 interface CategoryNode {
@@ -39,7 +41,7 @@ interface CategoryNode {
   legislation: LegislationWithCategories[];
 }
 
-export function LegislationTreeView({ legislation, onSelectLegislation }: LegislationTreeViewProps) {
+export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false }: LegislationTreeViewProps) {
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -247,67 +249,69 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
 
   return (
     <div className="space-y-4">
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por título, número ou entidade..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <div className="flex gap-1">
-              <Button
-                variant={sourceFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSourceFilter("all")}
-              >
-                Todos
-              </Button>
-              <Button
-                variant={sourceFilter === "dre" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSourceFilter("dre")}
-              >
-                <Flag className="h-3 w-3 mr-1" />
-                DRE
-              </Button>
-              <Button
-                variant={sourceFilter === "eurlex" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSourceFilter("eurlex")}
-              >
-                <Globe className="h-3 w-3 mr-1" />
-                EUR-Lex
-              </Button>
-            </div>
+      {/* Search and Filters - only show if not hidden by parent */}
+      {!hideFilters && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar por título, número ou entidade..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <div className="flex gap-1">
+                <Button
+                  variant={sourceFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSourceFilter("all")}
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={sourceFilter === "dre" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSourceFilter("dre")}
+                >
+                  <Flag className="h-3 w-3 mr-1" />
+                  DRE
+                </Button>
+                <Button
+                  variant={sourceFilter === "eurlex" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSourceFilter("eurlex")}
+                >
+                  <Globe className="h-3 w-3 mr-1" />
+                  EUR-Lex
+                </Button>
+              </div>
 
-            {hasFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchTerm("");
-                  setSourceFilter("all");
-                }}
-                className="text-muted-foreground"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Limpar
-              </Button>
-            )}
+              {hasFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSourceFilter("all");
+                  }}
+                  className="text-muted-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Limpar
+                </Button>
+              )}
 
-            <div className="text-sm text-muted-foreground ml-auto">
-              {filteredLegislation.length} diploma{filteredLegislation.length !== 1 ? "s" : ""}
+              <div className="text-sm text-muted-foreground ml-auto">
+                {filteredLegislation.length} diploma{filteredLegislation.length !== 1 ? "s" : ""}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tree View */}
       <div className="flex gap-4 h-[calc(100vh-380px)]">
