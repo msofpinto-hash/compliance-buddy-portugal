@@ -46,6 +46,8 @@ export function ClientsPanel() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [editingThemes, setEditingThemes] = useState<string[]>([]);
+  const [editingModules, setEditingModules] = useState<string[]>([]);
 
   const serviceTypes = [
     { value: "essencial", label: "Essencial", fullLabel: "Conformidade Legal Essencial", description: "Acesso básico à legislação", color: "bg-slate-100 text-slate-700 border-slate-200", icon: FileText },
@@ -182,6 +184,7 @@ export function ClientsPanel() {
     mutationFn: async () => {
       if (!editingOrg) return;
       
+      // Update organization
       const { error } = await supabase
         .from("organizations")
         .update({
@@ -192,14 +195,34 @@ export function ClientsPanel() {
         .eq("id", editingOrg.id);
       
       if (error) throw error;
+
+      // Update themes: remove old ones and add new ones
+      await supabase
+        .from("organization_themes")
+        .delete()
+        .eq("organization_id", editingOrg.id);
+      
+      if (editingThemes.length > 0) {
+        const themeInserts = editingThemes.map(themeId => ({
+          organization_id: editingOrg.id,
+          theme_id: themeId,
+        }));
+        
+        await supabase
+          .from("organization_themes")
+          .insert(themeInserts);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-themes"] });
       toast.success("Organização atualizada com sucesso");
       setEditingOrg(null);
       setNewOrgName("");
       setNewOrgDescription("");
       setNewOrgLogoUrl(null);
+      setEditingThemes([]);
+      setEditingModules([]);
     },
     onError: (error) => {
       toast.error("Erro ao atualizar organização: " + error.message);
@@ -295,11 +318,20 @@ export function ClientsPanel() {
     },
   });
 
-  const handleEdit = (org: Organization) => {
+  const handleEdit = async (org: Organization) => {
     setEditingOrg(org);
     setNewOrgName(org.name);
     setNewOrgDescription(org.description || "");
     setNewOrgLogoUrl((org as any).logo_url || null);
+    
+    // Load current themes for the organization
+    const { data: orgThemes } = await supabase
+      .from("organization_themes")
+      .select("theme_id")
+      .eq("organization_id", org.id);
+    
+    setEditingThemes(orgThemes?.map(t => t.theme_id) || []);
+    setEditingModules([]); // Will implement module loading later
   };
 
   if (isLoading) {
@@ -788,7 +820,7 @@ export function ClientsPanel() {
               Altere os dados da organização.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
             {editingOrg && (
               <OrganizationLogoUpload
                 organizationId={editingOrg.id}
@@ -804,6 +836,76 @@ export function ClientsPanel() {
                 onChange={(e) => setNewOrgName(e.target.value)}
               />
             </div>
+
+            {/* Themes Selection */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <FolderTree className="h-4 w-4" />
+                Temas
+              </Label>
+              <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/30">
+                {themes?.map((theme) => (
+                  <div key={theme.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-theme-${theme.id}`}
+                      checked={editingThemes.includes(theme.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setEditingThemes(prev => [...prev, theme.id]);
+                        } else {
+                          setEditingThemes(prev => prev.filter(id => id !== theme.id));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`edit-theme-${theme.id}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {theme.name}
+                    </label>
+                  </div>
+                ))}
+                {(!themes || themes.length === 0) && (
+                  <p className="text-sm text-muted-foreground col-span-2">Nenhum tema configurado</p>
+                )}
+              </div>
+            </div>
+
+            {/* Modules Selection */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                Módulos
+              </Label>
+              <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/30">
+                {availableModules.map((mod) => {
+                  const Icon = mod.icon;
+                  return (
+                    <div key={mod.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-module-${mod.value}`}
+                        checked={editingModules.includes(mod.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setEditingModules(prev => [...prev, mod.value]);
+                          } else {
+                            setEditingModules(prev => prev.filter(id => id !== mod.value));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`edit-module-${mod.value}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                        {mod.label}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="edit-description">Descrição (opcional)</Label>
               <Textarea
