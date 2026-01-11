@@ -428,12 +428,12 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                 />
               </div>
             </div>
-            <Select value={statusFilter || ""} onValueChange={(v) => setStatusFilter(v || null)}>
+            <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? null : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os estados</SelectItem>
+                <SelectItem value="all">Todos os estados</SelectItem>
                 {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                   <SelectItem key={key} value={key}>
                     <div className="flex items-center gap-2">
