@@ -1374,6 +1374,9 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                       <TableCell>
                         <div>
                           <p className="font-medium line-clamp-1">{plan.title}</p>
+                          {plan.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">{plan.description}</p>
+                          )}
                           {plan.audit_requirements?.audits && (
                             <p className="text-xs text-muted-foreground">
                               Auditoria: {plan.audit_requirements.audits.title}
