@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   ChevronRight, 
@@ -483,12 +484,21 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             )}
                           </Badge>
                           {showApplicability && (
-                            <Badge 
-                              variant="outline"
-                              className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${applicabilityInfo.color}`}
-                            >
-                              {applicabilityInfo.label}
-                            </Badge>
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge 
+                                    variant="outline"
+                                    className={`shrink-0 text-[10px] px-1.5 py-0 h-5 cursor-help ${applicabilityInfo.color}`}
+                                  >
+                                    {applicabilityInfo.label}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="text-xs">{applicabilityInfo.description}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                           <span className="font-mono text-xs text-muted-foreground truncate">
                             {leg.number}
