@@ -1,11 +1,13 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { RequirementApplicabilitySelect, ApplicabilityBadge } from "@/components/RequirementApplicabilitySelect";
 import { 
   ArrowLeft, 
   ExternalLink, 
@@ -19,13 +21,32 @@ import {
   Link2,
   BookOpen,
   Flag,
-  Globe
+  Globe,
+  Building
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 
 export default function LegislacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
+  const { user, isAdmin } = useAuth();
+
+  // Fetch user's organization
+  const { data: userOrganization } = useQuery({
+    queryKey: ["user-organization", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("organization_id, organizations(id, name)")
+        .eq("user_id", user.id)
+        .not("organization_id", "is", null)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.organizations || null;
+    },
+    enabled: !!user,
+  });
 
   // Fetch legislation details
   const { data: legislation, isLoading, error } = useQuery({
@@ -66,6 +87,27 @@ export default function LegislacaoDetalhes() {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Fetch applicabilities for the user's organization
+  const { data: applicabilities } = useQuery({
+    queryKey: ["requirement-applicabilities", id, userOrganization?.id],
+    queryFn: async () => {
+      if (!id || !userOrganization?.id) return {};
+      const { data, error } = await supabase
+        .from("applicabilities")
+        .select("requirement_id, applicability_type")
+        .eq("organization_id", userOrganization.id);
+      if (error) throw error;
+      
+      // Convert to map for easy lookup
+      const map: Record<string, string> = {};
+      data?.forEach((a) => {
+        map[a.requirement_id] = a.applicability_type || "nao_avaliado";
+      });
+      return map;
+    },
+    enabled: !!id && !!userOrganization?.id,
   });
 
   // Fetch relations (this legislation affects or is affected by)
@@ -325,6 +367,12 @@ export default function LegislacaoDetalhes() {
                   </div>
                   <Badge variant="secondary">{requirements?.length || 0} requisitos</Badge>
                 </div>
+                {userOrganization && (
+                  <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-2">
+                    <Building className="h-4 w-4" />
+                    <span>Classificando para: <strong className="text-foreground">{userOrganization.name}</strong></span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {loadingRequirements ? (
@@ -343,11 +391,24 @@ export default function LegislacaoDetalhes() {
                               {index + 1}
                             </div>
                             <div className="flex-1 min-w-0">
-                              {req.article && (
-                                <p className="text-sm font-medium text-primary mb-1">
-                                  {req.article}
-                                </p>
-                              )}
+                              <div className="flex items-start justify-between gap-3 mb-1">
+                                <div className="flex-1">
+                                  {req.article && (
+                                    <p className="text-sm font-medium text-primary">
+                                      {req.article}
+                                    </p>
+                                  )}
+                                </div>
+                                {userOrganization ? (
+                                  <RequirementApplicabilitySelect
+                                    requirementId={req.id}
+                                    organizationId={userOrganization.id}
+                                    currentValue={applicabilities?.[req.id] || "nao_avaliado"}
+                                  />
+                                ) : (
+                                  <ApplicabilityBadge value="nao_avaliado" />
+                                )}
+                              </div>
                               <p className="text-sm">{req.requirement_text}</p>
                               {req.notes && (
                                 <p className="text-sm text-muted-foreground mt-2 italic">

@@ -140,6 +140,7 @@ export type Database = {
       }
       applicabilities: {
         Row: {
+          applicability_type: string | null
           compliance_status: string | null
           created_at: string
           evidence_files: string[] | null
@@ -151,6 +152,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          applicability_type?: string | null
           compliance_status?: string | null
           created_at?: string
           evidence_files?: string[] | null
@@ -162,6 +164,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          applicability_type?: string | null
           compliance_status?: string | null
           created_at?: string
           evidence_files?: string[] | null
