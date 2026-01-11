@@ -921,6 +921,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          avatar_url: string | null
           created_at: string
           email: string
           full_name: string | null
@@ -931,6 +932,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          avatar_url?: string | null
           created_at?: string
           email: string
           full_name?: string | null
@@ -941,6 +943,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          avatar_url?: string | null
           created_at?: string
           email?: string
           full_name?: string | null

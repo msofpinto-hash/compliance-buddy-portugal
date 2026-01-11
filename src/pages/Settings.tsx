@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft,
@@ -18,9 +18,9 @@ import {
   CheckCircle2,
   Camera,
   Mail,
-  Phone,
   Building2,
-  Calendar
+  Calendar,
+  Trash2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,10 +32,12 @@ import { pt } from "date-fns/locale";
 export default function Settings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState("");
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [weeklyDigest, setWeeklyDigest] = useState(true);
   const [deadlineAlerts, setDeadlineAlerts] = useState(true);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Fetch user profile
   const { data: profile, isLoading } = useQuery({
@@ -76,17 +78,16 @@ export default function Settings() {
 
   // Update profile mutation
   const updateProfile = useMutation({
-    mutationFn: async (updates: { full_name: string }) => {
+    mutationFn: async (updates: { full_name?: string; avatar_url?: string | null }) => {
       if (!user?.id) throw new Error("Utilizador não autenticado");
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: updates.full_name, updated_at: new Date().toISOString() })
+        .update({ ...updates, updated_at: new Date().toISOString() })
         .eq("id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-      toast.success("Perfil atualizado com sucesso");
     },
     onError: (error: Error) => {
       toast.error("Erro ao atualizar perfil: " + error.message);
@@ -94,7 +95,93 @@ export default function Settings() {
   });
 
   const handleSave = () => {
-    updateProfile.mutate({ full_name: fullName });
+    updateProfile.mutate({ full_name: fullName }, {
+      onSuccess: () => toast.success("Perfil atualizado com sucesso")
+    });
+  };
+
+  // Handle avatar upload
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Formato inválido. Use JPG, PNG, WebP ou GIF.");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 2MB.");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+
+      // Delete old avatar if exists
+      if (profile?.avatar_url) {
+        const oldPath = profile.avatar_url.split('/avatars/')[1];
+        if (oldPath) {
+          await supabase.storage.from('avatars').remove([oldPath]);
+        }
+      }
+
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      await updateProfile.mutateAsync({ avatar_url: urlData.publicUrl });
+      
+      toast.success("Foto de perfil atualizada!");
+    } catch (error: any) {
+      console.error("Error uploading avatar:", error);
+      toast.error("Erro ao carregar imagem: " + error.message);
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Handle avatar removal
+  const handleRemoveAvatar = async () => {
+    if (!user?.id || !profile?.avatar_url) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      // Extract path from URL
+      const oldPath = profile.avatar_url.split('/avatars/')[1];
+      if (oldPath) {
+        await supabase.storage.from('avatars').remove([oldPath]);
+      }
+
+      // Update profile to remove avatar URL
+      await updateProfile.mutateAsync({ avatar_url: null });
+      
+      toast.success("Foto de perfil removida!");
+    } catch (error: any) {
+      console.error("Error removing avatar:", error);
+      toast.error("Erro ao remover imagem: " + error.message);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   // Get initials for avatar
@@ -122,6 +209,15 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={handleAvatarUpload}
+        className="hidden"
+      />
+
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4">
@@ -157,19 +253,31 @@ export default function Settings() {
             <div className="h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
             <CardContent className="relative pt-0 pb-6">
               <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
-                <div className="relative">
+                <div className="relative group">
                   <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                    <AvatarImage src={profile?.avatar_url || undefined} alt={fullName || "Avatar"} />
                     <AvatarFallback className="text-2xl font-semibold bg-primary text-primary-foreground">
                       {getInitials()}
                     </AvatarFallback>
                   </Avatar>
-                  <Button 
-                    size="icon" 
-                    variant="secondary" 
-                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md"
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
+                  
+                  {/* Upload overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Button 
+                      size="icon" 
+                      variant="secondary" 
+                      className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md z-10"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingAvatar}
+                    >
+                      {isUploadingAvatar ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex-1 space-y-1">
                   <h2 className="text-2xl font-bold">{fullName || user?.email?.split("@")[0]}</h2>
@@ -185,6 +293,18 @@ export default function Settings() {
                       </Badge>
                     )}
                   </div>
+                  {profile?.avatar_url && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 mt-2 h-7 px-2"
+                      onClick={handleRemoveAvatar}
+                      disabled={isUploadingAvatar}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Remover foto
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
