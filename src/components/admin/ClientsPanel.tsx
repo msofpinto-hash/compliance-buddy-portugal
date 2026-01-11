@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -39,8 +40,16 @@ export function ClientsPanel() {
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
   const [newOrgLogoUrl, setNewOrgLogoUrl] = useState<string | null>(null);
+  const [newOrgServiceType, setNewOrgServiceType] = useState<string>("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
+
+  const serviceTypes = [
+    { value: "essencial", label: "Conformidade Legal Essencial", description: "Acesso básico à legislação" },
+    { value: "continua", label: "Conformidade Legal Contínua", description: "Acompanhamento contínuo" },
+    { value: "avancada", label: "Conformidade Legal Avançada", description: "Funcionalidades avançadas" },
+    { value: "dedicada", label: "Conformidade Legal Dedicada", description: "Acompanhamento técnico permanente" },
+  ];
 
   // Fetch organizations
   const { data: organizations, isLoading } = useQuery({
@@ -90,7 +99,8 @@ export function ClientsPanel() {
         .insert({
           name: newOrgName,
           description: newOrgDescription || null,
-        })
+          service_type: newOrgServiceType || null,
+        } as any)
         .select()
         .single();
       
@@ -103,6 +113,7 @@ export function ClientsPanel() {
       setIsCreateOpen(false);
       setNewOrgName("");
       setNewOrgDescription("");
+      setNewOrgServiceType("");
     },
     onError: (error) => {
       toast.error("Erro ao criar organização: " + error.message);
@@ -279,6 +290,24 @@ export function ClientsPanel() {
                   value={newOrgName}
                   onChange={(e) => setNewOrgName(e.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="service-type">Tipo de Serviço</Label>
+                <Select value={newOrgServiceType} onValueChange={setNewOrgServiceType}>
+                  <SelectTrigger id="service-type">
+                    <SelectValue placeholder="Selecione o tipo de serviço..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serviceTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{type.label}</span>
+                          <span className="text-xs text-muted-foreground">{type.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição (opcional)</Label>
