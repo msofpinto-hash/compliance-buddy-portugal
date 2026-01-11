@@ -13,12 +13,12 @@ const Index = () => {
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-lg">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
               <Scale className="h-5 w-5" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">I&D Compliance-ex</h1>
-              <p className="text-xs text-muted-foreground">Gestão de Legislação</p>
+            <div className="flex flex-col">
+              <span className="font-bold text-foreground leading-tight">I&D</span>
+              <span className="text-xs text-primary leading-tight font-medium">Compliance-ex</span>
             </div>
           </div>
           <nav className="flex items-center gap-2">
