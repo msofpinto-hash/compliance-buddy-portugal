@@ -15,7 +15,8 @@ import {
   Building2,
   Filter,
   List,
-  TreePine
+  TreePine,
+  X
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -305,6 +306,75 @@ export default function Biblioteca() {
             />
           </div>
         </div>
+
+        {/* Active Filters Chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {selectedSource === "dre" && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                DRE
+                <button
+                  onClick={() => setSelectedSource("all")}
+                  className="ml-1 rounded-full hover:bg-muted p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {selectedSource === "eurlex" && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                EUR-Lex
+                <button
+                  onClick={() => setSelectedSource("all")}
+                  className="ml-1 rounded-full hover:bg-muted p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {filterStartDate && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                De: {format(new Date(filterStartDate), "dd/MM/yyyy")}
+                <button
+                  onClick={() => setFilterStartDate(null)}
+                  className="ml-1 rounded-full hover:bg-muted p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {filterEndDate && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                Até: {format(new Date(filterEndDate), "dd/MM/yyyy")}
+                <button
+                  onClick={() => setFilterEndDate(null)}
+                  className="ml-1 rounded-full hover:bg-muted p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {selectedApplicability !== "all" && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                {applicabilityFilterOptions.find(o => o.value === selectedApplicability)?.label}
+                <button
+                  onClick={() => setSelectedApplicability("all")}
+                  className="ml-1 rounded-full hover:bg-muted p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="h-6 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Limpar tudo
+            </Button>
+          </div>
+        )}
 
         {/* Results count and view toggle */}
         <div className="mb-4 flex items-center justify-between">
