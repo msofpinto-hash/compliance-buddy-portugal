@@ -1312,7 +1312,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                     onClick={() => handleSort("title")}
                   >
                     <div className="flex items-center">
-                      Título
+                      Ação
                       <SortIcon column="title" />
                     </div>
                   </TableHead>
