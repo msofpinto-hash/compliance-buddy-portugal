@@ -260,6 +260,24 @@ export function AuditsPanel() {
   };
 
   const handleStatusChange = async (auditId: string, newStatus: "planned" | "in_progress" | "pending_approval" | "closed" | "cancelled") => {
+    // Validate required fields before sending for approval
+    if (newStatus === "pending_approval" && auditDetails) {
+      const missingFields: string[] = [];
+      if (!auditDetails.objectives) missingFields.push("Objetivos da Auditoria");
+      if (!auditDetails.methodology) missingFields.push("Metodologia");
+      if (!auditDetails.scope) missingFields.push("Estabelecimentos Abrangidos");
+      if (!auditDetails.interlocutors) missingFields.push("Interlocutores");
+      
+      if (missingFields.length > 0) {
+        toast({ 
+          title: "Campos obrigatórios em falta", 
+          description: `Preencha: ${missingFields.join(", ")}`,
+          variant: "destructive" 
+        });
+        return;
+      }
+    }
+
     try {
       const { error } = await supabase
         .from("audits")
