@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +23,8 @@ import {
   Link2,
   ArrowRight,
   Globe,
-  Flag
+  Flag,
+  Zap
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -50,13 +52,27 @@ interface ExtractRelationsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface BackgroundJob {
+  id: string;
+  status: string;
+  items_processed: number;
+  items_added: number;
+  items_updated: number;
+  toProcess: number;
+}
+
 const relationTypeLabels: Record<string, { label: string; color: string }> = {
   revoga: { label: "Revoga", color: "bg-red-100 text-red-800" },
+  revogado: { label: "Revoga", color: "bg-red-100 text-red-800" },
+  revogacao_parcial: { label: "Revoga parcialmente", color: "bg-red-100/70 text-red-700" },
   altera: { label: "Altera", color: "bg-amber-100 text-amber-800" },
+  alteracao: { label: "Altera", color: "bg-amber-100 text-amber-800" },
   alterado_por: { label: "Alterado por", color: "bg-orange-100 text-orange-800" },
   regulamenta: { label: "Regulamenta", color: "bg-blue-100 text-blue-800" },
+  regulamentacao: { label: "Regulamenta", color: "bg-blue-100 text-blue-800" },
   regulamentado_por: { label: "Regulamentado por", color: "bg-cyan-100 text-cyan-800" },
   transpoe: { label: "Transpõe", color: "bg-purple-100 text-purple-800" },
+  transposicao: { label: "Transpõe", color: "bg-purple-100 text-purple-800" },
   transposto_por: { label: "Transposto por", color: "bg-violet-100 text-violet-800" },
   complementa: { label: "Complementa", color: "bg-green-100 text-green-800" },
 };
@@ -65,8 +81,9 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isExtracting, setIsExtracting] = useState(false);
-  const [limit, setLimit] = useState(5);
+  const [limit, setLimit] = useState(10);
   const [dryRun, setDryRun] = useState(true);
+  const [useBackground, setUseBackground] = useState(true);
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   const [results, setResults] = useState<RelationResult[] | null>(null);
   const [stats, setStats] = useState<{
@@ -77,24 +94,105 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
     totalRelationsMatched: number;
     totalRelationsCreated: number;
   } | null>(null);
+  const [backgroundJob, setBackgroundJob] = useState<BackgroundJob | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Poll for background job progress
+  useEffect(() => {
+    if (!backgroundJob || backgroundJob.status === 'completed') {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+
+    pollingRef.current = setInterval(async () => {
+      const { data, error } = await supabase
+        .from('sync_logs')
+        .select('*')
+        .eq('id', backgroundJob.id)
+        .single();
+
+      if (error) {
+        console.error('Error polling job status:', error);
+        return;
+      }
+
+      if (data) {
+        setBackgroundJob(prev => prev ? {
+          ...prev,
+          status: data.status,
+          items_processed: data.items_processed || 0,
+          items_added: data.items_added || 0,
+          items_updated: data.items_updated || 0,
+        } : null);
+
+        if (data.status === 'completed') {
+          setIsExtracting(false);
+          toast({
+            title: "Extração concluída em background",
+            description: `${data.items_processed} diplomas processados, ${data.items_added} relações criadas`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+          queryClient.invalidateQueries({ queryKey: ["sync-logs"] });
+        }
+      }
+    }, 3000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [backgroundJob, toast, queryClient]);
+
+  // Cleanup on close
+  useEffect(() => {
+    if (!open && pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, [open]);
 
   const handleExtract = async () => {
     setIsExtracting(true);
     setResults(null);
     setStats(null);
+    setBackgroundJob(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("extract-legislation-relations", {
         body: { 
           limit, 
           dryRun,
-          origin: originFilter === "all" ? undefined : originFilter 
+          origin: originFilter === "all" ? undefined : originFilter,
+          background: useBackground && !dryRun,
         },
       });
 
       if (error) throw error;
 
-      if (data.success) {
+      if (data.background) {
+        // Background mode started
+        setBackgroundJob({
+          id: data.jobId,
+          status: 'running',
+          items_processed: 0,
+          items_added: 0,
+          items_updated: 0,
+          toProcess: data.toProcess,
+        });
+        
+        toast({
+          title: "Extração iniciada em background",
+          description: data.message,
+        });
+        
+        queryClient.invalidateQueries({ queryKey: ["sync-logs"] });
+        
+      } else if (data.success) {
         setResults(data.results);
         setStats({
           processed: data.processed,
@@ -113,6 +211,8 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
         if (!dryRun) {
           queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
         }
+        
+        setIsExtracting(false);
       } else {
         throw new Error(data.error || "Erro desconhecido");
       }
@@ -123,10 +223,13 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
         description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
-    } finally {
       setIsExtracting(false);
     }
   };
+
+  const progressPercentage = backgroundJob 
+    ? Math.round((backgroundJob.items_processed / backgroundJob.toProcess) * 100) 
+    : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -183,7 +286,7 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
                 id="limit"
                 type="number"
                 min={1}
-                max={20}
+                max={100}
                 value={limit}
                 onChange={(e) => setLimit(Number(e.target.value))}
                 className="w-20"
@@ -203,6 +306,21 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
               </Label>
             </div>
 
+            {!dryRun && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="background-mode"
+                  checked={useBackground}
+                  onCheckedChange={setUseBackground}
+                  disabled={isExtracting}
+                />
+                <Label htmlFor="background-mode" className="cursor-pointer flex items-center gap-1">
+                  <Zap className="h-3 w-3" />
+                  Background
+                </Label>
+              </div>
+            )}
+
             <Button
               onClick={handleExtract}
               disabled={isExtracting}
@@ -210,19 +328,71 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
             >
               {isExtracting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : useBackground && !dryRun ? (
+                <Zap className="h-4 w-4" />
               ) : (
                 <Link2 className="h-4 w-4" />
               )}
-              {isExtracting ? "A extrair..." : dryRun ? "Simular" : "Extrair Relações"}
+              {isExtracting 
+                ? "A extrair..." 
+                : dryRun 
+                  ? "Simular" 
+                  : useBackground 
+                    ? `Extrair ${limit} em Background` 
+                    : "Extrair Relações"}
             </Button>
           </div>
 
-          {!dryRun && (
+          {/* Background mode info */}
+          {useBackground && !dryRun && !isExtracting && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+              <Zap className="h-4 w-4 flex-shrink-0" />
+              <span>
+                Modo background: pode processar muitos diplomas sem timeout. A extração continua mesmo se fechar este diálogo.
+              </span>
+            </div>
+          )}
+
+          {!dryRun && !useBackground && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
               <Link2 className="h-4 w-4 flex-shrink-0" />
               <span>
                 As relações serão criadas na base de dados. Relações duplicadas são ignoradas automaticamente.
               </span>
+            </div>
+          )}
+
+          {/* Background Job Progress */}
+          {backgroundJob && (
+            <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {backgroundJob.status === 'running' ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  )}
+                  <span className="font-medium">
+                    {backgroundJob.status === 'running' ? 'A processar em background...' : 'Concluído'}
+                  </span>
+                </div>
+                <Badge variant={backgroundJob.status === 'completed' ? 'default' : 'secondary'}>
+                  {backgroundJob.items_processed} / {backgroundJob.toProcess}
+                </Badge>
+              </div>
+              
+              <Progress value={progressPercentage} className="h-2" />
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Diplomas processados:</span>{' '}
+                  <span className="font-medium">{backgroundJob.items_processed}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Relações criadas:</span>{' '}
+                  <span className="font-medium text-green-600">{backgroundJob.items_added}</span>
+                </div>
+              </div>
             </div>
           )}
 
