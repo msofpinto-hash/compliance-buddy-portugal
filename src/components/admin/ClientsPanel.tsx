@@ -43,6 +43,7 @@ export function ClientsPanel() {
   const [newOrgLogoUrl, setNewOrgLogoUrl] = useState<string | null>(null);
   const [newOrgServiceType, setNewOrgServiceType] = useState<string>("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [newUserType, setNewUserType] = useState("consulta");
@@ -141,7 +142,10 @@ export function ClientsPanel() {
           created_at,
           profiles:user_id (
             email,
-            full_name
+            full_name,
+            user_type,
+            language,
+            calendar_type
           )
         `)
         .eq("organization_id", selectedOrg.id);
@@ -353,6 +357,51 @@ export function ClientsPanel() {
       toast.error("Erro ao remover utilizador: " + error.message);
     },
   });
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingUser) return;
+      
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: newUserName,
+          user_type: newUserType,
+          language: newUserLanguage,
+          calendar_type: newUserCalendar,
+        } as any)
+        .eq("id", editingUser.user_id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-users", selectedOrg?.id] });
+      toast.success("Utilizador atualizado com sucesso");
+      setEditingUser(null);
+      resetUserForm();
+    },
+    onError: (error) => {
+      toast.error("Erro ao atualizar utilizador: " + error.message);
+    },
+  });
+
+  const resetUserForm = () => {
+    setNewUserEmail("");
+    setNewUserName("");
+    setNewUserType("consulta");
+    setNewUserLanguage("pt");
+    setNewUserCalendar("generico");
+  };
+
+  const handleEditUser = (userRole: any) => {
+    setEditingUser(userRole);
+    setNewUserName(userRole.profiles?.full_name || "");
+    setNewUserEmail(userRole.profiles?.email || "");
+    setNewUserType(userRole.profiles?.user_type || "consulta");
+    setNewUserLanguage(userRole.profiles?.language || "pt");
+    setNewUserCalendar(userRole.profiles?.calendar_type || "generico");
+  };
 
   const handleEdit = async (org: Organization) => {
     setEditingOrg(org);
@@ -879,7 +928,17 @@ export function ClientsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {userTypes.find(t => t.value === userRole.profiles?.user_type)?.label || "Consulta"}
+                      </Badge>
                       <Badge variant="secondary">{userRole.role}</Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditUser(userRole)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -1090,6 +1149,111 @@ export function ClientsPanel() {
           onOpenChange={(open) => !open && setExportReportOrg(null)}
         />
       )}
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Utilizador</DialogTitle>
+            <DialogDescription>
+              Altere os dados do utilizador.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-name" className="flex items-center gap-1">
+                  <span className="text-destructive">*</span> Nome
+                </Label>
+                <Input
+                  id="edit-user-name"
+                  placeholder="Nome completo"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-email" className="flex items-center gap-1">
+                  <span className="text-destructive">*</span> Login
+                </Label>
+                <Input
+                  id="edit-user-email"
+                  type="email"
+                  value={newUserEmail}
+                  disabled
+                  className="bg-muted"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-type" className="flex items-center gap-1">
+                  <span className="text-destructive">*</span> Tipo
+                </Label>
+                <Select value={newUserType} onValueChange={setNewUserType}>
+                  <SelectTrigger id="edit-user-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-language" className="flex items-center gap-1">
+                  <span className="text-destructive">*</span> Idioma
+                </Label>
+                <Select value={newUserLanguage} onValueChange={setNewUserLanguage}>
+                  <SelectTrigger id="edit-user-language">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {languages.map((lang) => (
+                      <SelectItem key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-user-calendar" className="flex items-center gap-1">
+                <span className="text-destructive">*</span> Calendário
+              </Label>
+              <Select value={newUserCalendar} onValueChange={setNewUserCalendar}>
+                <SelectTrigger id="edit-user-calendar" className="w-1/2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {calendarTypes.map((cal) => (
+                    <SelectItem key={cal.value} value={cal.value}>
+                      {cal.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => updateUserMutation.mutate()}
+              disabled={!newUserName.trim() || updateUserMutation.isPending}
+            >
+              {updateUserMutation.isPending ? "A guardar..." : "Guardar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
