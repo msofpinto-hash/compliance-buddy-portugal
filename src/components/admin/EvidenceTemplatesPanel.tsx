@@ -5,13 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Upload, 
   Search, 
-  FileSpreadsheet, 
-  CheckCircle2, 
-  AlertCircle,
   Building2,
   FileText,
   Loader2,
@@ -35,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ImportEvidenceTemplatesDialog } from "./ImportEvidenceTemplatesDialog";
 
 interface EvidenceTemplate {
   id: string;
@@ -212,13 +208,15 @@ export function EvidenceTemplatesPanel() {
             {templates?.length || 0} templates de evidência documental
           </p>
         </div>
-        <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={selectedTemplates.length === 0}>
-              <Building2 className="mr-2 h-4 w-4" />
-              Atribuir a Organização ({selectedTemplates.length})
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <ImportEvidenceTemplatesDialog />
+          <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={selectedTemplates.length === 0}>
+                <Building2 className="mr-2 h-4 w-4" />
+                Atribuir a Organização ({selectedTemplates.length})
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Atribuir Templates</DialogTitle>
@@ -260,6 +258,7 @@ export function EvidenceTemplatesPanel() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
