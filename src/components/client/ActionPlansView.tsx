@@ -1107,11 +1107,11 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
         <CollapsibleContent>
           <Card>
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs">Tipo de Registo</Label>
+                  <Label className="text-xs font-medium">Tipo de Registo</Label>
                   <Select value={filters.type} onValueChange={(v) => setFilters(p => ({ ...p, type: v }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1122,12 +1122,12 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Estado</Label>
+                  <Label className="text-xs font-medium">Estado</Label>
                   <Select 
                     value={filters.status.length === 1 ? filters.status[0] : "all"} 
                     onValueChange={(v) => setFilters(p => ({ ...p, status: v === "all" ? [] : [v] }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1140,9 +1140,9 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Responsável</Label>
+                  <Label className="text-xs font-medium">Responsável</Label>
                   <Select value={filters.responsible || "all"} onValueChange={(v) => setFilters(p => ({ ...p, responsible: v === "all" ? "" : v }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1154,34 +1154,34 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Data Prazo (De - Até)</Label>
-                  <div className="flex gap-2">
+                  <Label className="text-xs font-medium">Data Prazo</Label>
+                  <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="date"
                       value={filters.dateStart}
                       onChange={(e) => setFilters(p => ({ ...p, dateStart: e.target.value }))}
-                      className="text-xs"
+                      className="text-xs w-full"
+                      placeholder="De"
                     />
                     <Input
                       type="date"
                       value={filters.dateEnd}
                       onChange={(e) => setFilters(p => ({ ...p, dateEnd: e.target.value }))}
-                      className="text-xs"
+                      className="text-xs w-full"
+                      placeholder="Até"
                     />
                   </div>
                 </div>
-                <div className="space-y-2 flex items-end">
-                  <div className="flex items-center gap-2">
-                    <Checkbox 
-                      id="hideCompleted"
-                      checked={filters.hideCompleted}
-                      onCheckedChange={(v) => setFilters(p => ({ ...p, hideCompleted: !!v }))}
-                    />
-                    <Label htmlFor="hideCompleted" className="text-xs cursor-pointer">
-                      Ocultar concluídas
-                    </Label>
-                  </div>
-                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+                <Checkbox 
+                  id="hideCompleted"
+                  checked={filters.hideCompleted}
+                  onCheckedChange={(v) => setFilters(p => ({ ...p, hideCompleted: !!v }))}
+                />
+                <Label htmlFor="hideCompleted" className="text-sm cursor-pointer">
+                  Ocultar ações concluídas
+                </Label>
               </div>
             </CardContent>
           </Card>
