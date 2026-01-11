@@ -29,6 +29,7 @@ import {
 import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
 import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
+import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -46,6 +47,7 @@ export function DataQualityPanel() {
   const [showFixMetadataDialog, setShowFixMetadataDialog] = useState(false);
   const [showValidateUrlsDialog, setShowValidateUrlsDialog] = useState(false);
   const [showFixTitlesDialog, setShowFixTitlesDialog] = useState(false);
+  const [showFixEurlexTitlesDialog, setShowFixEurlexTitlesDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
 
   // Fetch comprehensive data quality statistics
@@ -339,14 +341,26 @@ export function DataQualityPanel() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <ProblemCard
           icon={<FileText className="h-5 w-5" />}
-          title="Títulos Genéricos"
+          title="Títulos Genéricos (PT)"
           count={qualityStats?.genericTitles || 0}
           total={qualityStats?.total || 0}
           severity="error"
-          description="Diplomas com título igual ao número (requer scraping DRE)"
+          description="Diplomas PT com título igual ao número (requer scraping DRE)"
           action="Corrigir via DRE"
           onAction={() => setShowFixTitlesDialog(true)}
           disabled={(qualityStats?.genericTitles || 0) === 0}
+        />
+
+        <ProblemCard
+          icon={<Globe className="h-5 w-5" />}
+          title="Títulos Genéricos (EU)"
+          count={qualityStats?.euLegislation || 0}
+          total={qualityStats?.total || 0}
+          severity="warning"
+          description="Diplomas EU que podem ter títulos incompletos (via SPARQL)"
+          action="Corrigir via EUR-Lex"
+          onAction={() => setShowFixEurlexTitlesDialog(true)}
+          disabled={(qualityStats?.euLegislation || 0) === 0}
         />
 
         <ProblemCard
@@ -472,6 +486,12 @@ export function DataQualityPanel() {
         open={showFixTitlesDialog}
         onOpenChange={setShowFixTitlesDialog}
         genericTitlesCount={qualityStats?.genericTitles || 0}
+      />
+
+      <FixEurlexTitlesDialog
+        open={showFixEurlexTitlesDialog}
+        onOpenChange={setShowFixEurlexTitlesDialog}
+        genericTitlesCount={qualityStats?.euLegislation || 0}
       />
     </div>
   );
