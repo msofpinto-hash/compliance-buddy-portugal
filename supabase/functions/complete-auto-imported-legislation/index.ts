@@ -228,12 +228,177 @@ function isEULegislation(number: string): boolean {
   const euPatterns = [
     /\(UE\)/i,
     /\(CE\)/i,
+    /\(PESC\)/i,
     /Regulamento de Execução/i,
     /Diretiva \d+/i,
+    /Decisão \d+/i,
     /UNECE/i,
     /^Regulamento.*\/UE/i,
+    /^32\d{7}/,  // CELEX numbers
   ];
   return euPatterns.some(p => p.test(number));
+}
+
+// Extract CELEX number from EUR-Lex URL or legislation number
+function extractCelexNumber(url: string | null, number: string): string | null {
+  // From URL
+  if (url) {
+    const match = url.match(/CELEX:(\d+[A-Z]\d+)/);
+    if (match) return match[1];
+  }
+  
+  // Try to build CELEX from number
+  // Format: 32024R1955 = 3 + 2024 + R + 1955
+  const regMatch = number.match(/Regulamento.*?(\d{4})\/(\d+)/i);
+  if (regMatch) {
+    return `3${regMatch[1]}R${regMatch[2].padStart(4, '0')}`;
+  }
+  
+  const dirMatch = number.match(/Diretiva.*?(\d{4})\/(\d+)/i);
+  if (dirMatch) {
+    return `3${dirMatch[1]}L${dirMatch[2].padStart(4, '0')}`;
+  }
+  
+  const decMatch = number.match(/Decisão.*?(\d{4})\/(\d+)/i);
+  if (decMatch) {
+    return `3${decMatch[1]}D${decMatch[2].padStart(4, '0')}`;
+  }
+  
+  return null;
+}
+
+// Scrape EUR-Lex metadata
+async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<LegislationUpdate | null> {
+  try {
+    console.log('Scraping EUR-Lex:', url);
+    
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        waitFor: 3000,
+      }),
+    });
+    
+    if (!response.ok) {
+      console.error('EUR-Lex scrape error:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    const markdown = data.data?.markdown || data.markdown || '';
+    
+    if (!markdown || markdown.length < 100) {
+      return null;
+    }
+    
+    const update: LegislationUpdate = {};
+    
+    // Extract title - usually the first substantial line
+    const lines = markdown.split('\n').filter((l: string) => l.trim().length > 20);
+    for (const line of lines.slice(0, 5)) {
+      const cleanLine = line.replace(/[#*[\]]/g, '').trim();
+      if (cleanLine.length > 30 && cleanLine.length < 500 && 
+          !cleanLine.toLowerCase().includes('eur-lex') &&
+          !cleanLine.toLowerCase().includes('cookies') &&
+          !cleanLine.includes('http')) {
+        update.title = cleanLine;
+        break;
+      }
+    }
+    
+    // Extract summary - look for "Sumário" or first paragraph after title
+    const summaryMatch = markdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n#|$)/i);
+    if (summaryMatch) {
+      update.summary = summaryMatch[1].replace(/[*#]/g, '').trim().substring(0, 2000);
+    } else {
+      // Try to find a description-like paragraph
+      const descMatch = markdown.match(/(?:objeto|objectivo|presente regulamento|presente diretiva|presente decisão)[^.]*\./i);
+      if (descMatch) {
+        update.summary = descMatch[0].trim();
+      }
+    }
+    
+    // Extract publication date
+    const datePatterns = [
+      /Data de publicação[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+      /Publicado em[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+      /JO [LCS] \d+.*?,\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/,
+      /(\d{1,2})\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/i,
+    ];
+    
+    for (const pattern of datePatterns) {
+      const match = markdown.match(pattern);
+      if (match) {
+        if (match[2] && !isNaN(parseInt(match[2]))) {
+          const day = match[1].padStart(2, '0');
+          const month = match[2].padStart(2, '0');
+          const year = match[3];
+          if (parseInt(year) >= 1950 && parseInt(year) <= 2030) {
+            update.publication_date = `${year}-${month}-${day}`;
+            break;
+          }
+        } else if (match[2]) {
+          const monthMap: Record<string, string> = {
+            'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+            'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+            'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+          };
+          if (monthMap[match[2].toLowerCase()]) {
+            const year = match[3];
+            if (parseInt(year) >= 1950 && parseInt(year) <= 2030) {
+              update.publication_date = `${year}-${monthMap[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Extract entity
+    const entityMatch = markdown.match(/(?:Autor|Emissor|Instituição)[:\s]+([^\n]+)/i);
+    if (entityMatch) {
+      update.entity = entityMatch[1].replace(/[*#]/g, '').trim().substring(0, 200);
+    }
+    
+    return update;
+  } catch (error) {
+    console.error('EUR-Lex scrape error:', error);
+    return null;
+  }
+}
+
+// Fix incorrect publication dates extracted from legislation number
+function fixPublicationDate(leg: any): string | null {
+  // Check if publication_date looks like it was wrongly extracted from the number
+  // e.g., "1955-07-26" when the actual legislation is from 2024
+  const currentYear = new Date().getFullYear();
+  
+  if (leg.publication_date) {
+    const year = parseInt(leg.publication_date.substring(0, 4));
+    
+    // If year is before 1950 or in the future, it's likely wrong
+    if (year < 1950 || year > currentYear + 1) {
+      // Try to extract correct year from number
+      const yearMatch = leg.number.match(/(\d{4})\//);
+      if (yearMatch) {
+        const correctYear = parseInt(yearMatch[1]);
+        if (correctYear >= 1950 && correctYear <= currentYear + 1) {
+          // Use January 1st of the correct year as placeholder
+          return `${correctYear}-01-01`;
+        }
+      }
+      return null; // Clear the date if we can't fix it
+    }
+  }
+  
+  return leg.publication_date;
 }
 
 Deno.serve(async (req) => {
@@ -242,7 +407,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 10, dryRun = false, includePT = true, includeEU = false } = await req.json().catch(() => ({}));
+    const { limit = 10, dryRun = false, includePT = true, includeEU = true, fixDates = true } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -318,56 +483,121 @@ Deno.serve(async (req) => {
         const updates: LegislationUpdate = {};
         let hasUpdates = false;
         
-        // Step 1: Find URL if missing (PT only for now)
-        if (!leg.document_url && !isEU) {
-          const dreUrl = await searchDREUrl(leg.number, firecrawlKey);
-          if (dreUrl) {
-            updates.document_url = dreUrl;
-            updates.origin = 'PT';
-            totalUrlsFound++;
+        // Step 0: Fix incorrect publication dates
+        if (fixDates && leg.publication_date) {
+          const fixedDate = fixPublicationDate(leg);
+          if (fixedDate !== leg.publication_date) {
+            updates.publication_date = fixedDate || undefined;
             hasUpdates = true;
-            console.log(`Found URL: ${dreUrl}`);
-          } else {
-            console.log(`No URL found for ${leg.number}`);
+            console.log(`Fixed date: ${leg.publication_date} -> ${fixedDate}`);
           }
-          
-          // Rate limit
-          await new Promise(resolve => setTimeout(resolve, 2000));
         }
         
-        // Step 2: Scrape and extract metadata if we have a URL
-        const urlToScrape = updates.document_url || leg.document_url;
-        if (urlToScrape && !isEU) {
-          const markdown = await scrapeUrl(urlToScrape, firecrawlKey);
-          if (markdown && markdown.length > 100) {
-            const metadata = extractMetadataFromDRE(markdown, leg.number);
-            
-            // Only update fields that are missing or bad
-            if (metadata.title && (!leg.title || leg.title === leg.number)) {
-              updates.title = metadata.title;
+        // Step 1: Handle EU legislation
+        if (isEU) {
+          // Generate or fix EUR-Lex URL
+          if (!leg.document_url) {
+            const celex = extractCelexNumber(null, leg.number);
+            if (celex) {
+              updates.document_url = `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+              updates.origin = 'EU';
+              totalUrlsFound++;
               hasUpdates = true;
-            }
-            if (metadata.summary && (!leg.summary || leg.summary.includes('Diploma referenciado'))) {
-              updates.summary = metadata.summary;
-              hasUpdates = true;
-            }
-            if (metadata.entity && !leg.entity) {
-              updates.entity = metadata.entity;
-              hasUpdates = true;
-            }
-            if (metadata.publication_date && (!leg.publication_date || leg.publication_date.startsWith('1970'))) {
-              updates.publication_date = metadata.publication_date;
-              hasUpdates = true;
-            }
-            
-            if (Object.keys(metadata).length > 0) {
-              totalMetadataExtracted++;
-              console.log(`Extracted metadata:`, metadata);
+              console.log(`Generated EUR-Lex URL from CELEX: ${celex}`);
             }
           }
           
-          // Rate limit
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Scrape EUR-Lex for metadata
+          const urlToScrape = updates.document_url || leg.document_url;
+          if (urlToScrape && urlToScrape.includes('eur-lex')) {
+            const metadata = await scrapeEurLexMetadata(urlToScrape, firecrawlKey);
+            
+            if (metadata) {
+              if (metadata.title && (!leg.title || leg.title === leg.number)) {
+                updates.title = metadata.title;
+                hasUpdates = true;
+              }
+              if (metadata.summary && (!leg.summary || leg.summary.includes('Diploma referenciado'))) {
+                updates.summary = metadata.summary;
+                hasUpdates = true;
+              }
+              if (metadata.entity && !leg.entity) {
+                updates.entity = metadata.entity;
+                hasUpdates = true;
+              }
+              if (metadata.publication_date) {
+                const currentYear = new Date().getFullYear();
+                const metaYear = parseInt(metadata.publication_date.substring(0, 4));
+                const legYear = leg.publication_date ? parseInt(leg.publication_date.substring(0, 4)) : 0;
+                
+                // Only update if scraped date is valid and current is clearly wrong
+                if (metaYear >= 1950 && metaYear <= currentYear + 1 && (legYear < 1950 || legYear > currentYear + 1)) {
+                  updates.publication_date = metadata.publication_date;
+                  hasUpdates = true;
+                }
+              }
+              
+              if (Object.keys(metadata).length > 0) {
+                totalMetadataExtracted++;
+                console.log(`Extracted EUR-Lex metadata:`, metadata);
+              }
+            }
+            
+            // Rate limit
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+        } else {
+          // Step 1: Find URL if missing (PT)
+          if (!leg.document_url) {
+            const dreUrl = await searchDREUrl(leg.number, firecrawlKey);
+            if (dreUrl) {
+              updates.document_url = dreUrl;
+              updates.origin = 'PT';
+              totalUrlsFound++;
+              hasUpdates = true;
+              console.log(`Found URL: ${dreUrl}`);
+            } else {
+              console.log(`No URL found for ${leg.number}`);
+            }
+            
+            // Rate limit
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+          
+          // Step 2: Scrape and extract metadata if we have a URL
+          const urlToScrape = updates.document_url || leg.document_url;
+          if (urlToScrape) {
+            const markdown = await scrapeUrl(urlToScrape, firecrawlKey);
+            if (markdown && markdown.length > 100) {
+              const metadata = extractMetadataFromDRE(markdown, leg.number);
+              
+              // Only update fields that are missing or bad
+              if (metadata.title && (!leg.title || leg.title === leg.number)) {
+                updates.title = metadata.title;
+                hasUpdates = true;
+              }
+              if (metadata.summary && (!leg.summary || leg.summary.includes('Diploma referenciado'))) {
+                updates.summary = metadata.summary;
+                hasUpdates = true;
+              }
+              if (metadata.entity && !leg.entity) {
+                updates.entity = metadata.entity;
+                hasUpdates = true;
+              }
+              if (metadata.publication_date && (!leg.publication_date || leg.publication_date.startsWith('1970'))) {
+                updates.publication_date = metadata.publication_date;
+                hasUpdates = true;
+              }
+              
+              if (Object.keys(metadata).length > 0) {
+                totalMetadataExtracted++;
+                console.log(`Extracted metadata:`, metadata);
+              }
+            }
+            
+            // Rate limit
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
         
         // Step 3: Apply updates
