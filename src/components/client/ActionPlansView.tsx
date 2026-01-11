@@ -36,7 +36,8 @@ import {
   ChevronUp,
   X,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Printer
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -752,6 +753,185 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
     toast({ title: "PDF exportado", description: `${filteredPlans.length} registos exportados` });
   };
 
+  const handlePrint = () => {
+    // Create a print-specific stylesheet
+    const printStyles = `
+      @media print {
+        body * { visibility: hidden; }
+        #print-container, #print-container * { visibility: visible; }
+        #print-container { 
+          position: absolute; 
+          left: 0; 
+          top: 0; 
+          width: 100%;
+          padding: 20px;
+        }
+        .print-header { 
+          text-align: center; 
+          margin-bottom: 20px;
+          border-bottom: 2px solid #e5e7eb;
+          padding-bottom: 15px;
+        }
+        .print-title { 
+          font-size: 24px; 
+          font-weight: bold; 
+          color: #1f2937;
+          margin: 0;
+        }
+        .print-subtitle { 
+          font-size: 12px; 
+          color: #6b7280;
+          margin-top: 5px;
+        }
+        .print-stats {
+          display: flex;
+          justify-content: center;
+          gap: 30px;
+          margin-bottom: 20px;
+          padding: 10px 0;
+        }
+        .print-stat {
+          text-align: center;
+        }
+        .print-stat-value {
+          font-size: 20px;
+          font-weight: bold;
+        }
+        .print-stat-label {
+          font-size: 10px;
+          color: #6b7280;
+        }
+        .print-table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          font-size: 11px;
+        }
+        .print-table th { 
+          background: #f3f4f6; 
+          border: 1px solid #e5e7eb;
+          padding: 8px 10px;
+          text-align: left;
+          font-weight: 600;
+          color: #374151;
+        }
+        .print-table td { 
+          border: 1px solid #e5e7eb;
+          padding: 6px 10px;
+          vertical-align: top;
+        }
+        .print-table tr:nth-child(even) { 
+          background: #f9fafb; 
+        }
+        .print-badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 10px;
+          font-weight: 500;
+        }
+        .print-badge-audit { background: #dbeafe; color: #1e40af; }
+        .print-badge-adhoc { background: #f3e8ff; color: #7c3aed; }
+        .print-badge-pendente { background: #f3f4f6; color: #374151; }
+        .print-badge-em_curso { background: #fef3c7; color: #92400e; }
+        .print-badge-concluido { background: #d1fae5; color: #065f46; }
+        .print-badge-cancelado { background: #f3f4f6; color: #6b7280; }
+        .print-overdue { color: #dc2626; font-weight: 500; }
+        .print-footer {
+          margin-top: 20px;
+          text-align: center;
+          font-size: 10px;
+          color: #9ca3af;
+          border-top: 1px solid #e5e7eb;
+          padding-top: 10px;
+        }
+        @page { 
+          size: A4 landscape; 
+          margin: 15mm;
+        }
+      }
+    `;
+
+    // Create print container
+    const printContainer = document.createElement("div");
+    printContainer.id = "print-container";
+
+    const printStats = {
+      total: filteredPlans.length,
+      pendente: filteredPlans.filter(p => p.status === "pendente").length,
+      em_curso: filteredPlans.filter(p => p.status === "em_curso").length,
+      concluido: filteredPlans.filter(p => p.status === "concluido").length,
+    };
+
+    printContainer.innerHTML = `
+      <div class="print-header">
+        <h1 class="print-title">Planos de Ação</h1>
+        <p class="print-subtitle">Gerado em ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}</p>
+      </div>
+      <div class="print-stats">
+        <div class="print-stat">
+          <div class="print-stat-value">${printStats.total}</div>
+          <div class="print-stat-label">Total</div>
+        </div>
+        <div class="print-stat">
+          <div class="print-stat-value" style="color: #6b7280;">${printStats.pendente}</div>
+          <div class="print-stat-label">Pendentes</div>
+        </div>
+        <div class="print-stat">
+          <div class="print-stat-value" style="color: #d97706;">${printStats.em_curso}</div>
+          <div class="print-stat-label">Em Curso</div>
+        </div>
+        <div class="print-stat">
+          <div class="print-stat-value" style="color: #059669;">${printStats.concluido}</div>
+          <div class="print-stat-label">Concluídas</div>
+        </div>
+      </div>
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">Tipo</th>
+            <th>Título</th>
+            <th style="width: 100px;">Estado</th>
+            <th style="width: 120px;">Responsável</th>
+            <th style="width: 90px;">Prazo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filteredPlans.map(plan => {
+            const typeClass = plan.audit_requirement_id ? "print-badge-audit" : "print-badge-adhoc";
+            const typeLabel = plan.audit_requirement_id ? "Auditoria" : "Ad-hoc";
+            const statusClass = `print-badge-${plan.status || "pendente"}`;
+            const isOverduePlan = plan.due_date && plan.status !== "concluido" && new Date(plan.due_date) < new Date();
+            return `
+              <tr>
+                <td><span class="print-badge ${typeClass}">${typeLabel}</span></td>
+                <td>${plan.title}</td>
+                <td><span class="print-badge ${statusClass}">${getStatusLabel(plan.status || "pendente")}</span></td>
+                <td>${plan.responsible || "-"}</td>
+                <td class="${isOverduePlan ? "print-overdue" : ""}">${plan.due_date ? formatDateExport(plan.due_date) : "-"}</td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+      <div class="print-footer">
+        Documento gerado automaticamente • ${filteredPlans.length} registos
+      </div>
+    `;
+
+    // Add styles and container to document
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = printStyles;
+    document.head.appendChild(styleSheet);
+    document.body.appendChild(printContainer);
+
+    // Print
+    window.print();
+
+    // Cleanup
+    document.head.removeChild(styleSheet);
+    document.body.removeChild(printContainer);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -786,6 +966,10 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
               <DropdownMenuItem onClick={exportToPDF} className="gap-2 cursor-pointer">
                 <FileText className="h-4 w-4" />
                 Exportar PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint} className="gap-2 cursor-pointer">
+                <Printer className="h-4 w-4" />
+                Imprimir
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
