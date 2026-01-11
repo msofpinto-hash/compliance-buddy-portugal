@@ -77,6 +77,7 @@ export function DataQualityPanel() {
         euLegislation,
         ptRequirements,
         euRequirements,
+        relationsData,
       ] = await Promise.all([
         // Total legislation
         supabase.from("legislation").select("id", { count: "exact", head: true }),
@@ -117,6 +118,8 @@ export function DataQualityPanel() {
         supabase.from("legal_requirements")
           .select("id, legislation:legislation_id!inner(origin)", { count: "exact", head: true })
           .or("origin.eq.EU,origin.eq.eurlex", { foreignTable: "legislation" }),
+        // Relations data
+        supabase.from("legislation_relations").select("relation_type"),
       ]);
 
       // Get legislation without requirements
@@ -185,6 +188,25 @@ export function DataQualityPanel() {
       const total = totalLegislation.count || 0;
       const missingUrlCount = missingUrl.count || 0;
       
+      // Calculate relations stats by type
+      const relationsArray = relationsData.data || [];
+      const totalRelations = relationsArray.length;
+      const relationsByType: Record<string, number> = {};
+      relationsArray.forEach((r: { relation_type: string }) => {
+        relationsByType[r.relation_type] = (relationsByType[r.relation_type] || 0) + 1;
+      });
+      
+      // Get unique legislation with relations
+      const { data: legislationWithRelations } = await supabase
+        .from("legislation_relations")
+        .select("source_legislation_id, target_legislation_id");
+      
+      const uniqueLegislationWithRelations = new Set<string>();
+      legislationWithRelations?.forEach(r => {
+        uniqueLegislationWithRelations.add(r.source_legislation_id);
+        uniqueLegislationWithRelations.add(r.target_legislation_id);
+      });
+      
       return {
         total,
         genericTitlesPT: genericTitlesPTCount,
@@ -202,6 +224,10 @@ export function DataQualityPanel() {
         euLegislation: euLegislation.count || 0,
         ptRequirements: ptRequirements.count || 0,
         euRequirements: euRequirements.count || 0,
+        totalRelations,
+        relationsByType,
+        legislationWithRelations: uniqueLegislationWithRelations.size,
+        legislationWithoutRelations: total - uniqueLegislationWithRelations.size,
       };
     },
   });
@@ -482,11 +508,11 @@ export function DataQualityPanel() {
 
         <ProblemCard
           icon={<GitBranch className="h-5 w-5" />}
-          title="Extrair Relações"
-          count={0}
+          title="Sem Relações"
+          count={qualityStats?.legislationWithoutRelations || 0}
           total={qualityStats?.total || 0}
           severity="info"
-          description="Identificar ligações entre diplomas (revoga, altera, transpõe)"
+          description={`${qualityStats?.totalRelations || 0} relações identificadas entre ${qualityStats?.legislationWithRelations || 0} diplomas`}
           action="Extrair Relações"
           onAction={() => setShowExtractRelationsDialog(true)}
         />
@@ -542,6 +568,41 @@ export function DataQualityPanel() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Relations Statistics */}
+      {(qualityStats?.totalRelations || 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <GitBranch className="h-5 w-5" />
+              Relações entre Diplomas
+            </CardTitle>
+            <CardDescription>
+              {qualityStats?.totalRelations || 0} relações identificadas entre {qualityStats?.legislationWithRelations || 0} diplomas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {Object.entries(qualityStats?.relationsByType || {})
+                .sort((a, b) => b[1] - a[1])
+                .map(([type, count]) => (
+                  <div 
+                    key={type} 
+                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                  >
+                    <div>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {type.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-lg font-bold">{count}</div>
+                    </div>
+                    <RelationTypeIcon type={type} />
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <BulkFixMetadataDialog
         open={showFixMetadataDialog}
@@ -735,4 +796,29 @@ function ProblemCard({
       </CardContent>
     </Card>
   );
+}
+
+// Relation Type Icon Component
+function RelationTypeIcon({ type }: { type: string }) {
+  const iconClass = "h-4 w-4";
+  
+  switch (type.toLowerCase()) {
+    case 'revoga':
+    case 'revogado_por':
+      return <span className="text-red-500">✕</span>;
+    case 'altera':
+    case 'alterado_por':
+      return <span className="text-amber-500">✎</span>;
+    case 'transpoe':
+    case 'transposto_por':
+      return <span className="text-blue-500">↔</span>;
+    case 'regulamenta':
+    case 'regulamentado_por':
+      return <span className="text-green-500">§</span>;
+    case 'consolida':
+    case 'consolidado_por':
+      return <span className="text-purple-500">⊕</span>;
+    default:
+      return <GitBranch className={`${iconClass} text-muted-foreground`} />;
+  }
 }
