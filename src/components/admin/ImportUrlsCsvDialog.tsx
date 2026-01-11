@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,7 +25,9 @@ import {
   ChevronRight,
   ChevronsUpDown,
   Loader2,
-  Download
+  Download,
+  Link as LinkIcon,
+  AlertCircle
 } from "lucide-react";
 
 interface ImportResult {
@@ -34,6 +36,8 @@ interface ImportResult {
   success: boolean;
   error?: string;
   legislationId?: string;
+  urlAccessible?: boolean;
+  urlStatus?: number | string;
 }
 
 interface ImportUrlsCsvDialogProps {
@@ -47,10 +51,13 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isProcessing, setIsProcessing] = useState(false);
-  const [csvData, setCsvData] = useState<{ number: string; url: string }[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validateUrls, setValidateUrls] = useState(true);
+  const [csvData, setCsvData] = useState<{ number: string; url: string; validated?: boolean; accessible?: boolean; status?: number | string }[]>([]);
   const [results, setResults] = useState<ImportResult[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [validationProgress, setValidationProgress] = useState({ current: 0, total: 0 });
 
   const allExpanded = results.length > 0 && results.every((_, i) => expandedItems.has(i));
 
@@ -135,18 +142,102 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
     }
   };
 
+  const validateUrlAccessibility = async (url: string): Promise<{ accessible: boolean; status: number | string }> => {
+    try {
+      // Use the firecrawl-scrape edge function to check URL accessibility
+      // This avoids CORS issues and provides a reliable way to check URLs
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/firecrawl-scrape`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            url, 
+            options: { 
+              formats: ['links'], 
+              onlyMainContent: false,
+              waitFor: 2000 
+            } 
+          }),
+        }
+      );
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return { accessible: true, status: 200 };
+      } else {
+        return { accessible: false, status: data.error || 'Erro' };
+      }
+    } catch (error) {
+      return { accessible: false, status: 'Erro de conexão' };
+    }
+  };
+
+  const handleValidateUrls = async () => {
+    if (csvData.length === 0) return;
+    
+    setIsValidating(true);
+    setValidationProgress({ current: 0, total: csvData.length });
+    
+    const validatedData = [...csvData];
+    
+    for (let i = 0; i < validatedData.length; i++) {
+      setValidationProgress({ current: i + 1, total: validatedData.length });
+      
+      const { accessible, status } = await validateUrlAccessibility(validatedData[i].url);
+      validatedData[i] = {
+        ...validatedData[i],
+        validated: true,
+        accessible,
+        status
+      };
+      
+      // Update state progressively
+      setCsvData([...validatedData]);
+      
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    setIsValidating(false);
+    
+    const accessibleCount = validatedData.filter(d => d.accessible).length;
+    toast({
+      title: "Validação concluída",
+      description: `${accessibleCount} de ${validatedData.length} URLs acessíveis`,
+    });
+  };
+
   const handleImport = async () => {
     if (csvData.length === 0) return;
     
+    // If validation is enabled and not all are validated, warn user
+    const dataToImport = validateUrls 
+      ? csvData.filter(d => !d.validated || d.accessible)
+      : csvData;
+    
+    if (dataToImport.length === 0) {
+      toast({
+        title: "Nenhum URL válido",
+        description: "Todos os URLs foram marcados como inacessíveis",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsProcessing(true);
     setResults([]);
-    setProgress({ current: 0, total: csvData.length });
+    setProgress({ current: 0, total: dataToImport.length });
     
     const importResults: ImportResult[] = [];
     
-    for (let i = 0; i < csvData.length; i++) {
-      const { number, url } = csvData[i];
-      setProgress({ current: i + 1, total: csvData.length });
+    for (let i = 0; i < dataToImport.length; i++) {
+      const { number, url, accessible, status } = dataToImport[i];
+      setProgress({ current: i + 1, total: dataToImport.length });
       
       try {
         // Try to find legislation by number (exact match first)
@@ -173,7 +264,9 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
             number,
             url,
             success: false,
-            error: 'Diploma não encontrado na base de dados'
+            error: 'Diploma não encontrado na base de dados',
+            urlAccessible: accessible,
+            urlStatus: status
           });
           continue;
         }
@@ -195,7 +288,9 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
           number,
           url,
           success: true,
-          legislationId: legislation.id
+          legislationId: legislation.id,
+          urlAccessible: accessible,
+          urlStatus: status
         });
         
       } catch (error) {
@@ -204,7 +299,9 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
           number,
           url,
           success: false,
-          error: error instanceof Error ? error.message : 'Erro desconhecido'
+          error: error instanceof Error ? error.message : 'Erro desconhecido',
+          urlAccessible: accessible,
+          urlStatus: status
         });
       }
     }
@@ -225,7 +322,7 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
   };
 
   const handleClose = () => {
-    if (!isProcessing) {
+    if (!isProcessing && !isValidating) {
       setCsvData([]);
       setResults([]);
       setExpandedItems(new Set());
@@ -247,6 +344,11 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
   const successCount = results.filter(r => r.success).length;
   const failedCount = results.filter(r => !r.success).length;
   const progressPercentage = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+  const validationPercentage = validationProgress.total > 0 ? Math.round((validationProgress.current / validationProgress.total) * 100) : 0;
+  
+  const validatedCount = csvData.filter(d => d.validated).length;
+  const accessibleCount = csvData.filter(d => d.accessible).length;
+  const inaccessibleCount = csvData.filter(d => d.validated && !d.accessible).length;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -307,26 +409,75 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
             </div>
           )}
 
-          {/* CSV Preview */}
+          {/* CSV Preview with validation */}
           {csvData.length > 0 && results.length === 0 && (
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
               <div className="flex items-center justify-between">
                 <Label>Pré-visualização ({csvData.length} registos)</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCsvData([])}
-                >
-                  Limpar
-                </Button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="validateUrls"
+                      checked={validateUrls}
+                      onCheckedChange={setValidateUrls}
+                      disabled={isValidating}
+                    />
+                    <Label htmlFor="validateUrls" className="text-sm">
+                      Validar URLs
+                    </Label>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCsvData([])}
+                    disabled={isValidating}
+                  >
+                    Limpar
+                  </Button>
+                </div>
               </div>
+
+              {/* Validation progress */}
+              {isValidating && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">A validar URLs... {validationProgress.current}/{validationProgress.total}</span>
+                  </div>
+                  <Progress value={validationPercentage} className="h-2" />
+                </div>
+              )}
+
+              {/* Validation stats */}
+              {validatedCount > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2 rounded bg-muted text-center">
+                    <div className="text-lg font-bold">{validatedCount}</div>
+                    <div className="text-xs text-muted-foreground">Validados</div>
+                  </div>
+                  <div className="p-2 rounded bg-green-500/10 text-center">
+                    <div className="text-lg font-bold text-green-600">{accessibleCount}</div>
+                    <div className="text-xs text-muted-foreground">Acessíveis</div>
+                  </div>
+                  <div className="p-2 rounded bg-red-500/10 text-center">
+                    <div className="text-lg font-bold text-red-600">{inaccessibleCount}</div>
+                    <div className="text-xs text-muted-foreground">Inacessíveis</div>
+                  </div>
+                </div>
+              )}
               
-              <ScrollArea className="h-[300px] border rounded-lg">
+              <ScrollArea className="flex-1 border rounded-lg min-h-0">
                 <div className="p-2 space-y-1">
-                  {csvData.slice(0, 50).map((item, index) => (
+                  {csvData.slice(0, 100).map((item, index) => (
                     <div
                       key={index}
-                      className="flex items-start gap-2 p-2 rounded bg-muted/50 text-sm"
+                      className={`flex items-start gap-2 p-2 rounded text-sm ${
+                        item.validated 
+                          ? item.accessible 
+                            ? 'bg-green-500/10' 
+                            : 'bg-red-500/10'
+                          : 'bg-muted/50'
+                      }`}
                     >
                       <Badge variant="outline" className="shrink-0">
                         {index + 1}
@@ -337,15 +488,49 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
                           {item.url}
                         </div>
                       </div>
+                      {item.validated && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          {item.accessible ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <span className="text-xs text-green-600">OK</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-xs text-red-600">{item.status}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
-                  {csvData.length > 50 && (
+                  {csvData.length > 100 && (
                     <div className="text-center py-2 text-sm text-muted-foreground">
-                      ... e mais {csvData.length - 50} registos
+                      ... e mais {csvData.length - 100} registos
                     </div>
                   )}
                 </div>
               </ScrollArea>
+
+              {/* Validation warning */}
+              {validateUrls && validatedCount === 0 && !isValidating && (
+                <Alert>
+                  <LinkIcon className="h-4 w-4" />
+                  <AlertDescription>
+                    Clique em "Validar URLs" para verificar a acessibilidade antes de importar, ou desative a opção para importar diretamente.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {inaccessibleCount > 0 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {inaccessibleCount} URL(s) não estão acessíveis e serão excluídos da importação.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
 
@@ -438,6 +623,14 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
                                       Detalhes
                                     </Badge>
                                   )}
+                                  {result.urlAccessible !== undefined && (
+                                    <Badge 
+                                      variant={result.urlAccessible ? "outline" : "destructive"} 
+                                      className="text-[10px] px-1.5 py-0 h-4"
+                                    >
+                                      {result.urlAccessible ? "URL OK" : "URL Erro"}
+                                    </Badge>
+                                  )}
                                 </div>
                                 {!result.success && result.error && !isExpanded && (
                                   <div className="text-xs text-red-600 truncate">
@@ -460,6 +653,14 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
                                   {result.url}
                                 </p>
                               </div>
+                              {result.urlStatus && (
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Estado do URL:</Label>
+                                  <p className={`text-sm ${result.urlAccessible ? 'text-green-600' : 'text-red-600'}`}>
+                                    {result.urlStatus}
+                                  </p>
+                                </div>
+                              )}
                               {result.error && (
                                 <div>
                                   <Label className="text-xs text-muted-foreground">Erro:</Label>
@@ -481,23 +682,47 @@ export function ImportUrlsCsvDialog({ open, onOpenChange }: ImportUrlsCsvDialogP
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isProcessing}>
+          <Button variant="outline" onClick={handleClose} disabled={isProcessing || isValidating}>
             {results.length > 0 ? "Fechar" : "Cancelar"}
           </Button>
           {csvData.length > 0 && results.length === 0 && (
-            <Button onClick={handleImport} disabled={isProcessing}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  A importar...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importar {csvData.length} URLs
-                </>
+            <>
+              {validateUrls && validatedCount < csvData.length && (
+                <Button 
+                  variant="secondary" 
+                  onClick={handleValidateUrls} 
+                  disabled={isValidating || isProcessing}
+                >
+                  {isValidating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      A validar...
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      Validar URLs
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+              <Button 
+                onClick={handleImport} 
+                disabled={isProcessing || isValidating}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    A importar...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar {validateUrls && validatedCount > 0 ? accessibleCount : csvData.length} URLs
+                  </>
+                )}
+              </Button>
+            </>
           )}
           {results.length > 0 && (
             <Button onClick={() => { setCsvData([]); setResults([]); }}>
