@@ -561,11 +561,13 @@ export default function Dashboard() {
           />
         ) : (
           <div className="flex items-center gap-3">
-            <img 
-              src={logoIdCompliance} 
-              alt="I&D Compliance-ex" 
-              className="h-10 w-auto object-contain"
-            />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-lg">
+              <Scale className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-sidebar-foreground leading-tight">I&D</span>
+              <span className="text-xs text-muted-foreground leading-tight">Compliance-ex</span>
+            </div>
           </div>
         )}
       </Link>
