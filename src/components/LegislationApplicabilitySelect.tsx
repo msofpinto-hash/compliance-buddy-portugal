@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,12 +29,30 @@ export function getLegislationApplicabilityInfo(value: string) {
   return applicabilityTypes.find(t => t.value === value) || applicabilityTypes[0];
 }
 
-export function LegislationApplicabilityBadge({ value }: { value?: string }) {
+export function LegislationApplicabilityBadge({ value, showTooltip = true }: { value?: string; showTooltip?: boolean }) {
   const info = getLegislationApplicabilityInfo(value || "nao_avaliado");
-  return (
-    <Badge variant="outline" className={`${info.color}`}>
+  
+  const badge = (
+    <Badge variant="outline" className={`${info.color} ${showTooltip ? 'cursor-help' : ''}`}>
       {info.label}
     </Badge>
+  );
+  
+  if (!showTooltip) {
+    return badge;
+  }
+  
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {badge}
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          <p className="text-xs">{info.description}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
