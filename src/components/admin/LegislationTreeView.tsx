@@ -362,12 +362,29 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         </div>
         
         {hasChildren && isExpanded && (
-          <div className="relative">
+          <div className="relative ml-4">
+            {/* Vertical connecting line */}
             <div 
-              className={`absolute left-[${level * 16 + 18}px] top-0 bottom-0 w-px ${themeConfig?.bg} opacity-50`}
-              style={{ left: `${level * 16 + 18}px` }}
+              className={`absolute top-0 bottom-2 w-0.5 rounded-full ${
+                isMainCategory ? themeConfig?.accent : 'bg-border'
+              } opacity-30`}
+              style={{ left: `${level * 16 + 14}px` }}
             />
-            {node.children.map(child => renderCategoryNode(child, level + 1))}
+            {node.children.map((child, idx) => (
+              <div key={child.category.id} className="relative">
+                {/* Horizontal connecting line */}
+                <div 
+                  className={`absolute w-3 h-0.5 rounded-full ${
+                    isMainCategory ? themeConfig?.accent : 'bg-border'
+                  } opacity-30`}
+                  style={{ 
+                    left: `${level * 16 + 14}px`,
+                    top: '18px'
+                  }}
+                />
+                {renderCategoryNode(child, level + 1)}
+              </div>
+            ))}
           </div>
         )}
       </div>
