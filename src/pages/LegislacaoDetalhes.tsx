@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { RequirementApplicabilitySelect, ApplicabilityBadge } from "@/components/RequirementApplicabilitySelect";
+import { LegislationApplicabilitySelect, LegislationApplicabilityBadge } from "@/components/LegislationApplicabilitySelect";
 import { 
   ArrowLeft, 
   ExternalLink, 
@@ -89,7 +90,7 @@ export default function LegislacaoDetalhes() {
     enabled: !!id,
   });
 
-  // Fetch applicabilities for the user's organization
+  // Fetch applicabilities for the user's organization (requirements)
   const { data: applicabilities } = useQuery({
     queryKey: ["requirement-applicabilities", id, userOrganization?.id],
     queryFn: async () => {
@@ -106,6 +107,23 @@ export default function LegislacaoDetalhes() {
         map[a.requirement_id] = a.applicability_type || "nao_avaliado";
       });
       return map;
+    },
+    enabled: !!id && !!userOrganization?.id,
+  });
+
+  // Fetch legislation applicability for the user's organization
+  const { data: legislationApplicability } = useQuery({
+    queryKey: ["legislation-applicability", id, userOrganization?.id],
+    queryFn: async () => {
+      if (!id || !userOrganization?.id) return null;
+      const { data, error } = await supabase
+        .from("organization_legislation")
+        .select("id, applicability_type")
+        .eq("legislation_id", id)
+        .eq("organization_id", userOrganization.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
     },
     enabled: !!id && !!userOrganization?.id,
   });
@@ -349,6 +367,29 @@ export default function LegislacaoDetalhes() {
                     </div>
                   )}
                 </div>
+
+                {/* Legislation Applicability */}
+                {userOrganization && (
+                  <Separator className="my-4" />
+                )}
+                {userOrganization && (
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+                    <div className="flex items-center gap-3">
+                      <Building className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Aplicabilidade do Diploma</p>
+                        <p className="text-xs text-muted-foreground">
+                          Classificação para {userOrganization.name}
+                        </p>
+                      </div>
+                    </div>
+                    <LegislationApplicabilitySelect
+                      legislationId={id!}
+                      organizationId={userOrganization.id}
+                      currentValue={legislationApplicability?.applicability_type || "nao_avaliado"}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
 

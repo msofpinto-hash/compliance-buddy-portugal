@@ -414,6 +414,7 @@ export type Database = {
       }
       organization_legislation: {
         Row: {
+          applicability_type: string | null
           assigned_at: string
           assigned_by: string | null
           id: string
@@ -422,6 +423,7 @@ export type Database = {
           organization_id: string
         }
         Insert: {
+          applicability_type?: string | null
           assigned_at?: string
           assigned_by?: string | null
           id?: string
@@ -430,6 +432,7 @@ export type Database = {
           organization_id: string
         }
         Update: {
+          applicability_type?: string | null
           assigned_at?: string
           assigned_by?: string | null
           id?: string
