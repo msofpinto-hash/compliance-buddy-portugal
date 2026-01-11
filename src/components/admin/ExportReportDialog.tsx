@@ -66,13 +66,13 @@ export function ExportReportDialog({
       } else {
         switch (reportType) {
           case "compliance":
-            exportComplianceReportToPDF(data);
+            await exportComplianceReportToPDF(data);
             break;
           case "legislation":
-            exportLegislationToPDF(data);
+            await exportLegislationToPDF(data);
             break;
           case "requirements":
-            exportRequirementsToPDF(data);
+            await exportRequirementsToPDF(data);
             break;
           case "action-plans":
             // Action plans use Excel format as default

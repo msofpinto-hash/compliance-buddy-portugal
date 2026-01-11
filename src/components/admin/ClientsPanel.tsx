@@ -20,6 +20,7 @@ import { AssignThemesDialog, OrganizationThemesBadge } from "./AssignThemesDialo
 import { CopyOrganizationSettingsDialog } from "./CopyOrganizationSettingsDialog";
 import { CopyRequirementsDialog } from "./CopyRequirementsDialog";
 import { ExportReportDialog } from "./ExportReportDialog";
+import { OrganizationLogoUpload } from "./OrganizationLogoUpload";
 
 type Organization = Tables<"organizations">;
 
@@ -37,6 +38,7 @@ export function ClientsPanel() {
   const [exportReportOrg, setExportReportOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
+  const [newOrgLogoUrl, setNewOrgLogoUrl] = useState<string | null>(null);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
 
@@ -117,6 +119,7 @@ export function ClientsPanel() {
         .update({
           name: newOrgName,
           description: newOrgDescription || null,
+          logo_url: newOrgLogoUrl,
         })
         .eq("id", editingOrg.id);
       
@@ -128,6 +131,7 @@ export function ClientsPanel() {
       setEditingOrg(null);
       setNewOrgName("");
       setNewOrgDescription("");
+      setNewOrgLogoUrl(null);
     },
     onError: (error) => {
       toast.error("Erro ao atualizar organização: " + error.message);
@@ -227,6 +231,7 @@ export function ClientsPanel() {
     setEditingOrg(org);
     setNewOrgName(org.name);
     setNewOrgDescription(org.description || "");
+    setNewOrgLogoUrl((org as any).logo_url || null);
   };
 
   if (isLoading) {
@@ -621,6 +626,13 @@ export function ClientsPanel() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {editingOrg && (
+              <OrganizationLogoUpload
+                organizationId={editingOrg.id}
+                currentLogoUrl={newOrgLogoUrl}
+                onLogoChange={setNewOrgLogoUrl}
+              />
+            )}
             <div className="space-y-2">
               <Label htmlFor="edit-name">Nome da Organização</Label>
               <Input
