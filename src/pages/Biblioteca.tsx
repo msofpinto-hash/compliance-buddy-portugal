@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,7 +50,15 @@ export default function Biblioteca() {
   const [selectedApplicability, setSelectedApplicability] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "tree">("list");
+  const [viewMode, setViewMode] = useState<"list" | "tree">(() => {
+    const saved = localStorage.getItem("biblioteca-view-mode");
+    return saved === "tree" ? "tree" : "list";
+  });
+
+  // Persist view mode preference
+  useEffect(() => {
+    localStorage.setItem("biblioteca-view-mode", viewMode);
+  }, [viewMode]);
 
   // Fetch themes with categories
   const { data: themes } = useThemesWithCategories();
