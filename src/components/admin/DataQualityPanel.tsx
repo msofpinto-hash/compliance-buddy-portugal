@@ -24,7 +24,8 @@ import {
   Copy,
   Flag,
   Globe,
-  Unlink
+  Unlink,
+  GitBranch
 } from "lucide-react";
 import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
@@ -33,6 +34,7 @@ import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
 import { FindMissingUrlsDialog } from "./FindMissingUrlsDialog";
 import { ImportUrlsCsvDialog } from "./ImportUrlsCsvDialog";
 import { ImportEurlexSummariesDialog } from "./ImportEurlexSummariesDialog";
+import { ExtractRelationsDialog } from "./ExtractRelationsDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -54,6 +56,7 @@ export function DataQualityPanel() {
   const [showFindMissingUrlsDialog, setShowFindMissingUrlsDialog] = useState(false);
   const [showImportUrlsCsvDialog, setShowImportUrlsCsvDialog] = useState(false);
   const [showImportEurlexSummariesDialog, setShowImportEurlexSummariesDialog] = useState(false);
+  const [showExtractRelationsDialog, setShowExtractRelationsDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
 
   // Fetch comprehensive data quality statistics
@@ -478,6 +481,17 @@ export function DataQualityPanel() {
         />
 
         <ProblemCard
+          icon={<GitBranch className="h-5 w-5" />}
+          title="Extrair Relações"
+          count={0}
+          total={qualityStats?.total || 0}
+          severity="info"
+          description="Identificar ligações entre diplomas (revoga, altera, transpõe)"
+          action="Extrair Relações"
+          onAction={() => setShowExtractRelationsDialog(true)}
+        />
+
+        <ProblemCard
           icon={<BarChart3 className="h-5 w-5" />}
           title="Sem Categoria"
           count={qualityStats?.noCategories || 0}
@@ -566,6 +580,11 @@ export function DataQualityPanel() {
       <ImportEurlexSummariesDialog
         open={showImportEurlexSummariesDialog}
         onOpenChange={setShowImportEurlexSummariesDialog}
+      />
+
+      <ExtractRelationsDialog
+        open={showExtractRelationsDialog}
+        onOpenChange={setShowExtractRelationsDialog}
       />
     </div>
   );
