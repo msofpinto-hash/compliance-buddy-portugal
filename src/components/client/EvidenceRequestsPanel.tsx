@@ -118,6 +118,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [areaFilter, setAreaFilter] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<EvidenceRequest | null>(null);
@@ -301,7 +302,10 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     
     const matchesStatus = !statusFilter || r.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesArea = !areaFilter || 
+      r.evidence_templates[areaFilter as keyof typeof r.evidence_templates] === true;
+    
+    return matchesSearch && matchesStatus && matchesArea;
   });
 
   // Group requests by group_name
@@ -428,6 +432,25 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                 />
               </div>
             </div>
+            <Select value={areaFilter || "all"} onValueChange={(v) => setAreaFilter(v === "all" ? null : v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tema" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os temas</SelectItem>
+                {Object.entries(AREA_CONFIG).map(([key, config]) => {
+                  const IconComponent = config.icon;
+                  return (
+                    <SelectItem key={key} value={key}>
+                      <div className="flex items-center gap-2">
+                        <IconComponent className="h-4 w-4" />
+                        {config.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? null : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Estado" />

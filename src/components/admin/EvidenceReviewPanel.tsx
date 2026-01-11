@@ -21,7 +21,16 @@ import {
   Loader2,
   ChevronDown,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Leaf,
+  Award,
+  Shield,
+  Utensils,
+  Zap,
+  TreePine,
+  Heart,
+  Users,
+  Globe
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +41,18 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+
+const AREA_CONFIG = {
+  area_ambiente: { label: "Ambiente", icon: Leaf, color: "bg-green-100 text-green-800" },
+  area_qualidade: { label: "Qualidade", icon: Award, color: "bg-blue-100 text-blue-800" },
+  area_seguranca: { label: "Segurança", icon: Shield, color: "bg-orange-100 text-orange-800" },
+  area_seguranca_alimentar: { label: "Seg. Alimentar", icon: Utensils, color: "bg-amber-100 text-amber-800" },
+  area_energia: { label: "Energia", icon: Zap, color: "bg-yellow-100 text-yellow-800" },
+  area_florestas: { label: "Florestas", icon: TreePine, color: "bg-emerald-100 text-emerald-800" },
+  area_saude: { label: "Saúde", icon: Heart, color: "bg-red-100 text-red-800" },
+  area_conciliacao: { label: "Conciliação", icon: Users, color: "bg-purple-100 text-purple-800" },
+  area_sustentabilidade: { label: "Sustentabilidade", icon: Globe, color: "bg-teal-100 text-teal-800" },
+};
 
 interface EvidenceRequestWithOrg {
   id: string;
@@ -52,6 +73,15 @@ interface EvidenceRequestWithOrg {
     group_name: string;
     title: string;
     description: string | null;
+    area_ambiente: boolean | null;
+    area_qualidade: boolean | null;
+    area_seguranca: boolean | null;
+    area_seguranca_alimentar: boolean | null;
+    area_energia: boolean | null;
+    area_florestas: boolean | null;
+    area_saude: boolean | null;
+    area_conciliacao: boolean | null;
+    area_sustentabilidade: boolean | null;
   };
 }
 
@@ -83,6 +113,7 @@ export function EvidenceReviewPanel() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("submitted");
   const [orgFilter, setOrgFilter] = useState<string>("all");
+  const [areaFilter, setAreaFilter] = useState<string>("all");
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<EvidenceRequestWithOrg | null>(null);
@@ -97,7 +128,7 @@ export function EvidenceReviewPanel() {
         .select(`
           *,
           organizations (id, name),
-          evidence_templates (id, group_name, title, description)
+          evidence_templates (*)
         `)
         .order("submitted_at", { ascending: false, nullsFirst: false });
       if (error) throw error;
@@ -223,8 +254,10 @@ export function EvidenceReviewPanel() {
     
     const matchesStatus = statusFilter === "all" || r.status === statusFilter;
     const matchesOrg = orgFilter === "all" || r.organization_id === orgFilter;
+    const matchesArea = areaFilter === "all" || 
+      r.evidence_templates[areaFilter as keyof typeof r.evidence_templates] === true;
     
-    return matchesSearch && matchesStatus && matchesOrg;
+    return matchesSearch && matchesStatus && matchesOrg && matchesArea;
   });
 
   // Group by organization
@@ -328,6 +361,25 @@ export function EvidenceReviewPanel() {
                     </div>
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={areaFilter} onValueChange={setAreaFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tema" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os temas</SelectItem>
+                {Object.entries(AREA_CONFIG).map(([key, config]) => {
+                  const IconComponent = config.icon;
+                  return (
+                    <SelectItem key={key} value={key}>
+                      <div className="flex items-center gap-2">
+                        <IconComponent className="h-4 w-4" />
+                        {config.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Select value={orgFilter} onValueChange={setOrgFilter}>
