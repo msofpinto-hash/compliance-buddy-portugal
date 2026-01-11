@@ -33,44 +33,50 @@ function sendSSE(controller: ReadableStreamDefaultController<Uint8Array>, event:
 function extractLegislationParts(number: string): { type: string; num: string; year: string } | null {
   const cleanNumber = number.trim();
   
-  // Pattern: "Decreto-Lei n.º 97/2008, de 11 de junho"
-  // Pattern: "Portaria n.º 98/2025/1 de 12 de março"
-  // Pattern: "Despacho n.º 3495-C/2025 de 19 de março"
-  
+  // Patterns now support both 2-digit and 4-digit years
   const patterns = [
-    // Decreto-Lei n.º 97/2008
-    /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
-    // Portaria n.º 98/2025/1
-    /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
-    // Lei n.º 13/2025
-    /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Decreto-Lei n.º 97/2008 or 555/99
+    /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Portaria n.º 98/2025/1 or 989/93
+    /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Lei n.º 13/2025 or 11/90
+    /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Despacho n.º 3495-C/2025
-    /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Resolução do Conselho de Ministros n.º 10/2025
-    /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Resolução da Assembleia da República n.º 67/98
+    /^(Resolução\s+da\s+Assembleia\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Resolução n.º 2/2025
-    /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Declaração de Retificação n.º X/YYYY
-    /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Aviso n.º X/YYYY
-    /^(Aviso)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Aviso)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Regulamento n.º X/YYYY
-    /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Acórdão do Tribunal Constitucional n.º X/YYYY
-    /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Decreto Regulamentar n.º X/YYYY
-    /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
-    // Decreto n.º X/YYYY
-    /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Decreto n.º X/YYYY or X/80
+    /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
   ];
   
   for (const pattern of patterns) {
     const match = cleanNumber.match(pattern);
     if (match) {
+      let year = match[3];
+      // Convert 2-digit year to 4-digit
+      if (year.length === 2) {
+        const yearNum = parseInt(year, 10);
+        // Assume 00-30 is 2000s, 31-99 is 1900s
+        year = yearNum <= 30 ? `20${year}` : `19${year}`;
+      }
       return {
         type: match[1].toLowerCase().replace(/\s+/g, '-'),
         num: match[2],
-        year: match[3]
+        year: year
       };
     }
   }
