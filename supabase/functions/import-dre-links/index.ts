@@ -31,7 +31,7 @@ interface ParsedLegislation {
 }
 
 // AI endpoint for extracting requirements when parsing fails
-const AI_ENDPOINT = 'https://ai.lovable.dev/v1/chat/completions';
+const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
 // Extract requirements using AI when HTML/markdown parsing fails or returns no results
 async function extractRequirementsWithAI(
