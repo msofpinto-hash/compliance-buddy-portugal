@@ -22,7 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Globe, CheckCircle2, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Globe, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Search, X } from "lucide-react";
 
 interface FixEurlexTitlesDialogProps {
   open: boolean;
@@ -54,8 +54,20 @@ export function FixEurlexTitlesDialog({
   const [selectedCelex, setSelectedCelex] = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [appliedCount, setAppliedCount] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const successResults = results.filter(r => r.success);
+  
+  // Filter results based on search query
+  const filteredResults = successResults.filter(r => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      r.celex.toLowerCase().includes(query) ||
+      r.oldTitle.toLowerCase().includes(query) ||
+      r.newTitle.toLowerCase().includes(query)
+    );
+  });
 
   const handleSimulate = async () => {
     setIsProcessing(true);
@@ -65,6 +77,7 @@ export function FixEurlexTitlesDialog({
     setSelectedCelex(new Set());
     setExpandedItems(new Set());
     setAppliedCount(null);
+    setSearchQuery("");
 
     try {
       setProgress(30);
@@ -174,6 +187,7 @@ export function FixEurlexTitlesDialog({
       setSelectedCelex(new Set());
       setExpandedItems(new Set());
       setAppliedCount(null);
+      setSearchQuery("");
       onOpenChange(false);
     }
   };
@@ -203,12 +217,24 @@ export function FixEurlexTitlesDialog({
   };
 
   const selectAll = () => {
-    setSelectedCelex(new Set(successResults.map(r => r.celex)));
+    // Select all filtered results (visible ones)
+    setSelectedCelex(prev => {
+      const newSet = new Set(prev);
+      filteredResults.forEach(r => newSet.add(r.celex));
+      return newSet;
+    });
   };
 
   const deselectAll = () => {
-    setSelectedCelex(new Set());
+    // Deselect all filtered results (visible ones)
+    setSelectedCelex(prev => {
+      const newSet = new Set(prev);
+      filteredResults.forEach(r => newSet.delete(r.celex));
+      return newSet;
+    });
   };
+
+  const selectAllVisible = filteredResults.every(r => selectedCelex.has(r.celex));
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -286,89 +312,126 @@ export function FixEurlexTitlesDialog({
           {/* Results with selection */}
           {successResults.length > 0 && (
             <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
+              {/* Search and selection controls */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Pesquisar por CELEX ou título..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                    disabled={isApplying}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              
               <div className="flex items-center justify-between">
-                <Label>Resultados ({successResults.length})</Label>
+                <Label>
+                  {searchQuery ? (
+                    <>Resultados: {filteredResults.length} de {successResults.length}</>
+                  ) : (
+                    <>Resultados ({successResults.length})</>
+                  )}
+                </Label>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     {selectedCelex.size} selecionados
                   </span>
-                  <Button variant="ghost" size="sm" onClick={selectAll} disabled={isApplying}>
-                    Todos
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={deselectAll} disabled={isApplying}>
-                    Nenhum
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={selectAllVisible ? deselectAll : selectAll} 
+                    disabled={isApplying || filteredResults.length === 0}
+                  >
+                    {selectAllVisible ? "Desmarcar visíveis" : "Marcar visíveis"}
                   </Button>
                 </div>
               </div>
               
               <ScrollArea className="flex-1 border rounded-lg">
                 <div className="p-2 space-y-1">
-                  {successResults.map((result) => {
-                    const isExpanded = expandedItems.has(result.celex);
-                    const isSelected = selectedCelex.has(result.celex);
-                    
-                    return (
-                      <Collapsible
-                        key={result.celex}
-                        open={isExpanded}
-                        onOpenChange={() => toggleExpanded(result.celex)}
-                      >
-                        <div className={`rounded-lg border transition-colors ${
-                          isSelected 
-                            ? 'bg-green-500/10 border-green-500/30' 
-                            : 'bg-muted/50 border-transparent'
-                        }`}>
-                          <div className="flex items-start gap-2 p-2">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => toggleSelection(result.celex)}
-                              disabled={isApplying}
-                              className="mt-1"
-                            />
-                            
-                            <CollapsibleTrigger asChild>
-                              <button className="flex-1 text-left hover:bg-accent/50 rounded p-1 -m-1 transition-colors">
-                                <div className="flex items-center gap-2">
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <code className="text-xs font-mono text-muted-foreground">
-                                        {result.celex}
-                                      </code>
-                                    </div>
-                                    <div className="text-sm text-green-700 dark:text-green-400 truncate">
-                                      {result.newTitle}
+                  {filteredResults.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhum resultado encontrado para "{searchQuery}"</p>
+                    </div>
+                  ) : (
+                    filteredResults.map((result) => {
+                      const isExpanded = expandedItems.has(result.celex);
+                      const isSelected = selectedCelex.has(result.celex);
+                      
+                      return (
+                        <Collapsible
+                          key={result.celex}
+                          open={isExpanded}
+                          onOpenChange={() => toggleExpanded(result.celex)}
+                        >
+                          <div className={`rounded-lg border transition-colors ${
+                            isSelected 
+                              ? 'bg-green-500/10 border-green-500/30' 
+                              : 'bg-muted/50 border-transparent'
+                          }`}>
+                            <div className="flex items-start gap-2 p-2">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelection(result.celex)}
+                                disabled={isApplying}
+                                className="mt-1"
+                              />
+                              
+                              <CollapsibleTrigger asChild>
+                                <button className="flex-1 text-left hover:bg-accent/50 rounded p-1 -m-1 transition-colors">
+                                  <div className="flex items-center gap-2">
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <code className="text-xs font-mono text-muted-foreground">
+                                          {result.celex}
+                                        </code>
+                                      </div>
+                                      <div className="text-sm text-green-700 dark:text-green-400 truncate">
+                                        {result.newTitle}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </button>
-                            </CollapsibleTrigger>
-                          </div>
-                          
-                          <CollapsibleContent>
-                            <div className="px-9 pb-3 space-y-2">
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Título atual:</Label>
-                                <p className="text-sm line-through text-muted-foreground">
-                                  {result.oldTitle}
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Novo título:</Label>
-                                <p className="text-sm text-green-700 dark:text-green-400">
-                                  {result.newTitle}
-                                </p>
-                              </div>
+                                </button>
+                              </CollapsibleTrigger>
                             </div>
-                          </CollapsibleContent>
-                        </div>
-                      </Collapsible>
-                    );
-                  })}
+                            
+                            <CollapsibleContent>
+                              <div className="px-9 pb-3 space-y-2">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Título atual:</Label>
+                                  <p className="text-sm line-through text-muted-foreground">
+                                    {result.oldTitle}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Novo título:</Label>
+                                  <p className="text-sm text-green-700 dark:text-green-400">
+                                    {result.newTitle}
+                                  </p>
+                                </div>
+                              </div>
+                            </CollapsibleContent>
+                          </div>
+                        </Collapsible>
+                      );
+                    })
+                  )}
                 </div>
               </ScrollArea>
             </div>
@@ -399,6 +462,7 @@ export function FixEurlexTitlesDialog({
                     setResults([]);
                     setSummary(null);
                     setAppliedCount(null);
+                    setSearchQuery("");
                   }}
                   disabled={isApplying}
                 >
