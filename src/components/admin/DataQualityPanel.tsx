@@ -138,11 +138,15 @@ export function DataQualityPanel() {
         return titleEqualsNumber || hasGenericPattern || !leg.title;
       }).length;
 
+      const total = totalLegislation.count || 0;
+      const missingUrlCount = missingUrl.count || 0;
+      
       return {
-        total: totalLegislation.count || 0,
+        total,
         genericTitles: genericTitlesCount,
         missingSummary: missingSummary.count || 0,
-        missingUrl: missingUrl.count || 0,
+        missingUrl: missingUrlCount,
+        withUrl: total - missingUrlCount,
         missingOrigin: missingOrigin.count || 0,
         noCategories: typeof noCategories.data === 'number' ? noCategories.data : 0,
         noRequirements: withoutReqsCount,
@@ -393,10 +397,10 @@ export function DataQualityPanel() {
         <ProblemCard
           icon={<Unlink className="h-5 w-5" />}
           title="Validar URLs"
-          count={qualityStats?.missingUrl || 0}
+          count={qualityStats?.withUrl || 0}
           total={qualityStats?.total || 0}
           severity="info"
-          description="Verificar acessibilidade dos links de documentos"
+          description="Verificar acessibilidade dos links existentes"
           action="Validar URLs"
           onAction={() => setShowValidateUrlsDialog(true)}
         />
