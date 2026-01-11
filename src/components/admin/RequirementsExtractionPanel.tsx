@@ -67,6 +67,7 @@ export function RequirementsExtractionPanel() {
   const [isScraping, setIsScraping] = useState(false);
   const [limit, setLimit] = useState(25);
   const [batchSize, setBatchSize] = useState(100);
+  const [parallelBatches, setParallelBatches] = useState(3);
   const [scrapeLimit, setScrapeLimit] = useState(10);
   const [dryRun, setDryRun] = useState(false);
   const [scrapeDryRun, setScrapeDryRun] = useState(true);
@@ -384,6 +385,25 @@ export function RequirementsExtractionPanel() {
     let retriesPerformed = 0;
     const batchFailedItems: FailedItem[] = [];
 
+    // Helper function to process a single batch with offset
+    const processBatch = async (offset: number, batchLimit: number) => {
+      const { data, error } = await supabase.functions.invoke("extract-requirements", {
+        body: { 
+          limit: batchLimit, 
+          offset,
+          dryRun: false,
+          origin: originFilter === "all" ? undefined : originFilter,
+        },
+      });
+      
+      if (error) {
+        console.error(`Batch error (offset ${offset}):`, error);
+        return null;
+      }
+      
+      return data;
+    };
+
     try {
       while (!stopContinuousRef.current) {
         // Check how many are left
@@ -454,51 +474,67 @@ export function RequirementsExtractionPanel() {
           break;
         }
 
-        const { data, error } = await supabase.functions.invoke("extract-requirements", {
-          body: { 
-            limit: Math.min(batchSize, remaining), 
-            dryRun: false,
-            origin: originFilter === "all" ? undefined : originFilter,
-          },
+        // Calculate how many parallel batches to run
+        const effectiveParallelBatches = Math.min(parallelBatches, Math.ceil(remaining / batchSize));
+        const batchPromises: Promise<any>[] = [];
+        
+        // Create parallel batch promises with different offsets
+        for (let i = 0; i < effectiveParallelBatches; i++) {
+          const offset = i * batchSize;
+          const batchLimit = Math.min(batchSize, remaining - offset);
+          if (batchLimit > 0) {
+            batchPromises.push(processBatch(offset, batchLimit));
+          }
+        }
+
+        // Execute all batches in parallel
+        console.log(`Processing ${batchPromises.length} parallel batches...`);
+        const batchResults = await Promise.all(batchPromises);
+
+        // Aggregate results from all parallel batches
+        let batchProcessed = 0;
+        let batchSuccessful = 0;
+        let batchFailed = 0;
+        let batchRequirements = 0;
+
+        for (const data of batchResults) {
+          if (data?.success) {
+            batchProcessed += data.processed;
+            batchSuccessful += data.successful;
+            batchFailed += data.failed;
+            batchRequirements += data.totalRequirements;
+
+            // Track failed items from this batch
+            data.results
+              .filter((r: ExtractionResult) => r.error)
+              .forEach((r: ExtractionResult) => {
+                batchFailedItems.push({
+                  legislationId: r.legislationId,
+                  legislationNumber: r.legislationNumber || r.legislationId.substring(0, 8),
+                  error: r.error || "Erro desconhecido",
+                  retryCount: 0,
+                });
+              });
+          }
+        }
+
+        totalProcessed += batchProcessed;
+        totalSuccessful += batchSuccessful;
+        totalFailed += batchFailed;
+        totalRequirements += batchRequirements;
+        batchesCompleted += effectiveParallelBatches;
+
+        setContinuousStats({
+          totalProcessed,
+          totalSuccessful,
+          totalFailed,
+          totalRequirements,
+          batchesCompleted,
+          retriesPerformed,
         });
 
-        if (error) {
-          console.error("Batch error:", error);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          continue;
-        }
-
-        if (data.success) {
-          totalProcessed += data.processed;
-          totalSuccessful += data.successful;
-          totalFailed += data.failed;
-          totalRequirements += data.totalRequirements;
-          batchesCompleted++;
-
-          // Track failed items from this batch
-          data.results
-            .filter((r: ExtractionResult) => r.error)
-            .forEach((r: ExtractionResult) => {
-              batchFailedItems.push({
-                legislationId: r.legislationId,
-                legislationNumber: r.legislationNumber || r.legislationId.substring(0, 8),
-                error: r.error || "Erro desconhecido",
-                retryCount: 0,
-              });
-            });
-
-          setContinuousStats({
-            totalProcessed,
-            totalSuccessful,
-            totalFailed,
-            totalRequirements,
-            batchesCompleted,
-            retriesPerformed,
-          });
-
-          // Small delay between batches
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        // Small delay between parallel batch rounds
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       // Store final failed items for manual retry
@@ -668,6 +704,20 @@ export function RequirementsExtractionPanel() {
                 value={batchSize}
                 onChange={(e) => setBatchSize(Number(e.target.value))}
                 className="w-24"
+                disabled={isContinuousExtracting}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parallel-batches">Lotes paralelos</Label>
+              <Input
+                id="parallel-batches"
+                type="number"
+                min={1}
+                max={5}
+                value={parallelBatches}
+                onChange={(e) => setParallelBatches(Math.max(1, Math.min(5, Number(e.target.value))))}
+                className="w-20"
                 disabled={isContinuousExtracting}
               />
             </div>
