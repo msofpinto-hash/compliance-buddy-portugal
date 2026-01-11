@@ -1129,7 +1129,22 @@ export default function ClientPortal() {
                             const catCount = legislationByCategory?.byCategory?.get(cat.id) || 0;
                             const subcats = getSubcategories(cat.id);
                             const isSelected = categoryFilter === cat.id;
-                            const hasSelectedChild = subcats.some((s: any) => s.id === categoryFilter);
+                            const hasSelectedChild = subcats.some((s: any) => s.id === categoryFilter || 
+                              getSubcategories(s.id).some((n: any) => n.id === categoryFilter)
+                            );
+                            
+                            // Check if any subcategory has results
+                            const subcatsWithResults = subcats.filter((s: any) => {
+                              const sCount = legislationByCategory?.byCategory?.get(s.id) || 0;
+                              const nestedSubs = getSubcategories(s.id);
+                              const nestedHasResults = nestedSubs.some((n: any) => 
+                                (legislationByCategory?.byCategory?.get(n.id) || 0) > 0
+                              );
+                              return sCount > 0 || nestedHasResults;
+                            });
+                            
+                            // Auto-expand if has results or selection
+                            const shouldExpand = catCount > 0 || subcatsWithResults.length > 0 || hasSelectedChild;
                             
                             return (
                               <div key={cat.id}>
@@ -1140,27 +1155,46 @@ export default function ClientPortal() {
                                       ? "bg-primary text-primary-foreground" 
                                       : hasSelectedChild
                                       ? "bg-primary/10"
-                                      : "hover:bg-muted"
+                                      : catCount > 0 || subcatsWithResults.length > 0
+                                      ? "hover:bg-muted font-medium"
+                                      : "hover:bg-muted text-muted-foreground"
                                   }`}
                                 >
                                   <span className="truncate">{cat.name}</span>
-                                  {catCount > 0 && (
-                                    <Badge 
-                                      variant={isSelected ? "secondary" : "outline"} 
-                                      className="text-xs shrink-0 ml-2"
-                                    >
-                                      {catCount}
-                                    </Badge>
-                                  )}
+                                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                                    {catCount > 0 && (
+                                      <Badge 
+                                        variant={isSelected ? "secondary" : "outline"} 
+                                        className="text-xs"
+                                      >
+                                        {catCount}
+                                      </Badge>
+                                    )}
+                                    {subcatsWithResults.length > 0 && catCount === 0 && (
+                                      <span className="text-xs text-primary">•</span>
+                                    )}
+                                  </div>
                                 </button>
                                 
-                                {/* Subcategories */}
-                                {subcats.length > 0 && (
-                                  <div className="ml-3 mt-1 space-y-0.5 border-l pl-2">
+                                {/* Subcategories - only show if should expand */}
+                                {subcats.length > 0 && shouldExpand && (
+                                  <div className="ml-3 mt-1 space-y-0.5 border-l border-primary/20 pl-2">
                                     {subcats.map((sub: any) => {
                                       const subCount = legislationByCategory?.byCategory?.get(sub.id) || 0;
                                       const isSubSelected = categoryFilter === sub.id;
                                       const nestedSubs = getSubcategories(sub.id);
+                                      const hasNestedSelected = nestedSubs.some((n: any) => n.id === categoryFilter);
+                                      
+                                      // Check if nested subs have results
+                                      const nestedWithResults = nestedSubs.filter((n: any) => 
+                                        (legislationByCategory?.byCategory?.get(n.id) || 0) > 0
+                                      );
+                                      const shouldExpandNested = subCount > 0 || nestedWithResults.length > 0 || hasNestedSelected;
+                                      
+                                      // Skip subcategories with no results at all
+                                      if (subCount === 0 && nestedWithResults.length === 0 && !hasNestedSelected) {
+                                        return null;
+                                      }
                                       
                                       return (
                                         <div key={sub.id}>
@@ -1169,23 +1203,40 @@ export default function ClientPortal() {
                                             className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-between ${
                                               isSubSelected 
                                                 ? "bg-primary text-primary-foreground" 
+                                                : hasNestedSelected
+                                                ? "bg-primary/10"
+                                                : subCount > 0
+                                                ? "hover:bg-muted font-medium text-foreground"
                                                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                             }`}
                                           >
                                             <span className="truncate">{sub.name}</span>
-                                            {subCount > 0 && (
-                                              <span className={`text-xs shrink-0 ml-2 ${isSubSelected ? "" : "text-primary"}`}>
-                                                {subCount}
-                                              </span>
-                                            )}
+                                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                                              {subCount > 0 && (
+                                                <Badge 
+                                                  variant={isSubSelected ? "secondary" : "outline"} 
+                                                  className="text-[10px] px-1.5 py-0"
+                                                >
+                                                  {subCount}
+                                                </Badge>
+                                              )}
+                                              {nestedWithResults.length > 0 && subCount === 0 && (
+                                                <span className="text-xs text-primary">•</span>
+                                              )}
+                                            </div>
                                           </button>
                                           
-                                          {/* Third level */}
-                                          {nestedSubs.length > 0 && (
-                                            <div className="ml-2 mt-0.5 space-y-0.5 border-l pl-2">
+                                          {/* Third level - only show if should expand */}
+                                          {nestedSubs.length > 0 && shouldExpandNested && (
+                                            <div className="ml-2 mt-0.5 space-y-0.5 border-l border-primary/10 pl-2">
                                               {nestedSubs.map((nested: any) => {
                                                 const nestedCount = legislationByCategory?.byCategory?.get(nested.id) || 0;
                                                 const isNestedSelected = categoryFilter === nested.id;
+                                                
+                                                // Skip if no results
+                                                if (nestedCount === 0 && !isNestedSelected) {
+                                                  return null;
+                                                }
                                                 
                                                 return (
                                                   <button
@@ -1194,14 +1245,19 @@ export default function ClientPortal() {
                                                     className={`w-full text-left px-2 py-1 rounded text-xs transition-colors flex items-center justify-between ${
                                                       isNestedSelected 
                                                         ? "bg-primary text-primary-foreground" 
+                                                        : nestedCount > 0
+                                                        ? "hover:bg-muted font-medium text-foreground"
                                                         : "text-muted-foreground/70 hover:text-foreground hover:bg-muted"
                                                     }`}
                                                   >
                                                     <span className="truncate">{nested.name}</span>
                                                     {nestedCount > 0 && (
-                                                      <span className={`text-xs shrink-0 ml-2 ${isNestedSelected ? "" : "text-primary/70"}`}>
+                                                      <Badge 
+                                                        variant={isNestedSelected ? "secondary" : "outline"} 
+                                                        className="text-[10px] px-1.5 py-0"
+                                                      >
                                                         {nestedCount}
-                                                      </span>
+                                                      </Badge>
                                                     )}
                                                   </button>
                                                 );
