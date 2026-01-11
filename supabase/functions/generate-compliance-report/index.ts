@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type ReportType = "compliance" | "legislation" | "requirements";
+type ReportType = "compliance" | "legislation" | "requirements" | "audit";
 
 function escapeHtml(text: string): string {
   return text
@@ -26,10 +26,18 @@ function formatDate(dateStr: string | null): string {
 function getStatusLabel(status: string): string {
   switch (status) {
     case "conforme": return "Conforme";
+    case "compliant": return "Conforme";
     case "nao_conforme": return "Não Conforme";
+    case "non_compliant": return "Não Conforme";
+    case "partial": return "Parcial";
     case "em_curso": return "Em Avaliação";
+    case "pending": return "Pendente";
     case "pendente": return "Pendente";
     case "concluido": return "Concluído";
+    case "planned": return "Planeada";
+    case "in_progress": return "Em Curso";
+    case "completed": return "Concluída";
+    case "cancelled": return "Cancelada";
     default: return status || "Pendente";
   }
 }
@@ -37,9 +45,17 @@ function getStatusLabel(status: string): string {
 function getStatusColor(status: string): string {
   switch (status) {
     case "conforme": return "#16a34a";
+    case "compliant": return "#16a34a";
+    case "completed": return "#16a34a";
     case "concluido": return "#16a34a";
     case "nao_conforme": return "#dc2626";
+    case "non_compliant": return "#dc2626";
+    case "cancelled": return "#6b7280";
+    case "partial": return "#f59e0b";
     case "em_curso": return "#ca8a04";
+    case "in_progress": return "#ca8a04";
+    case "planned": return "#3b82f6";
+    case "pending": return "#6b7280";
     default: return "#6b7280";
   }
 }
@@ -89,6 +105,11 @@ function getBaseStyles(): string {
     .legislation-section { margin-bottom: 25px; page-break-inside: avoid; }
     .no-data { color: #9ca3af; font-style: italic; padding: 15px; text-align: center; background: #f9fafb; border-radius: 4px; }
     .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #9ca3af; font-size: 9px; }
+    .audit-header-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .audit-info-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .audit-info-label { color: #6b7280; font-weight: 500; }
+    .findings-box { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 15px; margin-top: 20px; }
+    .recommendations-box { background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 15px; margin-top: 15px; }
     @media print { body { padding: 20px; } .legislation-section { page-break-inside: avoid; } }
   `;
 }
@@ -345,28 +366,265 @@ function generateComplianceReport(data: any): string {
   `;
 }
 
+// Generate Audit Report
+function generateAuditReport(data: any): string {
+  const complianceStats = {
+    compliant: data.requirements.filter((r: any) => r.compliance_status === "compliant").length,
+    nonCompliant: data.requirements.filter((r: any) => r.compliance_status === "non_compliant").length,
+    partial: data.requirements.filter((r: any) => r.compliance_status === "partial").length,
+    pending: data.requirements.filter((r: any) => !r.compliance_status || r.compliance_status === "pending").length,
+  };
+  const total = data.requirements.length;
+  const complianceRate = total > 0 ? Math.round((complianceStats.compliant / total) * 100) : 0;
+
+  return `
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Auditoria - ${escapeHtml(data.audit.title)}</title>
+  <style>${getBaseStyles()}</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Relatório de Auditoria</h1>
+      <div class="org-name">${escapeHtml(data.audit.title)}</div>
+    </div>
+    <div class="date">
+      <strong>Data de Geração</strong><br/>
+      ${data.generatedAt}
+    </div>
+  </div>
+
+  <div class="audit-header-info">
+    <div>
+      <div class="audit-info-item">
+        <span class="audit-info-label">Organização:</span>
+        <span>${escapeHtml(data.organization.name)}</span>
+      </div>
+      <div class="audit-info-item">
+        <span class="audit-info-label">Estado:</span>
+        <span class="status-badge" style="background-color: ${getStatusColor(data.audit.status)}">${getStatusLabel(data.audit.status)}</span>
+      </div>
+    </div>
+    <div>
+      ${data.audit.auditor ? `
+        <div class="audit-info-item">
+          <span class="audit-info-label">Auditor:</span>
+          <span>${escapeHtml(data.audit.auditor)}</span>
+        </div>
+      ` : ""}
+      ${data.audit.audit_date ? `
+        <div class="audit-info-item">
+          <span class="audit-info-label">Data da Auditoria:</span>
+          <span>${formatDate(data.audit.audit_date)}</span>
+        </div>
+      ` : ""}
+    </div>
+  </div>
+
+  ${data.audit.description ? `<p style="margin-bottom: 20px; color: #4b5563;">${escapeHtml(data.audit.description)}</p>` : ""}
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="value">${total}</div>
+      <div class="label">Total Requisitos</div>
+    </div>
+    <div class="stat-card green">
+      <div class="value">${complianceStats.compliant}</div>
+      <div class="label">Conforme</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="value">${complianceStats.partial}</div>
+      <div class="label">Parcial</div>
+    </div>
+    <div class="stat-card red">
+      <div class="value">${complianceStats.nonCompliant}</div>
+      <div class="label">Não Conforme</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">${complianceStats.pending}</div>
+      <div class="label">Pendente</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="value">${complianceRate}%</div>
+      <div class="label">Taxa Conformidade</div>
+    </div>
+  </div>
+
+  ${data.audit.findings ? `
+    <div class="findings-box">
+      <strong>Constatações Gerais</strong>
+      <p style="margin-top: 8px;">${escapeHtml(data.audit.findings)}</p>
+    </div>
+  ` : ""}
+
+  ${data.audit.recommendations ? `
+    <div class="recommendations-box">
+      <strong>Recomendações</strong>
+      <p style="margin-top: 8px;">${escapeHtml(data.audit.recommendations)}</p>
+    </div>
+  ` : ""}
+
+  <h2>Requisitos Auditados</h2>
+  ${data.groupedRequirements.length > 0 ? data.groupedRequirements.map((group: any) => `
+    <div class="legislation-section">
+      <h3>${escapeHtml(group.legislationNumber)} - ${escapeHtml(group.legislationTitle)}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 10%">Artigo</th>
+            <th style="width: 35%">Requisito</th>
+            <th style="width: 12%">Aplicabilidade</th>
+            <th style="width: 12%">Conformidade</th>
+            <th style="width: 15%">Evidência</th>
+            <th style="width: 16%">Constatações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${group.requirements.map((req: any) => `
+            <tr>
+              <td>${escapeHtml(req.article || "-")}</td>
+              <td>${escapeHtml(req.text)}</td>
+              <td>${escapeHtml(req.applicability_type || "-")}</td>
+              <td><span class="status-badge" style="background-color: ${getStatusColor(req.compliance_status)}">${getStatusLabel(req.compliance_status || "pending")}</span></td>
+              <td>${escapeHtml(req.evidence || "-")}</td>
+              <td>${escapeHtml(req.findings || "-")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `).join("") : "<p class='no-data'>Nenhum requisito incluído nesta auditoria</p>"}
+
+  <div class="footer">
+    Relatório de Auditoria gerado automaticamente pelo Sistema de Gestão de Conformidade Legal
+  </div>
+</body>
+</html>
+  `;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { organizationId, reportType = "compliance" } = await req.json();
+    const { organizationId, reportType = "compliance", auditId } = await req.json();
 
-    if (!organizationId) {
-      return new Response(
-        JSON.stringify({ error: "organizationId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Validate inputs based on report type
+    if (reportType === "audit") {
+      if (!auditId) {
+        return new Response(
+          JSON.stringify({ error: "auditId is required for audit reports" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      if (!organizationId) {
+        return new Response(
+          JSON.stringify({ error: "organizationId is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    console.log(`Generating ${reportType} report for organization: ${organizationId}`);
+    console.log(`Generating ${reportType} report${auditId ? ` for audit: ${auditId}` : ` for organization: ${organizationId}`}`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch organization
+    const generatedAt = new Date().toLocaleDateString("pt-PT", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // Handle audit report separately
+    if (reportType === "audit") {
+      // Fetch audit with details
+      const { data: audit, error: auditError } = await supabase
+        .from("audits")
+        .select(`
+          *,
+          organizations(id, name),
+          audit_requirements(
+            *,
+            legal_requirements(id, article, requirement_text),
+            legislation(id, number, title)
+          )
+        `)
+        .eq("id", auditId)
+        .single();
+
+      if (auditError || !audit) {
+        console.error("Error fetching audit:", auditError);
+        return new Response(
+          JSON.stringify({ error: "Audit not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Group requirements by legislation
+      const legMap = new Map<string, any>();
+      audit.audit_requirements?.forEach((ar: any) => {
+        const legId = ar.legislation_id;
+        if (!legMap.has(legId)) {
+          legMap.set(legId, {
+            legislationNumber: ar.legislation?.number || "N/A",
+            legislationTitle: ar.legislation?.title || "N/A",
+            requirements: [],
+          });
+        }
+        legMap.get(legId).requirements.push({
+          article: ar.legal_requirements?.article,
+          text: ar.legal_requirements?.requirement_text || "",
+          applicability_type: ar.applicability_type,
+          compliance_status: ar.compliance_status,
+          evidence: ar.evidence,
+          findings: ar.findings,
+        });
+      });
+
+      const groupedRequirements: any[] = [];
+      legMap.forEach((value) => groupedRequirements.push(value));
+
+      const auditData = {
+        audit: {
+          title: audit.title,
+          description: audit.description,
+          status: audit.status,
+          auditor: audit.auditor,
+          audit_date: audit.audit_date,
+          findings: audit.findings,
+          recommendations: audit.recommendations,
+        },
+        organization: { name: audit.organizations?.name || "N/A" },
+        generatedAt,
+        requirements: audit.audit_requirements || [],
+        groupedRequirements,
+      };
+
+      const html = generateAuditReport(auditData);
+      const filename = `relatorio-auditoria-${audit.title.replace(/[^a-zA-Z0-9]/g, "-")}.html`;
+
+      console.log(`Audit report generated: ${filename}`);
+
+      return new Response(html, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+        },
+      });
+    }
+
+    // Fetch organization for other report types
     const { data: organization, error: orgError } = await supabase
       .from("organizations")
       .select("*")
@@ -461,14 +719,6 @@ serve(async (req) => {
     if (stats.totalRequirements > 0) {
       stats.complianceRate = Math.round((stats.conforme / stats.totalRequirements) * 100);
     }
-
-    const generatedAt = new Date().toLocaleDateString("pt-PT", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
 
     let html: string;
     let filename: string;
