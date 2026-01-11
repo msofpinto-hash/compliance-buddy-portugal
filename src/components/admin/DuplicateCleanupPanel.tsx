@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   AlertTriangle, 
   Loader2, 
@@ -15,7 +16,8 @@ import {
   ExternalLink,
   Calendar,
   FileText,
-  Building2
+  Building2,
+  Filter
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,6 +97,51 @@ export function DuplicateCleanupPanel() {
     duplicateGroups: number;
     totalDuplicates: number;
   } | null>(null);
+  const [incompleteFilter, setIncompleteFilter] = useState<string>("all");
+
+  // Check if a group has incomplete data
+  const groupHasIncompleteData = (group: DuplicateGroup): { incomplete: boolean; issues: string[] } => {
+    const issues: string[] = [];
+    const bestItem = group.items.find(i => i.id === group.selectedKeepId) || group.items[0];
+    
+    // Check all items in group - if ANY is missing critical data, flag it
+    const allItemsMissingSummary = group.items.every(i => !i.summary || i.summary.length < 10);
+    const allItemsMissingEntity = group.items.every(i => !i.entity);
+    const allItemsMissingEffectiveDate = group.items.every(i => !i.effective_date);
+    const allItemsMissingPublicationDate = group.items.every(i => !i.publication_date);
+    
+    if (allItemsMissingSummary) issues.push("sumário");
+    if (allItemsMissingEntity) issues.push("entidade");
+    if (allItemsMissingEffectiveDate) issues.push("data vigor");
+    if (allItemsMissingPublicationDate) issues.push("data publicação");
+    
+    return { incomplete: issues.length > 0, issues };
+  };
+
+  // Filter groups based on selected filter
+  const filteredGroups = useMemo(() => {
+    if (incompleteFilter === "all") return duplicateGroups;
+    if (incompleteFilter === "incomplete") {
+      return duplicateGroups.filter(g => groupHasIncompleteData(g).incomplete);
+    }
+    if (incompleteFilter === "complete") {
+      return duplicateGroups.filter(g => !groupHasIncompleteData(g).incomplete);
+    }
+    // Specific field filters
+    return duplicateGroups.filter(g => {
+      const { issues } = groupHasIncompleteData(g);
+      if (incompleteFilter === "missing-summary") return issues.includes("sumário");
+      if (incompleteFilter === "missing-entity") return issues.includes("entidade");
+      if (incompleteFilter === "missing-effective-date") return issues.includes("data vigor");
+      if (incompleteFilter === "missing-publication-date") return issues.includes("data publicação");
+      return true;
+    });
+  }, [duplicateGroups, incompleteFilter]);
+
+  // Count incomplete groups
+  const incompleteCount = useMemo(() => {
+    return duplicateGroups.filter(g => groupHasIncompleteData(g).incomplete).length;
+  }, [duplicateGroups]);
 
   const scanForDuplicates = async () => {
     setIsScanning(true);
@@ -445,15 +492,52 @@ export function DuplicateCleanupPanel() {
         {duplicateGroups.length > 0 && (
           <>
             <Separator />
+
+            {/* Filter controls */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filtrar:</span>
+              </div>
+              <Select value={incompleteFilter} onValueChange={setIncompleteFilter}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os grupos ({duplicateGroups.length})</SelectItem>
+                  <SelectItem value="incomplete">
+                    Dados incompletos ({incompleteCount})
+                  </SelectItem>
+                  <SelectItem value="complete">Dados completos ({duplicateGroups.length - incompleteCount})</SelectItem>
+                  <SelectItem value="missing-summary">Sem sumário</SelectItem>
+                  <SelectItem value="missing-entity">Sem entidade</SelectItem>
+                  <SelectItem value="missing-effective-date">Sem data de vigor</SelectItem>
+                  <SelectItem value="missing-publication-date">Sem data de publicação</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {incompleteCount > 0 && (
+                <Badge variant="outline" className="text-amber-600 border-amber-300">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  {incompleteCount} grupos com dados em falta
+                </Badge>
+              )}
+            </div>
             
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Checkbox
-                  checked={selectedGroups.size === duplicateGroups.length}
-                  onCheckedChange={selectAllGroups}
+                  checked={selectedGroups.size === filteredGroups.length && filteredGroups.length > 0}
+                  onCheckedChange={() => {
+                    if (selectedGroups.size === filteredGroups.length) {
+                      setSelectedGroups(new Set());
+                    } else {
+                      setSelectedGroups(new Set(filteredGroups.map(g => g.normalizedNumber)));
+                    }
+                  }}
                 />
                 <span className="text-sm">
-                  Selecionar todos ({selectedGroups.size}/{duplicateGroups.length})
+                  Selecionar visíveis ({selectedGroups.size}/{filteredGroups.length})
                 </span>
               </div>
 
@@ -473,15 +557,23 @@ export function DuplicateCleanupPanel() {
 
             <ScrollArea className="h-[500px] border rounded-lg p-4">
               <div className="space-y-4">
-                {duplicateGroups.map((group) => (
-                  <DuplicateGroupCard
-                    key={group.normalizedNumber}
-                    group={group}
-                    isSelected={selectedGroups.has(group.normalizedNumber)}
-                    onToggleSelection={() => toggleGroupSelection(group.normalizedNumber)}
-                    onSetKeepItem={(itemId) => setKeepItem(group.normalizedNumber, itemId)}
-                  />
-                ))}
+                {filteredGroups.length > 0 ? (
+                  filteredGroups.map((group) => (
+                    <DuplicateGroupCard
+                      key={group.normalizedNumber}
+                      group={group}
+                      isSelected={selectedGroups.has(group.normalizedNumber)}
+                      onToggleSelection={() => toggleGroupSelection(group.normalizedNumber)}
+                      onSetKeepItem={(itemId) => setKeepItem(group.normalizedNumber, itemId)}
+                      incompleteInfo={groupHasIncompleteData(group)}
+                    />
+                  ))
+                ) : (
+                  <div className="flex items-center justify-center py-8 text-muted-foreground">
+                    <CheckCircle2 className="h-5 w-5 mr-2 text-green-500" />
+                    Nenhum grupo corresponde ao filtro selecionado
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </>
@@ -503,11 +595,12 @@ interface DuplicateGroupCardProps {
   isSelected: boolean;
   onToggleSelection: () => void;
   onSetKeepItem: (itemId: string) => void;
+  incompleteInfo: { incomplete: boolean; issues: string[] };
 }
 
-function DuplicateGroupCard({ group, isSelected, onToggleSelection, onSetKeepItem }: DuplicateGroupCardProps) {
+function DuplicateGroupCard({ group, isSelected, onToggleSelection, onSetKeepItem, incompleteInfo }: DuplicateGroupCardProps) {
   return (
-    <div className={`border rounded-lg p-4 ${isSelected ? 'border-primary bg-primary/5' : ''}`}>
+    <div className={`border rounded-lg p-4 ${isSelected ? 'border-primary bg-primary/5' : ''} ${incompleteInfo.incomplete ? 'border-l-4 border-l-amber-400' : ''}`}>
       <div className="flex items-start gap-3">
         <Checkbox
           checked={isSelected}
@@ -516,13 +609,19 @@ function DuplicateGroupCard({ group, isSelected, onToggleSelection, onSetKeepIte
         />
         
         <div className="flex-1 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="font-medium">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="font-medium flex items-center gap-2">
               {group.items[0].number}
-              <Badge variant="outline" className="ml-2">
+              <Badge variant="outline">
                 {group.items.length} registos
               </Badge>
             </div>
+            {incompleteInfo.incomplete && (
+              <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Falta: {incompleteInfo.issues.join(", ")}
+              </Badge>
+            )}
           </div>
 
           <div className="space-y-2">
