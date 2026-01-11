@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { CategoryTreeItem } from "@/components/client/CategoryTreeItem";
+import { MyComplianceRequestsPanel } from "@/components/client/MyComplianceRequestsPanel";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
@@ -835,7 +836,8 @@ export default function ClientPortal() {
                 </Card>
               </div>
 
-              {/* Assigned Themes with Categories */}
+              {/* My Compliance Requests */}
+              <MyComplianceRequestsPanel organizationIds={organizationIds} />
               {assignedThemes && assignedThemes.length > 0 && (
                 <Card>
                   <CardHeader>

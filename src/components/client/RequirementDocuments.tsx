@@ -36,11 +36,13 @@ import {
   AlertTriangle,
   Paperclip,
   Eye,
-  X
+  X,
+  Send
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { RequestComplianceChangeDialog } from "./RequestComplianceChangeDialog";
 
 interface RequirementDocumentsProps {
   organizationId: string;
@@ -278,13 +280,31 @@ export function RequirementDocuments({
           </div>
           
           {!isReadOnly && (
-            <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-2 shrink-0">
-                  <Upload className="h-4 w-4" />
-                  Carregar
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2 shrink-0">
+              {applicability?.id && (
+                <RequestComplianceChangeDialog
+                  organizationId={organizationId}
+                  applicabilityId={applicability.id}
+                  requirementText={requirementText}
+                  article={article}
+                  legislationNumber={legislationNumber}
+                  currentComplianceStatus={applicability.compliance_status}
+                  currentApplicabilityType={null}
+                  currentNotes={applicability.notes}
+                  trigger={
+                    <Button size="sm" variant="ghost" className="gap-2" title="Solicitar alteração">
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  }
+                />
+              )}
+              <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Carregar
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Carregar Evidência</DialogTitle>
@@ -357,6 +377,7 @@ export function RequirementDocuments({
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
           )}
         </div>
       </CardHeader>
