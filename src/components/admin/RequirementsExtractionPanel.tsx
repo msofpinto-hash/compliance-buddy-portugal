@@ -21,8 +21,10 @@ import {
   Zap,
   Square,
   RefreshCw,
-  RotateCcw
+  RotateCcw,
+  Download
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface ExtractionResult {
   legislationId: string;
@@ -89,6 +91,51 @@ export function RequirementsExtractionPanel() {
       };
     },
   });
+
+  // Export failed items to Excel
+  const handleExportFailedToExcel = () => {
+    if (failedItems.length === 0) {
+      toast({
+        title: "Sem dados",
+        description: "Não há diplomas falhados para exportar.",
+      });
+      return;
+    }
+
+    const exportData = failedItems.map((item, index) => ({
+      "#": index + 1,
+      "ID Legislação": item.legislationId,
+      "Número": item.legislationNumber,
+      "Erro": item.error,
+      "Tentativas": item.retryCount,
+      "Máx. Tentativas": maxRetries,
+      "Data Exportação": new Date().toLocaleString("pt-PT"),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Diplomas Falhados");
+
+    // Auto-size columns
+    const colWidths = [
+      { wch: 5 },   // #
+      { wch: 40 },  // ID
+      { wch: 25 },  // Número
+      { wch: 50 },  // Erro
+      { wch: 12 },  // Tentativas
+      { wch: 15 },  // Máx. Tentativas
+      { wch: 20 },  // Data
+    ];
+    worksheet["!cols"] = colWidths;
+
+    const fileName = `diplomas_falhados_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+    toast({
+      title: "Exportação concluída",
+      description: `${failedItems.length} diplomas exportados para ${fileName}`,
+    });
+  };
 
   // Handle retry of failed items
   const handleRetryFailed = async (idsToRetry?: string[]) => {
@@ -575,6 +622,15 @@ export function RequirementsExtractionPanel() {
                   </span>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleExportFailedToExcel}
+                    className="gap-1"
+                  >
+                    <Download className="h-3 w-3" />
+                    Exportar Excel
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
