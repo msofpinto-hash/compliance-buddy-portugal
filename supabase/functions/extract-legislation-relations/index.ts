@@ -191,6 +191,65 @@ function normalizeNumber(num: string): string {
     .trim();
 }
 
+// Determine origin from legislation number
+function determineOrigin(number: string): string {
+  const lowerNum = number.toLowerCase();
+  if (lowerNum.includes('diretiva') || lowerNum.includes('regulamento') && lowerNum.includes('/ue')) {
+    return 'EU';
+  }
+  return 'PT';
+}
+
+// Extract year from legislation number
+function extractYear(number: string): number | null {
+  const yearMatch = number.match(/\/(\d{4})/);
+  if (yearMatch) {
+    return parseInt(yearMatch[1]);
+  }
+  const shortYearMatch = number.match(/\/(\d{2})(?!\d)/);
+  if (shortYearMatch) {
+    const shortYear = parseInt(shortYearMatch[1]);
+    return shortYear > 50 ? 1900 + shortYear : 2000 + shortYear;
+  }
+  return null;
+}
+
+// Create missing legislation in database
+async function createMissingLegislation(
+  supabase: any,
+  targetNumber: string,
+  notes?: string
+): Promise<{ id: string; number: string } | null> {
+  try {
+    const origin = determineOrigin(targetNumber);
+    const year = extractYear(targetNumber);
+    
+    // Create minimal legislation record
+    const { data, error } = await supabase
+      .from('legislation')
+      .insert({
+        number: targetNumber,
+        title: targetNumber, // Use number as title initially
+        origin,
+        publication_date: year ? `${year}-01-01` : null,
+        summary: notes || `Diploma referenciado - a aguardar importação completa`,
+      })
+      .select('id, number')
+      .single();
+    
+    if (error) {
+      console.error(`Failed to create legislation "${targetNumber}":`, error);
+      return null;
+    }
+    
+    console.log(`✓ Created missing legislation: ${targetNumber} (id: ${data.id})`);
+    return { id: data.id, number: data.number };
+  } catch (error) {
+    console.error(`Error creating legislation "${targetNumber}":`, error);
+    return null;
+  }
+}
+
 // Try to match extracted number with existing legislation
 function findMatchingLegislation(
   targetNumber: string,
@@ -240,7 +299,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { legislationIds, limit = 10, dryRun = false, origin } = await req.json();
+    const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -336,6 +395,10 @@ Deno.serve(async (req) => {
     let totalRelationsFound = 0;
     let totalRelationsMatched = 0;
     let totalRelationsCreated = 0;
+    let totalLegislationCreated = 0;
+    
+    // Keep track of newly created legislation for matching
+    const newlyCreatedLegislation: Array<{ id: string; number: string; title: string }> = [];
 
     for (const leg of legislationToProcess) {
       console.log(`\n=== Processing relations: ${leg.number} ===`);
@@ -390,14 +453,31 @@ Deno.serve(async (req) => {
         }> = [];
 
         for (const rel of extractedRelations) {
-          const match = findMatchingLegislation(rel.target_number, allLegislation);
+          // First try to match in existing + newly created legislation
+          const combinedLegislation = [...allLegislation, ...newlyCreatedLegislation];
+          let match = findMatchingLegislation(rel.target_number, combinedLegislation);
+          
+          // If no match and autoImport is enabled, create the missing legislation
+          let wasCreated = false;
+          if (!match && autoImport && !dryRun) {
+            const created = await createMissingLegislation(supabase, rel.target_number, rel.notes);
+            if (created) {
+              match = created;
+              wasCreated = true;
+              totalLegislationCreated++;
+              // Add to our tracking arrays for future matching in this run
+              newlyCreatedLegislation.push({ id: created.id, number: created.number, title: created.number });
+              allLegislation.push({ id: created.id, number: created.number, title: created.number });
+            }
+          }
           
           relationDetails.push({
             type: rel.relation_type,
             targetNumber: rel.target_number,
             targetId: match?.id,
-            matched: !!match
-          });
+            matched: !!match,
+            created: wasCreated,
+          } as any);
 
           if (match) {
             totalRelationsMatched++;
@@ -467,17 +547,20 @@ Deno.serve(async (req) => {
     console.log(`\n=== COMPLETE ===`);
     console.log(`Successful: ${successful}, Failed: ${failed}`);
     console.log(`Relations: ${totalRelationsFound} found, ${totalRelationsMatched} matched, ${totalRelationsCreated} created`);
+    console.log(`Missing legislation auto-imported: ${totalLegislationCreated}`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         dryRun,
+        autoImport,
         processed: results.length,
         successful,
         failed,
         totalRelationsFound,
         totalRelationsMatched,
         totalRelationsCreated,
+        totalLegislationCreated,
         results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
