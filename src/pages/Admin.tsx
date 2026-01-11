@@ -8,6 +8,7 @@ import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
 import { RequirementsExtractionPanel } from "@/components/admin/RequirementsExtractionPanel";
 import { AuditsPanel } from "@/components/admin/AuditsPanel";
 import { ActionPlansPanel } from "@/components/admin/ActionPlansPanel";
+import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -32,6 +33,7 @@ const Admin = () => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
+            <AlertsNotificationBell />
             <LogoutConfirmDialog 
               onConfirm={signOut} 
               variant="ghost" 

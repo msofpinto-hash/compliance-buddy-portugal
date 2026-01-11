@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.extract-requirements]
 verify_jwt = false
+
+[functions.fix-eurlex-titles]
+verify_jwt = false
+
+[functions.check-action-plan-deadlines]
+verify_jwt = false
