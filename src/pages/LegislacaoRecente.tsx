@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ArrowLeft,
   ExternalLink,
@@ -18,7 +21,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Filter,
+  CalendarIcon,
+  X
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,32 +42,74 @@ export default function LegislacaoRecente() {
   const [sortField, setSortField] = useState<"date" | "title">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Filter states
+  const [originFilter, setOriginFilter] = useState<"all" | "PT" | "EU">("all");
+  const [readFilter, setReadFilter] = useState<"all" | "read" | "unread">("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  
   const itemsPerPage = 25;
 
-  // Fetch total count
+  // Fetch total count with filters
   const { data: totalCount } = useQuery({
-    queryKey: ["legislation-count"],
+    queryKey: ["legislation-count", originFilter, dateFrom, dateTo],
     queryFn: async () => {
-      const { count, error } = await supabase
+      let query = supabase
         .from("legislation")
         .select("*", { count: "exact", head: true });
+      
+      // Apply origin filter
+      if (originFilter === "PT") {
+        query = query.eq("source", "dre");
+      } else if (originFilter === "EU") {
+        query = query.eq("source", "eurlex");
+      }
+      
+      // Apply date filters
+      if (dateFrom) {
+        query = query.gte("publication_date", format(dateFrom, "yyyy-MM-dd"));
+      }
+      if (dateTo) {
+        query = query.lte("publication_date", format(dateTo, "yyyy-MM-dd"));
+      }
+      
+      const { count, error } = await query;
       if (error) throw error;
       return count || 0;
     },
   });
 
-  // Fetch legislation with pagination
+  // Fetch legislation with pagination and filters
   const { data: legislation, isLoading } = useQuery({
-    queryKey: ["legislation-list", currentPage, sortField, sortOrder],
+    queryKey: ["legislation-list", currentPage, sortField, sortOrder, originFilter, dateFrom, dateTo],
     queryFn: async () => {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       
       const orderColumn = sortField === "date" ? "publication_date" : "title";
       
-      const { data, error } = await supabase
+      let query = supabase
         .from("legislation")
-        .select("*")
+        .select("*");
+      
+      // Apply origin filter
+      if (originFilter === "PT") {
+        query = query.eq("source", "dre");
+      } else if (originFilter === "EU") {
+        query = query.eq("source", "eurlex");
+      }
+      
+      // Apply date filters
+      if (dateFrom) {
+        query = query.gte("publication_date", format(dateFrom, "yyyy-MM-dd"));
+      }
+      if (dateTo) {
+        query = query.lte("publication_date", format(dateTo, "yyyy-MM-dd"));
+      }
+      
+      const { data, error } = await query
         .order(orderColumn, { ascending: sortOrder === "asc" })
         .range(from, to);
       if (error) throw error;
@@ -222,16 +270,41 @@ export default function LegislacaoRecente() {
     setExpandedItems(new Set()); // Reset expanded items when changing page
   };
 
-  // Filter legislation (only client-side search within current page)
+  // Filter legislation (client-side search and read filter within current page)
   const filteredLegislation = legislation?.filter(leg => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      leg.number.toLowerCase().includes(search) ||
-      leg.title.toLowerCase().includes(search) ||
-      leg.summary?.toLowerCase().includes(search)
-    );
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = (
+        leg.number.toLowerCase().includes(search) ||
+        leg.title.toLowerCase().includes(search) ||
+        leg.summary?.toLowerCase().includes(search)
+      );
+      if (!matchesSearch) return false;
+    }
+    
+    // Read status filter (client-side as it depends on user data)
+    if (readFilter === "read" && !readItems.has(leg.id)) return false;
+    if (readFilter === "unread" && readItems.has(leg.id)) return false;
+    
+    return true;
   });
+
+  // Count active filters
+  const activeFiltersCount = [
+    originFilter !== "all",
+    readFilter !== "all",
+    dateFrom !== undefined,
+    dateTo !== undefined
+  ].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    setOriginFilter("all");
+    setReadFilter("all");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -261,9 +334,9 @@ export default function LegislacaoRecente() {
         </div>
       </header>
 
-      {/* Bulk Actions */}
+      {/* Bulk Actions & Filters */}
       <div className="border-b bg-muted/30">
-        <div className="container mx-auto px-4 py-3 flex flex-wrap gap-2">
+        <div className="container mx-auto px-4 py-3 flex flex-wrap items-center gap-2">
           <Button 
             variant="secondary" 
             size="sm" 
@@ -293,7 +366,132 @@ export default function LegislacaoRecente() {
             <Maximize2 className="h-4 w-4" />
             {expandedItems.size === (legislation?.length || 0) ? "Recolher Todos" : "Expandir Todos"}
           </Button>
+          
+          <div className="flex-1" />
+          
+          <Button 
+            variant={showFilters ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setShowFilters(!showFilters)}
+            className="gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filtros
+            {activeFiltersCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                {activeFiltersCount}
+              </Badge>
+            )}
+          </Button>
         </div>
+        
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="container mx-auto px-4 pb-4">
+            <div className="bg-background border rounded-lg p-4 space-y-4">
+              <div className="flex flex-wrap gap-4">
+                {/* Origin Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Origem</label>
+                  <Select value={originFilter} onValueChange={(value: "all" | "PT" | "EU") => { setOriginFilter(value); setCurrentPage(1); }}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="PT">🇵🇹 Portugal</SelectItem>
+                      <SelectItem value="EU">🇪🇺 Europa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Read Status Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Estado</label>
+                  <Select value={readFilter} onValueChange={(value: "all" | "read" | "unread") => setReadFilter(value)}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="read">Lidos</SelectItem>
+                      <SelectItem value="unread">Não lidos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Date From Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data de</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[140px] justify-start text-left font-normal",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Início"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={(date) => { setDateFrom(date); setCurrentPage(1); }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                {/* Date To Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data até</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[140px] justify-start text-left font-normal",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateTo ? format(dateTo, "dd/MM/yyyy") : "Fim"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={(date) => { setDateTo(date); setCurrentPage(1); }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              
+              {/* Clear Filters */}
+              {activeFiltersCount > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearAllFilters}
+                  className="gap-2 text-muted-foreground"
+                >
+                  <X className="h-4 w-4" />
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Search */}
