@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Search, 
   Upload, 
@@ -17,7 +19,6 @@ import {
   ChevronRight,
   File,
   Download,
-  Eye,
   Trash2,
   Loader2,
   Leaf,
@@ -29,7 +30,9 @@ import {
   Globe,
   Utensils,
   Award,
-  Send
+  Send,
+  CalendarIcon,
+  MessageSquare
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,9 +42,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 interface EvidenceRequest {
   id: string;
@@ -79,6 +84,8 @@ interface UploadedDocument {
     id: string;
     name: string;
     file_url: string | null;
+    validity_date: string | null;
+    user_notes: string | null;
   };
 }
 
@@ -116,6 +123,13 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
   const [selectedRequest, setSelectedRequest] = useState<EvidenceRequest | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [notes, setNotes] = useState("");
+  
+  // Document upload form state
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [hasValidity, setHasValidity] = useState(false);
+  const [validityDate, setValidityDate] = useState<Date | undefined>(undefined);
+  const [documentNotes, setDocumentNotes] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch evidence requests for this organization
   const { data: requests, isLoading: loadingRequests } = useQuery({
@@ -146,7 +160,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
         .from("evidence_request_documents")
         .select(`
           *,
-          documents (id, name, file_url)
+          documents (id, name, file_url, validity_date, user_notes)
         `)
         .in("request_id", requestIds);
       
@@ -164,7 +178,17 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
 
   // Upload document mutation
   const uploadMutation = useMutation({
-    mutationFn: async ({ requestId, file }: { requestId: string; file: File }) => {
+    mutationFn: async ({ 
+      requestId, 
+      file, 
+      validityDate, 
+      userNotes 
+    }: { 
+      requestId: string; 
+      file: File; 
+      validityDate?: Date;
+      userNotes?: string;
+    }) => {
       // First upload to storage
       const filePath = `evidence/${organizationId}/${requestId}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage
@@ -173,7 +197,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
       
       if (uploadError) throw uploadError;
 
-      // Create document record
+      // Create document record with validity and notes
       const { data: doc, error: docError } = await supabase
         .from("documents")
         .insert({
@@ -182,6 +206,8 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
           organization_id: organizationId,
           uploaded_by: user?.id,
           category: "evidence",
+          validity_date: validityDate ? format(validityDate, "yyyy-MM-dd") : null,
+          user_notes: userNotes || null,
         })
         .select()
         .single();
@@ -204,6 +230,12 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     onSuccess: () => {
       toast({ title: "Documento carregado", description: "O documento foi adicionado com sucesso." });
       queryClient.invalidateQueries({ queryKey: ["evidence-request-documents", organizationId] });
+      // Reset form
+      setPendingFile(null);
+      setHasValidity(false);
+      setValidityDate(undefined);
+      setDocumentNotes("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
     },
     onError: (error) => {
       console.error("Error uploading document:", error);
@@ -302,14 +334,23 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     setExpandedGroups(newExpanded);
   };
 
-  const handleFileSelect = async (file: File) => {
-    if (!selectedRequest) return;
+  const handleUploadWithMetadata = async () => {
+    if (!selectedRequest || !pendingFile) return;
     setUploadingFile(true);
     try {
-      await uploadMutation.mutateAsync({ requestId: selectedRequest.id, file });
+      await uploadMutation.mutateAsync({ 
+        requestId: selectedRequest.id, 
+        file: pendingFile,
+        validityDate: hasValidity ? validityDate : undefined,
+        userNotes: documentNotes || undefined,
+      });
     } finally {
       setUploadingFile(false);
     }
+  };
+
+  const handleFileChange = (file: File) => {
+    setPendingFile(file);
   };
 
   const getTemplateAreas = (template: EvidenceRequest["evidence_templates"]) => {
@@ -497,22 +538,39 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                                       ))}
                                     </div>
                                     
-                                    {/* Uploaded documents */}
                                     {docs.length > 0 && (
-                                      <div className="mt-3 space-y-1">
+                                      <div className="mt-3 space-y-2">
                                         <p className="text-xs font-medium text-muted-foreground">Documentos anexados:</p>
                                         {docs.map(doc => (
-                                          <div key={doc.id} className="flex items-center gap-2 text-sm bg-muted/50 rounded px-2 py-1">
-                                            <File className="h-3 w-3" />
-                                            <span className="flex-1 truncate">{doc.documents.name}</span>
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon" 
-                                              className="h-6 w-6"
-                                              onClick={() => handleDownload(doc.documents.file_url!, doc.documents.name)}
-                                            >
-                                              <Download className="h-3 w-3" />
-                                            </Button>
+                                          <div key={doc.id} className="text-sm bg-muted/50 rounded px-3 py-2">
+                                            <div className="flex items-center gap-2">
+                                              <File className="h-3 w-3 shrink-0" />
+                                              <span className="flex-1 truncate font-medium">{doc.documents.name}</span>
+                                              <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-6 w-6"
+                                                onClick={() => handleDownload(doc.documents.file_url!, doc.documents.name)}
+                                              >
+                                                <Download className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                            {(doc.documents.validity_date || doc.documents.user_notes) && (
+                                              <div className="mt-1 pl-5 space-y-0.5">
+                                                {doc.documents.validity_date && (
+                                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <CalendarIcon className="h-3 w-3" />
+                                                    Validade: {format(new Date(doc.documents.validity_date), "dd/MM/yyyy", { locale: pt })}
+                                                  </p>
+                                                )}
+                                                {doc.documents.user_notes && (
+                                                  <p className="text-xs text-muted-foreground flex items-start gap-1">
+                                                    <MessageSquare className="h-3 w-3 mt-0.5 shrink-0" />
+                                                    <span>{doc.documents.user_notes}</span>
+                                                  </p>
+                                                )}
+                                              </div>
+                                            )}
                                           </div>
                                         ))}
                                       </div>
@@ -596,44 +654,129 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
             )}
 
             {/* File upload */}
-            <div>
+            <div className="space-y-3">
               <Label>Adicionar documento</Label>
-              <div className="mt-2">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    {uploadingFile ? (
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    ) : (
-                      <>
-                        <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          Clique ou arraste ficheiros
-                        </p>
-                      </>
-                    )}
+              
+              {/* File selector */}
+              {!pendingFile ? (
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex flex-col items-center justify-center">
+                    <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                    <p className="text-sm text-muted-foreground">
+                      Clique para selecionar ficheiro
+                    </p>
                   </div>
                   <input 
+                    ref={fileInputRef}
                     type="file" 
                     className="hidden" 
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleFileSelect(file);
+                      if (file) handleFileChange(file);
                     }}
-                    disabled={uploadingFile}
                   />
                 </label>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Selected file preview */}
+                  <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
+                    <File className="h-5 w-5 text-primary" />
+                    <span className="flex-1 truncate font-medium">{pendingFile.name}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        setPendingFile(null);
+                        setHasValidity(false);
+                        setValidityDate(undefined);
+                        setDocumentNotes("");
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                    >
+                      Alterar
+                    </Button>
+                  </div>
+                  
+                  {/* Validity date toggle and picker */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="has-validity" className="text-sm cursor-pointer">
+                        Documento tem validade?
+                      </Label>
+                      <Switch
+                        id="has-validity"
+                        checked={hasValidity}
+                        onCheckedChange={setHasValidity}
+                      />
+                    </div>
+                    
+                    {hasValidity && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !validityDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {validityDate ? format(validityDate, "PPP", { locale: pt }) : "Selecionar data de validade"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={validityDate}
+                            onSelect={setValidityDate}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                  
+                  {/* Document notes */}
+                  <div>
+                    <Label htmlFor="doc-notes" className="text-sm">Comentário sobre o documento (opcional)</Label>
+                    <Textarea
+                      id="doc-notes"
+                      placeholder="Ex: Certificado renovado em 2024..."
+                      value={documentNotes}
+                      onChange={(e) => setDocumentNotes(e.target.value)}
+                      className="mt-1"
+                      rows={2}
+                    />
+                  </div>
+                  
+                  {/* Upload button */}
+                  <Button 
+                    onClick={handleUploadWithMetadata}
+                    disabled={uploadingFile}
+                    className="w-full"
+                  >
+                    {uploadingFile ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="mr-2 h-4 w-4" />
+                    )}
+                    Carregar Documento
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {/* Notes */}
+            {/* Request-level Notes */}
             <div>
-              <Label htmlFor="notes">Observações (opcional)</Label>
+              <Label htmlFor="notes">Observações gerais (opcional)</Label>
               <Textarea
                 id="notes"
-                placeholder="Adicione notas ou comentários..."
+                placeholder="Notas gerais sobre esta submissão..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="mt-2"
+                rows={2}
               />
             </div>
           </div>
@@ -643,6 +786,10 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
               setUploadDialogOpen(false);
               setSelectedRequest(null);
               setNotes("");
+              setPendingFile(null);
+              setHasValidity(false);
+              setValidityDate(undefined);
+              setDocumentNotes("");
             }}>
               Cancelar
             </Button>
