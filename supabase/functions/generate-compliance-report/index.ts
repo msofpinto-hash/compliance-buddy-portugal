@@ -554,12 +554,91 @@ function generateAuditReport(data: any): string {
   `;
 }
 
+// Authentication helper - verifies user token and returns user info
+async function verifyAuth(req: Request): Promise<{ user: any; supabase: any; error?: Response }> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return {
+      user: null,
+      supabase: null,
+      error: new Response(
+        JSON.stringify({ error: "Unauthorized - missing Authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      ),
+    };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  
+  // Create client with user's auth context
+  const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  // Verify token and get claims
+  const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+  if (claimsError || !claimsData?.claims) {
+    return {
+      user: null,
+      supabase: null,
+      error: new Response(
+        JSON.stringify({ error: "Unauthorized - invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      ),
+    };
+  }
+
+  const userId = claimsData.claims.sub;
+
+  // Create service client for admin operations
+  const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+
+  return {
+    user: { id: userId, email: claimsData.claims.email },
+    supabase: supabaseService,
+  };
+}
+
+// Check if user has access to organization
+async function checkOrgAccess(supabase: any, userId: string, organizationId: string): Promise<boolean> {
+  // Check if user is admin (admins have access to all orgs)
+  const { data: adminRole } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+
+  if (adminRole) return true;
+
+  // Check if user belongs to the organization
+  const { data: userRole } = await supabase
+    .from("user_roles")
+    .select("organization_id")
+    .eq("user_id", userId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  return !!userRole;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Verify authentication
+    const auth = await verifyAuth(req);
+    if (auth.error) return auth.error;
+
+    const { user, supabase } = auth;
+    console.log(`Authenticated user: ${user.id}`);
+
     const { organizationId, reportType = "compliance", auditId } = await req.json();
 
     // Validate inputs based on report type
@@ -577,13 +656,19 @@ serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      // Verify user has access to the organization
+      if (organizationId) {
+        const hasAccess = await checkOrgAccess(supabase, user.id, organizationId);
+        if (!hasAccess) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden - no access to this organization" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
     }
 
     console.log(`Generating ${reportType} report${auditId ? ` for audit: ${auditId}` : ` for organization: ${organizationId}`}`);
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const generatedAt = new Date().toLocaleDateString("pt-PT", {
       day: "2-digit",
