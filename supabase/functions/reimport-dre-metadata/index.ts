@@ -176,8 +176,9 @@ Deno.serve(async (req) => {
     let query = supabase
       .from('legislation')
       .select('id, number, title, summary, entity, document_url, publication_date, effective_date')
-      .like('source', 'dre%')
-      .not('document_url', 'is', null);
+      .or('origin.eq.PT,origin.eq.dre,source.ilike.dre%')
+      .not('document_url', 'is', null)
+      .like('document_url', '%diariodarepublica.pt%');
     
     if (all2026) {
       // Get all 2026+ DRE legislation with missing data
