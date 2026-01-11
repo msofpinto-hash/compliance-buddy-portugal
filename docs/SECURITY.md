@@ -175,6 +175,31 @@ if (!adminRole) return 403;
 | Clients can update their evidence requests | UPDATE | `user_belongs_to_org(auth.uid(), organization_id)` |
 | Admins can manage organization evidence requests | ALL | `has_role(auth.uid(), 'admin')` |
 
+### Tabelas de Compliance (Com Workflow de Aprovação)
+
+#### `applicabilities`
+| Policy | Comando | Condição |
+|--------|---------|----------|
+| Clients can view their applicabilities | SELECT | `user_belongs_to_org(auth.uid(), organization_id)` |
+| Clients can update evidence files only | UPDATE | `user_belongs_to_org(auth.uid(), organization_id)` |
+| Admins can manage applicabilities | ALL | `has_role(auth.uid(), 'admin')` |
+| Admins can view all applicabilities | SELECT | `has_role(auth.uid(), 'admin')` |
+
+> **Nota**: Clientes não podem alterar diretamente o `compliance_status`. Devem criar um pedido de alteração.
+
+#### `compliance_change_requests` (Workflow de Aprovação)
+| Policy | Comando | Condição |
+|--------|---------|----------|
+| Clients can view their compliance requests | SELECT | `user_belongs_to_org(auth.uid(), organization_id)` |
+| Clients can create compliance requests | INSERT | `user_belongs_to_org() AND requested_by = auth.uid() AND status = 'pending'` |
+| Admins can manage compliance requests | ALL | `has_role(auth.uid(), 'admin')` |
+
+**Fluxo de Aprovação:**
+1. Cliente propõe alteração → cria `compliance_change_request` com status `pending`
+2. Admin revê o pedido → aprova ou rejeita
+3. Se aprovado → admin atualiza `applicabilities` com os valores propostos
+4. Histórico mantido na tabela de requests
+
 ### Tabelas de Configuração
 
 #### `themes`, `theme_categories`, `legislation_category_mapping`, `legislation_relations`

@@ -391,6 +391,75 @@ export type Database = {
           },
         ]
       }
+      compliance_change_requests: {
+        Row: {
+          applicability_id: string
+          created_at: string
+          id: string
+          organization_id: string
+          proposed_applicability_type: string | null
+          proposed_compliance_status: string | null
+          proposed_evidence_files: string[] | null
+          proposed_notes: string | null
+          request_reason: string | null
+          requested_by: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applicability_id: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          proposed_applicability_type?: string | null
+          proposed_compliance_status?: string | null
+          proposed_evidence_files?: string[] | null
+          proposed_notes?: string | null
+          request_reason?: string | null
+          requested_by: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applicability_id?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          proposed_applicability_type?: string | null
+          proposed_compliance_status?: string | null
+          proposed_evidence_files?: string[] | null
+          proposed_notes?: string | null
+          request_reason?: string | null
+          requested_by?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_change_requests_applicability_id_fkey"
+            columns: ["applicability_id"]
+            isOneToOne: false
+            referencedRelation: "applicabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_change_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           category: string | null
