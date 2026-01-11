@@ -235,7 +235,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           )}
           
-          <span className="flex-1 text-xs truncate min-w-0" title={node.category.name}>
+          <span className="flex-1 text-xs min-w-0" title={node.category.name}>
             {node.category.name}
           </span>
           
@@ -372,7 +372,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
       {/* Category tree */}
       {selectedTheme ? (
-        <Card className="w-64 min-w-[200px] flex-shrink-0">
+        <Card className="w-80 min-w-[280px] flex-shrink-0">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
@@ -413,7 +413,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           </CardContent>
         </Card>
       ) : hideThemesColumn ? (
-        <Card className="w-64 min-w-[200px] flex-shrink-0 overflow-hidden">
+        <Card className="w-80 min-w-[280px] flex-shrink-0 overflow-hidden">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm flex items-center gap-2">
               <Tags className="h-4 w-4" />
