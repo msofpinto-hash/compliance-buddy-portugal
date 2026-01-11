@@ -513,12 +513,13 @@ function generateAuditReport(data: any): string {
       <table>
         <thead>
           <tr>
-            <th style="width: 10%">Artigo</th>
-            <th style="width: 35%">Requisito</th>
-            <th style="width: 12%">Aplicabilidade</th>
-            <th style="width: 12%">Conformidade</th>
-            <th style="width: 15%">Evidência</th>
-            <th style="width: 16%">Constatações</th>
+            <th style="width: 8%">Artigo</th>
+            <th style="width: 28%">Requisito</th>
+            <th style="width: 10%">Aplicab.</th>
+            <th style="width: 10%">Conform.</th>
+            <th style="width: 14%">Evidência</th>
+            <th style="width: 14%">Constatações</th>
+            <th style="width: 16%">Documentos</th>
           </tr>
         </thead>
         <tbody>
@@ -530,6 +531,14 @@ function generateAuditReport(data: any): string {
               <td><span class="status-badge" style="background-color: ${getStatusColor(req.compliance_status)}">${getStatusLabel(req.compliance_status || "pending")}</span></td>
               <td>${escapeHtml(req.evidence || "-")}</td>
               <td>${escapeHtml(req.findings || "-")}</td>
+              <td>${req.documents && req.documents.length > 0 
+                ? req.documents.map((doc: any) => 
+                    doc.file_url 
+                      ? `<a href="${escapeHtml(doc.file_url)}" target="_blank" style="color: #2563eb; text-decoration: underline; display: block; font-size: 9px; margin-bottom: 2px;">📎 ${escapeHtml(doc.name)}</a>`
+                      : `<span style="font-size: 9px;">📎 ${escapeHtml(doc.name)}</span>`
+                  ).join("")
+                : "-"
+              }</td>
             </tr>
           `).join("")}
         </tbody>
@@ -609,6 +618,31 @@ serve(async (req) => {
         );
       }
 
+      // Fetch linked documents for each audit requirement
+      const requirementIds = audit.audit_requirements?.map((ar: any) => ar.id) || [];
+      let documentsMap = new Map<string, any[]>();
+      
+      if (requirementIds.length > 0) {
+        const { data: linkedDocs, error: docsError } = await supabase
+          .from("audit_requirement_documents")
+          .select(`
+            audit_requirement_id,
+            documents(id, name, file_url, category)
+          `)
+          .in("audit_requirement_id", requirementIds);
+
+        if (!docsError && linkedDocs) {
+          linkedDocs.forEach((ld: any) => {
+            if (!documentsMap.has(ld.audit_requirement_id)) {
+              documentsMap.set(ld.audit_requirement_id, []);
+            }
+            if (ld.documents) {
+              documentsMap.get(ld.audit_requirement_id)!.push(ld.documents);
+            }
+          });
+        }
+      }
+
       // Group requirements by legislation
       const legMap = new Map<string, any>();
       audit.audit_requirements?.forEach((ar: any) => {
@@ -627,6 +661,7 @@ serve(async (req) => {
           compliance_status: ar.compliance_status,
           evidence: ar.evidence,
           findings: ar.findings,
+          documents: documentsMap.get(ar.id) || [],
         });
       });
 
