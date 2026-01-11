@@ -30,9 +30,9 @@ const App = () => (
             <Route
               path="/biblioteca"
               element={
-                <RequireAuth>
+                <RequireAdmin>
                   <Biblioteca />
-                </RequireAuth>
+                </RequireAdmin>
               }
             />
             <Route
