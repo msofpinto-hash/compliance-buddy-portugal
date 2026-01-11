@@ -524,21 +524,38 @@ export function DuplicateCleanupPanel() {
               )}
             </div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={selectedGroups.size === filteredGroups.length && filteredGroups.length > 0}
-                  onCheckedChange={() => {
-                    if (selectedGroups.size === filteredGroups.length) {
-                      setSelectedGroups(new Set());
-                    } else {
-                      setSelectedGroups(new Set(filteredGroups.map(g => g.normalizedNumber)));
-                    }
-                  }}
-                />
-                <span className="text-sm">
-                  Selecionar visíveis ({selectedGroups.size}/{filteredGroups.length})
-                </span>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedGroups.size === filteredGroups.length && filteredGroups.length > 0}
+                    onCheckedChange={() => {
+                      if (selectedGroups.size === filteredGroups.length) {
+                        setSelectedGroups(new Set());
+                      } else {
+                        setSelectedGroups(new Set(filteredGroups.map(g => g.normalizedNumber)));
+                      }
+                    }}
+                  />
+                  <span className="text-sm">
+                    Selecionar visíveis ({selectedGroups.size}/{filteredGroups.length})
+                  </span>
+                </div>
+
+                {incompleteCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const incompleteGroups = duplicateGroups.filter(g => groupHasIncompleteData(g).incomplete);
+                      setSelectedGroups(new Set(incompleteGroups.map(g => g.normalizedNumber)));
+                    }}
+                    className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Selecionar incompletos ({incompleteCount})
+                  </Button>
+                )}
               </div>
 
               <Button
