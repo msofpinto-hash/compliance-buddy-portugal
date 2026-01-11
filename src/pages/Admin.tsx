@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo, Database, FolderOpen, Eye } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo, Database, FolderOpen, Eye, ShieldCheck } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
 import { LegislationPanel } from "@/components/admin/LegislationPanel";
@@ -14,11 +14,12 @@ import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBel
 import { DataQualityPanel } from "@/components/admin/DataQualityPanel";
 import { EvidenceTemplatesPanel } from "@/components/admin/EvidenceTemplatesPanel";
 import { EvidenceReviewPanel } from "@/components/admin/EvidenceReviewPanel";
+import { ComplianceRequestsPanel } from "@/components/admin/ComplianceRequestsPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 
-const validTabs = ["quality", "legislation", "requirements", "audits", "actions", "evidence", "review", "clients", "users", "sync", "themes"];
+const validTabs = ["quality", "legislation", "requirements", "audits", "actions", "evidence", "review", "compliance", "clients", "users", "sync", "themes"];
 
 const Admin = () => {
   const { user, signOut } = useAuth();
@@ -70,7 +71,7 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full max-w-7xl grid-cols-11">
+          <TabsList className="grid w-full max-w-7xl grid-cols-12">
             <TabsTrigger value="quality" className="gap-2">
               <Database className="h-4 w-4" />
               <span className="hidden sm:inline">Qualidade</span>
@@ -98,6 +99,10 @@ const Admin = () => {
             <TabsTrigger value="review" className="gap-2">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Revisão</span>
+            </TabsTrigger>
+            <TabsTrigger value="compliance" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Compliance</span>
             </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Building2 className="h-4 w-4" />
@@ -143,6 +148,10 @@ const Admin = () => {
 
           <TabsContent value="review">
             <EvidenceReviewPanel />
+          </TabsContent>
+
+          <TabsContent value="compliance">
+            <ComplianceRequestsPanel />
           </TabsContent>
 
           <TabsContent value="clients">
