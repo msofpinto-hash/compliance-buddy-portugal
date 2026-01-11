@@ -6,6 +6,37 @@ import { useState } from "react";
 import type { ThemeWithCategories, ThemeCategory } from "@/hooks/useThemes";
 import * as Icons from "lucide-react";
 
+// Theme images mapping
+import themeAmbiente from "@/assets/theme-ambiente.png";
+import themeSst from "@/assets/theme-sst.png";
+import themeEnergia from "@/assets/theme-energia.png";
+import themeQualidade from "@/assets/theme-qualidade.png";
+import themeSeguranca from "@/assets/theme-seguranca.png";
+import themeGeral from "@/assets/theme-geral.png";
+
+const themeImages: Record<string, string> = {
+  ambiente: themeAmbiente,
+  sst: themeSst,
+  energia: themeEnergia,
+  qualidade: themeQualidade,
+  seguranca: themeSeguranca,
+  segurança: themeSeguranca,
+  geral: themeGeral,
+};
+
+const getThemeImage = (themeName: string): string => {
+  const normalizedName = themeName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  for (const [key, image] of Object.entries(themeImages)) {
+    const normalizedKey = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (normalizedName.includes(normalizedKey)) {
+      return image;
+    }
+  }
+  
+  return themeGeral;
+};
+
 interface ThemeCardProps {
   theme: ThemeWithCategories;
   onEditTheme?: (theme: ThemeWithCategories) => void;
@@ -115,16 +146,29 @@ export function ThemeCard({ theme, onEditTheme, onEditCategory, onAddCategory }:
     ? (Icons[theme.icon as keyof typeof Icons] as React.ComponentType<{ className?: string }>)
     : Icons.Folder;
 
+  // Get theme image
+  const themeImage = getThemeImage(theme.name);
+
   // Get top-level categories only
   const topLevelCategories = theme.categories.filter(cat => !cat.parent_id);
 
   return (
-    <Card className="transition-all hover:shadow-md">
-      <CardHeader className="pb-2">
+    <Card className="transition-all hover:shadow-md overflow-hidden">
+      {/* Theme image banner */}
+      <div className="relative h-24 w-full overflow-hidden">
+        <img 
+          src={themeImage} 
+          alt={theme.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
+      </div>
+      
+      <CardHeader className="pb-2 -mt-8 relative z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <IconComponent className="h-5 w-5" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-background shadow-lg border text-primary">
+              <IconComponent className="h-6 w-6" />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
