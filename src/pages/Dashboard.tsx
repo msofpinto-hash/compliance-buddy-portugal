@@ -687,9 +687,13 @@ export default function Dashboard() {
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm text-muted-foreground">Home</p>
-                <h1 className="text-2xl font-bold">
-                  Bem-vindo, {userProfile?.full_name || user?.email?.split("@")[0]}
+                <p className="text-sm text-muted-foreground">{currentOrg?.name || "Dashboard"}</p>
+                <h1 className="text-xl font-semibold">
+                  {activeTab === "overview" && "Painel de Controlo"}
+                  {activeTab === "actions" && "Planos de Ação"}
+                  {activeTab === "audits" && "Auditorias"}
+                  {activeTab === "documents" && "Documentos"}
+                  {activeTab === "indicators" && "Indicadores"}
                 </h1>
               </div>
             </div>
