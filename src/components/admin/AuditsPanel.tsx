@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { AddAuditRequirementsDialog } from "./AddAuditRequirementsDialog";
 import { AuditRequirementCard } from "./AuditRequirementCard";
+import { AuditFindingsEditor } from "./AuditFindingsEditor";
 import { 
   ClipboardCheck, 
   Plus, 
@@ -424,6 +425,17 @@ export function AuditsPanel() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Findings and Recommendations */}
+                <AuditFindingsEditor
+                  auditId={auditDetails.id}
+                  findings={auditDetails.findings}
+                  recommendations={auditDetails.recommendations}
+                  onUpdated={() => {
+                    queryClient.invalidateQueries({ queryKey: ["audit-details", selectedAudit] });
+                    refetchAudits();
+                  }}
+                />
 
                 {/* Requirements in Audit */}
                 <Card>
