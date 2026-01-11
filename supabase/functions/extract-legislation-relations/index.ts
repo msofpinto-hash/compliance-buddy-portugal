@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
     if (legislationIds && legislationIds.length > 0) {
       const { data, error } = await supabase
         .from('legislation')
-        .select('id, number, title, summary, document_url, origin')
+        .select('id, number, title, summary, document_url, origin, publication_date')
         .in('id', legislationIds)
         .not('document_url', 'is', null);
       
@@ -356,7 +356,7 @@ Deno.serve(async (req) => {
       // We fetch more than limit to account for skipped ones
       let query = supabase
         .from('legislation')
-        .select('id, number, title, summary, document_url, origin')
+        .select('id, number, title, summary, document_url, origin, publication_date')
         .not('document_url', 'is', null)
         .order('publication_date', { ascending: false });
       
@@ -498,6 +498,7 @@ Deno.serve(async (req) => {
 
         // Step 4: Insert new relations
         let relationsCreated = 0;
+        let revokedLegislationUpdated = 0;
         if (!dryRun && toInsert.length > 0) {
           const { error: insertError } = await supabase
             .from('legislation_relations')
@@ -509,6 +510,24 @@ Deno.serve(async (req) => {
             relationsCreated = toInsert.length;
             totalRelationsCreated += relationsCreated;
             console.log(`✓ Created ${relationsCreated} relations for ${leg.number}`);
+            
+            // Step 5: Update revocation_date for revoked legislation
+            const revokedRelations = toInsert.filter(r => r.relation_type === 'revogado' || r.relation_type === 'revogacao_parcial');
+            for (const revokedRel of revokedRelations) {
+              // Use the source legislation's publication_date as the revocation date
+              const { error: updateError } = await supabase
+                .from('legislation')
+                .update({ 
+                  revocation_date: leg.publication_date || new Date().toISOString().split('T')[0]
+                })
+                .eq('id', revokedRel.target_legislation_id)
+                .is('revocation_date', null); // Only update if not already set
+              
+              if (!updateError) {
+                revokedLegislationUpdated++;
+                console.log(`✓ Set revocation_date for target legislation ${revokedRel.target_legislation_id}`);
+              }
+            }
           }
         } else if (dryRun && toInsert.length > 0) {
           relationsCreated = toInsert.length;
