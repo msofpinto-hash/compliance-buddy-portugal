@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
@@ -15,7 +16,9 @@ import {
   Eye,
   ExternalLink,
   Tags,
-  Building2
+  Building2,
+  Search,
+  X
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
@@ -39,12 +42,31 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
 
-  // Create a map of legislation by category
+  // Filter legislation based on search and source
+  const filteredLegislation = useMemo(() => {
+    return legislation.filter(leg => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm || 
+        leg.title?.toLowerCase().includes(searchLower) ||
+        leg.number?.toLowerCase().includes(searchLower) ||
+        leg.entity?.toLowerCase().includes(searchLower);
+      
+      const matchesSource = sourceFilter === "all" || 
+        (sourceFilter === "dre" && leg.source === "dre") ||
+        (sourceFilter === "eurlex" && leg.source === "eurlex");
+      
+      return matchesSearch && matchesSource;
+    });
+  }, [legislation, searchTerm, sourceFilter]);
+
+  // Create a map of filtered legislation by category
   const legislationByCategory = useMemo(() => {
     const map = new Map<string, LegislationWithCategories[]>();
     
-    legislation.forEach(leg => {
+    filteredLegislation.forEach(leg => {
       leg.categories.forEach(cat => {
         if (!map.has(cat.id)) {
           map.set(cat.id, []);
@@ -54,7 +76,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
     });
     
     return map;
-  }, [legislation]);
+  }, [filteredLegislation]);
 
   // Build category tree for a theme
   const buildCategoryTree = (categories: ThemeCategory[], parentId: string | null = null): CategoryNode[] => {
@@ -200,8 +222,74 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
     return <div className="text-center py-8 text-muted-foreground">A carregar temas...</div>;
   }
 
+  const hasFilters = searchTerm || sourceFilter !== "all";
+
   return (
-    <div className="flex gap-4 h-[calc(100vh-300px)]">
+    <div className="space-y-4">
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar por título, número ou entidade..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex gap-1">
+              <Button
+                variant={sourceFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSourceFilter("all")}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={sourceFilter === "dre" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSourceFilter("dre")}
+              >
+                <Flag className="h-3 w-3 mr-1" />
+                DRE
+              </Button>
+              <Button
+                variant={sourceFilter === "eurlex" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSourceFilter("eurlex")}
+              >
+                <Globe className="h-3 w-3 mr-1" />
+                EUR-Lex
+              </Button>
+            </div>
+
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSourceFilter("all");
+                }}
+                className="text-muted-foreground"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Limpar
+              </Button>
+            )}
+
+            <div className="text-sm text-muted-foreground ml-auto">
+              {filteredLegislation.length} diploma{filteredLegislation.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tree View */}
+      <div className="flex gap-4 h-[calc(100vh-380px)]">
       {/* Theme selector */}
       <Card className="w-64 flex-shrink-0">
         <CardHeader className="py-3 px-4">
@@ -210,7 +298,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
         <CardContent className="p-2">
           <div className="space-y-1">
             {themesWithCategories?.map(theme => {
-              const themeCount = legislation.filter(leg => 
+              const themeCount = filteredLegislation.filter(leg => 
                 leg.categories.some(cat => 
                   theme.categories.some(tc => tc.id === cat.id)
                 )
@@ -368,6 +456,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
           </ScrollArea>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
