@@ -65,9 +65,9 @@ export function RequirementsExtractionPanel() {
   const [isContinuousExtracting, setIsContinuousExtracting] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
-  const [limit, setLimit] = useState(10);
-  const [batchSize, setBatchSize] = useState(50);
-  const [scrapeLimit, setScrapeLimit] = useState(5);
+  const [limit, setLimit] = useState(25);
+  const [batchSize, setBatchSize] = useState(100);
+  const [scrapeLimit, setScrapeLimit] = useState(10);
   const [dryRun, setDryRun] = useState(false);
   const [scrapeDryRun, setScrapeDryRun] = useState(true);
   const [replaceExisting, setReplaceExisting] = useState(false);
