@@ -118,7 +118,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [areaFilter, setAreaFilter] = useState<string | null>(null);
+  const [areaFilters, setAreaFilters] = useState<string[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<EvidenceRequest | null>(null);
@@ -302,11 +302,19 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     
     const matchesStatus = !statusFilter || r.status === statusFilter;
     
-    const matchesArea = !areaFilter || 
-      r.evidence_templates[areaFilter as keyof typeof r.evidence_templates] === true;
+    const matchesArea = areaFilters.length === 0 || 
+      areaFilters.some(area => r.evidence_templates[area as keyof typeof r.evidence_templates] === true);
     
     return matchesSearch && matchesStatus && matchesArea;
   });
+
+  const toggleAreaFilter = (area: string) => {
+    setAreaFilters(prev => 
+      prev.includes(area) 
+        ? prev.filter(a => a !== area) 
+        : [...prev, area]
+    );
+  };
 
   // Group requests by group_name
   const groupedRequests = filteredRequests?.reduce((acc, request) => {
@@ -419,7 +427,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
@@ -432,25 +440,6 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                 />
               </div>
             </div>
-            <Select value={areaFilter || "all"} onValueChange={(v) => setAreaFilter(v === "all" ? null : v)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tema" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os temas</SelectItem>
-                {Object.entries(AREA_CONFIG).map(([key, config]) => {
-                  const IconComponent = config.icon;
-                  return (
-                    <SelectItem key={key} value={key}>
-                      <div className="flex items-center gap-2">
-                        <IconComponent className="h-4 w-4" />
-                        {config.label}
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
             <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? null : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Estado" />
@@ -467,6 +456,41 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          {/* Theme multi-select filters */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Filtrar por temas:</Label>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(AREA_CONFIG).map(([key, config]) => {
+                const IconComponent = config.icon;
+                const isSelected = areaFilters.includes(key);
+                return (
+                  <Badge
+                    key={key}
+                    variant={isSelected ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      isSelected ? config.color : "hover:bg-accent"
+                    )}
+                    onClick={() => toggleAreaFilter(key)}
+                  >
+                    <IconComponent className="h-3 w-3 mr-1" />
+                    {config.label}
+                  </Badge>
+                );
+              })}
+              {areaFilters.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setAreaFilters([])}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
