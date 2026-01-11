@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo, Database } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
 import { LegislationPanel } from "@/components/admin/LegislationPanel";
@@ -9,6 +9,7 @@ import { RequirementsExtractionPanel } from "@/components/admin/RequirementsExtr
 import { AuditsPanel } from "@/components/admin/AuditsPanel";
 import { ActionPlansPanel } from "@/components/admin/ActionPlansPanel";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
+import { DataQualityPanel } from "@/components/admin/DataQualityPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -46,8 +47,12 @@ const Admin = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="legislation" className="space-y-6">
-          <TabsList className="grid w-full max-w-6xl grid-cols-8">
+        <Tabs defaultValue="quality" className="space-y-6">
+          <TabsList className="grid w-full max-w-7xl grid-cols-9">
+            <TabsTrigger value="quality" className="gap-2">
+              <Database className="h-4 w-4" />
+              <span className="hidden sm:inline">Qualidade</span>
+            </TabsTrigger>
             <TabsTrigger value="legislation" className="gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Legislação</span>
@@ -81,6 +86,10 @@ const Admin = () => {
               <span className="hidden sm:inline">Temas</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="quality">
+            <DataQualityPanel />
+          </TabsContent>
 
           <TabsContent value="legislation">
             <LegislationPanel />
