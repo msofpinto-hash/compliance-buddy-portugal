@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Plus, 
@@ -33,11 +34,24 @@ import {
   Search,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Download,
+  FileSpreadsheet
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+
+// Extend jsPDF type for autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: { finalY: number };
+  }
+}
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
   pendente: { label: "Pendente", color: "text-gray-700", bgColor: "bg-gray-100 border-gray-300", icon: Clock },
@@ -585,6 +599,159 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
     return new Date(plan.due_date) < new Date();
   };
 
+  // Export functions
+  const getStatusLabel = (status: string): string => {
+    const labels: Record<string, string> = {
+      pendente: "Pendente",
+      em_curso: "Em Curso",
+      concluido: "Concluído",
+      cancelado: "Cancelado",
+    };
+    return labels[status] || status || "Pendente";
+  };
+
+  const getTypeLabel = (plan: ActionPlan): string => {
+    return plan.audit_requirement_id ? "Auditoria" : "Ad-hoc";
+  };
+
+  const formatDateExport = (dateStr: string | null): string => {
+    if (!dateStr) return "-";
+    return format(new Date(dateStr), "dd/MM/yyyy");
+  };
+
+  const exportToExcel = () => {
+    const dataToExport = filteredPlans.map(plan => ({
+      "Tipo": getTypeLabel(plan),
+      "Título": plan.title,
+      "Descrição": plan.description || "-",
+      "Estado": getStatusLabel(plan.status || "pendente"),
+      "Responsável": plan.responsible || "-",
+      "Prazo": formatDateExport(plan.due_date),
+      "Origem Auditoria": plan.audit_requirements?.audits?.title || "-",
+      "Criado em": formatDateExport(plan.created_at),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    ws["!cols"] = [
+      { wch: 12 }, // Tipo
+      { wch: 40 }, // Título
+      { wch: 50 }, // Descrição
+      { wch: 12 }, // Estado
+      { wch: 20 }, // Responsável
+      { wch: 12 }, // Prazo
+      { wch: 30 }, // Origem Auditoria
+      { wch: 12 }, // Criado em
+    ];
+
+    // Add summary sheet
+    const summaryData = [
+      { "Métrica": "Total de Ações (Filtradas)", "Valor": filteredPlans.length },
+      { "Métrica": "Pendentes", "Valor": filteredPlans.filter(p => p.status === "pendente").length },
+      { "Métrica": "Em Curso", "Valor": filteredPlans.filter(p => p.status === "em_curso").length },
+      { "Métrica": "Concluídas", "Valor": filteredPlans.filter(p => p.status === "concluido").length },
+      { "Métrica": "De Auditoria", "Valor": filteredPlans.filter(p => p.audit_requirement_id).length },
+      { "Métrica": "Ad-hoc", "Valor": filteredPlans.filter(p => !p.audit_requirement_id).length },
+      { "Métrica": "Data Exportação", "Valor": format(new Date(), "dd/MM/yyyy HH:mm") },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    wsSummary["!cols"] = [{ wch: 25 }, { wch: 20 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
+    XLSX.utils.book_append_sheet(wb, ws, "Planos de Ação");
+
+    const fileName = `planos-acao-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast({ title: "Excel exportado", description: `${filteredPlans.length} registos exportados` });
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Header
+    doc.setFontSize(18);
+    doc.setTextColor(37, 99, 235);
+    doc.text("Planos de Ação", 20, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Gerado em: ${format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: pt })}`, 20, 28);
+
+    // Stats boxes
+    const statsY = 38;
+    const boxWidth = 35;
+    const boxHeight = 20;
+    const boxGap = 4;
+
+    const pdfStats = [
+      { label: "Total", value: filteredPlans.length, color: [37, 99, 235] as [number, number, number] },
+      { label: "Pendentes", value: filteredPlans.filter(p => p.status === "pendente").length, color: [107, 114, 128] as [number, number, number] },
+      { label: "Em Curso", value: filteredPlans.filter(p => p.status === "em_curso").length, color: [234, 179, 8] as [number, number, number] },
+      { label: "Concluídas", value: filteredPlans.filter(p => p.status === "concluido").length, color: [22, 163, 74] as [number, number, number] },
+    ];
+
+    pdfStats.forEach((stat, i) => {
+      const x = 20 + i * (boxWidth + boxGap);
+      doc.setFillColor(249, 250, 251);
+      doc.roundedRect(x, statsY, boxWidth, boxHeight, 2, 2, "F");
+      doc.setFontSize(14);
+      doc.setTextColor(...stat.color);
+      doc.text(String(stat.value), x + boxWidth / 2, statsY + 10, { align: "center" });
+      doc.setFontSize(7);
+      doc.setTextColor(107, 114, 128);
+      doc.text(stat.label, x + boxWidth / 2, statsY + 16, { align: "center" });
+    });
+
+    // Table
+    const tableData = filteredPlans.map(plan => [
+      getTypeLabel(plan),
+      plan.title.length > 50 ? plan.title.substring(0, 47) + "..." : plan.title,
+      getStatusLabel(plan.status || "pendente"),
+      plan.responsible || "-",
+      formatDateExport(plan.due_date),
+    ]);
+
+    doc.autoTable({
+      startY: statsY + boxHeight + 10,
+      head: [["Tipo", "Título", "Estado", "Responsável", "Prazo"]],
+      body: tableData,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { 
+        fillColor: [243, 244, 246], 
+        textColor: [17, 24, 39],
+        fontStyle: "bold" 
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 25 },
+      },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      margin: { left: 20, right: 20 },
+    });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(156, 163, 175);
+      doc.text(
+        `Página ${i} de ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: "center" }
+      );
+    }
+
+    const fileName = `planos-acao-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+    doc.save(fileName);
+    toast({ title: "PDF exportado", description: `${filteredPlans.length} registos exportados` });
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -602,7 +769,26 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
           <h2 className="text-2xl font-bold">Planos de Ação</h2>
           <p className="text-muted-foreground">Gestão de ações corretivas e preventivas</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToExcel} className="gap-2 cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF} className="gap-2 cursor-pointer">
+                <FileText className="h-4 w-4" />
+                Exportar PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <CreateActionPlanDialog organizations={organizations} onCreated={refetch} />
           <ImportFromAuditDialog organizations={organizations} onImported={refetch} />
         </div>
