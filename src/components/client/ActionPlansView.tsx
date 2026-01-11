@@ -1045,36 +1045,47 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Planos de Ação</h2>
-          <p className="text-muted-foreground mt-1">Gestão de ações corretivas e preventivas</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
-                Exportar
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportToExcel} className="gap-2">
-                <FileSpreadsheet className="h-4 w-4" />
-                Exportar Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToPDF} className="gap-2">
-                <Download className="h-4 w-4" />
-                Exportar PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint} className="gap-2">
-                <Printer className="h-4 w-4" />
-                Imprimir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* Hero Header - Aligned with other modules */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/20 via-primary/10 to-emerald-500/20">
+        <div className="absolute inset-0 bg-grid-white/10" />
+        <div className="relative flex flex-col md:flex-row items-center justify-between gap-6 p-6 md:p-8">
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-primary/20 text-primary border-0">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Ações Corretivas
+              </Badge>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Planos de Ação</h1>
+            <p className="text-muted-foreground text-lg max-w-xl">
+              Gestão de ações corretivas e preventivas para garantir a conformidade legal
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 bg-background/80 backdrop-blur-sm">
+                  <Download className="h-4 w-4" />
+                  Exportar
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToExcel} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Exportar Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Exportar PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handlePrint} className="gap-2">
+                  <Printer className="h-4 w-4" />
+                  Imprimir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
