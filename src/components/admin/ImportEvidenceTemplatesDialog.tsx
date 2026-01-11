@@ -17,7 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
+import { readExcelAsArray } from "@/lib/excelUtils";
 
 interface ParsedTemplate {
   group_name: string;
@@ -94,11 +94,7 @@ export function ImportEvidenceTemplatesDialog() {
     if (!file) return;
 
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      const jsonData = await readExcelAsArray(file);
 
       // Find header row
       const headerRow = jsonData[0] as string[];

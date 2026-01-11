@@ -45,7 +45,7 @@ import {
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import * as XLSX from "xlsx";
+import { exportToExcel as exportExcel, SheetData } from "@/lib/excelUtils";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -722,49 +722,51 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
     return format(new Date(dateStr), "dd/MM/yyyy");
   };
 
-  const exportToExcel = () => {
-    const dataToExport = filteredPlans.map(plan => ({
-      "Tipo": getTypeLabel(plan),
-      "Título": plan.title,
-      "Descrição": plan.description || "-",
-      "Estado": getStatusLabel(plan.status || "pendente"),
-      "Responsável": plan.responsible || "-",
-      "Prazo": formatDateExport(plan.due_date),
-      "Origem Auditoria": plan.audit_requirements?.audits?.title || "-",
-      "Criado em": formatDateExport(plan.created_at),
+  const exportToExcel = async () => {
+    const dataRows = filteredPlans.map(plan => ({
+      tipo: getTypeLabel(plan),
+      titulo: plan.title,
+      descricao: plan.description || "-",
+      estado: getStatusLabel(plan.status || "pendente"),
+      responsavel: plan.responsible || "-",
+      prazo: formatDateExport(plan.due_date),
+      origemAuditoria: plan.audit_requirements?.audits?.title || "-",
+      criadoEm: formatDateExport(plan.created_at),
     }));
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    ws["!cols"] = [
-      { wch: 12 }, // Tipo
-      { wch: 40 }, // Título
-      { wch: 50 }, // Descrição
-      { wch: 12 }, // Estado
-      { wch: 20 }, // Responsável
-      { wch: 12 }, // Prazo
-      { wch: 30 }, // Origem Auditoria
-      { wch: 12 }, // Criado em
+    const dataColumns = [
+      { header: "Tipo", key: "tipo", width: 12 },
+      { header: "Título", key: "titulo", width: 40 },
+      { header: "Descrição", key: "descricao", width: 50 },
+      { header: "Estado", key: "estado", width: 12 },
+      { header: "Responsável", key: "responsavel", width: 20 },
+      { header: "Prazo", key: "prazo", width: 12 },
+      { header: "Origem Auditoria", key: "origemAuditoria", width: 30 },
+      { header: "Criado em", key: "criadoEm", width: 12 },
     ];
 
-    // Add summary sheet
-    const summaryData = [
-      { "Métrica": "Total de Ações (Filtradas)", "Valor": filteredPlans.length },
-      { "Métrica": "Pendentes", "Valor": filteredPlans.filter(p => p.status === "pendente").length },
-      { "Métrica": "Em Curso", "Valor": filteredPlans.filter(p => p.status === "em_curso").length },
-      { "Métrica": "Concluídas", "Valor": filteredPlans.filter(p => p.status === "concluido").length },
-      { "Métrica": "De Auditoria", "Valor": filteredPlans.filter(p => p.audit_requirement_id).length },
-      { "Métrica": "Ad-hoc", "Valor": filteredPlans.filter(p => !p.audit_requirement_id).length },
-      { "Métrica": "Data Exportação", "Valor": format(new Date(), "dd/MM/yyyy HH:mm") },
+    const summaryRows = [
+      { metrica: "Total de Ações (Filtradas)", valor: filteredPlans.length },
+      { metrica: "Pendentes", valor: filteredPlans.filter(p => p.status === "pendente").length },
+      { metrica: "Em Curso", valor: filteredPlans.filter(p => p.status === "em_curso").length },
+      { metrica: "Concluídas", valor: filteredPlans.filter(p => p.status === "concluido").length },
+      { metrica: "De Auditoria", valor: filteredPlans.filter(p => p.audit_requirement_id).length },
+      { metrica: "Ad-hoc", valor: filteredPlans.filter(p => !p.audit_requirement_id).length },
+      { metrica: "Data Exportação", valor: format(new Date(), "dd/MM/yyyy HH:mm") },
     ];
-    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-    wsSummary["!cols"] = [{ wch: 25 }, { wch: 20 }];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
-    XLSX.utils.book_append_sheet(wb, ws, "Planos de Ação");
+    const summaryColumns = [
+      { header: "Métrica", key: "metrica", width: 25 },
+      { header: "Valor", key: "valor", width: 20 },
+    ];
+
+    const sheets: SheetData[] = [
+      { name: "Resumo", columns: summaryColumns, rows: summaryRows },
+      { name: "Planos de Ação", columns: dataColumns, rows: dataRows },
+    ];
 
     const fileName = `planos-acao-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    await exportExcel(sheets, fileName);
     toast({ title: "Excel exportado", description: `${filteredPlans.length} registos exportados` });
   };
 
