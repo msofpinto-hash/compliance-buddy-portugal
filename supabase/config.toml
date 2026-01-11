@@ -41,3 +41,12 @@ verify_jwt = false
 
 [functions.fix-generic-titles]
 verify_jwt = false
+
+[functions.find-missing-dre-urls]
+verify_jwt = false
+
+[functions.validate-document-urls]
+verify_jwt = false
+
+[functions.import-evidence-templates]
+verify_jwt = false
