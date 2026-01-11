@@ -28,6 +28,7 @@ import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/h
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
 import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
+import { getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
 
 interface LegislationTreeViewProps {
   legislation: LegislationWithCategories[];
@@ -36,6 +37,8 @@ interface LegislationTreeViewProps {
   hideFilters?: boolean;
   /** If provided, uses this theme ID and hides the themes column */
   externalThemeId?: string | null;
+  /** Map of legislation_id -> applicability_type for showing applicability badges */
+  applicabilityMap?: Record<string, string>;
 }
 
 interface CategoryNode {
@@ -44,7 +47,7 @@ interface CategoryNode {
   legislation: LegislationWithCategories[];
 }
 
-export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId }: LegislationTreeViewProps) {
+export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap }: LegislationTreeViewProps) {
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
   const [internalSelectedThemeId, setInternalSelectedThemeId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -453,14 +456,18 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               <div className="space-y-2">
                 {displayedLegislation.map(leg => {
                   const requirementsCount = (leg as any).legal_requirements?.length || 0;
+                  const applicabilityType = applicabilityMap?.[leg.id];
+                  const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
+                  const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
+                  
                   return (
                     <div
                       key={leg.id}
                       className="rounded-lg border p-3 hover:bg-accent/50 transition-colors overflow-hidden"
                     >
-                      {/* Header row: Source badge + Number + Actions */}
+                      {/* Header row: Source badge + Applicability + Number + Actions */}
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
                           <Badge 
                             variant="outline"
                             className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${
@@ -475,6 +482,14 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                               <><Globe className="h-2.5 w-2.5 mr-0.5" />EU</>
                             )}
                           </Badge>
+                          {showApplicability && (
+                            <Badge 
+                              variant="outline"
+                              className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${applicabilityInfo.color}`}
+                            >
+                              {applicabilityInfo.label}
+                            </Badge>
+                          )}
                           <span className="font-mono text-xs text-muted-foreground truncate">
                             {leg.number}
                           </span>
