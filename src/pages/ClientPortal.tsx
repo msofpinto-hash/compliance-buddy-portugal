@@ -35,6 +35,7 @@ import {
   Upload
 } from "lucide-react";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
+import { CategoryTreeItem } from "@/components/client/CategoryTreeItem";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
@@ -980,544 +981,233 @@ export default function ClientPortal() {
             </div>
           )}
 
-          {/* Legislation Tab */}
+          {/* Legislation Tab - 3 Column Layout */}
           {activeTab === "legislation" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold">Diplomas Atribuídos</h2>
-                  <p className="text-muted-foreground">
-                    Legislação aplicável à sua organização
-                  </p>
-                </div>
-                <div className="relative">
+            <div className="space-y-4">
+              {/* Search and filter bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Pesquisar diplomas..."
+                    placeholder="Pesquisar por título, número ou entidade..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 w-full sm:w-64"
+                    className="pl-9"
                   />
                 </div>
+                <Tabs value={statusFilter} onValueChange={setStatusFilter} className="shrink-0">
+                  <TabsList className="h-9">
+                    <TabsTrigger value="all" className="text-xs">Todos</TabsTrigger>
+                    <TabsTrigger value="compliant" className="text-xs gap-1">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Conforme
+                    </TabsTrigger>
+                    <TabsTrigger value="non-compliant" className="text-xs gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Não Conforme
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
 
-              {/* Theme Filter Selector */}
-              {assignedThemes && assignedThemes.length > 0 && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <FolderTree className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Tema:</span>
-                  </div>
-                  <Select 
-                    value={themeFilter || "all"} 
-                    onValueChange={(value) => {
-                      setThemeFilter(value === "all" ? null : value);
-                      setCategoryFilter(null); // Reset category when theme changes
-                    }}
-                  >
-                    <SelectTrigger className="w-full sm:w-[250px]">
-                      <SelectValue placeholder="Todos os temas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        <div className="flex items-center gap-2">
-                          <span>Todos os temas</span>
-                          <Badge variant="secondary" className="ml-auto text-xs">
-                            {assignedLegislation?.length || 0}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                      {assignedThemes.map((theme: any) => {
-                        const themeCount = legislationByCategory?.byTheme?.get(theme.id)?.size || 0;
-                        return (
-                          <SelectItem key={theme.id} value={theme.id}>
-                            <div className="flex items-center gap-2">
-                              {theme.icon && <span>{theme.icon}</span>}
-                              <span>{theme.name}</span>
-                              <Badge variant="outline" className="ml-auto text-xs">
+              {/* 3-Column Layout */}
+              <div className="grid lg:grid-cols-[220px_280px_1fr] gap-4">
+                {/* Column 1: Themes */}
+                <Card className="h-fit">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold">Temas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-2 pb-3">
+                    <ScrollArea className="h-[500px]">
+                      <div className="space-y-0.5 pr-2">
+                        {assignedThemes?.map((theme: any) => {
+                          const themeCount = legislationByCategory?.byTheme?.get(theme.id)?.size || 0;
+                          const isSelected = themeFilter === theme.id;
+                          
+                          return (
+                            <button
+                              key={theme.id}
+                              onClick={() => {
+                                setThemeFilter(isSelected ? null : theme.id);
+                                setCategoryFilter(null);
+                              }}
+                              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
+                                isSelected 
+                                  ? "bg-primary text-primary-foreground" 
+                                  : "hover:bg-muted"
+                              }`}
+                            >
+                              <span className="truncate font-medium">{theme.name}</span>
+                              <Badge 
+                                variant={isSelected ? "secondary" : "outline"} 
+                                className="shrink-0 ml-2 text-xs"
+                              >
                                 {themeCount}
                               </Badge>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {themeFilter && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                      onClick={() => {
-                        setThemeFilter(null);
-                        setCategoryFilter(null);
-                      }}
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {categoryFilter && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="gap-1">
-                        {selectedThemeCategories.find((c: any) => c.id === categoryFilter)?.name}
-                        <button
-                          onClick={() => setCategoryFilter(null)}
-                          className="ml-1 hover:text-foreground"
-                        >
-                          <XCircle className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Status Filter Tabs */}
-              <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-                <TabsList className="flex-wrap h-auto gap-1">
-                  <TabsTrigger value="all">Todos</TabsTrigger>
-                  <TabsTrigger value="compliant" className="gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Conforme
-                  </TabsTrigger>
-                  <TabsTrigger value="in-progress" className="gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    Em Avaliação
-                  </TabsTrigger>
-                  <TabsTrigger value="non-compliant" className="gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Não Conforme
-                  </TabsTrigger>
-                  <TabsTrigger value="pending">Pendente</TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              {/* Two-column layout when theme is selected */}
-              {themeFilter && rootCategories.length > 0 ? (
-                <div className="grid lg:grid-cols-[280px_1fr] gap-6">
-                  {/* Categories Sidebar */}
-                  <Card className="h-fit lg:sticky lg:top-20">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <FolderTree className="h-4 w-4" />
-                        Subcategorias
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        {selectedThemeData?.name}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ScrollArea className="h-[400px] pr-3">
-                        <div className="space-y-1">
-                          {/* All option */}
-                          <button
-                            onClick={() => setCategoryFilter(null)}
-                            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
-                              !categoryFilter 
-                                ? "bg-primary text-primary-foreground" 
-                                : "hover:bg-muted"
-                            }`}
-                          >
-                            <span>Todas as categorias</span>
-                            <Badge variant={!categoryFilter ? "secondary" : "outline"} className="text-xs">
-                              {legislationByCategory?.byTheme?.get(themeFilter)?.size || 0}
-                            </Badge>
-                          </button>
-                          
-                          {/* Root categories */}
-                          {rootCategories.map((cat: any) => {
-                            const catCount = legislationByCategory?.byCategory?.get(cat.id) || 0;
-                            const subcats = getSubcategories(cat.id);
-                            const isSelected = categoryFilter === cat.id;
-                            const hasSelectedChild = subcats.some((s: any) => s.id === categoryFilter || 
-                              getSubcategories(s.id).some((n: any) => n.id === categoryFilter)
-                            );
-                            
-                            // Check if any subcategory has results
-                            const subcatsWithResults = subcats.filter((s: any) => {
-                              const sCount = legislationByCategory?.byCategory?.get(s.id) || 0;
-                              const nestedSubs = getSubcategories(s.id);
-                              const nestedHasResults = nestedSubs.some((n: any) => 
-                                (legislationByCategory?.byCategory?.get(n.id) || 0) > 0
-                              );
-                              return sCount > 0 || nestedHasResults;
-                            });
-                            
-                            // Auto-expand if has results or selection
-                            const shouldExpand = catCount > 0 || subcatsWithResults.length > 0 || hasSelectedChild;
-                            
-                            return (
-                              <div key={cat.id}>
-                                <button
-                                  onClick={() => setCategoryFilter(isSelected ? null : cat.id)}
-                                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
-                                    isSelected 
-                                      ? "bg-primary text-primary-foreground" 
-                                      : hasSelectedChild
-                                      ? "bg-primary/10"
-                                      : catCount > 0 || subcatsWithResults.length > 0
-                                      ? "hover:bg-muted font-medium"
-                                      : "hover:bg-muted text-muted-foreground"
-                                  }`}
-                                >
-                                  <span className="truncate">{cat.name}</span>
-                                  <div className="flex items-center gap-1 shrink-0 ml-2">
-                                    {catCount > 0 && (
-                                      <Badge 
-                                        variant={isSelected ? "secondary" : "outline"} 
-                                        className="text-xs"
-                                      >
-                                        {catCount}
-                                      </Badge>
-                                    )}
-                                    {subcatsWithResults.length > 0 && catCount === 0 && (
-                                      <span className="text-xs text-primary">•</span>
-                                    )}
-                                  </div>
-                                </button>
-                                
-                                {/* Subcategories - only show if should expand */}
-                                {subcats.length > 0 && shouldExpand && (
-                                  <div className="ml-3 mt-1 space-y-0.5 border-l border-primary/20 pl-2">
-                                    {subcats.map((sub: any) => {
-                                      const subCount = legislationByCategory?.byCategory?.get(sub.id) || 0;
-                                      const isSubSelected = categoryFilter === sub.id;
-                                      const nestedSubs = getSubcategories(sub.id);
-                                      const hasNestedSelected = nestedSubs.some((n: any) => n.id === categoryFilter);
-                                      
-                                      // Check if nested subs have results
-                                      const nestedWithResults = nestedSubs.filter((n: any) => 
-                                        (legislationByCategory?.byCategory?.get(n.id) || 0) > 0
-                                      );
-                                      const shouldExpandNested = subCount > 0 || nestedWithResults.length > 0 || hasNestedSelected;
-                                      
-                                      // Skip subcategories with no results at all
-                                      if (subCount === 0 && nestedWithResults.length === 0 && !hasNestedSelected) {
-                                        return null;
-                                      }
-                                      
-                                      return (
-                                        <div key={sub.id}>
-                                          <button
-                                            onClick={() => setCategoryFilter(isSubSelected ? null : sub.id)}
-                                            className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-between ${
-                                              isSubSelected 
-                                                ? "bg-primary text-primary-foreground" 
-                                                : hasNestedSelected
-                                                ? "bg-primary/10"
-                                                : subCount > 0
-                                                ? "hover:bg-muted font-medium text-foreground"
-                                                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                                            }`}
-                                          >
-                                            <span className="truncate">{sub.name}</span>
-                                            <div className="flex items-center gap-1 shrink-0 ml-2">
-                                              {subCount > 0 && (
-                                                <Badge 
-                                                  variant={isSubSelected ? "secondary" : "outline"} 
-                                                  className="text-[10px] px-1.5 py-0"
-                                                >
-                                                  {subCount}
-                                                </Badge>
-                                              )}
-                                              {nestedWithResults.length > 0 && subCount === 0 && (
-                                                <span className="text-xs text-primary">•</span>
-                                              )}
-                                            </div>
-                                          </button>
-                                          
-                                          {/* Third level - only show if should expand */}
-                                          {nestedSubs.length > 0 && shouldExpandNested && (
-                                            <div className="ml-2 mt-0.5 space-y-0.5 border-l border-primary/10 pl-2">
-                                              {nestedSubs.map((nested: any) => {
-                                                const nestedCount = legislationByCategory?.byCategory?.get(nested.id) || 0;
-                                                const isNestedSelected = categoryFilter === nested.id;
-                                                
-                                                // Skip if no results
-                                                if (nestedCount === 0 && !isNestedSelected) {
-                                                  return null;
-                                                }
-                                                
-                                                return (
-                                                  <button
-                                                    key={nested.id}
-                                                    onClick={() => setCategoryFilter(isNestedSelected ? null : nested.id)}
-                                                    className={`w-full text-left px-2 py-1 rounded text-xs transition-colors flex items-center justify-between ${
-                                                      isNestedSelected 
-                                                        ? "bg-primary text-primary-foreground" 
-                                                        : nestedCount > 0
-                                                        ? "hover:bg-muted font-medium text-foreground"
-                                                        : "text-muted-foreground/70 hover:text-foreground hover:bg-muted"
-                                                    }`}
-                                                  >
-                                                    <span className="truncate">{nested.name}</span>
-                                                    {nestedCount > 0 && (
-                                                      <Badge 
-                                                        variant={isNestedSelected ? "secondary" : "outline"} 
-                                                        className="text-[10px] px-1.5 py-0"
-                                                      >
-                                                        {nestedCount}
-                                                      </Badge>
-                                                    )}
-                                                  </button>
-                                                );
-                                              })}
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-
-                  {/* Legislation List */}
-                  <div>
-                    {loadingLegislation || loadingApplicabilities ? (
-                      <div className="space-y-3">
-                        {[1, 2, 3].map((i) => (
-                          <Skeleton key={i} className="h-24" />
-                        ))}
-                      </div>
-                    ) : filteredLegislation?.length === 0 ? (
-                      <Card>
-                        <CardContent className="py-12 text-center">
-                          <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                          <p className="text-muted-foreground">
-                            {categoryFilter 
-                              ? "Nenhum diploma nesta categoria" 
-                              : "Nenhum diploma encontrado neste tema"
-                            }
-                          </p>
-                          {categoryFilter && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="mt-3"
-                              onClick={() => setCategoryFilter(null)}
-                            >
-                              Ver todas as categorias
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                          {filteredLegislation?.length} {filteredLegislation?.length === 1 ? "diploma encontrado" : "diplomas encontrados"}
-                        </p>
-                        {filteredLegislation?.map((item: any) => {
-                          const leg = item.legislation;
-                          if (!leg) return null;
-                          
-                          const compliance = getComplianceStatus(leg.id);
-                          const stats = complianceByLegislation.get(leg.id);
-                          const themes = leg.legislation_category_mapping?.map((m: any) => m.theme_categories?.themes?.name).filter(Boolean);
-                          const uniqueThemes = [...new Set(themes)];
-
-                          return (
-                            <Card key={item.id} className="hover:bg-muted/30 transition-colors">
-                              <CardContent className="p-4">
-                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                      <Badge variant="outline" className="shrink-0">
-                                        {leg.number}
-                                      </Badge>
-                                      <Badge 
-                                        variant={compliance.color as any}
-                                        className="shrink-0"
-                                      >
-                                        {compliance.label}
-                                      </Badge>
-                                    </div>
-                                    <h4 className="font-medium line-clamp-2 mb-1">{leg.title}</h4>
-                                    {leg.summary && (
-                                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                                        {leg.summary}
-                                      </p>
-                                    )}
-                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                      {leg.publication_date && (
-                                        <span className="flex items-center gap-1">
-                                          <Calendar className="h-3 w-3" />
-                                          {format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt })}
-                                        </span>
-                                      )}
-                                      {stats && stats.total > 0 && (
-                                        <span>
-                                          {stats.compliant}/{stats.total} requisitos conformes
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <Link to={`/legislacao/${leg.id}`}>
-                                    <Button variant="outline" size="sm" className="gap-1 shrink-0">
-                                      Ver Detalhes
-                                      <ExternalLink className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </Link>
-                                </div>
-                                {stats && stats.total > 0 && (
-                                  <div className="mt-3">
-                                    <div className="flex gap-0.5 h-2 rounded-full overflow-hidden bg-muted">
-                                      {stats.compliant > 0 && (
-                                        <div 
-                                          className="h-full bg-green-500" 
-                                          style={{ width: `${(stats.compliant / stats.total) * 100}%` }}
-                                        />
-                                      )}
-                                      {stats.inProgress > 0 && (
-                                        <div 
-                                          className="h-full bg-yellow-500" 
-                                          style={{ width: `${(stats.inProgress / stats.total) * 100}%` }}
-                                        />
-                                      )}
-                                      {stats.nonCompliant > 0 && (
-                                        <div 
-                                          className="h-full bg-red-500" 
-                                          style={{ width: `${(stats.nonCompliant / stats.total) * 100}%` }}
-                                        />
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
+                            </button>
                           );
                         })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                /* Original full-width layout when no theme is selected */
-                <>
-                  {loadingLegislation || loadingApplicabilities ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-24" />
-                      ))}
-                    </div>
-                  ) : filteredLegislation?.length === 0 ? (
-                    <Card>
-                      <CardContent className="py-12 text-center">
-                        <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                        <p className="text-muted-foreground">Nenhum diploma encontrado</p>
-                        {(statusFilter !== "all" || themeFilter) && (
-                          <div className="flex flex-wrap justify-center gap-2 mt-3">
-                            {themeFilter && (
-                              <Button variant="outline" size="sm" onClick={() => setThemeFilter(null)}>
-                                Limpar filtro de tema
-                              </Button>
-                            )}
-                            {statusFilter !== "all" && (
-                              <Button variant="link" onClick={() => setStatusFilter("all")}>
-                                Ver todos os estados
-                              </Button>
-                            )}
-                          </div>
+                        {(!assignedThemes || assignedThemes.length === 0) && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Sem temas atribuídos
+                          </p>
                         )}
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="space-y-3">
-                      {filteredLegislation?.map((item: any) => {
-                        const leg = item.legislation;
-                        if (!leg) return null;
-                        
-                        const compliance = getComplianceStatus(leg.id);
-                        const stats = complianceByLegislation.get(leg.id);
-                        const themes = leg.legislation_category_mapping?.map((m: any) => m.theme_categories?.themes?.name).filter(Boolean);
-                        const uniqueThemes = [...new Set(themes)];
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
 
-                        return (
-                          <Card key={item.id} className="hover:bg-muted/30 transition-colors">
-                            <CardContent className="p-4">
-                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                    <Badge variant="outline" className="shrink-0">
+                {/* Column 2: Categories */}
+                <Card className="h-fit">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                          {selectedThemeData?.icon && <span>{selectedThemeData.icon}</span>}
+                          {selectedThemeData?.name || "Categorias"}
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Categorias e subcategorias
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-2 pb-3">
+                    <ScrollArea className="h-[500px]">
+                      {themeFilter ? (
+                        <div className="space-y-0.5 pr-2">
+                          {rootCategories.map((cat: any) => (
+                            <CategoryTreeItem
+                              key={cat.id}
+                              category={cat}
+                              level={0}
+                              categoryFilter={categoryFilter}
+                              onSelectCategory={setCategoryFilter}
+                              getSubcategories={getSubcategories}
+                              getCategoryCount={(id: string) => legislationByCategory?.byCategory?.get(id) || 0}
+                            />
+                          ))}
+                          {rootCategories.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              Sem categorias neste tema
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+                          <FolderTree className="h-10 w-10 mb-3 opacity-30" />
+                          <p className="text-sm">Selecione um tema</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
+                {/* Column 3: Legislation */}
+                <Card>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Legislação
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {categoryFilter 
+                        ? `${selectedThemeCategories.find((c: any) => c.id === categoryFilter)?.name || "Categoria"}`
+                        : themeFilter 
+                        ? "Selecione uma categoria à esquerda"
+                        : "Selecione um tema para começar"
+                      }
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-3">
+                    <ScrollArea className="h-[500px]">
+                      {categoryFilter ? (
+                        loadingLegislation || loadingApplicabilities ? (
+                          <div className="space-y-3 pr-3">
+                            {[1, 2, 3].map((i) => (
+                              <Skeleton key={i} className="h-24" />
+                            ))}
+                          </div>
+                        ) : filteredLegislation?.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+                            <FileText className="h-10 w-10 mb-3 opacity-30" />
+                            <p className="text-sm">Nenhum diploma nesta categoria</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 pr-3">
+                            {filteredLegislation?.map((item: any) => {
+                              const leg = item.legislation;
+                              if (!leg) return null;
+                              
+                              const compliance = getComplianceStatus(leg.id);
+                              const stats = complianceByLegislation.get(leg.id);
+
+                              return (
+                                <Link 
+                                  key={item.id}
+                                  to={`/legislacao/${leg.id}`}
+                                  className="block p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    <Badge variant="outline" className="text-xs">
                                       {leg.number}
                                     </Badge>
                                     <Badge 
                                       variant={compliance.color as any}
-                                      className="shrink-0"
+                                      className="text-xs"
                                     >
                                       {compliance.label}
                                     </Badge>
                                   </div>
-                                  <h4 className="font-medium line-clamp-2 mb-1">{leg.title}</h4>
-                                  {leg.summary && (
-                                    <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                                      {leg.summary}
+                                  <h4 className="font-medium text-sm line-clamp-2 mb-1">{leg.title}</h4>
+                                  {leg.publication_date && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt })}
                                     </p>
                                   )}
-                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                    {leg.publication_date && (
-                                      <span className="flex items-center gap-1">
-                                        <Calendar className="h-3 w-3" />
-                                        {format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt })}
-                                      </span>
-                                    )}
-                                    {stats && stats.total > 0 && (
-                                      <span>
-                                        {stats.compliant}/{stats.total} requisitos conformes
-                                      </span>
-                                    )}
-                                    {uniqueThemes.length > 0 && (
-                                      <span>
-                                        {uniqueThemes.slice(0, 2).join(", ")}
-                                        {uniqueThemes.length > 2 && ` +${uniqueThemes.length - 2}`}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <Link to={`/legislacao/${leg.id}`}>
-                                  <Button variant="outline" size="sm" className="gap-1 shrink-0">
-                                    Ver Detalhes
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                  </Button>
+                                  {stats && stats.total > 0 && (
+                                    <div className="mt-2">
+                                      <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden bg-muted">
+                                        {stats.compliant > 0 && (
+                                          <div 
+                                            className="h-full bg-green-500" 
+                                            style={{ width: `${(stats.compliant / stats.total) * 100}%` }}
+                                          />
+                                        )}
+                                        {stats.inProgress > 0 && (
+                                          <div 
+                                            className="h-full bg-yellow-500" 
+                                            style={{ width: `${(stats.inProgress / stats.total) * 100}%` }}
+                                          />
+                                        )}
+                                        {stats.nonCompliant > 0 && (
+                                          <div 
+                                            className="h-full bg-red-500" 
+                                            style={{ width: `${(stats.nonCompliant / stats.total) * 100}%` }}
+                                          />
+                                        )}
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground mt-1">
+                                        {stats.compliant}/{stats.total} conformes
+                                      </p>
+                                    </div>
+                                  )}
                                 </Link>
-                              </div>
-                              {stats && stats.total > 0 && (
-                                <div className="mt-3">
-                                  <div className="flex gap-0.5 h-2 rounded-full overflow-hidden bg-muted">
-                                    {stats.compliant > 0 && (
-                                      <div 
-                                        className="h-full bg-green-500" 
-                                        style={{ width: `${(stats.compliant / stats.total) * 100}%` }}
-                                      />
-                                    )}
-                                    {stats.inProgress > 0 && (
-                                      <div 
-                                        className="h-full bg-yellow-500" 
-                                        style={{ width: `${(stats.inProgress / stats.total) * 100}%` }}
-                                      />
-                                    )}
-                                    {stats.nonCompliant > 0 && (
-                                      <div 
-                                        className="h-full bg-red-500" 
-                                        style={{ width: `${(stats.nonCompliant / stats.total) * 100}%` }}
-                                      />
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
+                              );
+                            })}
+                          </div>
+                        )
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+                          <FileText className="h-12 w-12 mb-3 opacity-30" />
+                          <p className="text-sm">Selecione uma categoria para ver os diplomas</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
 
