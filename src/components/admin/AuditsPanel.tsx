@@ -26,7 +26,8 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Download
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -224,6 +225,37 @@ export function AuditsPanel() {
     enabled: !!selectedAudit,
   });
 
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const handleGenerateReport = async (auditId: string, auditTitle: string) => {
+    setIsGeneratingReport(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-compliance-report", {
+        body: { reportType: "audit", auditId },
+      });
+
+      if (error) throw error;
+
+      // Create blob and download
+      const blob = new Blob([data], { type: "text/html" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `relatorio-auditoria-${auditTitle.replace(/[^a-zA-Z0-9]/g, "-")}.html`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({ title: "Relatório gerado", description: "O relatório foi descarregado com sucesso" });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast({ title: "Erro", description: "Não foi possível gerar o relatório", variant: "destructive" });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   const handleStatusChange = async (auditId: string, newStatus: "planned" | "in_progress" | "completed" | "cancelled") => {
     try {
       const { error } = await supabase
@@ -353,6 +385,20 @@ export function AuditsPanel() {
                           <SelectItem value="cancelled">Cancelada</SelectItem>
                         </SelectContent>
                       </Select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleGenerateReport(auditDetails.id, auditDetails.title)}
+                        disabled={isGeneratingReport}
+                        className="gap-2"
+                      >
+                        {isGeneratingReport ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        Relatório PDF
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
