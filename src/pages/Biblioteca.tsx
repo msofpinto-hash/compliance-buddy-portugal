@@ -371,24 +371,21 @@ export default function Biblioteca() {
                 </button>
               </Badge>
             )}
-            {filterStartDate && (
+            {/* Date range chip - grouped */}
+            {(filterStartDate || filterEndDate) && (
               <Badge variant="secondary" className="gap-1.5 pr-1">
                 <Calendar className="h-3 w-3" />
-                De: {format(new Date(filterStartDate), "dd/MM/yyyy")}
+                {filterStartDate && filterEndDate
+                  ? `${format(new Date(filterStartDate), "dd/MM/yyyy")} → ${format(new Date(filterEndDate), "dd/MM/yyyy")}`
+                  : filterStartDate
+                    ? `De ${format(new Date(filterStartDate), "dd/MM/yyyy")}`
+                    : `Até ${format(new Date(filterEndDate!), "dd/MM/yyyy")}`
+                }
                 <button
-                  onClick={() => setFilterStartDate(null)}
-                  className="ml-1 rounded-full hover:bg-muted p-0.5"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-            {filterEndDate && (
-              <Badge variant="secondary" className="gap-1.5 pr-1">
-                <Calendar className="h-3 w-3" />
-                Até: {format(new Date(filterEndDate), "dd/MM/yyyy")}
-                <button
-                  onClick={() => setFilterEndDate(null)}
+                  onClick={() => {
+                    setFilterStartDate(null);
+                    setFilterEndDate(null);
+                  }}
                   className="ml-1 rounded-full hover:bg-muted p-0.5"
                 >
                   <X className="h-3 w-3" />
