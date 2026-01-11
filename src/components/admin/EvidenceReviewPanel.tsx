@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +42,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 const AREA_CONFIG = {
   area_ambiente: { label: "Ambiente", icon: Leaf, color: "bg-green-100 text-green-800" },
@@ -113,11 +115,19 @@ export function EvidenceReviewPanel() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("submitted");
   const [orgFilter, setOrgFilter] = useState<string>("all");
-  const [areaFilter, setAreaFilter] = useState<string>("all");
+  const [areaFilters, setAreaFilters] = useState<string[]>([]);
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<EvidenceRequestWithOrg | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+
+  const toggleAreaFilter = (area: string) => {
+    setAreaFilters(prev => 
+      prev.includes(area) 
+        ? prev.filter(a => a !== area) 
+        : [...prev, area]
+    );
+  };
 
   // Fetch all evidence requests
   const { data: requests, isLoading } = useQuery({
@@ -254,8 +264,8 @@ export function EvidenceReviewPanel() {
     
     const matchesStatus = statusFilter === "all" || r.status === statusFilter;
     const matchesOrg = orgFilter === "all" || r.organization_id === orgFilter;
-    const matchesArea = areaFilter === "all" || 
-      r.evidence_templates[areaFilter as keyof typeof r.evidence_templates] === true;
+    const matchesArea = areaFilters.length === 0 || 
+      areaFilters.some(area => r.evidence_templates[area as keyof typeof r.evidence_templates] === true);
     
     return matchesSearch && matchesStatus && matchesOrg && matchesArea;
   });
@@ -334,7 +344,7 @@ export function EvidenceReviewPanel() {
             Reveja e aprove as evidências documentais submetidas pelos clientes
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
@@ -363,25 +373,6 @@ export function EvidenceReviewPanel() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={areaFilter} onValueChange={setAreaFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tema" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os temas</SelectItem>
-                {Object.entries(AREA_CONFIG).map(([key, config]) => {
-                  const IconComponent = config.icon;
-                  return (
-                    <SelectItem key={key} value={key}>
-                      <div className="flex items-center gap-2">
-                        <IconComponent className="h-4 w-4" />
-                        {config.label}
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
             <Select value={orgFilter} onValueChange={setOrgFilter}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Organização" />
@@ -395,6 +386,41 @@ export function EvidenceReviewPanel() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          {/* Theme multi-select filters */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Filtrar por temas:</Label>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(AREA_CONFIG).map(([key, config]) => {
+                const IconComponent = config.icon;
+                const isSelected = areaFilters.includes(key);
+                return (
+                  <Badge
+                    key={key}
+                    variant={isSelected ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      isSelected ? config.color : "hover:bg-accent"
+                    )}
+                    onClick={() => toggleAreaFilter(key)}
+                  >
+                    <IconComponent className="h-3 w-3 mr-1" />
+                    {config.label}
+                  </Badge>
+                );
+              })}
+              {areaFilters.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setAreaFilters([])}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
