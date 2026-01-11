@@ -382,15 +382,72 @@ export function exportFullReportToExcel(data: ReportData): void {
   XLSX.writeFile(wb, fileName);
 }
 
-// ==================== PDF EXPORT ====================
+// ==================== PDF THEME CONFIGURATION ====================
 
+// You can customize these colors to match your brand
+// Colors are in RGB format [R, G, B] with values 0-255
+export const PDF_THEME = {
+  // Brand colors
+  colors: {
+    primary: [37, 99, 235] as [number, number, number],      // Blue - main accent
+    secondary: [99, 102, 241] as [number, number, number],   // Indigo - secondary accent
+    success: [22, 163, 74] as [number, number, number],      // Green - compliant
+    warning: [234, 179, 8] as [number, number, number],      // Yellow - in progress
+    danger: [220, 38, 38] as [number, number, number],       // Red - non-compliant
+    
+    // Text colors
+    textDark: [17, 24, 39] as [number, number, number],      // Headings
+    textMuted: [107, 114, 128] as [number, number, number],  // Secondary text
+    textLight: [156, 163, 175] as [number, number, number],  // Subtle text
+    
+    // Background colors
+    bgLight: [249, 250, 251] as [number, number, number],    // Light background
+    bgHeader: [243, 244, 246] as [number, number, number],   // Table header
+    bgAccent: [239, 246, 255] as [number, number, number],   // Accent background
+    
+    // Border colors
+    border: [229, 231, 235] as [number, number, number],     // Light border
+    borderAccent: [191, 219, 254] as [number, number, number], // Accent border
+  },
+  
+  // Typography settings
+  typography: {
+    // Font sizes in points
+    titleSize: 22,
+    subtitleSize: 14,
+    headingSize: 12,
+    bodySize: 10,
+    smallSize: 8,
+    tinySize: 7,
+    
+    // Line heights (multiplier)
+    lineHeight: 1.4,
+  },
+  
+  // Spacing in mm
+  spacing: {
+    margin: 20,
+    sectionGap: 15,
+    itemGap: 8,
+  },
+  
+  // Stats box configuration
+  statsBox: {
+    width: 35,
+    height: 28,
+    gap: 4,
+    borderRadius: 4,
+  },
+};
+
+// Legacy alias for backwards compatibility
 const PDF_COLORS = {
-  primary: [59, 130, 246] as [number, number, number],
-  success: [22, 163, 74] as [number, number, number],
-  warning: [202, 138, 4] as [number, number, number],
-  danger: [220, 38, 38] as [number, number, number],
-  muted: [107, 114, 128] as [number, number, number],
-  header: [243, 244, 246] as [number, number, number],
+  primary: PDF_THEME.colors.primary,
+  success: PDF_THEME.colors.success,
+  warning: PDF_THEME.colors.warning,
+  danger: PDF_THEME.colors.danger,
+  muted: PDF_THEME.colors.textMuted,
+  header: PDF_THEME.colors.bgHeader,
 };
 
 // Helper to load image as base64
@@ -411,71 +468,164 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 }
 
 function addPDFHeader(doc: jsPDF, title: string, orgName: string, logoBase64?: string | null): void {
-  let textStartX = 20;
+  const { colors, typography, spacing } = PDF_THEME;
+  let textStartX = spacing.margin;
   
   // Add logo if available
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, 'PNG', 20, 12, 30, 30);
-      textStartX = 60;
+      doc.addImage(logoBase64, 'PNG', spacing.margin, 12, 30, 30);
+      textStartX = spacing.margin + 40;
     } catch {
       // If logo fails to load, continue without it
     }
   }
   
-  doc.setFontSize(20);
-  doc.setTextColor(17, 24, 39);
+  // Title with primary color accent
+  doc.setFontSize(typography.titleSize);
+  doc.setTextColor(...colors.primary);
   doc.text(title, textStartX, 25);
   
-  doc.setFontSize(12);
-  doc.setTextColor(...PDF_COLORS.muted);
-  doc.text(orgName, textStartX, 35);
+  // Organization name
+  doc.setFontSize(typography.subtitleSize);
+  doc.setTextColor(...colors.textDark);
+  doc.text(orgName, textStartX, 36);
   
-  doc.setFontSize(10);
-  doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-PT")}`, textStartX, 45);
+  // Date with muted color
+  doc.setFontSize(typography.smallSize);
+  doc.setTextColor(...colors.textMuted);
+  doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-PT", { 
+    day: "2-digit", 
+    month: "long", 
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  })}`, textStartX, 45);
   
-  // Line under header
-  doc.setDrawColor(229, 231, 235);
-  doc.line(20, 50, 190, 50);
+  // Decorative line under header with gradient effect
+  doc.setDrawColor(...colors.primary);
+  doc.setLineWidth(0.8);
+  doc.line(spacing.margin, 52, 60, 52);
+  
+  doc.setDrawColor(...colors.border);
+  doc.setLineWidth(0.3);
+  doc.line(60, 52, 210 - spacing.margin, 52);
 }
 
 function addStatsBox(doc: jsPDF, stats: ReportStats, startY: number): number {
-  const boxWidth = 35;
-  const boxHeight = 25;
-  const startX = 20;
-  const gap = 5;
+  const { colors, typography, spacing, statsBox } = PDF_THEME;
+  const { width: boxWidth, height: boxHeight, gap, borderRadius } = statsBox;
+  const startX = spacing.margin;
   
   const statsItems = [
-    { label: "Diplomas", value: stats.totalLegislation.toString(), color: PDF_COLORS.primary },
-    { label: "Requisitos", value: stats.totalRequirements.toString(), color: PDF_COLORS.muted },
-    { label: "Conforme", value: stats.conforme.toString(), color: PDF_COLORS.success },
-    { label: "Não Conforme", value: stats.naoConforme.toString(), color: PDF_COLORS.danger },
-    { label: "Conformidade", value: `${stats.complianceRate}%`, color: PDF_COLORS.primary },
+    { label: "Diplomas", value: stats.totalLegislation.toString(), color: colors.primary, bgColor: colors.bgAccent },
+    { label: "Requisitos", value: stats.totalRequirements.toString(), color: colors.secondary, bgColor: colors.bgLight },
+    { label: "Conforme", value: stats.conforme.toString(), color: colors.success, bgColor: [236, 253, 245] as [number, number, number] },
+    { label: "Não Conforme", value: stats.naoConforme.toString(), color: colors.danger, bgColor: [254, 242, 242] as [number, number, number] },
+    { label: "Conformidade", value: `${stats.complianceRate}%`, color: colors.primary, bgColor: colors.bgAccent },
   ];
   
   statsItems.forEach((stat, index) => {
     const x = startX + (boxWidth + gap) * index;
     
-    // Box background
-    doc.setFillColor(249, 250, 251);
-    doc.roundedRect(x, startY, boxWidth, boxHeight, 3, 3, "F");
+    // Box background with subtle color
+    doc.setFillColor(...stat.bgColor);
+    doc.roundedRect(x, startY, boxWidth, boxHeight, borderRadius, borderRadius, "F");
     
-    // Value
-    doc.setFontSize(16);
+    // Border accent
+    doc.setDrawColor(...stat.color);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(x, startY, boxWidth, boxHeight, borderRadius, borderRadius, "S");
+    
+    // Value - larger and bold looking
+    doc.setFontSize(18);
     doc.setTextColor(...stat.color);
-    doc.text(stat.value, x + boxWidth / 2, startY + 12, { align: "center" });
+    doc.text(stat.value, x + boxWidth / 2, startY + 13, { align: "center" });
     
-    // Label
-    doc.setFontSize(7);
-    doc.setTextColor(...PDF_COLORS.muted);
-    doc.text(stat.label, x + boxWidth / 2, startY + 20, { align: "center" });
+    // Label - smaller and muted
+    doc.setFontSize(typography.tinySize);
+    doc.setTextColor(...colors.textMuted);
+    doc.text(stat.label, x + boxWidth / 2, startY + 22, { align: "center" });
   });
   
-  return startY + boxHeight + 15;
+  return startY + boxHeight + spacing.sectionGap;
+}
+
+// Helper function to get consistent table styles
+function getTableStyles() {
+  const { colors, typography } = PDF_THEME;
+  
+  return {
+    headStyles: {
+      fillColor: colors.primary,
+      textColor: [255, 255, 255] as [number, number, number],
+      fontStyle: "bold" as const,
+      fontSize: typography.smallSize,
+      cellPadding: 4,
+    },
+    bodyStyles: {
+      fontSize: typography.tinySize,
+      textColor: colors.textDark,
+      cellPadding: 3,
+    },
+    alternateRowStyles: {
+      fillColor: colors.bgLight,
+    },
+    styles: {
+      lineColor: colors.border,
+      lineWidth: 0.1,
+    },
+  };
+}
+
+// Helper function to add section title
+function addSectionTitle(doc: jsPDF, title: string, y: number): number {
+  const { colors, typography, spacing } = PDF_THEME;
+  
+  doc.setFontSize(typography.subtitleSize);
+  doc.setTextColor(...colors.primary);
+  doc.text(title, spacing.margin, y);
+  
+  // Underline
+  doc.setDrawColor(...colors.borderAccent);
+  doc.setLineWidth(0.5);
+  doc.line(spacing.margin, y + 2, spacing.margin + doc.getTextWidth(title), y + 2);
+  
+  return y + 10;
+}
+
+// Helper function to add footer to all pages
+function addFooter(doc: jsPDF, orgName: string): void {
+  const { colors, typography, spacing } = PDF_THEME;
+  const pageCount = doc.getNumberOfPages();
+  
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    
+    // Footer line
+    doc.setDrawColor(...colors.border);
+    doc.setLineWidth(0.3);
+    doc.line(spacing.margin, doc.internal.pageSize.height - 18, 210 - spacing.margin, doc.internal.pageSize.height - 18);
+    
+    // Organization name on left
+    doc.setFontSize(typography.tinySize);
+    doc.setTextColor(...colors.textLight);
+    doc.text(orgName, spacing.margin, doc.internal.pageSize.height - 12);
+    
+    // Page number on right
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      210 - spacing.margin,
+      doc.internal.pageSize.height - 12,
+      { align: "right" }
+    );
+  }
 }
 
 export async function exportLegislationToPDF(data: ReportData): Promise<void> {
   const doc = new jsPDF();
+  const { colors, spacing } = PDF_THEME;
+  const tableStyles = getTableStyles();
   
   // Load logo if available
   const logoBase64 = data.organization.logoUrl 
@@ -494,42 +644,18 @@ export async function exportLegislationToPDF(data: ReportData): Promise<void> {
       getSourceLabel(leg.source),
       leg.requirementsCount.toString(),
     ]),
-    headStyles: {
-      fillColor: PDF_COLORS.header,
-      textColor: [31, 41, 55],
-      fontStyle: "bold",
-      fontSize: 9,
-    },
-    bodyStyles: {
-      fontSize: 8,
-      textColor: [55, 65, 81],
-    },
-    alternateRowStyles: {
-      fillColor: [249, 250, 251],
-    },
+    ...tableStyles,
     columnStyles: {
       0: { cellWidth: 35 },
       1: { cellWidth: 80 },
       2: { cellWidth: 25 },
       3: { cellWidth: 20 },
-      4: { cellWidth: 20 },
+      4: { cellWidth: 20, halign: "center" as const },
     },
-    margin: { left: 20, right: 20 },
+    margin: { left: spacing.margin, right: spacing.margin },
   });
   
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(...PDF_COLORS.muted);
-    doc.text(
-      `Página ${i} de ${pageCount}`,
-      doc.internal.pageSize.width / 2,
-      doc.internal.pageSize.height - 10,
-      { align: "center" }
-    );
-  }
+  addFooter(doc, data.organization.name);
   
   const fileName = `legislacao-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
   doc.save(fileName);
@@ -537,6 +663,8 @@ export async function exportLegislationToPDF(data: ReportData): Promise<void> {
 
 export async function exportRequirementsToPDF(data: ReportData): Promise<void> {
   const doc = new jsPDF();
+  const { colors, typography, spacing } = PDF_THEME;
+  const tableStyles = getTableStyles();
   
   // Load logo if available
   const logoBase64 = data.organization.logoUrl 
@@ -545,7 +673,7 @@ export async function exportRequirementsToPDF(data: ReportData): Promise<void> {
   
   addPDFHeader(doc, "Lista de Requisitos Legais", data.organization.name, logoBase64);
   
-  let currentY = addStatsBox(doc, data.stats, 55);
+  let currentY = addStatsBox(doc, data.stats, 58);
   
   // Group requirements by legislation
   const grouped = new Map<string, RequirementItem[]>();
@@ -566,11 +694,19 @@ export async function exportRequirementsToPDF(data: ReportData): Promise<void> {
       currentY = 20;
     }
     
-    // Legislation header
-    doc.setFontSize(10);
-    doc.setTextColor(31, 41, 55);
-    doc.text(`${legNumber} - ${legTitle.length > 70 ? legTitle.substring(0, 67) + "..." : legTitle}`, 20, currentY);
-    currentY += 5;
+    // Legislation header with colored background
+    doc.setFillColor(...colors.bgAccent);
+    doc.rect(spacing.margin, currentY - 4, 170, 8, "F");
+    
+    doc.setFontSize(typography.bodySize);
+    doc.setTextColor(...colors.primary);
+    doc.text(`${legNumber}`, spacing.margin + 2, currentY);
+    
+    doc.setFontSize(typography.smallSize);
+    doc.setTextColor(...colors.textDark);
+    const titleText = legTitle.length > 60 ? legTitle.substring(0, 57) + "..." : legTitle;
+    doc.text(titleText, spacing.margin + 45, currentY);
+    currentY += 8;
     
     doc.autoTable({
       startY: currentY,
@@ -581,44 +717,20 @@ export async function exportRequirementsToPDF(data: ReportData): Promise<void> {
         getStatusLabel(req.status),
         req.notes ? (req.notes.length > 30 ? req.notes.substring(0, 27) + "..." : req.notes) : "-",
       ]),
-      headStyles: {
-        fillColor: PDF_COLORS.header,
-        textColor: [31, 41, 55],
-        fontStyle: "bold",
-        fontSize: 8,
-      },
-      bodyStyles: {
-        fontSize: 7,
-        textColor: [55, 65, 81],
-      },
-      alternateRowStyles: {
-        fillColor: [249, 250, 251],
-      },
+      ...tableStyles,
       columnStyles: {
         0: { cellWidth: 20 },
         1: { cellWidth: 90 },
         2: { cellWidth: 25 },
         3: { cellWidth: 35 },
       },
-      margin: { left: 20, right: 20 },
+      margin: { left: spacing.margin, right: spacing.margin },
     });
     
-    currentY = doc.lastAutoTable.finalY + 10;
+    currentY = doc.lastAutoTable.finalY + spacing.itemGap;
   });
   
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(...PDF_COLORS.muted);
-    doc.text(
-      `Página ${i} de ${pageCount}`,
-      doc.internal.pageSize.width / 2,
-      doc.internal.pageSize.height - 10,
-      { align: "center" }
-    );
-  }
+  addFooter(doc, data.organization.name);
   
   const fileName = `requisitos-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
   doc.save(fileName);
@@ -626,6 +738,8 @@ export async function exportRequirementsToPDF(data: ReportData): Promise<void> {
 
 export async function exportComplianceReportToPDF(data: ReportData): Promise<void> {
   const doc = new jsPDF();
+  const { colors, typography, spacing } = PDF_THEME;
+  const tableStyles = getTableStyles();
   
   // Load logo if available
   const logoBase64 = data.organization.logoUrl 
@@ -634,14 +748,11 @@ export async function exportComplianceReportToPDF(data: ReportData): Promise<voi
   
   addPDFHeader(doc, "Relatório de Conformidade Legal", data.organization.name, logoBase64);
   
-  let currentY = addStatsBox(doc, data.stats, 55);
+  let currentY = addStatsBox(doc, data.stats, 58);
   
   // Action Plans Section
   if (data.actionPlans.length > 0) {
-    doc.setFontSize(14);
-    doc.setTextColor(31, 41, 55);
-    doc.text("Planos de Ação", 20, currentY);
-    currentY += 5;
+    currentY = addSectionTitle(doc, "Planos de Ação", currentY);
     
     doc.autoTable({
       startY: currentY,
@@ -652,31 +763,19 @@ export async function exportComplianceReportToPDF(data: ReportData): Promise<voi
         plan.responsible || "-",
         formatDate(plan.dueDate),
       ]),
-      headStyles: {
-        fillColor: PDF_COLORS.header,
-        textColor: [31, 41, 55],
-        fontStyle: "bold",
-        fontSize: 9,
-      },
-      bodyStyles: {
-        fontSize: 8,
-        textColor: [55, 65, 81],
-      },
-      margin: { left: 20, right: 20 },
+      ...tableStyles,
+      margin: { left: spacing.margin, right: spacing.margin },
     });
     
-    currentY = doc.lastAutoTable.finalY + 15;
+    currentY = doc.lastAutoTable.finalY + spacing.sectionGap;
   }
   
   // Requirements by Legislation
-  doc.setFontSize(14);
-  doc.setTextColor(31, 41, 55);
   if (currentY > 250) {
     doc.addPage();
     currentY = 20;
   }
-  doc.text("Requisitos por Diploma", 20, currentY);
-  currentY += 10;
+  currentY = addSectionTitle(doc, "Requisitos por Diploma", currentY);
   
   // Group requirements by legislation
   const grouped = new Map<string, RequirementItem[]>();
@@ -694,10 +793,14 @@ export async function exportComplianceReportToPDF(data: ReportData): Promise<voi
       currentY = 20;
     }
     
-    doc.setFontSize(10);
-    doc.setTextColor(55, 65, 81);
-    doc.text(legNumber, 20, currentY);
-    currentY += 5;
+    // Legislation header with accent
+    doc.setFillColor(...colors.bgAccent);
+    doc.rect(spacing.margin, currentY - 4, 170, 7, "F");
+    
+    doc.setFontSize(typography.bodySize);
+    doc.setTextColor(...colors.primary);
+    doc.text(legNumber, spacing.margin + 2, currentY);
+    currentY += 6;
     
     doc.autoTable({
       startY: currentY,
@@ -707,40 +810,19 @@ export async function exportComplianceReportToPDF(data: ReportData): Promise<voi
         req.text.length > 100 ? req.text.substring(0, 97) + "..." : req.text,
         getStatusLabel(req.status),
       ]),
-      headStyles: {
-        fillColor: PDF_COLORS.header,
-        textColor: [31, 41, 55],
-        fontStyle: "bold",
-        fontSize: 8,
-      },
-      bodyStyles: {
-        fontSize: 7,
-        textColor: [55, 65, 81],
-      },
+      ...tableStyles,
       columnStyles: {
         0: { cellWidth: 20 },
         1: { cellWidth: 120 },
         2: { cellWidth: 30 },
       },
-      margin: { left: 20, right: 20 },
+      margin: { left: spacing.margin, right: spacing.margin },
     });
     
-    currentY = doc.lastAutoTable.finalY + 8;
+    currentY = doc.lastAutoTable.finalY + spacing.itemGap;
   });
   
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(...PDF_COLORS.muted);
-    doc.text(
-      `Página ${i} de ${pageCount}`,
-      doc.internal.pageSize.width / 2,
-      doc.internal.pageSize.height - 10,
-      { align: "center" }
-    );
-  }
+  addFooter(doc, data.organization.name);
   
   const fileName = `relatorio-conformidade-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
   doc.save(fileName);
