@@ -841,58 +841,146 @@ export default function Dashboard() {
 
           {/* Audits Tab */}
           {activeTab === "audits" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold">Auditorias</h2>
-                  <p className="text-muted-foreground">
-                    Histórico de auditorias realizadas à sua organização
-                  </p>
-                </div>
+            <div className="space-y-8">
+              {/* Audit Plan Section - Planned and In Progress */}
+              {(() => {
+                const plannedAudits = audits?.filter(
+                  (a) => a.status === "planned" || a.status === "in_progress"
+                ) || [];
                 
-                {/* Filters */}
-                <div className="flex flex-wrap gap-2">
-                  <Select 
-                    value={auditStatusFilter || "all"} 
-                    onValueChange={(v) => setAuditStatusFilter(v === "all" ? null : v)}
-                  >
-                    <SelectTrigger className="w-[160px] h-9">
-                      <SelectValue placeholder="Todos os estados" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os estados</SelectItem>
-                      <SelectItem value="planned">Planeada</SelectItem>
-                      <SelectItem value="in_progress">Em Curso</SelectItem>
-                      <SelectItem value="pending_approval">Em Aprovação</SelectItem>
-                      <SelectItem value="closed">Encerrada</SelectItem>
-                      <SelectItem value="cancelled">Cancelada</SelectItem>
-                    </SelectContent>
-                  </Select>
+                return (
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-2xl font-bold">Plano de Auditoria</h2>
+                      <p className="text-muted-foreground">
+                        Auditorias planeadas e em curso
+                      </p>
+                    </div>
+                    
+                    {loadingAudits ? (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {[1, 2].map((i) => (
+                          <Skeleton key={i} className="h-40" />
+                        ))}
+                      </div>
+                    ) : plannedAudits.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-8 text-center">
+                          <Calendar className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                          <p className="text-muted-foreground">Sem auditorias planeadas</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {plannedAudits.map((audit) => (
+                          <Card key={audit.id} className="border-l-4 border-l-primary">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`gap-1 ${
+                                        audit.status === "in_progress" 
+                                          ? "bg-yellow-500 text-white border-0" 
+                                          : "bg-blue-500 text-white border-0"
+                                      }`}
+                                    >
+                                      {audit.status === "in_progress" ? "Em Curso" : "Planeada"}
+                                    </Badge>
+                                  </div>
+                                  <h3 className="font-semibold">{audit.title}</h3>
+                                  {audit.description && (
+                                    <p className="text-sm text-muted-foreground line-clamp-2">{audit.description}</p>
+                                  )}
+                                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                                    {audit.audit_date && (
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="h-4 w-4" />
+                                        <span>{format(new Date(audit.audit_date), "d MMM yyyy", { locale: pt })}</span>
+                                      </div>
+                                    )}
+                                    {audit.auditor && (
+                                      <div className="flex items-center gap-1">
+                                        <User className="h-4 w-4" />
+                                        <span>{audit.auditor}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleExportAuditPDF(audit.id, audit.title)}
+                                  disabled={exportingAuditId === audit.id}
+                                >
+                                  {exportingAuditId === audit.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Download className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Audit History Section */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">Histórico de Auditorias</h2>
+                    <p className="text-muted-foreground">
+                      Auditorias realizadas e encerradas
+                    </p>
+                  </div>
                   
-                  <DateRangeFilter
-                    startDate={auditStartDate}
-                    endDate={auditEndDate}
-                    onStartDateChange={setAuditStartDate}
-                    onEndDateChange={setAuditEndDate}
-                    label="Período"
-                  />
-                  
-                  <Select 
-                    value={auditSortBy} 
-                    onValueChange={(v) => setAuditSortBy(v as typeof auditSortBy)}
-                  >
-                    <SelectTrigger className="w-[160px] h-9">
-                      <SelectValue placeholder="Ordenar por" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="date_desc">Data (recente)</SelectItem>
-                      <SelectItem value="date_asc">Data (antiga)</SelectItem>
-                      <SelectItem value="title">Título A-Z</SelectItem>
-                      <SelectItem value="status">Estado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* Filters */}
+                  <div className="flex flex-wrap gap-2">
+                    <Select 
+                      value={auditStatusFilter || "all"} 
+                      onValueChange={(v) => setAuditStatusFilter(v === "all" ? null : v)}
+                    >
+                      <SelectTrigger className="w-[160px] h-9">
+                        <SelectValue placeholder="Todos os estados" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os estados</SelectItem>
+                        <SelectItem value="pending_approval">Em Aprovação</SelectItem>
+                        <SelectItem value="closed">Encerrada</SelectItem>
+                        <SelectItem value="cancelled">Cancelada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <DateRangeFilter
+                      startDate={auditStartDate}
+                      endDate={auditEndDate}
+                      onStartDateChange={setAuditStartDate}
+                      onEndDateChange={setAuditEndDate}
+                      label="Período"
+                    />
+                    
+                    <Select 
+                      value={auditSortBy} 
+                      onValueChange={(v) => setAuditSortBy(v as typeof auditSortBy)}
+                    >
+                      <SelectTrigger className="w-[160px] h-9">
+                        <SelectValue placeholder="Ordenar por" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date_desc">Data (recente)</SelectItem>
+                        <SelectItem value="date_asc">Data (antiga)</SelectItem>
+                        <SelectItem value="title">Título A-Z</SelectItem>
+                        <SelectItem value="status">Estado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
 
               {(() => {
                 // Status order for sorting
@@ -904,8 +992,12 @@ export default function Dashboard() {
                   cancelled: 5
                 };
 
-                // Filter and sort audits
+                // Filter and sort audits (exclude planned and in_progress - shown in Plano de Auditoria)
                 const filteredAudits = audits?.filter((audit) => {
+                  // Exclude planned and in_progress (shown in Plano de Auditoria section)
+                  if (audit.status === "planned" || audit.status === "in_progress") {
+                    return false;
+                  }
                   // Status filter
                   if (auditStatusFilter && audit.status !== auditStatusFilter) {
                     return false;
@@ -1082,6 +1174,7 @@ export default function Dashboard() {
                   </div>
                 );
               })()}
+              </div>
             </div>
           )}
 
