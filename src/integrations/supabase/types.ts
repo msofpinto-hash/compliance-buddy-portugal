@@ -321,6 +321,7 @@ export type Database = {
           plan_approved_by: string | null
           plan_feedback: string | null
           recommendations: string | null
+          scope: string | null
           status: Database["public"]["Enums"]["audit_status"]
           strengths: string | null
           title: string
@@ -345,6 +346,7 @@ export type Database = {
           plan_approved_by?: string | null
           plan_feedback?: string | null
           recommendations?: string | null
+          scope?: string | null
           status?: Database["public"]["Enums"]["audit_status"]
           strengths?: string | null
           title: string
@@ -369,6 +371,7 @@ export type Database = {
           plan_approved_by?: string | null
           plan_feedback?: string | null
           recommendations?: string | null
+          scope?: string | null
           status?: Database["public"]["Enums"]["audit_status"]
           strengths?: string | null
           title?: string
