@@ -274,6 +274,12 @@ Deno.serve(async (req) => {
       existingRelations?.map(r => `${r.source_legislation_id}-${r.target_legislation_id}-${r.relation_type}`) || []
     );
 
+    // Get legislation IDs that already have outgoing relations (already processed)
+    const processedLegislationIds = new Set(
+      existingRelations?.map(r => r.source_legislation_id) || []
+    );
+    console.log(`Found ${processedLegislationIds.size} legislation already with relations (will skip)`);
+
     // Get legislation to process
     let legislationToProcess: any[] = [];
 
@@ -288,6 +294,7 @@ Deno.serve(async (req) => {
       legislationToProcess = data || [];
     } else {
       // Get legislation with URLs, optionally filtered by origin
+      // We fetch more than limit to account for skipped ones
       let query = supabase
         .from('legislation')
         .select('id, number, title, summary, document_url, origin')
@@ -300,8 +307,15 @@ Deno.serve(async (req) => {
         query = query.or('origin.eq.EU,origin.eq.eurlex');
       }
       
-      const { data } = await query.limit(limit);
-      legislationToProcess = data || [];
+      // Fetch more to account for already-processed ones
+      const { data } = await query.limit(limit * 5);
+      
+      // Filter out already processed legislation and apply limit
+      legislationToProcess = (data || [])
+        .filter(leg => !processedLegislationIds.has(leg.id))
+        .slice(0, limit);
+      
+      console.log(`After filtering processed: ${legislationToProcess.length} legislation to process`);
     }
 
     if (legislationToProcess.length === 0) {
