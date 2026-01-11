@@ -6,6 +6,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   AlertTriangle, 
   Loader2, 
@@ -98,6 +108,29 @@ export function DuplicateCleanupPanel() {
     totalDuplicates: number;
   } | null>(null);
   const [incompleteFilter, setIncompleteFilter] = useState<string>("all");
+  const [showMergeConfirmation, setShowMergeConfirmation] = useState(false);
+
+  // Calculate merge summary for confirmation dialog
+  const mergeSummary = useMemo(() => {
+    const groupsToMerge = duplicateGroups.filter(g => selectedGroups.has(g.normalizedNumber));
+    const itemsToKeep = groupsToMerge.map(g => {
+      const keepItem = g.items.find(i => i.id === g.selectedKeepId) || g.items[0];
+      return { number: keepItem.number, title: keepItem.title };
+    });
+    const itemsToDelete = groupsToMerge.flatMap(g => {
+      return g.items.filter(i => i.id !== g.selectedKeepId).map(i => ({
+        number: i.number,
+        title: i.title
+      }));
+    });
+    return {
+      groupCount: groupsToMerge.length,
+      keepCount: itemsToKeep.length,
+      deleteCount: itemsToDelete.length,
+      itemsToKeep: itemsToKeep.slice(0, 5), // Show first 5 for preview
+      itemsToDelete: itemsToDelete.slice(0, 5), // Show first 5 for preview
+    };
+  }, [duplicateGroups, selectedGroups]);
 
   // Check if a group has incomplete data
   const groupHasIncompleteData = (group: DuplicateGroup): { incomplete: boolean; issues: string[] } => {
@@ -559,7 +592,7 @@ export function DuplicateCleanupPanel() {
               </div>
 
               <Button
-                onClick={mergeSelectedGroups}
+                onClick={() => setShowMergeConfirmation(true)}
                 disabled={isMerging || selectedGroups.size === 0}
                 variant="default"
               >
@@ -603,6 +636,79 @@ export function DuplicateCleanupPanel() {
           </div>
         )}
       </CardContent>
+
+      {/* Merge Confirmation Dialog */}
+      <AlertDialog open={showMergeConfirmation} onOpenChange={setShowMergeConfirmation}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Merge className="h-5 w-5" />
+              Confirmar Fusão de Duplicados
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 text-left">
+                <p>
+                  Está prestes a fundir <strong>{mergeSummary.groupCount} grupos</strong> de duplicados.
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-green-600 font-medium">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Manter ({mergeSummary.keepCount})
+                    </div>
+                    <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                      {mergeSummary.itemsToKeep.map((item, i) => (
+                        <li key={i} className="truncate" title={item.title}>
+                          • {item.number}
+                        </li>
+                      ))}
+                      {mergeSummary.keepCount > 5 && (
+                        <li className="text-muted-foreground">...e mais {mergeSummary.keepCount - 5}</li>
+                      )}
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-destructive font-medium">
+                      <Trash2 className="h-4 w-4" />
+                      Eliminar ({mergeSummary.deleteCount})
+                    </div>
+                    <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                      {mergeSummary.itemsToDelete.map((item, i) => (
+                        <li key={i} className="truncate" title={item.title}>
+                          • {item.number}
+                        </li>
+                      ))}
+                      {mergeSummary.deleteCount > 5 && (
+                        <li className="text-muted-foreground">...e mais {mergeSummary.deleteCount - 5}</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-muted p-3 rounded-lg text-xs">
+                  <strong>Nota:</strong> Os dados dos registos eliminados serão fundidos nos registos mantidos. 
+                  Categorias, atribuições a organizações e relações serão transferidas automaticamente.
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowMergeConfirmation(false);
+                mergeSelectedGroups();
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              <Merge className="h-4 w-4 mr-2" />
+              Confirmar Fusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
