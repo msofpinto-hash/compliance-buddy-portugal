@@ -42,6 +42,8 @@ export function DataQualityPanel() {
   const queryClient = useQueryClient();
   const [showFixMetadataDialog, setShowFixMetadataDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
+  const [isFixingGenericTitles, setIsFixingGenericTitles] = useState(false);
+  const [fixTitlesResults, setFixTitlesResults] = useState<{ fixed: number; failed: number } | null>(null);
 
   // Fetch comprehensive data quality statistics
   const { data: qualityStats, isLoading, refetch } = useQuery({
@@ -64,10 +66,9 @@ export function DataQualityPanel() {
       ] = await Promise.all([
         // Total legislation
         supabase.from("legislation").select("id", { count: "exact", head: true }),
-        // Generic titles
+        // Generic titles - fetch all and count locally to detect title=number pattern
         supabase.from("legislation")
-          .select("id", { count: "exact", head: true })
-          .or("title.is.null,title.eq."),
+          .select("id, number, title"),
         // Missing summary
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
@@ -124,9 +125,19 @@ export function DataQualityPanel() {
       });
       const duplicateCount = Array.from(reqMap.values()).reduce((acc, count) => acc + (count > 1 ? count - 1 : 0), 0);
 
+      // Count generic titles (title = number or matches generic pattern)
+      const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)\s+n\.?º?\s/i;
+      const genericTitlesCount = (genericTitles.data || []).filter((leg: any) => {
+        const titleEqualsNumber = leg.title === leg.number;
+        const hasGenericPattern = genericPattern.test(leg.title) && 
+          leg.title.length < 80 && 
+          !leg.title.includes(' - ');
+        return titleEqualsNumber || hasGenericPattern || !leg.title;
+      }).length;
+
       return {
         total: totalLegislation.count || 0,
-        genericTitles: genericTitles.count || 0,
+        genericTitles: genericTitlesCount,
         missingSummary: missingSummary.count || 0,
         missingUrl: missingUrl.count || 0,
         missingOrigin: missingOrigin.count || 0,
@@ -208,6 +219,40 @@ export function DataQualityPanel() {
       });
     } finally {
       setIsRemovingDuplicateReqs(false);
+    }
+  };
+
+  // Fix generic titles via DRE scraping
+  const handleFixGenericTitles = async () => {
+    setIsFixingGenericTitles(true);
+    setFixTitlesResults(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("fix-generic-titles", {
+        body: { limit: 20, dryRun: false },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setFixTitlesResults({ fixed: data.fixed, failed: data.failed });
+        toast({
+          title: "Correção concluída",
+          description: `${data.fixed} títulos corrigidos, ${data.failed} falharam`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["data-quality-stats"] });
+        refetch();
+      } else {
+        throw new Error(data.error || "Erro desconhecido");
+      }
+    } catch (error) {
+      console.error("Error fixing titles:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao corrigir títulos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingGenericTitles(false);
     }
   };
 
@@ -325,9 +370,10 @@ export function DataQualityPanel() {
           count={qualityStats?.genericTitles || 0}
           total={qualityStats?.total || 0}
           severity="error"
-          description="Diplomas com título igual ao número ou vazio"
-          action="Corrigir Metadados"
-          onAction={() => setShowFixMetadataDialog(true)}
+          description="Diplomas com título igual ao número (requer scraping DRE)"
+          action={isFixingGenericTitles ? "A corrigir..." : "Corrigir via DRE"}
+          onAction={handleFixGenericTitles}
+          disabled={isFixingGenericTitles || (qualityStats?.genericTitles || 0) === 0}
         />
 
         <ProblemCard

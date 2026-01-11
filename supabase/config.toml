@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.check-action-plan-deadlines]
 verify_jwt = false
+
+[functions.fix-generic-titles]
+verify_jwt = false
