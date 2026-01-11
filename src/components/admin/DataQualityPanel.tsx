@@ -23,9 +23,11 @@ import {
   Sparkles,
   Copy,
   Flag,
-  Globe
+  Globe,
+  Unlink
 } from "lucide-react";
 import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
+import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -41,6 +43,7 @@ export function DataQualityPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showFixMetadataDialog, setShowFixMetadataDialog] = useState(false);
+  const [showValidateUrlsDialog, setShowValidateUrlsDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
   const [isFixingGenericTitles, setIsFixingGenericTitles] = useState(false);
   const [fixTitlesResults, setFixTitlesResults] = useState<{ fixed: number; failed: number } | null>(null);
@@ -422,6 +425,17 @@ export function DataQualityPanel() {
         />
 
         <ProblemCard
+          icon={<Unlink className="h-5 w-5" />}
+          title="Validar URLs"
+          count={qualityStats?.missingUrl || 0}
+          total={qualityStats?.total || 0}
+          severity="info"
+          description="Verificar acessibilidade dos links de documentos"
+          action="Validar URLs"
+          onAction={() => setShowValidateUrlsDialog(true)}
+        />
+
+        <ProblemCard
           icon={<BarChart3 className="h-5 w-5" />}
           title="Sem Categoria"
           count={qualityStats?.noCategories || 0}
@@ -477,6 +491,11 @@ export function DataQualityPanel() {
         open={showFixMetadataDialog}
         onOpenChange={setShowFixMetadataDialog}
         problemsCount={(qualityStats?.genericTitles || 0) + (qualityStats?.missingSummary || 0) + (qualityStats?.missingUrl || 0)}
+      />
+
+      <ValidateUrlsDialog
+        open={showValidateUrlsDialog}
+        onOpenChange={setShowValidateUrlsDialog}
       />
     </div>
   );
