@@ -842,6 +842,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_module_permissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          module: Database["public"]["Enums"]["app_module"]
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module: Database["public"]["Enums"]["app_module"]
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module?: Database["public"]["Enums"]["app_module"]
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_module_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -880,7 +915,19 @@ export type Database = {
     }
     Functions: {
       get_legislation_without_categories_count: { Args: never; Returns: number }
+      get_user_modules: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: Database["public"]["Enums"]["app_module"][]
+      }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
+      has_module_access: {
+        Args: {
+          _module: Database["public"]["Enums"]["app_module"]
+          _org_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -894,6 +941,12 @@ export type Database = {
       }
     }
     Enums: {
+      app_module:
+        | "legislacao"
+        | "planos_acao"
+        | "auditorias"
+        | "documentos"
+        | "indicadores"
       app_role: "admin" | "client"
       audit_status: "planned" | "in_progress" | "completed" | "cancelled"
     }
@@ -1023,6 +1076,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_module: [
+        "legislacao",
+        "planos_acao",
+        "auditorias",
+        "documentos",
+        "indicadores",
+      ],
       app_role: ["admin", "client"],
       audit_status: ["planned", "in_progress", "completed", "cancelled"],
     },

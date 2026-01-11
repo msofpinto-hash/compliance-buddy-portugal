@@ -13,8 +13,8 @@ import Dashboard from "./pages/Dashboard";
 import Biblioteca from "./pages/Biblioteca";
 import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
 import ClientPortal from "./pages/ClientPortal";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -65,6 +65,14 @@ const App = () => (
                 <RequireAdmin>
                   <Admin />
                 </RequireAdmin>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <RequireAuth>
+                  <Settings />
+                </RequireAuth>
               }
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
