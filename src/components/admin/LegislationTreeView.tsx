@@ -22,7 +22,8 @@ import {
   X,
   ChevronsUpDown,
   ChevronsDownUp,
-  ListChecks
+  ListChecks,
+  AlertCircle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
@@ -460,11 +461,14 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                   const applicabilityType = applicabilityMap?.[leg.id];
                   const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
                   const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
+                  const isNotEvaluated = applicabilityMap && (!applicabilityType || applicabilityType === "nao_avaliado");
                   
                   return (
                     <div
                       key={leg.id}
-                      className="rounded-lg border p-3 hover:bg-accent/50 transition-colors overflow-hidden"
+                      className={`rounded-lg border p-3 hover:bg-accent/50 transition-colors overflow-hidden ${
+                        isNotEvaluated ? 'border-l-4 border-l-amber-400 bg-amber-50/30' : ''
+                      }`}
                     >
                       {/* Header row: Source badge + Applicability + Number + Actions */}
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -496,6 +500,21 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-xs">
                                   <p className="text-xs">{applicabilityInfo.description}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {isNotEvaluated && (
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 shrink-0">
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span className="hidden sm:inline">Pendente</span>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="text-xs">Este diploma ainda não foi avaliado pela organização.</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
