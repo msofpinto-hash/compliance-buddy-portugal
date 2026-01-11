@@ -316,6 +316,7 @@ export type Database = {
           id: string
           interlocutors: string | null
           methodology: string | null
+          objectives: string | null
           organization_id: string
           plan_approved_at: string | null
           plan_approved_by: string | null
@@ -341,6 +342,7 @@ export type Database = {
           id?: string
           interlocutors?: string | null
           methodology?: string | null
+          objectives?: string | null
           organization_id: string
           plan_approved_at?: string | null
           plan_approved_by?: string | null
@@ -366,6 +368,7 @@ export type Database = {
           id?: string
           interlocutors?: string | null
           methodology?: string | null
+          objectives?: string | null
           organization_id?: string
           plan_approved_at?: string | null
           plan_approved_by?: string | null
