@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.import-eurlex-summaries]
 verify_jwt = false
+
+[functions.scrape-requirements-from-url]
+verify_jwt = false

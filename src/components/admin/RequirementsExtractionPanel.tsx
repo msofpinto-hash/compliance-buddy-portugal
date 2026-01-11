@@ -19,6 +19,8 @@ import {
   Play,
   BarChart3,
   Zap,
+  Link,
+  FileText,
   Square,
   RefreshCw,
   RotateCcw,
@@ -35,6 +37,8 @@ interface ExtractionResult {
   legislationId: string;
   legislationNumber?: string;
   requirementsCount: number;
+  textLength?: number;
+  requirements?: Array<{ article: string; requirement_text: string; notes?: string }>;
   error?: string;
 }
 
@@ -45,21 +49,41 @@ interface FailedItem {
   retryCount: number;
 }
 
+interface ScrapeResult {
+  legislationId: string;
+  legislationNumber: string;
+  requirementsCount: number;
+  textLength: number;
+  requirements: Array<{ article: string; requirement_text: string; notes?: string }>;
+  error?: string;
+}
+
 export function RequirementsExtractionPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isExtracting, setIsExtracting] = useState(false);
   const [isContinuousExtracting, setIsContinuousExtracting] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
   const [limit, setLimit] = useState(10);
   const [batchSize, setBatchSize] = useState(50);
+  const [scrapeLimit, setScrapeLimit] = useState(5);
   const [dryRun, setDryRun] = useState(false);
+  const [scrapeDryRun, setScrapeDryRun] = useState(true);
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const [autoRetry, setAutoRetry] = useState(true);
   const [maxRetries, setMaxRetries] = useState(3);
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   const [results, setResults] = useState<ExtractionResult[] | null>(null);
+  const [scrapeResults, setScrapeResults] = useState<ScrapeResult[] | null>(null);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   const [stats, setStats] = useState<{
+    processed: number;
+    successful: number;
+    failed: number;
+    totalRequirements: number;
+  } | null>(null);
+  const [scrapeStats, setScrapeStats] = useState<{
     processed: number;
     successful: number;
     failed: number;
@@ -74,6 +98,56 @@ export function RequirementsExtractionPanel() {
     retriesPerformed: number;
   } | null>(null);
   const stopContinuousRef = useRef(false);
+
+  // Handle URL scraping extraction
+  const handleScrapeExtract = async () => {
+    setIsScraping(true);
+    setScrapeResults(null);
+    setScrapeStats(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-requirements-from-url", {
+        body: { 
+          limit: scrapeLimit, 
+          dryRun: scrapeDryRun,
+          replaceExisting 
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setScrapeResults(data.results);
+        setScrapeStats({
+          processed: data.processed,
+          successful: data.successful,
+          failed: data.failed,
+          totalRequirements: data.totalRequirements,
+        });
+
+        toast({
+          title: scrapeDryRun ? "Simulação concluída" : "Extração via URL concluída",
+          description: `${data.successful} diplomas processados, ${data.totalRequirements} requisitos ${scrapeDryRun ? "identificados" : "inseridos"}`,
+        });
+
+        if (!scrapeDryRun) {
+          queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
+          queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+        }
+      } else {
+        throw new Error(data.error || "Erro desconhecido");
+      }
+    } catch (error) {
+      console.error("Scrape extraction error:", error);
+      toast({
+        title: "Erro na extração via URL",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScraping(false);
+    }
+  };
 
   // Fetch statistics with origin filter
   const { data: dbStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
@@ -885,6 +959,173 @@ export function RequirementsExtractionPanel() {
                               </Badge>
                             )}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* URL Scraping Extraction - NEW */}
+      <Card className="border-blue-300 bg-blue-50/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link className="h-5 w-5 text-blue-600" />
+            Extração via URL (Scraping)
+          </CardTitle>
+          <CardDescription>
+            Faz scraping da página DRE/EUR-Lex e extrai requisitos do texto completo do diploma.
+            Método mais preciso, requer Firecrawl ativo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-wrap items-end gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="scrape-limit">Diplomas por lote</Label>
+              <Input
+                id="scrape-limit"
+                type="number"
+                min={1}
+                max={20}
+                value={scrapeLimit}
+                onChange={(e) => setScrapeLimit(Number(e.target.value))}
+                className="w-24"
+                disabled={isScraping}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="scrape-dry-run"
+                checked={scrapeDryRun}
+                onCheckedChange={setScrapeDryRun}
+                disabled={isScraping}
+              />
+              <Label htmlFor="scrape-dry-run" className="cursor-pointer">
+                Modo simulação
+              </Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="replace-existing"
+                checked={replaceExisting}
+                onCheckedChange={setReplaceExisting}
+                disabled={isScraping || scrapeDryRun}
+              />
+              <Label htmlFor="replace-existing" className="cursor-pointer text-sm">
+                Substituir requisitos existentes
+              </Label>
+            </div>
+
+            <Button
+              onClick={handleScrapeExtract}
+              disabled={isScraping || isContinuousExtracting}
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              {isScraping ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              {isScraping ? "A extrair..." : scrapeDryRun ? "Simular Scraping" : "Extrair via URL"}
+            </Button>
+          </div>
+
+          {!scrapeDryRun && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-100 border border-blue-200 text-blue-800 text-sm">
+              <FileText className="h-4 w-4 flex-shrink-0" />
+              <span>
+                Os requisitos serão extraídos do texto completo da página e guardados na base de dados.
+              </span>
+            </div>
+          )}
+
+          {/* Scrape Results */}
+          {scrapeStats && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-background border">
+                <Link className="h-8 w-8 text-blue-600" />
+                <div className="flex-1 grid grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-2xl font-bold">{scrapeStats.processed}</p>
+                    <p className="text-sm text-muted-foreground">Processados</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{scrapeStats.successful}</p>
+                    <p className="text-sm text-muted-foreground">Sucesso</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-600">{scrapeStats.failed}</p>
+                    <p className="text-sm text-muted-foreground">Falhados</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{scrapeStats.totalRequirements}</p>
+                    <p className="text-sm text-muted-foreground">Requisitos</p>
+                  </div>
+                </div>
+              </div>
+
+              {scrapeResults && scrapeResults.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Detalhes por diploma (com preview dos requisitos):</h4>
+                  <ScrollArea className="h-80 rounded border">
+                    <div className="p-4 space-y-4">
+                      {scrapeResults.map((result, index) => (
+                        <div 
+                          key={index}
+                          className="p-3 rounded-lg bg-background border"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {result.error ? (
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              )}
+                              <span className="font-medium text-sm">
+                                {result.legislationNumber}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {result.textLength > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {(result.textLength / 1000).toFixed(1)}k chars
+                                </Badge>
+                              )}
+                              {result.error ? (
+                                <Badge variant="destructive" className="text-xs">
+                                  {result.error}
+                                </Badge>
+                              ) : (
+                                <Badge className="text-xs bg-blue-100 text-blue-800">
+                                  {result.requirementsCount} requisitos
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Show extracted requirements preview */}
+                          {result.requirements && result.requirements.length > 0 && (
+                            <div className="mt-2 pl-6 space-y-1 border-l-2 border-blue-200">
+                              {result.requirements.slice(0, 3).map((req, reqIdx) => (
+                                <div key={reqIdx} className="text-xs text-muted-foreground">
+                                  <span className="font-medium text-foreground">{req.article}:</span>{' '}
+                                  {req.requirement_text.substring(0, 100)}
+                                  {req.requirement_text.length > 100 && '...'}
+                                </div>
+                              ))}
+                              {result.requirements.length > 3 && (
+                                <div className="text-xs text-blue-600">
+                                  +{result.requirements.length - 3} mais requisitos...
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
