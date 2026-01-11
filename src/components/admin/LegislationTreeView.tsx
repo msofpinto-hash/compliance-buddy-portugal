@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -17,29 +16,126 @@ import {
   Eye,
   ExternalLink,
   Tags,
-  Building2,
   Search,
   X,
   ChevronsUpDown,
   ChevronsDownUp,
   ListChecks,
-  AlertCircle
+  AlertCircle,
+  Leaf,
+  Shield,
+  Zap,
+  Heart,
+  Scale,
+  Building2,
+  Flame,
+  Droplets,
+  Wind,
+  TreePine,
+  Recycle,
+  Volume2,
+  FileCheck,
+  Award,
+  Users,
+  Briefcase,
+  Calendar,
+  type LucideIcon
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
-import { LegislationTimeline } from "./LegislationTimeline";
-import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 import { getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
+
+// Theme color configurations
+const themeColors: Record<string, { bg: string; text: string; border: string; accent: string; icon: LucideIcon }> = {
+  "Ambiente": { 
+    bg: "bg-emerald-500/10", 
+    text: "text-emerald-700", 
+    border: "border-emerald-200",
+    accent: "bg-emerald-500",
+    icon: Leaf
+  },
+  "SST": { 
+    bg: "bg-orange-500/10", 
+    text: "text-orange-700", 
+    border: "border-orange-200",
+    accent: "bg-orange-500",
+    icon: Shield
+  },
+  "Segurança e Saúde no Trabalho": { 
+    bg: "bg-orange-500/10", 
+    text: "text-orange-700", 
+    border: "border-orange-200",
+    accent: "bg-orange-500",
+    icon: Shield
+  },
+  "Energia": { 
+    bg: "bg-yellow-500/10", 
+    text: "text-yellow-700", 
+    border: "border-yellow-200",
+    accent: "bg-yellow-500",
+    icon: Zap
+  },
+  "Qualidade": { 
+    bg: "bg-blue-500/10", 
+    text: "text-blue-700", 
+    border: "border-blue-200",
+    accent: "bg-blue-500",
+    icon: Award
+  },
+  "Segurança": { 
+    bg: "bg-red-500/10", 
+    text: "text-red-700", 
+    border: "border-red-200",
+    accent: "bg-red-500",
+    icon: Shield
+  },
+  "Conciliação Familiar e Profissional": { 
+    bg: "bg-pink-500/10", 
+    text: "text-pink-700", 
+    border: "border-pink-200",
+    accent: "bg-pink-500",
+    icon: Heart
+  },
+};
+
+// Category-specific icons based on keywords in name
+const getCategoryIcon = (categoryName: string): LucideIcon => {
+  const name = categoryName.toLowerCase();
+  if (name.includes("água") || name.includes("hidric")) return Droplets;
+  if (name.includes("ar") || name.includes("emiss")) return Wind;
+  if (name.includes("floresta") || name.includes("natureza")) return TreePine;
+  if (name.includes("resíduo")) return Recycle;
+  if (name.includes("ruído")) return Volume2;
+  if (name.includes("clima")) return Flame;
+  if (name.includes("energia")) return Zap;
+  if (name.includes("licen")) return FileCheck;
+  if (name.includes("risco") || name.includes("preven")) return AlertCircle;
+  if (name.includes("esg") || name.includes("sustentab")) return Leaf;
+  if (name.includes("segurança") || name.includes("saúde")) return Shield;
+  if (name.includes("trabalho") || name.includes("laboral")) return Briefcase;
+  if (name.includes("qualidade")) return Award;
+  if (name.includes("concilia") || name.includes("famil")) return Users;
+  return Folder;
+};
+
+const getThemeConfig = (themeName: string) => {
+  return themeColors[themeName] || { 
+    bg: "bg-primary/10", 
+    text: "text-primary", 
+    border: "border-primary/20",
+    accent: "bg-primary",
+    icon: Tags
+  };
+};
 
 interface LegislationTreeViewProps {
   legislation: LegislationWithCategories[];
   onSelectLegislation?: (leg: LegislationWithCategories) => void;
-  /** If true, hides the internal search/filter bar (use when parent provides filters) */
   hideFilters?: boolean;
-  /** If provided, uses this theme ID and hides the themes column */
   externalThemeId?: string | null;
-  /** Map of legislation_id -> applicability_type for showing applicability badges */
   applicabilityMap?: Record<string, string>;
 }
 
@@ -57,11 +153,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
   
-  // Use external theme if provided, otherwise use internal state
   const selectedThemeId = externalThemeId !== undefined ? externalThemeId : internalSelectedThemeId;
   const hideThemesColumn = externalThemeId !== undefined;
 
-  // Filter legislation based on search and source
   const filteredLegislation = useMemo(() => {
     return legislation.filter(leg => {
       const searchLower = searchTerm.toLowerCase();
@@ -78,7 +172,6 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     });
   }, [legislation, searchTerm, sourceFilter]);
 
-  // Create a map of filtered legislation by category
   const legislationByCategory = useMemo(() => {
     const map = new Map<string, LegislationWithCategories[]>();
     
@@ -94,7 +187,6 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     return map;
   }, [filteredLegislation]);
 
-  // Build category tree for a theme
   const buildCategoryTree = (categories: ThemeCategory[], parentId: string | null = null): CategoryNode[] => {
     return categories
       .filter(cat => cat.parent_id === parentId)
@@ -106,14 +198,14 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       .sort((a, b) => a.category.name.localeCompare(b.category.name, 'pt'));
   };
 
-  // Get the tree for the selected theme
   const selectedTheme = themesWithCategories?.find(t => t.id === selectedThemeId);
+  const themeConfig = selectedTheme ? getThemeConfig(selectedTheme.name) : null;
+  
   const categoryTree = useMemo(() => {
     if (!selectedTheme) return [];
     return buildCategoryTree(selectedTheme.categories);
   }, [selectedTheme, legislationByCategory]);
 
-  // Get all category IDs for expand/collapse all
   const getAllCategoryIds = (nodes: CategoryNode[]): string[] => {
     let ids: string[] = [];
     nodes.forEach(node => {
@@ -132,7 +224,6 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     setExpandedCategories(new Set());
   };
 
-  // Count total legislation in a category (including children)
   const countLegislation = (node: CategoryNode): number => {
     let count = node.legislation.length;
     node.children.forEach(child => {
@@ -141,13 +232,11 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     return count;
   };
 
-  // Get all legislation for selected category (including children)
   const getAllLegislationForCategory = (node: CategoryNode): LegislationWithCategories[] => {
     let allLegislation = [...node.legislation];
     node.children.forEach(child => {
       allLegislation = [...allLegislation, ...getAllLegislationForCategory(child)];
     });
-    // Remove duplicates
     const seen = new Set<string>();
     return allLegislation.filter(leg => {
       if (seen.has(leg.id)) return false;
@@ -156,7 +245,6 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     });
   };
 
-  // Get currently displayed legislation
   const displayedLegislation = useMemo(() => {
     if (!selectedCategoryId || !categoryTree.length) return [];
     
@@ -192,14 +280,17 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     const isExpanded = expandedCategories.has(node.category.id);
     const isSelected = selectedCategoryId === node.category.id;
     const count = countLegislation(node);
+    const CategoryIcon = getCategoryIcon(node.category.name);
 
     return (
       <div key={node.category.id}>
         <div
-          className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer hover:bg-accent/50 transition-colors ${
-            isSelected ? 'bg-primary/10 text-primary' : ''
+          className={`flex items-center gap-1.5 py-2 px-2 rounded-lg cursor-pointer transition-all duration-200 ${
+            isSelected 
+              ? `${themeConfig?.bg} ${themeConfig?.text} shadow-sm` 
+              : 'hover:bg-accent/50'
           }`}
-          style={{ paddingLeft: `${level * 12 + 8}px` }}
+          style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => {
             setSelectedCategoryId(node.category.id);
             if (hasChildren) {
@@ -213,41 +304,58 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 e.stopPropagation();
                 toggleCategory(node.category.id);
               }}
-              className="p-0.5 hover:bg-accent rounded shrink-0"
+              className={`p-0.5 rounded shrink-0 transition-colors ${
+                isSelected ? 'hover:bg-white/30' : 'hover:bg-accent'
+              }`}
             >
               {isExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4" />
               )}
             </button>
           ) : (
-            <span className="w-4 shrink-0" />
+            <span className="w-5 shrink-0" />
           )}
           
-          {hasChildren ? (
-            isExpanded ? (
-              <FolderOpen className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          <div className={`p-1 rounded shrink-0 ${
+            isSelected ? 'bg-white/30' : themeConfig?.bg || 'bg-muted'
+          }`}>
+            {hasChildren ? (
+              isExpanded ? (
+                <FolderOpen className={`h-3.5 w-3.5 ${isSelected ? '' : themeConfig?.text || 'text-amber-500'}`} />
+              ) : (
+                <CategoryIcon className={`h-3.5 w-3.5 ${isSelected ? '' : themeConfig?.text || 'text-amber-500'}`} />
+              )
             ) : (
-              <Folder className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-            )
-          ) : (
-            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          )}
+              <FileText className={`h-3.5 w-3.5 ${isSelected ? '' : 'text-muted-foreground'}`} />
+            )}
+          </div>
           
-          <span className="flex-1 text-xs min-w-0" title={node.category.name}>
+          <span className={`flex-1 text-sm font-medium min-w-0 truncate ${isSelected ? '' : 'text-foreground'}`} title={node.category.name}>
             {node.category.name}
           </span>
           
           {count > 0 && (
-            <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0">
+            <Badge 
+              variant="secondary" 
+              className={`text-xs h-5 px-2 shrink-0 ${
+                isSelected 
+                  ? 'bg-white/30 text-current' 
+                  : `${themeConfig?.bg} ${themeConfig?.text}`
+              }`}
+            >
               {count}
             </Badge>
           )}
         </div>
         
         {hasChildren && isExpanded && (
-          <div>
+          <div className="relative">
+            <div 
+              className={`absolute left-[${level * 16 + 18}px] top-0 bottom-0 w-px ${themeConfig?.bg} opacity-50`}
+              style={{ left: `${level * 16 + 18}px` }}
+            />
             {node.children.map(child => renderCategoryNode(child, level + 1))}
           </div>
         )}
@@ -263,7 +371,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
   return (
     <div className="space-y-4">
-      {/* Search and Filters - only show if not hidden by parent */}
+      {/* Search and Filters */}
       {!hideFilters && (
         <Card>
           <CardContent className="py-4">
@@ -327,270 +435,301 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         </Card>
       )}
 
-      {/* Tree View - 2 column layout */}
+      {/* Tree View - 2/3 column layout */}
       <div className="flex gap-4 items-start">
-      {/* Theme selector - only show if not hidden */}
-      {!hideThemesColumn && (
-        <Card className="w-64 flex-shrink-0">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm">Temas</CardTitle>
-          </CardHeader>
-          <CardContent className="p-2">
-            <div className="space-y-1">
-              {themesWithCategories?.map(theme => {
-                const themeCount = filteredLegislation.filter(leg => 
-                  leg.categories.some(cat => 
-                    theme.categories.some(tc => tc.id === cat.id)
-                  )
-                ).length;
-                
-                return (
-                  <button
-                    key={theme.id}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded text-left transition-colors ${
-                      selectedThemeId === theme.id 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'hover:bg-accent'
-                    }`}
-                    onClick={() => {
-                      setInternalSelectedThemeId(theme.id);
-                      setSelectedCategoryId(null);
-                      setExpandedCategories(new Set());
-                    }}
-                  >
-                    <span className="text-sm font-medium truncate">{theme.name}</span>
-                    <Badge variant={selectedThemeId === theme.id ? "secondary" : "outline"} className="text-xs">
-                      {themeCount}
-                    </Badge>
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        {/* Theme selector */}
+        {!hideThemesColumn && (
+          <Card className="w-72 flex-shrink-0">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Tags className="h-4 w-4" />
+                Temas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <div className="space-y-1">
+                {themesWithCategories?.map(theme => {
+                  const config = getThemeConfig(theme.name);
+                  const ThemeIcon = config.icon;
+                  const themeCount = filteredLegislation.filter(leg => 
+                    leg.categories.some(cat => 
+                      theme.categories.some(tc => tc.id === cat.id)
+                    )
+                  ).length;
+                  const isSelected = selectedThemeId === theme.id;
+                  
+                  return (
+                    <button
+                      key={theme.id}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
+                        isSelected 
+                          ? `${config.bg} ${config.text} ${config.border} border shadow-sm` 
+                          : 'hover:bg-accent border border-transparent'
+                      }`}
+                      onClick={() => {
+                        setInternalSelectedThemeId(theme.id);
+                        setSelectedCategoryId(null);
+                        setExpandedCategories(new Set());
+                      }}
+                    >
+                      <div className={`p-2 rounded-lg ${isSelected ? 'bg-white/50' : config.bg}`}>
+                        <ThemeIcon className={`h-4 w-4 ${config.text}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium block truncate">{theme.name}</span>
+                        <span className={`text-xs ${isSelected ? 'opacity-80' : 'text-muted-foreground'}`}>
+                          {themeCount} diploma{themeCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Category tree */}
-      {selectedTheme ? (
-        <Card className="w-80 min-w-[280px] flex-shrink-0">
-          <CardHeader className="py-3 px-4">
+        {/* Category tree */}
+        {selectedTheme ? (
+          <Card className={`w-80 min-w-[300px] flex-shrink-0 ${themeConfig?.border} border-2`}>
+            <CardHeader className={`py-3 px-4 ${themeConfig?.bg} rounded-t-lg`}>
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <CardTitle className={`text-sm flex items-center gap-2 ${themeConfig?.text}`}>
+                    {themeConfig && <themeConfig.icon className="h-4 w-4 shrink-0" />}
+                    Categorias
+                  </CardTitle>
+                  <CardDescription className={`text-xs ${themeConfig?.text} opacity-80`}>
+                    {selectedTheme.name}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-7 w-7 ${themeConfig?.text} hover:bg-white/30`}
+                    onClick={expandAll}
+                    title="Expandir tudo"
+                  >
+                    <ChevronsUpDown className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-7 w-7 ${themeConfig?.text} hover:bg-white/30`}
+                    onClick={collapseAll}
+                    title="Colapsar tudo"
+                  >
+                    <ChevronsDownUp className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-2">
+              <ScrollArea className="max-h-[500px]">
+                <div className="space-y-0.5 pr-2">
+                  {categoryTree.map(node => renderCategoryNode(node))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        ) : hideThemesColumn ? (
+          <Card className="w-80 min-w-[300px] flex-shrink-0 overflow-hidden border-dashed">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+                <Tags className="h-4 w-4" />
+                Categorias
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Selecione um tema no filtro acima
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 flex flex-col items-center justify-center text-muted-foreground">
+              <div className="p-4 rounded-full bg-muted mb-3">
+                <FolderOpen className="h-8 w-8 opacity-50" />
+              </div>
+              <p className="text-sm text-center">Utilize o filtro "Tema / Categoria" para selecionar um tema</p>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {/* Legislation list */}
+        <Card className="flex-1 min-w-0">
+          <CardHeader className="py-3 px-4 border-b">
             <div className="flex items-center justify-between">
-              <div className="min-w-0 flex-1">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Tags className="h-4 w-4 shrink-0" />
-                  Categorias
-                </CardTitle>
-                <CardDescription className="text-xs truncate">
-                  {selectedTheme.name}
-                </CardDescription>
-              </div>
-              <div className="flex gap-1 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={expandAll}
-                  title="Expandir tudo"
-                >
-                  <ChevronsUpDown className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={collapseAll}
-                  title="Colapsar tudo"
-                >
-                  <ChevronsDownUp className="h-4 w-4" />
-                </Button>
-              </div>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Legislação
+                {selectedCategoryId && displayedLegislation.length > 0 && (
+                  <Badge variant="outline" className={themeConfig ? `${themeConfig.bg} ${themeConfig.text}` : ''}>
+                    {displayedLegislation.length}
+                  </Badge>
+                )}
+              </CardTitle>
+              {applicabilityMap && selectedCategoryId && displayedLegislation.length > 0 && (() => {
+                const pendingCount = displayedLegislation.filter(
+                  leg => !applicabilityMap[leg.id] || applicabilityMap[leg.id] === "nao_avaliado"
+                ).length;
+                return pendingCount > 0 ? (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {pendingCount} pendente{pendingCount !== 1 ? 's' : ''}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">{pendingCount} diploma{pendingCount !== 1 ? 's' : ''} pendente{pendingCount !== 1 ? 's' : ''} de avaliação</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : null;
+              })()}
             </div>
-          </CardHeader>
-          <CardContent className="p-2">
-            <div className="space-y-0.5 pr-2">
-              {categoryTree.map(node => renderCategoryNode(node))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : hideThemesColumn ? (
-        <Card className="w-80 min-w-[280px] flex-shrink-0 overflow-hidden">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Tags className="h-4 w-4" />
-              Categorias
-            </CardTitle>
             <CardDescription className="text-xs">
-              Selecione um tema no filtro acima
+              {selectedCategoryId 
+                ? "Diplomas na categoria selecionada"
+                : selectedThemeId 
+                  ? "Selecione uma categoria à esquerda"
+                  : hideThemesColumn
+                    ? "Selecione um tema no filtro acima"
+                    : "Selecione um tema para começar"
+              }
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6 flex items-center justify-center text-muted-foreground">
-            <p className="text-sm text-center">Utilize o filtro "Tema / Categoria" para selecionar um tema</p>
+          <CardContent className="p-2">
+            {displayedLegislation.length > 0 ? (
+              <ScrollArea className="max-h-[500px]">
+                <div className="space-y-2 pr-2">
+                  {displayedLegislation.map(leg => {
+                    const requirementsCount = (leg as any).legal_requirements?.length || 0;
+                    const applicabilityType = applicabilityMap?.[leg.id];
+                    const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
+                    const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
+                    const isNotEvaluated = applicabilityMap && (!applicabilityType || applicabilityType === "nao_avaliado");
+
+                    return (
+                      <div
+                        key={leg.id}
+                        className={`rounded-lg border p-3 hover:shadow-md transition-all duration-200 overflow-hidden group ${
+                          isNotEvaluated ? "border-l-4 border-l-amber-400" : ""
+                        } ${
+                          leg.origin === "PT" 
+                            ? "hover:border-green-300" 
+                            : "hover:border-blue-300"
+                        }`}
+                      >
+                        {/* Header row */}
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            <Badge
+                              variant="outline"
+                              className={`shrink-0 text-xs px-2 py-0.5 ${
+                                leg.origin === "PT"
+                                  ? "bg-green-500/10 text-green-700 border-green-300"
+                                  : "bg-blue-500/10 text-blue-700 border-blue-300"
+                              }`}
+                            >
+                              {leg.origin === "PT" ? (
+                                <><Flag className="h-3 w-3 mr-1" />DRE</>
+                              ) : (
+                                <><Globe className="h-3 w-3 mr-1" />EU</>
+                              )}
+                            </Badge>
+                            {showApplicability && (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      variant="outline"
+                                      className={`shrink-0 text-xs px-2 py-0.5 cursor-help ${applicabilityInfo.color}`}
+                                    >
+                                      {applicabilityInfo.label}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <p className="text-xs">{applicabilityInfo.description}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {isNotEvaluated && (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center gap-0.5 text-xs text-amber-600 shrink-0">
+                                      <AlertCircle className="h-3 w-3" />
+                                      Pendente
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <p className="text-xs">Este diploma ainda não foi avaliado pela organização.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {requirementsCount > 0 && (
+                              <Badge
+                                variant="outline"
+                                className={`shrink-0 text-xs px-2 py-0.5 ${themeConfig?.bg} ${themeConfig?.text} ${themeConfig?.border}`}
+                              >
+                                <ListChecks className="h-3 w-3 mr-1" />
+                                {requirementsCount}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title="Ver detalhes">
+                              <Link to={`/legislacao/${leg.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            {leg.document_url && (
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title="Abrir documento">
+                                <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Number + Title */}
+                        <Link to={`/legislacao/${leg.id}`} className="block group-hover:text-primary transition-colors">
+                          <p className="font-semibold text-sm">{leg.number}</p>
+                          <p className="text-sm text-foreground/90 line-clamp-2">{leg.title}</p>
+                        </Link>
+
+                        {/* Summary + Date */}
+                        <div className="flex items-end justify-between mt-2">
+                          {(leg as any).summary && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">{(leg as any).summary}</p>
+                          )}
+                          {leg.publication_date && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(leg.publication_date), "dd/MM/yyyy")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="py-12 text-center text-muted-foreground">
+                <div className="p-4 rounded-full bg-muted inline-block mb-3">
+                  <FileText className="h-8 w-8 opacity-50" />
+                </div>
+                <p className="text-sm">
+                  {selectedCategoryId ? "Nenhuma legislação nesta categoria" : "Selecione uma categoria para ver os diplomas"}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
-      ) : null}
-
-      {/* Legislation list */}
-      <Card className="flex-1 min-w-0">
-        <CardHeader className="py-3 px-4">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Legislação
-            {selectedCategoryId && displayedLegislation.length > 0 && (
-              <Badge variant="outline">{displayedLegislation.length}</Badge>
-            )}
-            {/* Pending evaluation counter */}
-            {applicabilityMap && selectedCategoryId && displayedLegislation.length > 0 && (() => {
-              const pendingCount = displayedLegislation.filter(
-                leg => !applicabilityMap[leg.id] || applicabilityMap[leg.id] === "nao_avaliado"
-              ).length;
-              return pendingCount > 0 ? (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {pendingCount}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      <p className="text-xs">{pendingCount} diploma{pendingCount !== 1 ? 's' : ''} pendente{pendingCount !== 1 ? 's' : ''} de avaliação</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ) : null;
-            })()}
-          </CardTitle>
-          <CardDescription className="text-xs">
-            {selectedCategoryId 
-              ? "Diplomas na categoria selecionada"
-              : selectedThemeId 
-                ? "Selecione uma categoria à esquerda"
-                : hideThemesColumn
-                  ? "Selecione um tema no filtro acima"
-                  : "Selecione um tema para começar"
-            }
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-2">
-          {displayedLegislation.length > 0 ? (
-            <div className="space-y-2">
-              {displayedLegislation.map(leg => {
-                const requirementsCount = (leg as any).legal_requirements?.length || 0;
-                const applicabilityType = applicabilityMap?.[leg.id];
-                const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
-                const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
-                const isNotEvaluated = applicabilityMap && (!applicabilityType || applicabilityType === "nao_avaliado");
-
-                return (
-                  <div
-                    key={leg.id}
-                    className={`rounded-lg border p-3 hover:bg-accent/50 transition-colors overflow-hidden ${
-                      isNotEvaluated ? "border-l-4 border-l-amber-400 bg-amber-50/30" : ""
-                    }`}
-                  >
-                    {/* Header row: Source badge + Applicability/Pending + Actions */}
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                        <Badge
-                          variant="outline"
-                          className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${
-                            leg.origin === "PT"
-                              ? "bg-green-500/10 text-green-700 border-green-300"
-                              : "bg-blue-500/10 text-blue-700 border-blue-300"
-                          }`}
-                        >
-                          {leg.origin === "PT" ? (
-                            <>
-                              <Flag className="h-2.5 w-2.5 mr-0.5" />DRE
-                            </>
-                          ) : (
-                            <>
-                              <Globe className="h-2.5 w-2.5 mr-0.5" />EU
-                            </>
-                          )}
-                        </Badge>
-                        {showApplicability && (
-                          <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge
-                                  variant="outline"
-                                  className={`shrink-0 text-[10px] px-1.5 py-0 h-5 cursor-help ${applicabilityInfo.color}`}
-                                >
-                                  {applicabilityInfo.label}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <p className="text-xs">{applicabilityInfo.description}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {isNotEvaluated && (
-                          <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 shrink-0">
-                                  <AlertCircle className="h-3 w-3" />
-                                  Pendente
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <p className="text-xs">Este diploma ainda não foi avaliado pela organização.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {requirementsCount > 0 && (
-                          <Badge
-                            variant="outline"
-                            className="shrink-0 text-[10px] px-1.5 py-0 h-5 bg-primary/10 text-primary border-primary/30"
-                          >
-                            <ListChecks className="h-2.5 w-2.5 mr-0.5" />
-                            {requirementsCount}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex gap-0.5 shrink-0">
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Ver detalhes">
-                          <Link to={`/legislacao/${leg.id}`}>
-                            <Eye className="h-3.5 w-3.5" />
-                          </Link>
-                        </Button>
-                        {leg.document_url && (
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Abrir documento">
-                            <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Number + Title */}
-                    <Link to={`/legislacao/${leg.id}`} className="block hover:text-primary transition-colors">
-                      <p className="font-semibold text-sm">{leg.number}</p>
-                      <p className="text-sm text-foreground/90 line-clamp-2">{leg.title}</p>
-                    </Link>
-
-                    {/* Summary */}
-                    {(leg as any).summary && (
-                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{(leg as any).summary}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              <FileText className="mx-auto mb-2 h-8 w-8 opacity-50" />
-              <p className="text-sm">
-                {selectedCategoryId ? "Nenhuma legislação nesta categoria" : "Selecione uma categoria para ver os diplomas"}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
       </div>
     </div>
   );
