@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Scale, AlertCircle, Clock, CheckCircle2, ArrowLeft, Mail } from "lucide-react";
+import { Loader2, Scale, AlertCircle, Clock, CheckCircle2, ArrowLeft, Mail, Check, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -63,19 +63,29 @@ const Auth = () => {
     }
   };
 
+  // Password validation functions
+  const passwordValidation = {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+  };
+  
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
-    if (password.length < 6) {
-      setError("A password deve ter pelo menos 6 caracteres");
+    if (!fullName.trim()) {
+      setError("Por favor, introduza o seu nome completo");
       setIsLoading(false);
       return;
     }
 
-    if (!fullName.trim()) {
-      setError("Por favor, introduza o seu nome completo");
+    if (!isPasswordValid) {
+      setError("A password não cumpre os requisitos de segurança");
       setIsLoading(false);
       return;
     }
@@ -420,8 +430,29 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={8}
+                    className={password.length > 0 ? (isPasswordValid ? "border-green-500 focus-visible:ring-green-500" : "border-amber-500 focus-visible:ring-amber-500") : ""}
                   />
+                  {password.length > 0 && (
+                    <div className="mt-2 space-y-1 text-xs">
+                      <div className={`flex items-center gap-1.5 ${passwordValidation.minLength ? "text-green-600" : "text-muted-foreground"}`}>
+                        {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Mínimo 8 caracteres
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordValidation.hasUppercase ? "text-green-600" : "text-muted-foreground"}`}>
+                        {passwordValidation.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Uma letra maiúscula
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordValidation.hasLowercase ? "text-green-600" : "text-muted-foreground"}`}>
+                        {passwordValidation.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Uma letra minúscula
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordValidation.hasNumber ? "text-green-600" : "text-muted-foreground"}`}>
+                        {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Um número
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
