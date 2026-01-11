@@ -36,7 +36,16 @@ import {
   MessageSquare,
   ThumbsUp,
   Eye,
-  Sparkles
+  Sparkles,
+  Leaf,
+  Shield,
+  Zap,
+  Factory,
+  Building,
+  Utensils,
+  Heart,
+  HardHat,
+  type LucideIcon
 } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -87,6 +96,61 @@ const COLORS = {
   nonCompliant: "hsl(0, 84%, 60%)",
   inProgress: "hsl(45, 93%, 47%)",
   pending: "hsl(215, 20%, 65%)",
+};
+
+// Audit icon configuration based on keywords
+interface AuditIconConfig {
+  icon: LucideIcon;
+  bgColor: string;
+  iconColor: string;
+}
+
+const AUDIT_ICON_KEYWORDS: { keywords: string[]; config: AuditIconConfig }[] = [
+  {
+    keywords: ["ambiente", "ambiental", "resíduo", "água", "emissões", "poluição"],
+    config: { icon: Leaf, bgColor: "bg-green-100", iconColor: "text-green-600" }
+  },
+  {
+    keywords: ["segurança", "sst", "saúde", "trabalho", "ocupacional"],
+    config: { icon: HardHat, bgColor: "bg-orange-100", iconColor: "text-orange-600" }
+  },
+  {
+    keywords: ["energia", "energético", "elétrico", "consumo"],
+    config: { icon: Zap, bgColor: "bg-yellow-100", iconColor: "text-yellow-600" }
+  },
+  {
+    keywords: ["qualidade", "iso", "certificação", "processo"],
+    config: { icon: CheckCircle2, bgColor: "bg-blue-100", iconColor: "text-blue-600" }
+  },
+  {
+    keywords: ["alimentar", "higiene", "haccp", "comida"],
+    config: { icon: Utensils, bgColor: "bg-amber-100", iconColor: "text-amber-600" }
+  },
+  {
+    keywords: ["legal", "legislação", "conformidade", "compliance"],
+    config: { icon: Scale, bgColor: "bg-purple-100", iconColor: "text-purple-600" }
+  },
+  {
+    keywords: ["industrial", "fábrica", "produção", "manufatura"],
+    config: { icon: Factory, bgColor: "bg-slate-100", iconColor: "text-slate-600" }
+  },
+  {
+    keywords: ["instalações", "edifício", "infraestrutura"],
+    config: { icon: Building, bgColor: "bg-indigo-100", iconColor: "text-indigo-600" }
+  },
+];
+
+const getAuditIconConfig = (title: string, description?: string | null): AuditIconConfig => {
+  const searchText = `${title} ${description || ""}`.toLowerCase();
+  
+  for (const item of AUDIT_ICON_KEYWORDS) {
+    if (item.keywords.some(keyword => searchText.includes(keyword))) {
+      return item.config;
+    }
+  }
+  
+  // Default icon
+  return { icon: ClipboardCheck, bgColor: "bg-primary/10", iconColor: "text-primary" };
 };
 
 type ModuleType = 'legislacao' | 'planos_acao' | 'auditorias' | 'documentos' | 'indicadores';
@@ -1065,141 +1129,153 @@ export default function Dashboard() {
                       </Card>
                     ) : (
                       <div className="space-y-4">
-                        {plannedAudits.map((audit) => (
-                          <Card key={audit.id} className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
-                            {/* Decorative gradient header */}
-                            <div className={`h-2 ${
-                              audit.status === "in_progress" 
-                                ? "bg-gradient-to-r from-yellow-400 to-amber-500" 
-                                : "bg-gradient-to-r from-blue-500 to-indigo-500"
-                            }`} />
-                            
-                            <CardContent className="p-6">
-                              <div className="space-y-5">
-                                {/* Header with status badges */}
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1 space-y-3">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <Badge 
-                                        variant="outline" 
-                                        className={`gap-1.5 px-3 py-1 ${
-                                          audit.status === "in_progress" 
-                                            ? "bg-yellow-500/10 text-yellow-700 border-yellow-300" 
-                                            : "bg-blue-500/10 text-blue-700 border-blue-300"
-                                        }`}
-                                      >
-                                        <div className={`h-2 w-2 rounded-full ${
-                                          audit.status === "in_progress" ? "bg-yellow-500 animate-pulse" : "bg-blue-500"
-                                        }`} />
-                                        {audit.status === "in_progress" ? "Em Curso" : "Planeada"}
-                                      </Badge>
-                                      {audit.plan_approved_at && (
-                                        <Badge variant="outline" className="gap-1.5 px-3 py-1 bg-green-500/10 text-green-700 border-green-300">
-                                          <ThumbsUp className="h-3 w-3" />
-                                          Plano Aprovado
-                                        </Badge>
-                                      )}
-                                      {audit.plan_feedback && !audit.plan_approved_at && (
-                                        <Badge variant="outline" className="gap-1.5 px-3 py-1 bg-orange-500/10 text-orange-700 border-orange-300">
-                                          <MessageSquare className="h-3 w-3" />
-                                          Alterações Solicitadas
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    
-                                    <h3 className="text-xl font-bold tracking-tight">{audit.title}</h3>
-                                    
-                                    {audit.description && (
-                                      <p className="text-muted-foreground line-clamp-2">{audit.description}</p>
-                                    )}
+                        {plannedAudits.map((audit) => {
+                          const iconConfig = getAuditIconConfig(audit.title, audit.description);
+                          const IconComponent = iconConfig.icon;
+                          
+                          return (
+                            <Card key={audit.id} className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow">
+                              {/* Decorative gradient header */}
+                              <div className={`h-2 ${
+                                audit.status === "in_progress" 
+                                  ? "bg-gradient-to-r from-yellow-400 to-amber-500" 
+                                  : "bg-gradient-to-r from-blue-500 to-indigo-500"
+                              }`} />
+                              
+                              <CardContent className="p-6">
+                                <div className="flex gap-5">
+                                  {/* Thematic Icon */}
+                                  <div className={`shrink-0 h-16 w-16 rounded-2xl ${iconConfig.bgColor} flex items-center justify-center`}>
+                                    <IconComponent className={`h-8 w-8 ${iconConfig.iconColor}`} />
                                   </div>
                                   
-                                  {/* Action buttons */}
-                                  <div className="flex gap-2">
-                                    <Button
-                                      size="icon"
-                                      variant="outline"
-                                      className="h-10 w-10 rounded-full"
-                                      onClick={() => setViewingAuditPlan(audit)}
-                                      title="Ver detalhes do plano"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="outline"
-                                      className="h-10 w-10 rounded-full"
-                                      onClick={() => handleExportAuditPDF(audit.id, audit.title)}
-                                      disabled={exportingAuditId === audit.id}
-                                      title="Exportar PDF"
-                                    >
-                                      {exportingAuditId === audit.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Download className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                                
-                                {/* Meta info with icons */}
-                                <div className="flex flex-wrap gap-4">
-                                  {audit.audit_date && (
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-                                      <Calendar className="h-4 w-4 text-primary" />
-                                      <span className="text-sm font-medium">{format(new Date(audit.audit_date), "d 'de' MMMM 'de' yyyy", { locale: pt })}</span>
-                                    </div>
-                                  )}
-                                  {audit.auditor && (
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-                                      <User className="h-4 w-4 text-primary" />
-                                      <span className="text-sm font-medium">{audit.auditor}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                {/* Plan actions - only for planned audits not yet approved */}
-                                {audit.status === "planned" && !audit.plan_approved_at && (
-                                  <div className="flex flex-wrap gap-3 pt-4 border-t">
-                                    <Button
-                                      onClick={() => handleApprovePlan(audit.id)}
-                                      disabled={approvingPlanId === audit.id}
-                                      className="gap-2 flex-1 sm:flex-none"
-                                    >
-                                      {approvingPlanId === audit.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <ThumbsUp className="h-4 w-4" />
-                                      )}
-                                      Aprovar Plano
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => setFeedbackDialogAudit({ id: audit.id, title: audit.title })}
-                                      className="gap-2 flex-1 sm:flex-none"
-                                    >
-                                      <MessageSquare className="h-4 w-4" />
-                                      Solicitar Alterações
-                                    </Button>
-                                  </div>
-                                )}
-                                
-                                {/* Show existing feedback */}
-                                {audit.plan_feedback && (
-                                  <div className="pt-4 border-t">
-                                    <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200">
-                                      <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-sm font-medium text-orange-800 mb-1">Alterações solicitadas</p>
-                                        <p className="text-sm text-orange-700">{audit.plan_feedback}</p>
+                                  <div className="flex-1 space-y-4">
+                                    {/* Header with status badges and actions */}
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="flex-1 space-y-3">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <Badge 
+                                            variant="outline" 
+                                            className={`gap-1.5 px-3 py-1 ${
+                                              audit.status === "in_progress" 
+                                                ? "bg-yellow-500/10 text-yellow-700 border-yellow-300" 
+                                                : "bg-blue-500/10 text-blue-700 border-blue-300"
+                                            }`}
+                                          >
+                                            <div className={`h-2 w-2 rounded-full ${
+                                              audit.status === "in_progress" ? "bg-yellow-500 animate-pulse" : "bg-blue-500"
+                                            }`} />
+                                            {audit.status === "in_progress" ? "Em Curso" : "Planeada"}
+                                          </Badge>
+                                          {audit.plan_approved_at && (
+                                            <Badge variant="outline" className="gap-1.5 px-3 py-1 bg-green-500/10 text-green-700 border-green-300">
+                                              <ThumbsUp className="h-3 w-3" />
+                                              Plano Aprovado
+                                            </Badge>
+                                          )}
+                                          {audit.plan_feedback && !audit.plan_approved_at && (
+                                            <Badge variant="outline" className="gap-1.5 px-3 py-1 bg-orange-500/10 text-orange-700 border-orange-300">
+                                              <MessageSquare className="h-3 w-3" />
+                                              Alterações Solicitadas
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        
+                                        <h3 className="text-xl font-bold tracking-tight">{audit.title}</h3>
+                                        
+                                        {audit.description && (
+                                          <p className="text-muted-foreground line-clamp-2">{audit.description}</p>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Action buttons */}
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="icon"
+                                          variant="outline"
+                                          className="h-10 w-10 rounded-full"
+                                          onClick={() => setViewingAuditPlan(audit)}
+                                          title="Ver detalhes do plano"
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="outline"
+                                          className="h-10 w-10 rounded-full"
+                                          onClick={() => handleExportAuditPDF(audit.id, audit.title)}
+                                          disabled={exportingAuditId === audit.id}
+                                          title="Exportar PDF"
+                                        >
+                                          {exportingAuditId === audit.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <Download className="h-4 w-4" />
+                                          )}
+                                        </Button>
                                       </div>
                                     </div>
+                                    
+                                    {/* Meta info with icons */}
+                                    <div className="flex flex-wrap gap-4">
+                                      {audit.audit_date && (
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
+                                          <Calendar className="h-4 w-4 text-primary" />
+                                          <span className="text-sm font-medium">{format(new Date(audit.audit_date), "d 'de' MMMM 'de' yyyy", { locale: pt })}</span>
+                                        </div>
+                                      )}
+                                      {audit.auditor && (
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
+                                          <User className="h-4 w-4 text-primary" />
+                                          <span className="text-sm font-medium">{audit.auditor}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Plan actions - only for planned audits not yet approved */}
+                                    {audit.status === "planned" && !audit.plan_approved_at && (
+                                      <div className="flex flex-wrap gap-3 pt-4 border-t">
+                                        <Button
+                                          onClick={() => handleApprovePlan(audit.id)}
+                                          disabled={approvingPlanId === audit.id}
+                                          className="gap-2 flex-1 sm:flex-none"
+                                        >
+                                          {approvingPlanId === audit.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <ThumbsUp className="h-4 w-4" />
+                                          )}
+                                          Aprovar Plano
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          onClick={() => setFeedbackDialogAudit({ id: audit.id, title: audit.title })}
+                                          className="gap-2 flex-1 sm:flex-none"
+                                        >
+                                          <MessageSquare className="h-4 w-4" />
+                                          Solicitar Alterações
+                                        </Button>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Show existing feedback */}
+                                    {audit.plan_feedback && (
+                                      <div className="pt-4 border-t">
+                                        <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200">
+                                          <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+                                          <div>
+                                            <p className="text-sm font-medium text-orange-800 mb-1">Alterações solicitadas</p>
+                                            <p className="text-sm text-orange-700">{audit.plan_feedback}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
