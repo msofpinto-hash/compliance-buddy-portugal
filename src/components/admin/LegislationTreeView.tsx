@@ -33,6 +33,8 @@ interface LegislationTreeViewProps {
   onSelectLegislation?: (leg: LegislationWithCategories) => void;
   /** If true, hides the internal search/filter bar (use when parent provides filters) */
   hideFilters?: boolean;
+  /** If provided, uses this theme ID and hides the themes column */
+  externalThemeId?: string | null;
 }
 
 interface CategoryNode {
@@ -41,13 +43,17 @@ interface CategoryNode {
   legislation: LegislationWithCategories[];
 }
 
-export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false }: LegislationTreeViewProps) {
+export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId }: LegislationTreeViewProps) {
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
-  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [internalSelectedThemeId, setInternalSelectedThemeId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
+  
+  // Use external theme if provided, otherwise use internal state
+  const selectedThemeId = externalThemeId !== undefined ? externalThemeId : internalSelectedThemeId;
+  const hideThemesColumn = externalThemeId !== undefined;
 
   // Filter legislation based on search and source
   const filteredLegislation = useMemo(() => {
@@ -315,57 +321,59 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
       {/* Tree View */}
       <div className="flex gap-4 h-[calc(100vh-380px)]">
-      {/* Theme selector */}
-      <Card className="w-64 flex-shrink-0">
-        <CardHeader className="py-3 px-4">
-          <CardTitle className="text-sm">Temas</CardTitle>
-        </CardHeader>
-        <CardContent className="p-2">
-          <div className="space-y-1">
-            {themesWithCategories?.map(theme => {
-              const themeCount = filteredLegislation.filter(leg => 
-                leg.categories.some(cat => 
-                  theme.categories.some(tc => tc.id === cat.id)
-                )
-              ).length;
-              
-              return (
-                <button
-                  key={theme.id}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded text-left transition-colors ${
-                    selectedThemeId === theme.id 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'hover:bg-accent'
-                  }`}
-                  onClick={() => {
-                    setSelectedThemeId(theme.id);
-                    setSelectedCategoryId(null);
-                    setExpandedCategories(new Set());
-                  }}
-                >
-                  <span className="text-sm font-medium truncate">{theme.name}</span>
-                  <Badge variant={selectedThemeId === theme.id ? "secondary" : "outline"} className="text-xs">
-                    {themeCount}
-                  </Badge>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Theme selector - only show if not hidden */}
+      {!hideThemesColumn && (
+        <Card className="w-64 flex-shrink-0">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm">Temas</CardTitle>
+          </CardHeader>
+          <CardContent className="p-2">
+            <div className="space-y-1">
+              {themesWithCategories?.map(theme => {
+                const themeCount = filteredLegislation.filter(leg => 
+                  leg.categories.some(cat => 
+                    theme.categories.some(tc => tc.id === cat.id)
+                  )
+                ).length;
+                
+                return (
+                  <button
+                    key={theme.id}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded text-left transition-colors ${
+                      selectedThemeId === theme.id 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'hover:bg-accent'
+                    }`}
+                    onClick={() => {
+                      setInternalSelectedThemeId(theme.id);
+                      setSelectedCategoryId(null);
+                      setExpandedCategories(new Set());
+                    }}
+                  >
+                    <span className="text-sm font-medium truncate">{theme.name}</span>
+                    <Badge variant={selectedThemeId === theme.id ? "secondary" : "outline"} className="text-xs">
+                      {themeCount}
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Category tree */}
-      {selectedTheme && (
+      {selectedTheme ? (
         <Card className="w-80 flex-shrink-0">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Tags className="h-4 w-4" />
-                  {selectedTheme.name}
+                  Categorias
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Categorias e subcategorias
+                  {selectedTheme.name}
                 </CardDescription>
               </div>
               <div className="flex gap-1">
@@ -398,7 +406,22 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             </ScrollArea>
           </CardContent>
         </Card>
-      )}
+      ) : hideThemesColumn ? (
+        <Card className="w-80 flex-shrink-0">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Tags className="h-4 w-4" />
+              Categorias
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Selecione um tema no filtro acima
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 flex items-center justify-center text-muted-foreground">
+            <p className="text-sm text-center">Utilize o filtro "Tema / Categoria" para selecionar um tema</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Legislation list */}
       <Card className="flex-1 min-w-0">
@@ -415,7 +438,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               ? "Diplomas na categoria selecionada"
               : selectedThemeId 
                 ? "Selecione uma categoria à esquerda"
-                : "Selecione um tema para começar"
+                : hideThemesColumn
+                  ? "Selecione um tema no filtro acima"
+                  : "Selecione um tema para começar"
             }
           </CardDescription>
         </CardHeader>
