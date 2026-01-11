@@ -31,8 +31,10 @@ import {
   TreePine,
   Heart,
   Users,
-  Globe
+  Globe,
+  FileSpreadsheet
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -255,6 +257,53 @@ export function EvidenceReviewPanel() {
     a.click();
   };
 
+  const getTemplateAreas = (template: EvidenceRequestWithOrg["evidence_templates"]) => {
+    return Object.entries(AREA_CONFIG)
+      .filter(([key]) => template[key as keyof typeof template] === true)
+      .map(([key, config]) => ({ key, ...config }));
+  };
+
+  const exportToExcel = () => {
+    if (!filteredRequests?.length) {
+      toast({ title: "Aviso", description: "Não há pedidos para exportar", variant: "destructive" });
+      return;
+    }
+
+    const exportData = filteredRequests.map(req => {
+      const areas = getTemplateAreas(req.evidence_templates)
+        .map(a => a.label)
+        .join(", ");
+
+      return {
+        "Organização": req.organizations.name,
+        "Grupo": req.evidence_templates.group_name,
+        "Título": req.evidence_templates.title,
+        "Descrição": req.evidence_templates.description || "",
+        "Áreas": areas,
+        "Estado": STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]?.label || req.status,
+        "Data Limite": req.due_date ? format(new Date(req.due_date), "dd/MM/yyyy", { locale: pt }) : "",
+        "Data Submissão": req.submitted_at ? format(new Date(req.submitted_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
+        "Data Revisão": req.reviewed_at ? format(new Date(req.reviewed_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
+        "Notas": req.notes || "",
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Pedidos de Evidência");
+    
+    // Auto-size columns
+    const colWidths = Object.keys(exportData[0]).map(key => ({
+      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length).slice(0, 50)) + 2
+    }));
+    worksheet["!cols"] = colWidths;
+
+    const fileName = `revisao_evidencias_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+    toast({ title: "Sucesso", description: `Exportados ${filteredRequests.length} pedidos para Excel` });
+  };
+
   // Filter requests
   const filteredRequests = requests?.filter(r => {
     const matchesSearch = !searchTerm || 
@@ -423,27 +472,39 @@ export function EvidenceReviewPanel() {
             </div>
           </div>
           
-          {/* Results counter */}
+          {/* Results counter and export */}
           <div className="flex items-center justify-between pt-2 border-t">
             <p className="text-sm text-muted-foreground">
               A mostrar <span className="font-medium text-foreground">{filteredRequests?.length || 0}</span> de{" "}
               <span className="font-medium text-foreground">{requests?.length || 0}</span> pedido(s)
             </p>
-            {(searchTerm || statusFilter !== "submitted" || orgFilter !== "all" || areaFilters.length > 0) && (
+            <div className="flex items-center gap-2">
+              {(searchTerm || statusFilter !== "submitted" || orgFilter !== "all" || areaFilters.length > 0) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("submitted");
+                    setOrgFilter("all");
+                    setAreaFilters([]);
+                  }}
+                >
+                  Limpar todos os filtros
+                </Button>
+              )}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="text-xs"
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("submitted");
-                  setOrgFilter("all");
-                  setAreaFilters([]);
-                }}
+                className="gap-2"
+                onClick={exportToExcel}
+                disabled={!filteredRequests?.length}
               >
-                Limpar todos os filtros
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar Excel
               </Button>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>
