@@ -192,6 +192,120 @@ export type Database = {
           },
         ]
       }
+      audit_requirements: {
+        Row: {
+          applicability_type: string
+          audit_id: string
+          compliance_status: string | null
+          created_at: string
+          evidence: string | null
+          findings: string | null
+          id: string
+          legislation_id: string
+          requirement_id: string
+          updated_at: string
+        }
+        Insert: {
+          applicability_type: string
+          audit_id: string
+          compliance_status?: string | null
+          created_at?: string
+          evidence?: string | null
+          findings?: string | null
+          id?: string
+          legislation_id: string
+          requirement_id: string
+          updated_at?: string
+        }
+        Update: {
+          applicability_type?: string
+          audit_id?: string
+          compliance_status?: string | null
+          created_at?: string
+          evidence?: string | null
+          findings?: string | null
+          id?: string
+          legislation_id?: string
+          requirement_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_requirements_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_requirements_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_requirements_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "legal_requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audits: {
+        Row: {
+          audit_date: string | null
+          auditor: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          findings: string | null
+          id: string
+          organization_id: string
+          recommendations: string | null
+          status: Database["public"]["Enums"]["audit_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audit_date?: string | null
+          auditor?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          findings?: string | null
+          id?: string
+          organization_id: string
+          recommendations?: string | null
+          status?: Database["public"]["Enums"]["audit_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audit_date?: string | null
+          auditor?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          findings?: string | null
+          id?: string
+          organization_id?: string
+          recommendations?: string | null
+          status?: Database["public"]["Enums"]["audit_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           category: string | null
@@ -716,6 +830,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client"
+      audit_status: "planned" | "in_progress" | "completed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -844,6 +959,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client"],
+      audit_status: ["planned", "in_progress", "completed", "cancelled"],
     },
   },
 } as const
