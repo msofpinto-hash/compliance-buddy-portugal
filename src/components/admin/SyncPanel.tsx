@@ -53,6 +53,8 @@ export function SyncPanel() {
     failed: number;
     requirementsCreated?: number;
   } | null>(null);
+  const [liveRequirementsCount, setLiveRequirementsCount] = useState(0);
+  const [liveLegislationCount, setLiveLegislationCount] = useState(0);
   const [reimportStats, setReimportStats] = useState<{
     total: number;
     created: number;
@@ -412,6 +414,35 @@ export function SyncPanel() {
 
     setIsImportingLinks(true);
     setLinksImportStats(null);
+    setLiveRequirementsCount(0);
+    setLiveLegislationCount(0);
+
+    // Set up realtime subscription to track requirements being created
+    const requirementsChannel = supabase
+      .channel('requirements-import-progress')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'legal_requirements'
+        },
+        () => {
+          setLiveRequirementsCount(prev => prev + 1);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'legislation'
+        },
+        () => {
+          setLiveLegislationCount(prev => prev + 1);
+        }
+      )
+      .subscribe();
 
     try {
       toast({
@@ -429,9 +460,10 @@ export function SyncPanel() {
         setLinksImportStats(data.stats);
         setLinksContent("");
         const updatedText = data.stats.updated > 0 ? `, ${data.stats.updated} atualizados` : '';
+        const reqText = data.stats.requirementsCreated > 0 ? `, ${data.stats.requirementsCreated} requisitos` : '';
         toast({
           title: "Importação concluída!",
-          description: `${data.stats.created} diplomas criados${updatedText}, ${data.stats.skipped} ignorados`,
+          description: `${data.stats.created} diplomas criados${updatedText}${reqText}`,
         });
       } else {
         throw new Error(data.error || 'Erro desconhecido');
@@ -444,6 +476,8 @@ export function SyncPanel() {
         variant: "destructive",
       });
     } finally {
+      // Clean up realtime subscription
+      supabase.removeChannel(requirementsChannel);
       setIsImportingLinks(false);
     }
   };
@@ -1149,6 +1183,28 @@ https://dre.pt/application/file/..."
               {isImportingLinks ? 'A importar...' : updateExisting ? 'Importar e Atualizar' : 'Importar Links'}
             </Button>
           </div>
+
+          {/* Live progress indicator during import */}
+          {isImportingLinks && (
+            <div className="rounded-lg border border-teal-200 bg-teal-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
+                <h4 className="font-medium text-sm text-teal-800">Importação em progresso...</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col items-center p-3 rounded-lg bg-white border border-teal-100">
+                  <span className="text-2xl font-bold text-green-600">{liveLegislationCount}</span>
+                  <span className="text-xs text-muted-foreground">Diplomas criados</span>
+                </div>
+                {extractRequirementsAI && (
+                  <div className="flex flex-col items-center p-3 rounded-lg bg-white border border-teal-100">
+                    <span className="text-2xl font-bold text-purple-600">{liveRequirementsCount}</span>
+                    <span className="text-xs text-muted-foreground">Requisitos extraídos</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           
           {linksImportStats && (
             <div className="rounded-lg border bg-white p-4 space-y-2">
