@@ -14,7 +14,11 @@ import {
   Square,
   Maximize2,
   Search,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,16 +35,35 @@ export default function LegislacaoRecente() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<"date" | "title">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
 
-  // Fetch recent legislation
-  const { data: legislation, isLoading } = useQuery({
-    queryKey: ["legislation-list"],
+  // Fetch total count
+  const { data: totalCount } = useQuery({
+    queryKey: ["legislation-count"],
     queryFn: async () => {
+      const { count, error } = await supabase
+        .from("legislation")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Fetch legislation with pagination
+  const { data: legislation, isLoading } = useQuery({
+    queryKey: ["legislation-list", currentPage, sortField, sortOrder],
+    queryFn: async () => {
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      
+      const orderColumn = sortField === "date" ? "publication_date" : "title";
+      
       const { data, error } = await supabase
         .from("legislation")
         .select("*")
-        .order("publication_date", { ascending: false })
-        .limit(50);
+        .order(orderColumn, { ascending: sortOrder === "asc" })
+        .range(from, to);
       if (error) throw error;
       return data;
     },
@@ -188,9 +211,18 @@ export default function LegislacaoRecente() {
       setSortField(field);
       setSortOrder("desc");
     }
+    setCurrentPage(1); // Reset to first page when sorting changes
   };
 
-  // Filter and sort legislation
+  // Calculate pagination
+  const totalPages = Math.ceil((totalCount || 0) / itemsPerPage);
+  
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    setExpandedItems(new Set()); // Reset expanded items when changing page
+  };
+
+  // Filter legislation (only client-side search within current page)
   const filteredLegislation = legislation?.filter(leg => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
@@ -199,18 +231,6 @@ export default function LegislacaoRecente() {
       leg.title.toLowerCase().includes(search) ||
       leg.summary?.toLowerCase().includes(search)
     );
-  }).sort((a, b) => {
-    if (sortField === "date") {
-      const dateA = a.publication_date ? new Date(a.publication_date).getTime() : 0;
-      const dateB = b.publication_date ? new Date(b.publication_date).getTime() : 0;
-      return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
-    } else {
-      const titleA = a.title.toLowerCase();
-      const titleB = b.title.toLowerCase();
-      return sortOrder === "asc" 
-        ? titleA.localeCompare(titleB) 
-        : titleB.localeCompare(titleA);
-    }
   });
 
   return (
@@ -226,7 +246,7 @@ export default function LegislacaoRecente() {
           <div className="flex-1">
             <h1 className="text-xl font-semibold">Legislação Recente</h1>
             <p className="text-sm text-muted-foreground">
-              {filteredLegislation?.length || 0} diplomas encontrados
+              {totalCount || 0} diplomas no total • Página {currentPage} de {totalPages || 1}
             </p>
           </div>
           <div className="relative hidden md:block">
@@ -476,6 +496,81 @@ export default function LegislacaoRecente() {
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/30">
+                <p className="text-sm text-muted-foreground">
+                  A mostrar {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, totalCount || 0)} de {totalCount || 0}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => goToPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  <div className="flex items-center gap-1 mx-2">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => goToPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => goToPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
