@@ -14,43 +14,37 @@ import {
   Clock, 
   TrendingUp,
   Settings,
-  ExternalLink,
   BookOpen,
   LayoutDashboard,
   Scale,
   ClipboardList,
-  FolderTree,
   Search,
   ChevronRight,
   HelpCircle,
   Menu,
-  X,
-  Gavel
+  Gavel,
+  ClipboardCheck,
+  FolderOpen,
+  BarChart3,
+  User
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays, eachDayOfInterval } from "date-fns";
+import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import {
   PieChart,
   Pie,
   Cell,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
   Tooltip,
   Legend,
-  AreaChart,
-  Area,
-  CartesianGrid,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const COLORS = {
   compliant: "hsl(142, 76%, 36%)",
@@ -59,13 +53,26 @@ const COLORS = {
   pending: "hsl(215, 20%, 65%)",
 };
 
+type ModuleType = 'legislacao' | 'planos_acao' | 'auditorias' | 'documentos' | 'indicadores';
+
 type NavItem = {
   id: string;
+  moduleKey?: ModuleType;
   label: string;
   icon: React.ElementType;
   href: string;
   count?: number;
+  alwaysShow?: boolean;
 };
+
+const ALL_MODULES: NavItem[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", alwaysShow: true },
+  { id: "legislacao", moduleKey: "legislacao", label: "Legislação", icon: Gavel, href: "/cliente" },
+  { id: "planos_acao", moduleKey: "planos_acao", label: "Planos de Ação", icon: ClipboardList, href: "/cliente?tab=actions" },
+  { id: "auditorias", moduleKey: "auditorias", label: "Auditorias", icon: ClipboardCheck, href: "/cliente?tab=audits" },
+  { id: "documentos", moduleKey: "documentos", label: "Documentos", icon: FolderOpen, href: "/cliente?tab=documents" },
+  { id: "indicadores", moduleKey: "indicadores", label: "Indicadores", icon: BarChart3, href: "/cliente?tab=indicators" },
+];
 
 export default function Dashboard() {
   const { user, signOut, isAdmin } = useAuth();
@@ -103,6 +110,30 @@ export default function Dashboard() {
 
   const currentOrg = organizations.find(o => o.id === (selectedOrgId || organizationIds[0])) || organizations[0];
 
+  // Fetch user's module permissions
+  const { data: userModules } = useQuery({
+    queryKey: ["user-modules", user?.id, currentOrg?.id],
+    queryFn: async () => {
+      if (!user?.id || !currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from("user_module_permissions")
+        .select("module")
+        .eq("user_id", user.id)
+        .eq("organization_id", currentOrg.id);
+      if (error) throw error;
+      return data?.map(d => d.module as ModuleType) || [];
+    },
+    enabled: !!user?.id && !!currentOrg?.id,
+  });
+
+  // Filter navigation based on permissions (admins see all, clients see their modules)
+  const navItems = ALL_MODULES.filter(item => {
+    if (item.alwaysShow) return true;
+    if (isAdmin) return true;
+    if (!item.moduleKey) return true;
+    return userModules?.includes(item.moduleKey);
+  });
+
   // Fetch recent legislation
   const { data: recentLegislation, isLoading: loadingLegislation } = useQuery({
     queryKey: ["recent-legislation"],
@@ -128,7 +159,7 @@ export default function Dashboard() {
         .eq("user_id", user.id)
         .eq("is_read", false)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
       if (error) throw error;
       return data;
     },
@@ -148,85 +179,6 @@ export default function Dashboard() {
       return data;
     },
     enabled: organizationIds.length > 0,
-  });
-
-  // Fetch compliance data by theme for ALL organizations
-  const { data: complianceByTheme } = useQuery({
-    queryKey: ["compliance-by-theme-all", organizationIds],
-    queryFn: async () => {
-      if (organizationIds.length === 0) return [];
-      
-      const { data: applicabilities, error } = await supabase
-        .from("applicabilities")
-        .select(`
-          *,
-          legal_requirements(
-            legislation(
-              legislation_category_mapping(
-                theme_categories(
-                  themes(id, name)
-                )
-              )
-            )
-          )
-        `)
-        .in("organization_id", organizationIds)
-        .eq("is_applicable", true);
-      
-      if (error) throw error;
-
-      // Group by theme
-      const themeStats: Record<string, { name: string; compliant: number; nonCompliant: number; inProgress: number }> = {};
-      
-      applicabilities?.forEach((app: any) => {
-        const themes = app.legal_requirements?.legislation?.legislation_category_mapping || [];
-        themes.forEach((mapping: any) => {
-          const theme = mapping.theme_categories?.themes;
-          if (theme) {
-            if (!themeStats[theme.id]) {
-              themeStats[theme.id] = { name: theme.name, compliant: 0, nonCompliant: 0, inProgress: 0 };
-            }
-            if (app.compliance_status === "conforme") themeStats[theme.id].compliant++;
-            else if (app.compliance_status === "nao_conforme") themeStats[theme.id].nonCompliant++;
-            else themeStats[theme.id].inProgress++;
-          }
-        });
-      });
-
-      return Object.values(themeStats).slice(0, 5);
-    },
-    enabled: organizationIds.length > 0,
-  });
-
-  // Fetch legislation trend (last 30 days)
-  const { data: legislationTrend } = useQuery({
-    queryKey: ["legislation-trend"],
-    queryFn: async () => {
-      const thirtyDaysAgo = subDays(new Date(), 30);
-      
-      const { data, error } = await supabase
-        .from("legislation")
-        .select("publication_date, source")
-        .gte("publication_date", thirtyDaysAgo.toISOString().split("T")[0])
-        .order("publication_date", { ascending: true });
-      
-      if (error) throw error;
-
-      // Group by date
-      const dateRange = eachDayOfInterval({ start: thirtyDaysAgo, end: new Date() });
-      const trend = dateRange.map(date => {
-        const dateStr = format(date, "yyyy-MM-dd");
-        const dayData = data?.filter(d => d.publication_date === dateStr) || [];
-        return {
-          date: format(date, "d MMM", { locale: pt }),
-          dre: dayData.filter(d => d.source === "dre").length,
-          eurlex: dayData.filter(d => d.source === "eurlex").length,
-          total: dayData.length,
-        };
-      });
-
-      return trend;
-    },
   });
 
   // Calculate stats from action plans
@@ -286,17 +238,12 @@ export default function Dashboard() {
     { name: "Pendente", value: actionPlanStats.pending, color: COLORS.pending },
   ].filter(d => d.value > 0);
 
-  // Navigation items
-  const navItems: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-    { id: "legislacao", label: "Legislação", icon: Gavel, href: "/biblioteca" },
-    { id: "cliente", label: "Meus Diplomas", icon: FileText, href: "/cliente" },
-    { id: "planos", label: "Planos de Ação", icon: ClipboardList, href: "/cliente" },
-  ];
-
-  if (isAdmin) {
-    navItems.push({ id: "admin", label: "Administração", icon: Settings, href: "/admin" });
-  }
+  // Categorize alerts by type
+  const alertsByType = {
+    legislation: alerts?.filter(a => a.type === "new_legislation") || [],
+    deadlines: alerts?.filter(a => a.type === "deadline") || [],
+    other: alerts?.filter(a => !["new_legislation", "deadline"].includes(a.type || "")) || [],
+  };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -366,26 +313,40 @@ export default function Dashboard() {
             );
           })}
         </nav>
+
+        {/* Admin link if admin */}
+        {isAdmin && (
+          <div className="px-3 mt-4 pt-4 border-t border-sidebar-border">
+            <Link
+              to="/admin"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-colors"
+            >
+              <Settings className="h-5 w-5 shrink-0" />
+              <span>Administração</span>
+            </Link>
+          </div>
+        )}
       </ScrollArea>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border mt-auto">
+      {/* Footer - Settings & Logout */}
+      <div className="p-4 border-t border-sidebar-border mt-auto space-y-1">
+        <Link
+          to="/settings"
+          onClick={() => setSidebarOpen(false)}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-colors w-full"
+        >
+          <User className="h-4 w-4" />
+          <span>Definições</span>
+        </Link>
         <LogoutConfirmDialog 
           onConfirm={signOut} 
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/10" 
+          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/10 px-3" 
           variant="ghost"
         />
       </div>
     </div>
   );
-
-  // Alert stats for the cards
-  const alertStats = {
-    legislation: recentLegislation?.length || 0,
-    potentiallyApplicable: 0,
-    legalRequirements: complianceStats?.applicable || 0,
-    alerts: alerts?.length || 0,
-  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -445,6 +406,11 @@ export default function Dashboard() {
                   </span>
                 )}
               </Button>
+              <Link to="/settings">
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </Link>
             </div>
           </div>
         </header>
@@ -454,39 +420,88 @@ export default function Dashboard() {
           <div className="grid gap-6 lg:grid-cols-4">
             {/* Main Content Area - 3 columns */}
             <div className="lg:col-span-3 space-y-6">
-              {/* Alerts Section */}
+              {/* Notifications Timeline */}
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Avisos não lidos do último mês</CardTitle>
-                    <Link to="/cliente" className="text-sm text-primary hover:underline flex items-center gap-1">
-                      Ver mais <ChevronRight className="h-4 w-4" />
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-lg">Notificações</CardTitle>
+                      {(alerts?.length || 0) > 0 && (
+                        <Badge variant="destructive" className="text-xs">
+                          {alerts?.length} não lidas
+                        </Badge>
+                      )}
+                    </div>
+                    <Link to="/notifications" className="text-sm text-primary hover:underline flex items-center gap-1">
+                      Ver todas <ChevronRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <div className="bg-secondary/10 rounded-xl p-4 text-center border border-border hover:border-primary/30 transition-colors">
-                      <div className="text-3xl font-bold mb-2">{alertStats.legislation}</div>
-                      <div className="text-xs text-muted-foreground">Legislação</div>
+                  {loadingAlerts ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-16 w-full" />
+                      ))}
                     </div>
-                    <div className="bg-secondary/10 rounded-xl p-4 text-center border border-border hover:border-primary/30 transition-colors">
-                      <div className="text-3xl font-bold mb-2">{alertStats.potentiallyApplicable}</div>
-                      <div className="text-xs text-muted-foreground">Legis. Potenc. Aplicável</div>
+                  ) : alerts && alerts.length > 0 ? (
+                    <div className="relative">
+                      {/* Timeline line */}
+                      <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+                      
+                      <div className="space-y-4">
+                        {alerts.slice(0, 5).map((alert, index) => (
+                          <div key={alert.id} className="relative flex gap-4 pl-10">
+                            {/* Timeline dot */}
+                            <div className={cn(
+                              "absolute left-2.5 w-3 h-3 rounded-full border-2 border-background",
+                              alert.type === "deadline" ? "bg-amber-500" :
+                              alert.type === "new_legislation" ? "bg-blue-500" : "bg-muted-foreground"
+                            )} />
+                            
+                            <div className="flex-1 bg-muted/30 rounded-lg p-3 hover:bg-muted/50 transition-colors">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {alert.type === "deadline" && (
+                                      <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        Prazo
+                                      </Badge>
+                                    )}
+                                    {alert.type === "new_legislation" && (
+                                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        Legislação
+                                      </Badge>
+                                    )}
+                                    {!["deadline", "new_legislation"].includes(alert.type || "") && (
+                                      <Badge variant="outline" className="text-xs">
+                                        <Bell className="h-3 w-3 mr-1" />
+                                        Alerta
+                                      </Badge>
+                                    )}
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(new Date(alert.created_at), "d MMM, HH:mm", { locale: pt })}
+                                    </span>
+                                  </div>
+                                  <p className="font-medium text-sm">{alert.title}</p>
+                                  <p className="text-sm text-muted-foreground line-clamp-1">{alert.message}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="bg-secondary/10 rounded-xl p-4 text-center border border-border hover:border-primary/30 transition-colors">
-                      <div className="text-3xl font-bold mb-2">{alertStats.legalRequirements}</div>
-                      <div className="text-xs text-muted-foreground">Requisitos Legais</div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-2" />
+                      <p className="text-muted-foreground">Sem notificações pendentes</p>
+                      <p className="text-sm text-muted-foreground">Está tudo em dia!</p>
                     </div>
-                    <div className="bg-secondary/10 rounded-xl p-4 text-center border border-border hover:border-primary/30 transition-colors">
-                      <div className="text-3xl font-bold mb-2">{actionPlanStats.overdue}</div>
-                      <div className="text-xs text-muted-foreground">Ações Atrasadas</div>
-                    </div>
-                    <div className="bg-secondary/10 rounded-xl p-4 text-center border border-border hover:border-primary/30 transition-colors">
-                      <div className="text-3xl font-bold mb-2">{alertStats.alerts}</div>
-                      <div className="text-xs text-muted-foreground">Alertas</div>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -640,71 +655,6 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Legislation Trend */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tendência de Publicações (últimos 30 dias)</CardTitle>
-                  <CardDescription>Nova legislação publicada no DRE e EUR-Lex</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {legislationTrend && legislationTrend.some(d => d.total > 0) ? (
-                    <div className="h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={legislationTrend}>
-                          <defs>
-                            <linearGradient id="colorDre" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorEurlex" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="hsl(220, 70%, 50%)" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="hsl(220, 70%, 50%)" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis 
-                            dataKey="date" 
-                            fontSize={11}
-                            tickLine={false}
-                            axisLine={false}
-                          />
-                          <YAxis 
-                            fontSize={11}
-                            tickLine={false}
-                            axisLine={false}
-                            allowDecimals={false}
-                          />
-                          <Tooltip 
-                            contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                          />
-                          <Legend />
-                          <Area 
-                            type="monotone" 
-                            dataKey="dre" 
-                            name="DRE"
-                            stroke="hsl(var(--primary))" 
-                            fillOpacity={1} 
-                            fill="url(#colorDre)" 
-                          />
-                          <Area 
-                            type="monotone" 
-                            dataKey="eurlex" 
-                            name="EUR-Lex"
-                            stroke="hsl(220, 70%, 50%)" 
-                            fillOpacity={1} 
-                            fill="url(#colorEurlex)" 
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                      Sem publicações nos últimos 30 dias
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
 
             {/* Right Sidebar - 1 column */}
@@ -775,52 +725,25 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Alerts */}
+              {/* Module Quick Access */}
               <Card>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Alertas Recentes</CardTitle>
-                    <Badge variant="outline">{alerts?.length || 0}</Badge>
-                  </div>
+                  <CardTitle className="text-base">Acesso Rápido</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {loadingAlerts ? (
-                    <div className="space-y-2">
-                      {[1, 2].map((i) => (
-                        <Skeleton key={i} className="h-12 w-full" />
-                      ))}
-                    </div>
-                  ) : alerts && alerts.length > 0 ? (
-                    <div className="space-y-2">
-                      {alerts.slice(0, 3).map((alert) => (
-                        <div
-                          key={alert.id}
-                          className="flex items-start gap-2 rounded-lg border p-2 hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="shrink-0 mt-0.5">
-                            {alert.type === "deadline" ? (
-                              <Clock className="h-3.5 w-3.5 text-amber-500" />
-                            ) : alert.type === "new_legislation" ? (
-                              <FileText className="h-3.5 w-3.5 text-blue-500" />
-                            ) : (
-                              <Bell className="h-3.5 w-3.5 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-xs line-clamp-1">{alert.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(alert.created_at), "d MMM", { locale: pt })}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Sem alertas</p>
-                    </div>
-                  )}
+                <CardContent className="space-y-2">
+                  {navItems.filter(item => item.id !== "dashboard").slice(0, 4).map((item) => (
+                    <Link
+                      key={item.id}
+                      to={item.href}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <item.icon className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium">{item.label}</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </Link>
+                  ))}
                 </CardContent>
               </Card>
             </div>
