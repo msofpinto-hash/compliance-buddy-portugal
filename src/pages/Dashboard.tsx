@@ -70,8 +70,7 @@ type NavItem = {
 };
 
 const ALL_MODULES: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", alwaysShow: true },
-  { id: "legislacao", moduleKey: "legislacao", label: "Legislação", icon: Gavel, href: "/cliente" },
+  { id: "legislacao", moduleKey: "legislacao", label: "Legislação", icon: Gavel, href: "/cliente", alwaysShow: true },
   { id: "planos_acao", moduleKey: "planos_acao", label: "Planos de Ação", icon: ClipboardList, href: "/cliente?tab=actions" },
   { id: "auditorias", moduleKey: "auditorias", label: "Auditorias", icon: ClipboardCheck, href: "/cliente?tab=audits" },
   { id: "documentos", moduleKey: "documentos", label: "Documentos", icon: FolderOpen, href: "/cliente?tab=documents" },
