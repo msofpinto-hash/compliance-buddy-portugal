@@ -234,11 +234,11 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get legislation with generic titles
+    // Get legislation with generic titles (PT origin only - EU uses EUR-Lex)
     const { data: legislation, error: fetchError } = await supabase
       .from('legislation')
       .select('id, number, title, summary, entity, document_url, origin')
-      .or('origin.eq.PT,origin.eq.dre,origin.is.null')
+      .or('origin.eq.PT,origin.eq.dre')
       .limit(1000);
     
     if (fetchError) {
@@ -247,13 +247,22 @@ Deno.serve(async (req) => {
     
     const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
     
+    // Filter to PT legislation with generic titles and has document_url
     const toProcess = (legislation || [])
       .filter(leg => {
+        // Skip if no origin or not PT
+        if (!leg.origin || !['PT', 'dre'].includes(leg.origin)) return false;
+        
+        // Has generic title (title equals number or matches pattern without description)
         const titleEqualsNumber = leg.title === leg.number;
         const hasGenericPattern = genericPattern.test(leg.title) && 
           leg.title.length < 80 && 
           !leg.title.includes(' - ');
-        return titleEqualsNumber || hasGenericPattern;
+        
+        // Must have a document_url to scrape from
+        const hasUrl = leg.document_url && leg.document_url.includes('/dr/detalhe/');
+        
+        return (titleEqualsNumber || hasGenericPattern) && hasUrl;
       })
       .slice(0, limit);
     
