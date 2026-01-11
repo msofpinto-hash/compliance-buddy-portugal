@@ -654,8 +654,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-    const { links, updateExisting = false, extractRequirementsAI = true } = await req.json();
+    const { links, updateExisting = false, extractRequirementsAI = true, stream = false } = await req.json();
 
+    // If streaming is requested, use SSE - but for now just run normally
+    // Streaming will be handled client-side with polling
+    
     if (!links || !Array.isArray(links) || links.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Links array is required' }),
