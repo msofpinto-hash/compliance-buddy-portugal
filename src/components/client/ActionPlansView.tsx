@@ -37,7 +37,10 @@ import {
   X,
   Download,
   FileSpreadsheet,
-  Printer
+  Printer,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -486,6 +489,12 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<ActionPlan | null>(null);
   
+  // Sorting
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" }>({ 
+    key: "created_at", 
+    direction: "desc" 
+  });
+  
   // Filters
   const [filters, setFilters] = useState({
     search: "",
@@ -530,11 +539,15 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
     return [...new Set(responsibles)] as string[];
   }, [actionPlans]);
 
-  // Filter action plans
+  // Priority order map for sorting
+  const priorityOrder: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
+  const statusOrder: Record<string, number> = { pendente: 0, em_curso: 1, concluido: 2, cancelado: 3 };
+
+  // Filter and sort action plans
   const filteredPlans = useMemo(() => {
     if (!actionPlans) return [];
     
-    return actionPlans.filter(plan => {
+    const filtered = actionPlans.filter(plan => {
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -567,7 +580,53 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
 
       return true;
     });
-  }, [actionPlans, filters]);
+
+    // Sort
+    return filtered.sort((a, b) => {
+      const { key, direction } = sortConfig;
+      const multiplier = direction === "asc" ? 1 : -1;
+
+      switch (key) {
+        case "priority":
+          const aPriority = priorityOrder[a.priority || "media"] ?? 1;
+          const bPriority = priorityOrder[b.priority || "media"] ?? 1;
+          return (aPriority - bPriority) * multiplier;
+        case "status":
+          const aStatus = statusOrder[a.status || "pendente"] ?? 0;
+          const bStatus = statusOrder[b.status || "pendente"] ?? 0;
+          return (aStatus - bStatus) * multiplier;
+        case "due_date":
+          const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+          const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+          return (aDate - bDate) * multiplier;
+        case "title":
+          return a.title.localeCompare(b.title) * multiplier;
+        case "responsible":
+          return (a.responsible || "").localeCompare(b.responsible || "") * multiplier;
+        case "created_at":
+        default:
+          return (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) * multiplier;
+      }
+    });
+  }, [actionPlans, filters, sortConfig]);
+
+  // Toggle sort
+  const handleSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
+    }));
+  };
+
+  // Sort icon helper
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortConfig.key !== column) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortConfig.direction === "asc" 
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
 
   // Stats
   const stats = useMemo(() => {
@@ -1239,12 +1298,51 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[40px]"></TableHead>
+                  <TableHead 
+                    className="w-[40px] cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("priority")}
+                  >
+                    <div className="flex items-center">
+                      <SortIcon column="priority" />
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[100px]">Tipo</TableHead>
-                  <TableHead>Título</TableHead>
-                  <TableHead className="w-[120px]">Prazo</TableHead>
-                  <TableHead className="w-[120px]">Estado</TableHead>
-                  <TableHead className="w-[150px]">Responsável</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("title")}
+                  >
+                    <div className="flex items-center">
+                      Título
+                      <SortIcon column="title" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="w-[120px] cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("due_date")}
+                  >
+                    <div className="flex items-center">
+                      Prazo
+                      <SortIcon column="due_date" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="w-[120px] cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("status")}
+                  >
+                    <div className="flex items-center">
+                      Estado
+                      <SortIcon column="status" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="w-[150px] cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("responsible")}
+                  >
+                    <div className="flex items-center">
+                      Responsável
+                      <SortIcon column="responsible" />
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[100px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
