@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar } from "lucide-react";
+import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -1571,11 +1572,14 @@ https://dre.pt/application/file/..."
             <div className="py-8 text-center text-muted-foreground">
               <RefreshCw className="mx-auto mb-2 h-8 w-8 opacity-50" />
               <p>Nenhuma sincronização realizada ainda</p>
-              <p className="text-sm">Execute uma sincronização para ver o histórico</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+            <p className="text-sm">Execute uma sincronização para ver o histórico</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+
+    {/* Duplicate Cleanup Panel */}
+    <DuplicateCleanupPanel />
+  </div>
+);
 }
