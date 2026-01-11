@@ -66,29 +66,22 @@ export function DataQualityPanel() {
   const { data: qualityStats, isLoading, refetch } = useQuery({
     queryKey: ["data-quality-stats"],
     queryFn: async () => {
-      // Parallel queries for all metrics
+      // Parallel queries for all metrics - use exact counts where possible
       const [
         totalLegislation,
-        genericTitles,
         missingSummary,
         missingUrl,
         missingOrigin,
         noCategories,
-        noRequirements,
         totalRequirements,
         ptLegislation,
         euLegislation,
-        ptRequirements,
-        euRequirements,
         relationsData,
         incompleteAutoImported,
+        legislationWithReqsCount,
       ] = await Promise.all([
         // Total legislation
         supabase.from("legislation").select("id", { count: "exact", head: true }),
-        // Generic titles - fetch all with origin and document_url to detect title=number pattern
-        supabase.from("legislation")
-          .select("id, number, title, origin, external_id, document_url")
-          .limit(5000),
         // Missing summary
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
@@ -103,8 +96,6 @@ export function DataQualityPanel() {
           .or("origin.is.null,origin.eq."),
         // No categories
         supabase.rpc("get_legislation_without_categories_count"),
-        // No requirements - need to get all legislation IDs and filter (use count to avoid 1000 limit)
-        supabase.from("legislation").select("id", { count: "exact", head: false }).limit(5000),
         // Total requirements
         supabase.from("legal_requirements").select("id", { count: "exact", head: true }),
         // PT legislation
@@ -115,57 +106,46 @@ export function DataQualityPanel() {
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
           .or("origin.eq.EU,origin.eq.eurlex"),
-        // PT requirements
-        supabase.from("legal_requirements")
-          .select("id, legislation:legislation_id!inner(origin)", { count: "exact", head: true })
-          .or("origin.eq.PT,origin.eq.dre", { foreignTable: "legislation" }),
-        // EU requirements
-        supabase.from("legal_requirements")
-          .select("id, legislation:legislation_id!inner(origin)", { count: "exact", head: true })
-          .or("origin.eq.EU,origin.eq.eurlex", { foreignTable: "legislation" }),
-        // Relations data
-        supabase.from("legislation_relations").select("relation_type").limit(5000),
+        // Relations data - use count instead of fetching all
+        supabase.from("legislation_relations").select("relation_type", { count: "exact", head: false }).limit(10000),
         // Incomplete auto-imported legislation
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
           .or("document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null"),
+        // Count distinct legislation IDs that have requirements
+        supabase.from("legal_requirements")
+          .select("legislation_id")
+          .limit(15000),
       ]);
 
-      // Get legislation without requirements
-      const allLegislationIds = noRequirements.data?.map((l: any) => l.id) || [];
-      const { data: legislationWithReqs } = await supabase
-        .from("legal_requirements")
-        .select("legislation_id")
-        .limit(10000);
-      const legWithReqsSet = new Set(legislationWithReqs?.map((r: any) => r.legislation_id) || []);
-      const withoutReqsCount = allLegislationIds.filter(id => !legWithReqsSet.has(id)).length;
-
-      // Get duplicate requirements count (use higher limit)
-      const { data: dupReqs } = await supabase
-        .from("legal_requirements")
-        .select("legislation_id, requirement_text")
-        .limit(15000);
+      const total = totalLegislation.count || 0;
       
-      const reqMap = new Map<string, number>();
-      dupReqs?.forEach(r => {
-        const key = `${r.legislation_id}:${r.requirement_text}`;
-        reqMap.set(key, (reqMap.get(key) || 0) + 1);
-      });
-      const duplicateCount = Array.from(reqMap.values()).reduce((acc, count) => acc + (count > 1 ? count - 1 : 0), 0);
+      // Calculate legislation without requirements
+      const uniqueLegislationWithReqs = new Set(
+        (legislationWithReqsCount.data || []).map((r: any) => r.legislation_id)
+      );
+      const withoutReqsCount = total - uniqueLegislationWithReqs.size;
 
+      // Fetch all legislation for generic title detection (need full data)
+      const { data: allLegislation } = await supabase
+        .from("legislation")
+        .select("id, number, title, origin, external_id, document_url")
+        .limit(10000);
+      
+      const legislationData = allLegislation || [];
+      
       // Count generic titles PT (title = number or matches generic pattern)
-      // Only count those with valid DRE URL (can be auto-corrected)
       const genericPatternPT = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Declaração|Acórdão|Aviso|Parecer)\s+n\.?º?\s/i;
-      const ptLegislationData = (genericTitles.data || []).filter((leg: any) => 
+      const ptLegislationData = legislationData.filter((leg: any) => 
         leg.origin === 'PT' || leg.origin === 'dre'
       );
       
       // Filter PT legislation with generic titles
       const ptWithGenericTitles = ptLegislationData.filter((leg: any) => {
         const titleEqualsNumber = leg.title === leg.number;
-        const hasGenericPattern = genericPatternPT.test(leg.title) && 
-          leg.title.length < 80 && 
-          !leg.title.includes(' - ');
+        const hasGenericPattern = genericPatternPT.test(leg.title || '') && 
+          (leg.title?.length || 0) < 80 && 
+          !leg.title?.includes(' - ');
         return titleEqualsNumber || hasGenericPattern || !leg.title;
       });
       
@@ -179,12 +159,11 @@ export function DataQualityPanel() {
         !leg.document_url || !leg.document_url.includes('/dr/detalhe/')
       ).length;
 
-      // Count generic titles EU (title equals CELEX/number or is very short)
-      const euLegislationData = (genericTitles.data || []).filter((leg: any) => 
+      // Count generic titles EU
+      const euLegislationData = legislationData.filter((leg: any) => 
         leg.origin === 'EU' || leg.origin === 'eurlex'
       );
       const genericTitlesEUCount = euLegislationData.filter((leg: any) => {
-        if (!leg.external_id) return false;
         const titleEqualsCelex = leg.title === leg.external_id || leg.title === leg.number;
         const isGenericTitle = 
           leg.title?.startsWith('Documento ') ||
@@ -196,12 +175,11 @@ export function DataQualityPanel() {
         return titleEqualsCelex || isGenericTitle;
       }).length;
 
-      const total = totalLegislation.count || 0;
       const missingUrlCount = missingUrl.count || 0;
       
       // Calculate relations stats by type
       const relationsArray = relationsData.data || [];
-      const totalRelations = relationsArray.length;
+      const totalRelations = relationsData.count || relationsArray.length;
       const relationsByType: Record<string, number> = {};
       relationsArray.forEach((r: { relation_type: string }) => {
         relationsByType[r.relation_type] = (relationsByType[r.relation_type] || 0) + 1;
@@ -211,13 +189,37 @@ export function DataQualityPanel() {
       const { data: legislationWithRelations } = await supabase
         .from("legislation_relations")
         .select("source_legislation_id, target_legislation_id")
-        .limit(5000);
+        .limit(10000);
       
       const uniqueLegislationWithRelations = new Set<string>();
       legislationWithRelations?.forEach(r => {
         uniqueLegislationWithRelations.add(r.source_legislation_id);
         uniqueLegislationWithRelations.add(r.target_legislation_id);
       });
+
+      // Get duplicate requirements count using aggregation
+      const { data: dupReqs } = await supabase
+        .from("legal_requirements")
+        .select("legislation_id, requirement_text")
+        .limit(15000);
+      
+      const reqMap = new Map<string, number>();
+      dupReqs?.forEach(r => {
+        const key = `${r.legislation_id}:${r.requirement_text}`;
+        reqMap.set(key, (reqMap.get(key) || 0) + 1);
+      });
+      const duplicateCount = Array.from(reqMap.values()).reduce((acc, count) => acc + (count > 1 ? count - 1 : 0), 0);
+
+      // Get requirements count by origin via join
+      const { data: ptReqsData, count: ptReqsCount } = await supabase
+        .from("legal_requirements")
+        .select("id, legislation:legislation_id!inner(origin)", { count: "exact", head: true })
+        .or("origin.eq.PT,origin.eq.dre", { foreignTable: "legislation" });
+
+      const { data: euReqsData, count: euReqsCount } = await supabase
+        .from("legal_requirements")
+        .select("id, legislation:legislation_id!inner(origin)", { count: "exact", head: true })
+        .or("origin.eq.EU,origin.eq.eurlex", { foreignTable: "legislation" });
       
       return {
         total,
@@ -234,8 +236,8 @@ export function DataQualityPanel() {
         duplicateRequirements: duplicateCount,
         ptLegislation: ptLegislation.count || 0,
         euLegislation: euLegislation.count || 0,
-        ptRequirements: ptRequirements.count || 0,
-        euRequirements: euRequirements.count || 0,
+        ptRequirements: ptReqsCount || 0,
+        euRequirements: euReqsCount || 0,
         totalRelations,
         relationsByType,
         legislationWithRelations: uniqueLegislationWithRelations.size,
