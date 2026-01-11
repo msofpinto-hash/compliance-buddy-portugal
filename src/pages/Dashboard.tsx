@@ -34,7 +34,8 @@ import {
   Loader2,
   Lock,
   MessageSquare,
-  ThumbsUp
+  ThumbsUp,
+  Eye
 } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -42,6 +43,7 @@ import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
+import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -104,6 +106,7 @@ export default function Dashboard() {
   const [approvingPlanId, setApprovingPlanId] = useState<string | null>(null);
   const [exportingAuditId, setExportingAuditId] = useState<string | null>(null);
   const [feedbackDialogAudit, setFeedbackDialogAudit] = useState<{ id: string; title: string } | null>(null);
+  const [viewingAuditPlan, setViewingAuditPlan] = useState<any>(null);
   // Audit filters and sorting
   const [auditStatusFilter, setAuditStatusFilter] = useState<string | null>(null);
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
@@ -971,18 +974,29 @@ export default function Dashboard() {
                                       )}
                                     </div>
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleExportAuditPDF(audit.id, audit.title)}
-                                    disabled={exportingAuditId === audit.id}
-                                  >
-                                    {exportingAuditId === audit.id ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Download className="h-4 w-4" />
-                                    )}
-                                  </Button>
+                                  <div className="flex flex-col gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setViewingAuditPlan(audit)}
+                                      title="Ver detalhes do plano"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleExportAuditPDF(audit.id, audit.title)}
+                                      disabled={exportingAuditId === audit.id}
+                                      title="Exportar PDF"
+                                    >
+                                      {exportingAuditId === audit.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </div>
                                 </div>
                                 
                                 {/* Plan actions - only for planned audits not yet approved */}
@@ -1309,6 +1323,13 @@ export default function Dashboard() {
         onOpenChange={(open) => !open && setFeedbackDialogAudit(null)}
         auditTitle={feedbackDialogAudit?.title || ""}
         onSubmit={(feedback) => handlePlanFeedback(feedbackDialogAudit!.id, feedback)}
+      />
+      
+      {/* Audit Plan Details Dialog */}
+      <AuditPlanDetailsDialog
+        open={!!viewingAuditPlan}
+        onOpenChange={(open) => !open && setViewingAuditPlan(null)}
+        audit={viewingAuditPlan}
       />
     </div>
   );
