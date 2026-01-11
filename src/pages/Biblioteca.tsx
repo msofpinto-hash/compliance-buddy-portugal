@@ -259,87 +259,92 @@ export default function Biblioteca() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Search and Filters */}
+        {/* Top Bar: Theme selector (left) + Search (right) */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* Theme/Category Selector - Left */}
+          <div className="flex items-center gap-2">
+            {themes && (
+              <CategoryTreeFilter
+                themes={themes}
+                selectedThemeId={selectedThemeId}
+                selectedCategoryId={selectedCategoryId}
+                onThemeSelect={setSelectedThemeId}
+                onCategorySelect={setSelectedCategoryId}
+              />
+            )}
+          </div>
+
+          {/* Search bar - Right */}
+          <div className="flex-1 max-w-md ml-auto">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar por título, número ou entidade..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Row */}
         <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4">
-              {/* Search bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar por título, número ou entidade..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              {/* Filter buttons */}
-              <div className="flex flex-wrap gap-2 items-center">
-                {themes && (
-                  <CategoryTreeFilter
-                    themes={themes}
-                    selectedThemeId={selectedThemeId}
-                    selectedCategoryId={selectedCategoryId}
-                    onThemeSelect={setSelectedThemeId}
-                    onCategorySelect={setSelectedCategoryId}
-                  />
-                )}
-                
-                <DateRangeFilter
-                  startDate={filterStartDate}
-                  endDate={filterEndDate}
-                  onStartDateChange={setFilterStartDate}
-                  onEndDateChange={setFilterEndDate}
-                  label="Período"
-                />
+          <CardContent className="py-4">
+            <div className="flex flex-wrap gap-2 items-center">
+              <DateRangeFilter
+                startDate={filterStartDate}
+                endDate={filterEndDate}
+                onStartDateChange={setFilterStartDate}
+                onEndDateChange={setFilterEndDate}
+                label="Período"
+              />
 
-                <Button
-                  variant={selectedSource === "dre" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedSource(selectedSource === "dre" ? "all" : "dre")}
+              <Button
+                variant={selectedSource === "dre" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedSource(selectedSource === "dre" ? "all" : "dre")}
+              >
+                DRE
+              </Button>
+              <Button
+                variant={selectedSource === "eurlex" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedSource(selectedSource === "eurlex" ? "all" : "eurlex")}
+              >
+                EUR-Lex
+              </Button>
+
+              {/* Applicability Filter */}
+              {userOrganization && (
+                <Select
+                  value={selectedApplicability}
+                  onValueChange={setSelectedApplicability}
                 >
-                  DRE
-                </Button>
+                  <SelectTrigger className="w-[200px] h-9">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Aplicabilidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {applicabilityFilterOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {hasActiveFilters && (
                 <Button
-                  variant={selectedSource === "eurlex" ? "default" : "outline"}
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedSource(selectedSource === "eurlex" ? "all" : "eurlex")}
+                  onClick={clearAllFilters}
+                  className="text-muted-foreground"
                 >
-                  EUR-Lex
+                  Limpar filtros
                 </Button>
-
-                {/* Applicability Filter */}
-                {userOrganization && (
-                  <Select
-                    value={selectedApplicability}
-                    onValueChange={setSelectedApplicability}
-                  >
-                    <SelectTrigger className="w-[200px] h-9">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Aplicabilidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {applicabilityFilterOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearAllFilters}
-                    className="text-muted-foreground"
-                  >
-                    Limpar filtros
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
