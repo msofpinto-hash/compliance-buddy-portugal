@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,8 @@ import {
   BookOpen,
   Loader2,
   RefreshCw,
+  Pause,
+  Play,
   Trash2,
   ArrowRight,
   BarChart3,
@@ -63,11 +65,14 @@ export function DataQualityPanel() {
   const [showCompleteAutoImportedDialog, setShowCompleteAutoImportedDialog] = useState(false);
   const [showBulkAutoFixDialog, setShowBulkAutoFixDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Fetch comprehensive data quality statistics
-  const { data: qualityStats, isLoading, refetch } = useQuery({
+  const { data: qualityStats, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["data-quality-stats"],
     queryFn: async () => {
+      setLastRefresh(new Date());
       // Parallel queries for all metrics - use exact counts where possible
       const [
         totalLegislation,
@@ -247,7 +252,18 @@ export function DataQualityPanel() {
         incompleteAutoImported: incompleteAutoImported.count || 0,
       };
     },
+    refetchInterval: autoRefresh ? 10000 : false, // Refetch every 10 seconds when auto-refresh is enabled
   });
+
+  // Auto-refresh polling effect
+  useEffect(() => {
+    if (autoRefresh) {
+      toast({
+        title: "Auto-refresh ativado",
+        description: "As métricas serão atualizadas a cada 10 segundos.",
+      });
+    }
+  }, [autoRefresh]);
 
   // Remove duplicate requirements
   const handleRemoveDuplicateRequirements = async () => {
@@ -380,11 +396,44 @@ export function DataQualityPanel() {
                 <Sparkles className="h-4 w-4 mr-2" />
                 Corrigir Tudo
               </Button>
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
                 Atualizar
               </Button>
+              <Button 
+                variant={autoRefresh ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={autoRefresh ? "bg-green-600 hover:bg-green-700" : ""}
+              >
+                {autoRefresh ? (
+                  <>
+                    <Pause className="h-4 w-4 mr-2" />
+                    Parar Auto-refresh
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Auto-refresh
+                  </>
+                )}
+              </Button>
             </div>
+            {autoRefresh && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>A atualizar automaticamente a cada 10s</span>
+                {lastRefresh && (
+                  <span className="text-xs">
+                    (última: {lastRefresh.toLocaleTimeString()})
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>
