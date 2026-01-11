@@ -20,13 +20,22 @@ import {
   BarChart3,
   Zap,
   Square,
-  RefreshCw
+  RefreshCw,
+  RotateCcw
 } from "lucide-react";
 
 interface ExtractionResult {
   legislationId: string;
+  legislationNumber?: string;
   requirementsCount: number;
   error?: string;
+}
+
+interface FailedItem {
+  legislationId: string;
+  legislationNumber: string;
+  error: string;
+  retryCount: number;
 }
 
 export function RequirementsExtractionPanel() {
@@ -34,10 +43,14 @@ export function RequirementsExtractionPanel() {
   const queryClient = useQueryClient();
   const [isExtracting, setIsExtracting] = useState(false);
   const [isContinuousExtracting, setIsContinuousExtracting] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [limit, setLimit] = useState(10);
   const [batchSize, setBatchSize] = useState(50);
   const [dryRun, setDryRun] = useState(false);
+  const [autoRetry, setAutoRetry] = useState(true);
+  const [maxRetries, setMaxRetries] = useState(3);
   const [results, setResults] = useState<ExtractionResult[] | null>(null);
+  const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   const [stats, setStats] = useState<{
     processed: number;
     successful: number;
@@ -50,6 +63,7 @@ export function RequirementsExtractionPanel() {
     totalFailed: number;
     totalRequirements: number;
     batchesCompleted: number;
+    retriesPerformed: number;
   } | null>(null);
   const stopContinuousRef = useRef(false);
 
@@ -76,6 +90,78 @@ export function RequirementsExtractionPanel() {
     },
   });
 
+  // Handle retry of failed items
+  const handleRetryFailed = async (idsToRetry?: string[]) => {
+    const itemsToRetry = idsToRetry 
+      ? failedItems.filter(f => idsToRetry.includes(f.legislationId))
+      : failedItems.filter(f => f.retryCount < maxRetries);
+    
+    if (itemsToRetry.length === 0) {
+      toast({
+        title: "Sem itens para retentar",
+        description: "Não há itens falhados elegíveis para retry.",
+      });
+      return;
+    }
+
+    setIsRetrying(true);
+
+    try {
+      const legislationIds = itemsToRetry.map(f => f.legislationId);
+      
+      const { data, error } = await supabase.functions.invoke("extract-requirements", {
+        body: { legislationIds, dryRun: false },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        // Update failed items - remove successful ones, increment retry count for still-failed
+        const successfulIds = new Set(
+          data.results
+            .filter((r: ExtractionResult) => !r.error && r.requirementsCount > 0)
+            .map((r: ExtractionResult) => r.legislationId)
+        );
+
+        const newFailedItems = failedItems
+          .map(item => {
+            if (successfulIds.has(item.legislationId)) {
+              return null; // Remove from failed list
+            }
+            if (legislationIds.includes(item.legislationId)) {
+              // Find new error if any
+              const newResult = data.results.find((r: ExtractionResult) => r.legislationId === item.legislationId);
+              return {
+                ...item,
+                error: newResult?.error || item.error,
+                retryCount: item.retryCount + 1,
+              };
+            }
+            return item;
+          })
+          .filter((item): item is FailedItem => item !== null);
+
+        setFailedItems(newFailedItems);
+
+        toast({
+          title: "Retry concluído",
+          description: `${data.successful} recuperados, ${data.failed} ainda falhados`,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
+      }
+    } catch (error) {
+      console.error("Retry error:", error);
+      toast({
+        title: "Erro no retry",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const handleExtract = async () => {
     setIsExtracting(true);
     setResults(null);
@@ -95,6 +181,22 @@ export function RequirementsExtractionPanel() {
           successful: data.successful,
           failed: data.failed,
           totalRequirements: data.totalRequirements,
+        });
+
+        // Track failed items
+        const newFailedItems = data.results
+          .filter((r: ExtractionResult) => r.error)
+          .map((r: ExtractionResult) => ({
+            legislationId: r.legislationId,
+            legislationNumber: r.legislationNumber || r.legislationId.substring(0, 8),
+            error: r.error || "Erro desconhecido",
+            retryCount: 0,
+          }));
+        
+        setFailedItems(prev => {
+          const existingIds = new Set(prev.map(f => f.legislationId));
+          const toAdd = newFailedItems.filter((f: FailedItem) => !existingIds.has(f.legislationId));
+          return [...prev, ...toAdd];
         });
 
         toast({
@@ -130,15 +232,19 @@ export function RequirementsExtractionPanel() {
       totalFailed: 0,
       totalRequirements: 0,
       batchesCompleted: 0,
+      retriesPerformed: 0,
     });
     setResults(null);
     setStats(null);
+    setFailedItems([]);
 
     let totalProcessed = 0;
     let totalSuccessful = 0;
     let totalFailed = 0;
     let totalRequirements = 0;
     let batchesCompleted = 0;
+    let retriesPerformed = 0;
+    const batchFailedItems: FailedItem[] = [];
 
     try {
       while (!stopContinuousRef.current) {
@@ -147,6 +253,62 @@ export function RequirementsExtractionPanel() {
         const remaining = statsCheck.data?.legislationWithoutRequirements || 0;
         
         if (remaining === 0) {
+          // Try retrying failed items if auto-retry is enabled
+          if (autoRetry && batchFailedItems.length > 0) {
+            const retryableItems = batchFailedItems.filter(f => f.retryCount < maxRetries);
+            
+            if (retryableItems.length > 0) {
+              console.log(`Auto-retrying ${retryableItems.length} failed items...`);
+              
+              const { data } = await supabase.functions.invoke("extract-requirements", {
+                body: { 
+                  legislationIds: retryableItems.map(f => f.legislationId),
+                  dryRun: false 
+                },
+              });
+
+              if (data?.success) {
+                retriesPerformed++;
+                
+                const successfulIds = new Set(
+                  data.results
+                    .filter((r: ExtractionResult) => !r.error && r.requirementsCount > 0)
+                    .map((r: ExtractionResult) => r.legislationId)
+                );
+
+                // Update counts
+                totalSuccessful += data.successful;
+                totalFailed -= data.successful;
+                totalRequirements += data.totalRequirements;
+
+                // Update failed items
+                retryableItems.forEach(item => {
+                  if (successfulIds.has(item.legislationId)) {
+                    const idx = batchFailedItems.findIndex(f => f.legislationId === item.legislationId);
+                    if (idx !== -1) batchFailedItems.splice(idx, 1);
+                  } else {
+                    item.retryCount++;
+                  }
+                });
+
+                setContinuousStats({
+                  totalProcessed,
+                  totalSuccessful,
+                  totalFailed,
+                  totalRequirements,
+                  batchesCompleted,
+                  retriesPerformed,
+                });
+
+                // Continue loop if we still have retryable items
+                if (batchFailedItems.some(f => f.retryCount < maxRetries)) {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  continue;
+                }
+              }
+            }
+          }
+
           toast({
             title: "Extração completa!",
             description: `Todos os diplomas foram processados. Total: ${totalRequirements} requisitos extraídos.`,
@@ -160,7 +322,6 @@ export function RequirementsExtractionPanel() {
 
         if (error) {
           console.error("Batch error:", error);
-          // Continue despite errors
           await new Promise(resolve => setTimeout(resolve, 2000));
           continue;
         }
@@ -172,18 +333,35 @@ export function RequirementsExtractionPanel() {
           totalRequirements += data.totalRequirements;
           batchesCompleted++;
 
+          // Track failed items from this batch
+          data.results
+            .filter((r: ExtractionResult) => r.error)
+            .forEach((r: ExtractionResult) => {
+              batchFailedItems.push({
+                legislationId: r.legislationId,
+                legislationNumber: r.legislationNumber || r.legislationId.substring(0, 8),
+                error: r.error || "Erro desconhecido",
+                retryCount: 0,
+              });
+            });
+
           setContinuousStats({
             totalProcessed,
             totalSuccessful,
             totalFailed,
             totalRequirements,
             batchesCompleted,
+            retriesPerformed,
           });
 
-          // Small delay between batches to avoid rate limiting
+          // Small delay between batches
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
+
+      // Store final failed items for manual retry
+      setFailedItems(batchFailedItems);
+
     } catch (error) {
       console.error("Continuous extraction error:", error);
       toast({
@@ -287,7 +465,7 @@ export function RequirementsExtractionPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-end gap-4">
+          <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-2">
               <Label htmlFor="batch-size">Tamanho do lote</Label>
               <Input
@@ -300,6 +478,32 @@ export function RequirementsExtractionPanel() {
                 className="w-24"
                 disabled={isContinuousExtracting}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="max-retries">Máx. retries</Label>
+              <Input
+                id="max-retries"
+                type="number"
+                min={1}
+                max={5}
+                value={maxRetries}
+                onChange={(e) => setMaxRetries(Number(e.target.value))}
+                className="w-20"
+                disabled={isContinuousExtracting}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pb-2">
+              <Switch
+                id="auto-retry"
+                checked={autoRetry}
+                onCheckedChange={setAutoRetry}
+                disabled={isContinuousExtracting}
+              />
+              <Label htmlFor="auto-retry" className="cursor-pointer text-sm">
+                Retry automático
+              </Label>
             </div>
 
             {isContinuousExtracting ? (
@@ -332,6 +536,12 @@ export function RequirementsExtractionPanel() {
                   {isContinuousExtracting ? "A processar..." : "Extração terminada"}
                 </span>
                 <Badge variant="outline">Lote {continuousStats.batchesCompleted}</Badge>
+                {continuousStats.retriesPerformed > 0 && (
+                  <Badge variant="secondary">
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    {continuousStats.retriesPerformed} retries
+                  </Badge>
+                )}
               </div>
               <div className="grid grid-cols-4 gap-4">
                 <div>
@@ -351,6 +561,76 @@ export function RequirementsExtractionPanel() {
                   <p className="text-sm text-muted-foreground">Requisitos</p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Failed Items with Retry */}
+          {failedItems.length > 0 && !isContinuousExtracting && (
+            <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-red-500" />
+                  <span className="font-medium text-red-800">
+                    {failedItems.length} diplomas falhados
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setFailedItems([])}
+                    className="gap-1"
+                  >
+                    Limpar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleRetryFailed()}
+                    disabled={isRetrying || failedItems.every(f => f.retryCount >= maxRetries)}
+                    className="gap-1"
+                  >
+                    {isRetrying ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3 w-3" />
+                    )}
+                    Retentar Todos
+                  </Button>
+                </div>
+              </div>
+              <ScrollArea className="h-32">
+                <div className="space-y-1">
+                  {failedItems.map((item, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between p-2 rounded bg-white text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs">{item.legislationNumber}</span>
+                        <Badge variant="destructive" className="text-xs">
+                          {item.error}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.retryCount > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {item.retryCount}/{maxRetries} tentativas
+                          </span>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRetryFailed([item.legislationId])}
+                          disabled={isRetrying || item.retryCount >= maxRetries}
+                          className="h-6 w-6 p-0"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           )}
         </CardContent>
