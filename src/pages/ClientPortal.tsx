@@ -37,6 +37,7 @@ import {
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
+import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,7 +65,7 @@ export default function ClientPortal() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [themeFilter, setThemeFilter] = useState<string | null>(null);
-  const [exportingType, setExportingType] = useState<string | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>("overview");
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
@@ -95,54 +96,8 @@ export default function ClientPortal() {
     ? [selectedOrgId]
     : userRoles?.map(r => r.organization_id).filter(Boolean) || [];
 
-  const handleExportReport = async (reportType: "compliance" | "legislation" | "requirements", orgId?: string) => {
-    const targetOrgId = orgId || selectedOrgId || (userRoles && userRoles.length > 0 ? userRoles[0].organization_id : null);
-    if (!targetOrgId) return;
-    
-    const targetOrg = userRoles?.find(r => r.organization_id === targetOrgId);
-    
-    setExportingType(reportType);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-compliance-report`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ organizationId: targetOrgId, reportType }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Falha ao gerar relatório");
-      }
-
-      const html = await response.text();
-      const blob = new Blob([html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      
-      const orgName = (targetOrg?.organizations as any)?.name || "organizacao";
-      const filenames: Record<string, string> = {
-        compliance: `relatorio-conformidade-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
-        legislation: `legislacao-aplicavel-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
-        requirements: `requisitos-legais-${orgName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
-      };
-      
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filenames[reportType];
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error exporting report:", error);
-    } finally {
-      setExportingType(null);
-    }
-  };
+  // Get current organization info for export dialog
+  const currentOrg = organizations.find(o => o.id === (selectedOrgId || organizationIds[0])) || organizations[0];
 
   // Fetch assigned legislation for ALL organizations
   const { data: assignedLegislation, isLoading: loadingLegislation } = useQuery({
@@ -516,49 +471,15 @@ export default function ClientPortal() {
             )}
             
             {/* Export Button */}
-            <div className="relative group">
-              <Button 
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-                disabled={!!exportingType}
-              >
-                {exportingType ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                <span className="hidden md:inline">Exportar</span>
-              </Button>
-              <div className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                <div className="p-1">
-                  <button
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
-                    onClick={() => handleExportReport("legislation")}
-                    disabled={!!exportingType}
-                  >
-                    <FileText className="h-4 w-4" />
-                    Lista de Legislação
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
-                    onClick={() => handleExportReport("requirements")}
-                    disabled={!!exportingType}
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                    Lista de Requisitos
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
-                    onClick={() => handleExportReport("compliance")}
-                    disabled={!!exportingType}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    Relatório de Conformidade
-                  </button>
-                </div>
-              </div>
-            </div>
+            <Button 
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={() => setExportDialogOpen(true)}
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden md:inline">Exportar</span>
+            </Button>
             
             <Link to="/biblioteca">
               <Button variant="ghost" size="sm" className="gap-2">
@@ -1400,6 +1321,16 @@ export default function ClientPortal() {
           )}
         </main>
       </div>
+
+      {/* Export Report Dialog */}
+      {currentOrg && (
+        <ExportReportDialog
+          organizationId={currentOrg.id}
+          organizationName={currentOrg.name}
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+        />
+      )}
     </div>
   );
 }
