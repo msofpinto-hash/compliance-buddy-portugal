@@ -72,60 +72,62 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full max-w-7xl grid-cols-13">
-            <TabsTrigger value="quality" className="gap-2">
-              <Database className="h-4 w-4" />
-              <span className="hidden sm:inline">Qualidade</span>
-            </TabsTrigger>
-            <TabsTrigger value="cron" className="gap-2">
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Cron Jobs</span>
-            </TabsTrigger>
-            <TabsTrigger value="legislation" className="gap-2">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Legislação</span>
-            </TabsTrigger>
-            <TabsTrigger value="requirements" className="gap-2">
-              <Brain className="h-4 w-4" />
-              <span className="hidden sm:inline">Requisitos</span>
-            </TabsTrigger>
-            <TabsTrigger value="audits" className="gap-2">
-              <ClipboardCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Auditorias</span>
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="gap-2">
-              <ListTodo className="h-4 w-4" />
-              <span className="hidden sm:inline">Ações</span>
-            </TabsTrigger>
-            <TabsTrigger value="evidence" className="gap-2">
-              <FolderOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Evidências</span>
-            </TabsTrigger>
-            <TabsTrigger value="review" className="gap-2">
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Revisão</span>
-            </TabsTrigger>
-            <TabsTrigger value="compliance" className="gap-2">
-              <ShieldCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Compliance</span>
-            </TabsTrigger>
-            <TabsTrigger value="clients" className="gap-2">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Clientes</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Utilizadores</span>
-            </TabsTrigger>
-            <TabsTrigger value="sync" className="gap-2">
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Sync</span>
-            </TabsTrigger>
-            <TabsTrigger value="themes" className="gap-2">
-              <Palette className="h-4 w-4" />
-              <span className="hidden sm:inline">Temas</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="relative z-10">
+            <TabsList className="flex h-auto flex-wrap gap-1 bg-muted p-1 w-full max-w-7xl">
+              <TabsTrigger value="quality" className="gap-2 flex-shrink-0">
+                <Database className="h-4 w-4" />
+                <span className="hidden sm:inline">Qualidade</span>
+              </TabsTrigger>
+              <TabsTrigger value="cron" className="gap-2 flex-shrink-0">
+                <Clock className="h-4 w-4" />
+                <span className="hidden sm:inline">Cron Jobs</span>
+              </TabsTrigger>
+              <TabsTrigger value="legislation" className="gap-2 flex-shrink-0">
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Legislação</span>
+              </TabsTrigger>
+              <TabsTrigger value="requirements" className="gap-2 flex-shrink-0">
+                <Brain className="h-4 w-4" />
+                <span className="hidden sm:inline">Requisitos</span>
+              </TabsTrigger>
+              <TabsTrigger value="audits" className="gap-2 flex-shrink-0">
+                <ClipboardCheck className="h-4 w-4" />
+                <span className="hidden sm:inline">Auditorias</span>
+              </TabsTrigger>
+              <TabsTrigger value="actions" className="gap-2 flex-shrink-0">
+                <ListTodo className="h-4 w-4" />
+                <span className="hidden sm:inline">Ações</span>
+              </TabsTrigger>
+              <TabsTrigger value="evidence" className="gap-2 flex-shrink-0">
+                <FolderOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">Evidências</span>
+              </TabsTrigger>
+              <TabsTrigger value="review" className="gap-2 flex-shrink-0">
+                <Eye className="h-4 w-4" />
+                <span className="hidden sm:inline">Revisão</span>
+              </TabsTrigger>
+              <TabsTrigger value="compliance" className="gap-2 flex-shrink-0">
+                <ShieldCheck className="h-4 w-4" />
+                <span className="hidden sm:inline">Compliance</span>
+              </TabsTrigger>
+              <TabsTrigger value="clients" className="gap-2 flex-shrink-0">
+                <Building2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Clientes</span>
+              </TabsTrigger>
+              <TabsTrigger value="users" className="gap-2 flex-shrink-0">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">Utilizadores</span>
+              </TabsTrigger>
+              <TabsTrigger value="sync" className="gap-2 flex-shrink-0">
+                <RefreshCw className="h-4 w-4" />
+                <span className="hidden sm:inline">Sync</span>
+              </TabsTrigger>
+              <TabsTrigger value="themes" className="gap-2 flex-shrink-0">
+                <Palette className="h-4 w-4" />
+                <span className="hidden sm:inline">Temas</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="quality">
             <DataQualityPanel />
