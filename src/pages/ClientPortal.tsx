@@ -981,229 +981,269 @@ export default function ClientPortal() {
             </div>
           )}
 
-          {/* Legislation Tab - 3 Column Layout */}
+          {/* Legislation Tab - 2 Column Layout */}
           {activeTab === "legislation" && (
             <div className="space-y-4">
-              {/* Search and filter bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Pesquisar por título, número ou entidade..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                  />
+              {/* Search bar and Theme selector */}
+              <Card className="p-4">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  {/* Search */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Pesquisar por título, número ou entidade..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  
+                  {/* Theme Selector */}
+                  {assignedThemes && assignedThemes.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      <Select 
+                        value={themeFilter || "all"} 
+                        onValueChange={(value) => {
+                          setThemeFilter(value === "all" ? null : value);
+                          setCategoryFilter(null);
+                        }}
+                      >
+                        <SelectTrigger className="w-[220px]">
+                          <SelectValue placeholder="Selecione um tema" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos os temas</SelectItem>
+                          {assignedThemes.map((theme: any) => {
+                            const themeCount = legislationByCategory?.byTheme?.get(theme.id)?.size || 0;
+                            return (
+                              <SelectItem key={theme.id} value={theme.id}>
+                                <div className="flex items-center gap-2">
+                                  {theme.icon && <span>{theme.icon}</span>}
+                                  <span>{theme.name}</span>
+                                  <Badge variant="outline" className="ml-auto text-xs">
+                                    {themeCount}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      {themeFilter && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={() => {
+                            setThemeFilter(null);
+                            setCategoryFilter(null);
+                          }}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Status Filter */}
+                  <Tabs value={statusFilter} onValueChange={setStatusFilter} className="shrink-0">
+                    <TabsList className="h-9">
+                      <TabsTrigger value="all" className="text-xs px-3">Todos</TabsTrigger>
+                      <TabsTrigger value="compliant" className="text-xs gap-1 px-3">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Conforme
+                      </TabsTrigger>
+                      <TabsTrigger value="non-compliant" className="text-xs gap-1 px-3">
+                        <AlertTriangle className="h-3 w-3" />
+                        Não Conforme
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </div>
-                <Tabs value={statusFilter} onValueChange={setStatusFilter} className="shrink-0">
-                  <TabsList className="h-9">
-                    <TabsTrigger value="all" className="text-xs">Todos</TabsTrigger>
-                    <TabsTrigger value="compliant" className="text-xs gap-1">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Conforme
-                    </TabsTrigger>
-                    <TabsTrigger value="non-compliant" className="text-xs gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Não Conforme
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
+              </Card>
 
-              {/* 3-Column Layout */}
-              <div className="grid lg:grid-cols-[220px_280px_1fr] gap-4">
-                {/* Column 1: Themes */}
-                <Card className="h-fit">
-                  <CardHeader className="pb-2 pt-4 px-4">
-                    <CardTitle className="text-sm font-semibold">Temas</CardTitle>
+              {/* 2-Column Layout */}
+              <div className="grid lg:grid-cols-[320px_1fr] gap-4">
+                {/* Column 1: Categories */}
+                <Card className="flex flex-col">
+                  <CardHeader className="pb-3 pt-4 px-4 border-b shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                          {selectedThemeData?.icon && <span className="shrink-0">{selectedThemeData.icon}</span>}
+                          <span className="truncate">{selectedThemeData?.name || "Categorias"}</span>
+                        </CardTitle>
+                        <CardDescription className="text-xs mt-0.5">
+                          Categorias e subcategorias
+                        </CardDescription>
+                      </div>
+                      {categoryFilter && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-7 text-xs shrink-0"
+                          onClick={() => setCategoryFilter(null)}
+                        >
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
-                  <CardContent className="px-2 pb-3">
-                    <ScrollArea className="h-[500px]">
-                      <div className="space-y-0.5 pr-2">
-                        {assignedThemes?.map((theme: any) => {
-                          const themeCount = legislationByCategory?.byTheme?.get(theme.id)?.size || 0;
-                          const isSelected = themeFilter === theme.id;
-                          
-                          return (
-                            <button
-                              key={theme.id}
-                              onClick={() => {
-                                setThemeFilter(isSelected ? null : theme.id);
-                                setCategoryFilter(null);
-                              }}
-                              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                                isSelected 
-                                  ? "bg-primary text-primary-foreground" 
-                                  : "hover:bg-muted"
-                              }`}
-                            >
-                              <span className="truncate font-medium">{theme.name}</span>
-                              <Badge 
-                                variant={isSelected ? "secondary" : "outline"} 
-                                className="shrink-0 ml-2 text-xs"
-                              >
-                                {themeCount}
-                              </Badge>
-                            </button>
-                          );
-                        })}
-                        {(!assignedThemes || assignedThemes.length === 0) && (
-                          <p className="text-sm text-muted-foreground text-center py-4">
-                            Sem temas atribuídos
-                          </p>
+                  <CardContent className="p-0 flex-1 min-h-0">
+                    <ScrollArea className="h-[520px]">
+                      <div className="p-3">
+                        {themeFilter ? (
+                          <div className="space-y-1">
+                            {rootCategories.map((cat: any) => (
+                              <CategoryTreeItem
+                                key={cat.id}
+                                category={cat}
+                                level={0}
+                                categoryFilter={categoryFilter}
+                                onSelectCategory={setCategoryFilter}
+                                getSubcategories={getSubcategories}
+                                getCategoryCount={(id: string) => legislationByCategory?.byCategory?.get(id) || 0}
+                              />
+                            ))}
+                            {rootCategories.length === 0 && (
+                              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                                <FolderTree className="h-10 w-10 mb-3 opacity-30" />
+                                <p className="text-sm">Sem categorias neste tema</p>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                            <FolderTree className="h-12 w-12 mb-3 opacity-30" />
+                            <p className="text-sm font-medium">Selecione um tema</p>
+                            <p className="text-xs mt-1">Use o selector acima para escolher</p>
+                          </div>
                         )}
                       </div>
                     </ScrollArea>
                   </CardContent>
                 </Card>
 
-                {/* Column 2: Categories */}
-                <Card className="h-fit">
-                  <CardHeader className="pb-2 pt-4 px-4">
+                {/* Column 2: Legislation */}
+                <Card className="flex flex-col">
+                  <CardHeader className="pb-3 pt-4 px-4 border-b shrink-0">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0">
                         <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                          {selectedThemeData?.icon && <span>{selectedThemeData.icon}</span>}
-                          {selectedThemeData?.name || "Categorias"}
+                          <FileText className="h-4 w-4 shrink-0" />
+                          <span className="truncate">Legislação</span>
                         </CardTitle>
-                        <CardDescription className="text-xs">
-                          Categorias e subcategorias
+                        <CardDescription className="text-xs mt-0.5 truncate">
+                          {categoryFilter 
+                            ? selectedThemeCategories.find((c: any) => c.id === categoryFilter)?.name || "Categoria selecionada"
+                            : themeFilter 
+                            ? "Selecione uma categoria à esquerda"
+                            : "Selecione um tema para começar"
+                          }
                         </CardDescription>
                       </div>
+                      {categoryFilter && filteredLegislation && filteredLegislation.length > 0 && (
+                        <Badge variant="secondary" className="shrink-0">
+                          {filteredLegislation.length} {filteredLegislation.length === 1 ? "diploma" : "diplomas"}
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
-                  <CardContent className="px-2 pb-3">
-                    <ScrollArea className="h-[500px]">
-                      {themeFilter ? (
-                        <div className="space-y-0.5 pr-2">
-                          {rootCategories.map((cat: any) => (
-                            <CategoryTreeItem
-                              key={cat.id}
-                              category={cat}
-                              level={0}
-                              categoryFilter={categoryFilter}
-                              onSelectCategory={setCategoryFilter}
-                              getSubcategories={getSubcategories}
-                              getCategoryCount={(id: string) => legislationByCategory?.byCategory?.get(id) || 0}
-                            />
-                          ))}
-                          {rootCategories.length === 0 && (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                              Sem categorias neste tema
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                          <FolderTree className="h-10 w-10 mb-3 opacity-30" />
-                          <p className="text-sm">Selecione um tema</p>
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+                  <CardContent className="p-0 flex-1 min-h-0">
+                    <ScrollArea className="h-[520px]">
+                      <div className="p-3">
+                        {categoryFilter ? (
+                          loadingLegislation || loadingApplicabilities ? (
+                            <div className="space-y-3">
+                              {[1, 2, 3].map((i) => (
+                                <Skeleton key={i} className="h-28" />
+                              ))}
+                            </div>
+                          ) : filteredLegislation?.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                              <FileText className="h-12 w-12 mb-3 opacity-30" />
+                              <p className="text-sm font-medium">Nenhum diploma encontrado</p>
+                              <p className="text-xs mt-1">Esta categoria não tem legislação associada</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {filteredLegislation?.map((item: any) => {
+                                const leg = item.legislation;
+                                if (!leg) return null;
+                                
+                                const compliance = getComplianceStatus(leg.id);
+                                const stats = complianceByLegislation.get(leg.id);
 
-                {/* Column 3: Legislation */}
-                <Card>
-                  <CardHeader className="pb-2 pt-4 px-4">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Legislação
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      {categoryFilter 
-                        ? `${selectedThemeCategories.find((c: any) => c.id === categoryFilter)?.name || "Categoria"}`
-                        : themeFilter 
-                        ? "Selecione uma categoria à esquerda"
-                        : "Selecione um tema para começar"
-                      }
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <ScrollArea className="h-[500px]">
-                      {categoryFilter ? (
-                        loadingLegislation || loadingApplicabilities ? (
-                          <div className="space-y-3 pr-3">
-                            {[1, 2, 3].map((i) => (
-                              <Skeleton key={i} className="h-24" />
-                            ))}
-                          </div>
-                        ) : filteredLegislation?.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                            <FileText className="h-10 w-10 mb-3 opacity-30" />
-                            <p className="text-sm">Nenhum diploma nesta categoria</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2 pr-3">
-                            {filteredLegislation?.map((item: any) => {
-                              const leg = item.legislation;
-                              if (!leg) return null;
-                              
-                              const compliance = getComplianceStatus(leg.id);
-                              const stats = complianceByLegislation.get(leg.id);
-
-                              return (
-                                <Link 
-                                  key={item.id}
-                                  to={`/legislacao/${leg.id}`}
-                                  className="block p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                                >
-                                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                    <Badge variant="outline" className="text-xs">
-                                      {leg.number}
-                                    </Badge>
-                                    <Badge 
-                                      variant={compliance.color as any}
-                                      className="text-xs"
-                                    >
-                                      {compliance.label}
-                                    </Badge>
-                                  </div>
-                                  <h4 className="font-medium text-sm line-clamp-2 mb-1">{leg.title}</h4>
-                                  {leg.publication_date && (
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <Calendar className="h-3 w-3" />
-                                      {format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt })}
-                                    </p>
-                                  )}
-                                  {stats && stats.total > 0 && (
-                                    <div className="mt-2">
-                                      <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden bg-muted">
-                                        {stats.compliant > 0 && (
-                                          <div 
-                                            className="h-full bg-green-500" 
-                                            style={{ width: `${(stats.compliant / stats.total) * 100}%` }}
-                                          />
-                                        )}
-                                        {stats.inProgress > 0 && (
-                                          <div 
-                                            className="h-full bg-yellow-500" 
-                                            style={{ width: `${(stats.inProgress / stats.total) * 100}%` }}
-                                          />
-                                        )}
-                                        {stats.nonCompliant > 0 && (
-                                          <div 
-                                            className="h-full bg-red-500" 
-                                            style={{ width: `${(stats.nonCompliant / stats.total) * 100}%` }}
-                                          />
+                                return (
+                                  <Link 
+                                    key={item.id}
+                                    to={`/legislacao/${leg.id}`}
+                                    className="block p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                          <Badge variant="outline" className="text-xs shrink-0">
+                                            {leg.number}
+                                          </Badge>
+                                          <Badge 
+                                            variant={compliance.color as any}
+                                            className="text-xs shrink-0"
+                                          >
+                                            {compliance.label}
+                                          </Badge>
+                                        </div>
+                                        <h4 className="font-medium text-sm leading-snug mb-2">{leg.title}</h4>
+                                        {leg.publication_date && (
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Calendar className="h-3 w-3 shrink-0" />
+                                            {format(new Date(leg.publication_date), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                                          </p>
                                         )}
                                       </div>
-                                      <p className="text-[10px] text-muted-foreground mt-1">
-                                        {stats.compliant}/{stats.total} conformes
-                                      </p>
+                                      <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                                     </div>
-                                  )}
-                                </Link>
-                              );
-                            })}
+                                    {stats && stats.total > 0 && (
+                                      <div className="mt-3 pt-3 border-t">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                                          <span>Conformidade</span>
+                                          <span>{stats.compliant}/{stats.total} conformes</span>
+                                        </div>
+                                        <div className="flex gap-0.5 h-2 rounded-full overflow-hidden bg-muted">
+                                          {stats.compliant > 0 && (
+                                            <div 
+                                              className="h-full bg-green-500" 
+                                              style={{ width: `${(stats.compliant / stats.total) * 100}%` }}
+                                            />
+                                          )}
+                                          {stats.inProgress > 0 && (
+                                            <div 
+                                              className="h-full bg-yellow-500" 
+                                              style={{ width: `${(stats.inProgress / stats.total) * 100}%` }}
+                                            />
+                                          )}
+                                          {stats.nonCompliant > 0 && (
+                                            <div 
+                                              className="h-full bg-red-500" 
+                                              style={{ width: `${(stats.nonCompliant / stats.total) * 100}%` }}
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                            <FileText className="h-12 w-12 mb-3 opacity-30" />
+                            <p className="text-sm font-medium">Selecione uma categoria</p>
+                            <p className="text-xs mt-1">Escolha uma categoria à esquerda para ver os diplomas</p>
                           </div>
-                        )
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
-                          <FileText className="h-12 w-12 mb-3 opacity-30" />
-                          <p className="text-sm">Selecione uma categoria para ver os diplomas</p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </ScrollArea>
                   </CardContent>
                 </Card>
