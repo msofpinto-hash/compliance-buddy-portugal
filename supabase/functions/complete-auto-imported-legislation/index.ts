@@ -300,16 +300,47 @@ async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<
     
     const update: LegislationUpdate = {};
     
-    // Extract title - usually the first substantial line
+    // Skip common unwanted patterns
+    const skipPatterns = [
+      /eur-lex/i,
+      /cookies/i,
+      /europa\.eu/i,
+      /official.*website/i,
+      /languages/i,
+      /navigation/i,
+      /menu/i,
+      /search/i,
+      /home/i,
+      /^\s*pt\s*$/i,
+      /login/i,
+      /^\d+$/,
+      /accept/i,
+    ];
+    
+    // Extract title - look for regulation/directive/decision title pattern
     const lines = markdown.split('\n').filter((l: string) => l.trim().length > 20);
-    for (const line of lines.slice(0, 5)) {
+    
+    // First, try to find a line that starts with the legislation type
+    for (const line of lines) {
       const cleanLine = line.replace(/[#*[\]]/g, '').trim();
-      if (cleanLine.length > 30 && cleanLine.length < 500 && 
-          !cleanLine.toLowerCase().includes('eur-lex') &&
-          !cleanLine.toLowerCase().includes('cookies') &&
-          !cleanLine.includes('http')) {
-        update.title = cleanLine;
+      if (cleanLine.match(/^(Regulamento|Diretiva|Decisão|Retificação)/i) && 
+          cleanLine.length > 50 && cleanLine.length < 800) {
+        // This looks like a proper EU legislation title
+        update.title = cleanLine.substring(0, 500);
         break;
+      }
+    }
+    
+    // If no proper title found, try to find any substantial line that's not garbage
+    if (!update.title) {
+      for (const line of lines.slice(0, 15)) {
+        const cleanLine = line.replace(/[#*[\]]/g, '').trim();
+        const isSkip = skipPatterns.some(p => p.test(cleanLine));
+        
+        if (!isSkip && cleanLine.length > 40 && cleanLine.length < 500) {
+          update.title = cleanLine;
+          break;
+        }
       }
     }
     
