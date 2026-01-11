@@ -99,10 +99,11 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [approvingAuditId, setApprovingAuditId] = useState<string | null>(null);
   const [exportingAuditId, setExportingAuditId] = useState<string | null>(null);
-  // Audit filters
+  // Audit filters and sorting
   const [auditStatusFilter, setAuditStatusFilter] = useState<string | null>(null);
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
+  const [auditSortBy, setAuditSortBy] = useState<"date_desc" | "date_asc" | "title" | "status">("date_desc");
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
@@ -875,11 +876,35 @@ export default function Dashboard() {
                     onEndDateChange={setAuditEndDate}
                     label="Período"
                   />
+                  
+                  <Select 
+                    value={auditSortBy} 
+                    onValueChange={(v) => setAuditSortBy(v as typeof auditSortBy)}
+                  >
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue placeholder="Ordenar por" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date_desc">Data (recente)</SelectItem>
+                      <SelectItem value="date_asc">Data (antiga)</SelectItem>
+                      <SelectItem value="title">Título A-Z</SelectItem>
+                      <SelectItem value="status">Estado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               {(() => {
-                // Filter audits
+                // Status order for sorting
+                const statusOrder: Record<string, number> = {
+                  pending_approval: 1,
+                  in_progress: 2,
+                  planned: 3,
+                  closed: 4,
+                  cancelled: 5
+                };
+
+                // Filter and sort audits
                 const filteredAudits = audits?.filter((audit) => {
                   // Status filter
                   if (auditStatusFilter && audit.status !== auditStatusFilter) {
@@ -901,6 +926,19 @@ export default function Dashboard() {
                     }
                   }
                   return true;
+                }).sort((a, b) => {
+                  switch (auditSortBy) {
+                    case "date_desc":
+                      return new Date(b.audit_date || 0).getTime() - new Date(a.audit_date || 0).getTime();
+                    case "date_asc":
+                      return new Date(a.audit_date || 0).getTime() - new Date(b.audit_date || 0).getTime();
+                    case "title":
+                      return a.title.localeCompare(b.title, "pt");
+                    case "status":
+                      return (statusOrder[a.status || "planned"] || 99) - (statusOrder[b.status || "planned"] || 99);
+                    default:
+                      return 0;
+                  }
                 }) || [];
 
                 if (loadingAudits) {
