@@ -35,7 +35,8 @@ import {
   Lock,
   MessageSquare,
   ThumbsUp,
-  Eye
+  Eye,
+  Sparkles
 } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -45,6 +46,8 @@ import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
 import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDialog";
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
+import { WelcomeHero } from "@/components/client/WelcomeHero";
+import { ModuleCard } from "@/components/client/ModuleCard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -67,6 +70,12 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
+
+// Module images
+import moduleLegislation from "@/assets/module-legislation.jpg";
+import moduleActions from "@/assets/module-actions.jpg";
+import moduleAudits from "@/assets/module-audits.jpg";
+import moduleDocuments from "@/assets/module-documents.jpg";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
@@ -640,199 +649,279 @@ export default function Dashboard() {
         </header>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-8 space-y-6">
+        <main className="p-4 lg:p-8 space-y-8">
           {/* Overview Tab Content */}
           {activeTab === "overview" && (
             <>
-          {/* Recent Legislation - Full Width at Top */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Legislação Recente</CardTitle>
-                <Link to="/legislacao-recente" className="text-sm text-primary hover:underline flex items-center gap-1">
-                  Ver mais <ChevronRight className="h-4 w-4" />
-                </Link>
+              {/* Welcome Hero Section */}
+              <WelcomeHero
+                userName={user?.email}
+                organizationName={currentOrg?.name}
+                complianceRate={complianceRate}
+                stats={{
+                  compliant: complianceStats?.compliant || 0,
+                  nonCompliant: complianceStats?.nonCompliant || 0,
+                  inProgress: complianceStats?.inProgress || 0,
+                  total: complianceStats?.applicable || 0,
+                }}
+              />
+
+              {/* Modules Grid */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Acesso Rápido</h2>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <ModuleCard
+                    title="Legislação"
+                    description="Consulte a biblioteca de diplomas legais aplicáveis"
+                    icon={Gavel}
+                    href="/biblioteca"
+                    image={moduleLegislation}
+                    count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
+                    countLabel="novos"
+                    gradient="from-blue-600/90 to-indigo-800/90"
+                  />
+                  <ModuleCard
+                    title="Planos de Ação"
+                    description="Gerir ações de conformidade e prazos"
+                    icon={ClipboardList}
+                    href="/dashboard?tab=actions"
+                    image={moduleActions}
+                    count={actionPlanStats.pending + actionPlanStats.inProgress}
+                    countLabel="ativos"
+                    gradient="from-emerald-600/90 to-teal-800/90"
+                  />
+                  <ModuleCard
+                    title="Auditorias"
+                    description="Acompanhe o estado das auditorias"
+                    icon={ClipboardCheck}
+                    href="/dashboard?tab=audits"
+                    image={moduleAudits}
+                    count={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length}
+                    countLabel="ativas"
+                    gradient="from-purple-600/90 to-violet-800/90"
+                  />
+                  <ModuleCard
+                    title="Evidências"
+                    description="Submeta documentos de conformidade"
+                    icon={FolderOpen}
+                    href="/dashboard?tab=documents"
+                    image={moduleDocuments}
+                    gradient="from-amber-600/90 to-orange-800/90"
+                  />
+                </div>
               </div>
-              <CardDescription>Últimos diplomas publicados</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingLegislation ? (
-                <div className="grid md:grid-cols-4 gap-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} className="h-40 w-full" />
-                  ))}
-                </div>
-              ) : recentLegislation && recentLegislation.length > 0 ? (
-                <div className="grid md:grid-cols-4 gap-4">
-                  {recentLegislation.slice(0, 4).map((leg) => (
-                    <div
-                      key={leg.id}
-                      className="relative rounded-xl border bg-card overflow-hidden group hover:shadow-md transition-shadow"
-                    >
-                      <div className="absolute top-2 left-2 z-10">
-                        <Badge variant={leg.source === "dre" ? "default" : "secondary"} className="text-xs">
-                          {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
-                        </Badge>
-                      </div>
-                      <div className="h-20 bg-gradient-to-br from-primary/20 to-primary/5" />
-                      <div className="p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-muted-foreground">
-                            {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
-                          </span>
-                          {leg.document_url && (
-                            <a
-                              href={leg.document_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary text-xs hover:underline"
-                            >
-                              Ver
-                            </a>
-                          )}
-                        </div>
-                        <p className="text-sm font-medium line-clamp-2">
-                          {leg.number}
-                        </p>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                          {leg.title}
-                        </p>
-                      </div>
+
+              {/* Recent Legislation - Improved */}
+              <Card className="overflow-hidden border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Legislação Recente
+                      </CardTitle>
+                      <CardDescription>Últimos diplomas publicados</CardDescription>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma legislação disponível
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Charts and Stats Row - 3 columns */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Compliance Pie Chart */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Estado de Conformidade</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {compliancePieData.length > 0 ? (
-                  <div className="h-[200px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={compliancePieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          paddingAngle={2}
-                          dataKey="value"
+                    <Link to="/legislacao-recente" className="text-sm text-primary hover:underline flex items-center gap-1 font-medium">
+                      Ver todos <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {loadingLegislation ? (
+                    <div className="grid md:grid-cols-4 gap-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                      ))}
+                    </div>
+                  ) : recentLegislation && recentLegislation.length > 0 ? (
+                    <div className="grid md:grid-cols-4 gap-4">
+                      {recentLegislation.slice(0, 4).map((leg) => (
+                        <Link
+                          key={leg.id}
+                          to={`/legislacao/${leg.id}`}
+                          className="relative rounded-xl border bg-gradient-to-br from-card to-muted/30 overflow-hidden group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                         >
-                          {compliancePieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: number) => [`${value} requisitos`, ""]}
-                          contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                        />
-                        <Legend 
-                          verticalAlign="bottom" 
-                          height={36}
-                          formatter={(value) => <span className="text-sm">{value}</span>}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                    Sem dados de conformidade
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          <div className="absolute top-2 left-2 z-10">
+                            <Badge variant={leg.source === "dre" ? "default" : "secondary"} className="text-xs shadow-sm">
+                              {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
+                            </Badge>
+                          </div>
+                          <div className="h-16 bg-gradient-to-br from-primary/30 via-primary/10 to-transparent" />
+                          <div className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-muted-foreground font-medium">
+                                {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
+                              </span>
+                              <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <p className="text-sm font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                              {leg.number}
+                            </p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                              {leg.title}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                      <p className="text-muted-foreground">Nenhuma legislação disponível</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-            {/* Action Plans Pie Chart */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Planos de Ação</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {actionPlanPieData.length > 0 ? (
-                  <div className="h-[200px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={actionPlanPieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {actionPlanPieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: number) => [`${value} ações`, ""]}
-                          contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                        />
-                        <Legend 
-                          verticalAlign="bottom" 
-                          height={36}
-                          formatter={(value) => <span className="text-sm">{value}</span>}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                    Sem planos de ação
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              {/* Charts and Stats Row - 3 columns */}
+              <div className="grid gap-6 lg:grid-cols-3">
+                {/* Compliance Pie Chart */}
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-primary/10">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      </div>
+                      Estado de Conformidade
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {compliancePieData.length > 0 ? (
+                      <div className="h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={compliancePieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={80}
+                              paddingAngle={2}
+                              dataKey="value"
+                            >
+                              {compliancePieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value: number) => [`${value} requisitos`, ""]}
+                              contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.2)" }}
+                            />
+                            <Legend 
+                              verticalAlign="bottom" 
+                              height={36}
+                              formatter={(value) => <span className="text-sm">{value}</span>}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                          <p>Sem dados de conformidade</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-            {/* Quick Stats + Trend */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Resumo Rápido</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    <span className="text-sm">Taxa de Conformidade</span>
-                  </div>
-                  <span className="font-bold" style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}>
-                    {complianceRate}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Ações Pendentes</span>
-                  </div>
-                  <span className="font-bold">{actionPlanStats.pending}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                    <span className="text-sm">Ações Atrasadas</span>
-                  </div>
-                  <span className="font-bold text-destructive">{actionPlanStats.overdue}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                    <span className="text-sm">Concluídas</span>
-                  </div>
-                  <span className="font-bold text-primary">{actionPlanStats.completed}</span>
-                </div>
+                {/* Action Plans Pie Chart */}
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                        <ClipboardList className="h-4 w-4 text-emerald-600" />
+                      </div>
+                      Planos de Ação
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {actionPlanPieData.length > 0 ? (
+                      <div className="h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={actionPlanPieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={80}
+                              paddingAngle={2}
+                              dataKey="value"
+                            >
+                              {actionPlanPieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value: number) => [`${value} ações`, ""]}
+                              contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.2)" }}
+                            />
+                            <Legend 
+                              verticalAlign="bottom" 
+                              height={36}
+                              formatter={(value) => <span className="text-sm">{value}</span>}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <ClipboardList className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                          <p>Sem planos de ação</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Stats + Trend */}
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-amber-500/10">
+                        <TrendingUp className="h-4 w-4 text-amber-600" />
+                      </div>
+                      Resumo Rápido
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Taxa de Conformidade</span>
+                      </div>
+                      <span className="font-bold text-lg" style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}>
+                        {complianceRate}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-amber-600" />
+                        <span className="text-sm">Ações Pendentes</span>
+                      </div>
+                      <Badge variant="secondary" className="font-bold">{actionPlanStats.pending}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span className="text-sm">Ações Atrasadas</span>
+                      </div>
+                      <Badge variant="destructive" className="font-bold">{actionPlanStats.overdue}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span className="text-sm">Concluídas</span>
+                      </div>
+                      <Badge className="bg-green-600 font-bold">{actionPlanStats.completed}</Badge>
+                    </div>
 
                 {/* Mini Trend Chart */}
                 <div className="pt-3 border-t">
