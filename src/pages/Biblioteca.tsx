@@ -379,6 +379,7 @@ export default function Biblioteca() {
               legislation={legislationWithCategories} 
               hideFilters 
               externalThemeId={selectedThemeId}
+              applicabilityMap={legislationApplicabilitiesMap}
             />
           ) : (
             <div className="space-y-4">
