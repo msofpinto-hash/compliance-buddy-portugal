@@ -28,6 +28,7 @@ import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { CategoryTreeFilter } from "@/components/CategoryTreeFilter";
 import { LegislationApplicabilityBadge, getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
+import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
 
 const applicabilityFilterOptions = [
   { value: "all", label: "Todos" },
@@ -221,7 +222,7 @@ export default function Biblioteca() {
       .map((mapping: any) => mapping.theme_categories.name);
   };
 
-  const hasActiveFilters = selectedThemeId || selectedCategoryId || selectedSource !== "all" || filterStartDate || filterEndDate || selectedApplicability !== "all";
+  const hasActiveFilters = !!(selectedThemeId || selectedCategoryId || selectedSource !== "all" || filterStartDate || filterEndDate || selectedApplicability !== "all");
 
   const clearAllFilters = () => {
     setSelectedThemeId(null);
@@ -259,8 +260,8 @@ export default function Biblioteca() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Top Bar: Theme selector (left) + Search (right) */}
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
+        {/* Top Bar: Theme selector (left) + Search + Advanced (right) */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           {/* Theme/Category Selector - Left */}
           <div className="flex items-center gap-2">
             {themes && (
@@ -274,9 +275,9 @@ export default function Biblioteca() {
             )}
           </div>
 
-          {/* Search bar - Right */}
-          <div className="flex-1 max-w-lg ml-auto">
-            <div className="relative">
+          {/* Search bar + Advanced Search - Right */}
+          <div className="flex-1 flex gap-2 items-center justify-end">
+            <div className="relative flex-1 max-w-lg">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Pesquisar por título, número ou entidade..."
@@ -285,64 +286,24 @@ export default function Biblioteca() {
                 className="pl-10"
               />
             </div>
+            
+            <AdvancedSearchDialog
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              selectedSource={selectedSource}
+              onSourceChange={setSelectedSource}
+              selectedApplicability={selectedApplicability}
+              onApplicabilityChange={setSelectedApplicability}
+              applicabilityOptions={applicabilityFilterOptions}
+              showApplicability={!!userOrganization}
+              startDate={filterStartDate}
+              endDate={filterEndDate}
+              onStartDateChange={setFilterStartDate}
+              onEndDateChange={setFilterEndDate}
+              onClearAll={clearAllFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
           </div>
-        </div>
-
-        {/* Filters Row - inline without card */}
-        <div className="flex flex-wrap gap-2 items-center mb-6 pb-4 border-b">
-          <DateRangeFilter
-            startDate={filterStartDate}
-            endDate={filterEndDate}
-            onStartDateChange={setFilterStartDate}
-            onEndDateChange={setFilterEndDate}
-            label="Período"
-          />
-
-          <Button
-            variant={selectedSource === "dre" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedSource(selectedSource === "dre" ? "all" : "dre")}
-          >
-            DRE
-          </Button>
-          <Button
-            variant={selectedSource === "eurlex" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedSource(selectedSource === "eurlex" ? "all" : "eurlex")}
-          >
-            EUR-Lex
-          </Button>
-
-          {/* Applicability Filter */}
-          {userOrganization && (
-            <Select
-              value={selectedApplicability}
-              onValueChange={setSelectedApplicability}
-            >
-              <SelectTrigger className="w-[160px] h-9">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                {applicabilityFilterOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearAllFilters}
-              className="text-muted-foreground"
-            >
-              Limpar filtros
-            </Button>
-          )}
         </div>
 
         {/* Results count and view toggle */}
