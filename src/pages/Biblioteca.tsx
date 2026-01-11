@@ -310,6 +310,37 @@ export default function Biblioteca() {
         {/* Active Filters Chips */}
         {hasActiveFilters && (
           <div className="flex flex-wrap gap-2 mb-4">
+            {/* Theme chip */}
+            {selectedThemeId && !selectedCategoryId && themes && (
+              <Badge variant="default" className="gap-1 pr-1">
+                {themes.find(t => t.id === selectedThemeId)?.name}
+                <button
+                  onClick={() => setSelectedThemeId(null)}
+                  className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {/* Category chip (includes theme context) */}
+            {selectedCategoryId && themes && (() => {
+              const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
+              const category = theme?.categories.find(c => c.id === selectedCategoryId);
+              return theme && category ? (
+                <Badge variant="default" className="gap-1 pr-1">
+                  {theme.name} → {category.name}
+                  <button
+                    onClick={() => {
+                      setSelectedCategoryId(null);
+                      setSelectedThemeId(null);
+                    }}
+                    className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ) : null;
+            })()}
             {selectedSource === "dre" && (
               <Badge variant="secondary" className="gap-1 pr-1">
                 DRE
