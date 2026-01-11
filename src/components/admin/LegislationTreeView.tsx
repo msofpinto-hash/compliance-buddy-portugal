@@ -440,6 +440,27 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             {selectedCategoryId && displayedLegislation.length > 0 && (
               <Badge variant="outline">{displayedLegislation.length}</Badge>
             )}
+            {/* Pending evaluation counter */}
+            {applicabilityMap && selectedCategoryId && displayedLegislation.length > 0 && (() => {
+              const pendingCount = displayedLegislation.filter(
+                leg => !applicabilityMap[leg.id] || applicabilityMap[leg.id] === "nao_avaliado"
+              ).length;
+              return pendingCount > 0 ? (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {pendingCount}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p className="text-xs">{pendingCount} diploma{pendingCount !== 1 ? 's' : ''} pendente{pendingCount !== 1 ? 's' : ''} de avaliação</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : null;
+            })()}
           </CardTitle>
           <CardDescription className="text-xs">
             {selectedCategoryId 
