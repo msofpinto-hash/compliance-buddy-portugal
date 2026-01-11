@@ -28,7 +28,9 @@ import {
   Globe,
   Unlink,
   GitBranch,
-  Download
+  Download,
+  Activity,
+  Clock
 } from "lucide-react";
 import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
@@ -67,6 +69,22 @@ export function DataQualityPanel() {
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  // Query for active jobs
+  const { data: activeJobs } = useQuery({
+    queryKey: ["active-sync-jobs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("id, sync_type, started_at")
+        .eq("status", "running")
+        .order("started_at", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 5000, // Check for active jobs every 5 seconds
+  });
 
   // Fetch comprehensive data quality statistics
   const { data: qualityStats, isLoading, refetch, isFetching } = useQuery({
@@ -373,8 +391,77 @@ export function DataQualityPanel() {
     );
   }
 
+  // Format job type for display
+  const formatJobType = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'find-missing-urls': 'Correção de URLs',
+      'fix-metadata': 'Correção de Metadados',
+      'fix-generic-titles': 'Correção de Títulos PT',
+      'fix-eurlex-titles': 'Correção de Títulos EU',
+      'extract-relations': 'Extração de Relações',
+      'validate-urls': 'Validação de URLs',
+      'complete-auto-imported': 'Completar Auto-importados',
+      'sync-dre': 'Sincronização DRE',
+      'sync-eurlex': 'Sincronização EUR-Lex',
+      'scheduled-data-quality-fix': 'Correção Automática',
+    };
+    return typeMap[type] || type;
+  };
+
+  // Calculate time elapsed
+  const getElapsedTime = (startedAt: string) => {
+    const start = new Date(startedAt);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - start.getTime()) / 1000);
+    
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m`;
+  };
+
   return (
     <div className="space-y-6">
+      {/* Active Jobs Banner */}
+      {activeJobs && activeJobs.length > 0 && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900">
+              <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-pulse" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                {activeJobs.length === 1 ? 'Job em execução' : `${activeJobs.length} Jobs em execução`}
+              </h4>
+              <div className="flex flex-wrap gap-3 mt-1">
+                {activeJobs.map((job) => (
+                  <div key={job.id} className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="font-medium">{formatJobType(job.sync_type)}</span>
+                    <span className="flex items-center gap-1 text-blue-500 dark:text-blue-400">
+                      <Clock className="h-3 w-3" />
+                      {getElapsedTime(job.started_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {!autoRefresh && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setAutoRefresh(true)}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Ativar Auto-refresh
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Overall Score Card */}
       <Card>
         <CardHeader>
