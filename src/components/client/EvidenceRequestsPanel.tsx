@@ -32,8 +32,10 @@ import {
   Award,
   Send,
   CalendarIcon,
-  MessageSquare
+  MessageSquare,
+  FileSpreadsheet
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -387,6 +389,51 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     a.click();
   };
 
+  const exportToExcel = () => {
+    if (!filteredRequests?.length) {
+      toast({ title: "Aviso", description: "Não há pedidos para exportar", variant: "destructive" });
+      return;
+    }
+
+    const exportData = filteredRequests.map(req => {
+      const areas = getTemplateAreas(req.evidence_templates)
+        .map(a => a.label)
+        .join(", ");
+      
+      const docs = requestDocuments?.[req.id] || [];
+      const docCount = docs.length;
+      const docNames = docs.map(d => d.documents?.name).filter(Boolean).join("; ");
+
+      return {
+        "Grupo": req.evidence_templates.group_name,
+        "Título": req.evidence_templates.title,
+        "Descrição": req.evidence_templates.description || "",
+        "Áreas": areas,
+        "Estado": STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]?.label || req.status,
+        "Data Limite": req.due_date ? format(new Date(req.due_date), "dd/MM/yyyy", { locale: pt }) : "",
+        "Data Submissão": req.submitted_at ? format(new Date(req.submitted_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
+        "Notas": req.notes || "",
+        "Nº Documentos": docCount,
+        "Documentos": docNames,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Pedidos de Evidência");
+    
+    // Auto-size columns
+    const colWidths = Object.keys(exportData[0]).map(key => ({
+      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length).slice(0, 50)) + 2
+    }));
+    worksheet["!cols"] = colWidths;
+
+    const fileName = `pedidos_evidencia_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+    toast({ title: "Sucesso", description: `Exportados ${filteredRequests.length} pedidos para Excel` });
+  };
+
   return (
     <div className="space-y-6">
       {/* Progress Overview */}
@@ -493,26 +540,38 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
             </div>
           </div>
           
-          {/* Results counter */}
+          {/* Results counter and export */}
           <div className="flex items-center justify-between pt-2 border-t">
             <p className="text-sm text-muted-foreground">
               A mostrar <span className="font-medium text-foreground">{filteredRequests?.length || 0}</span> de{" "}
               <span className="font-medium text-foreground">{requests?.length || 0}</span> pedido(s)
             </p>
-            {(searchTerm || statusFilter || areaFilters.length > 0) && (
+            <div className="flex items-center gap-2">
+              {(searchTerm || statusFilter || areaFilters.length > 0) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter(null);
+                    setAreaFilters([]);
+                  }}
+                >
+                  Limpar todos os filtros
+                </Button>
+              )}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="text-xs"
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter(null);
-                  setAreaFilters([]);
-                }}
+                className="gap-2"
+                onClick={exportToExcel}
+                disabled={!filteredRequests?.length}
               >
-                Limpar todos os filtros
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar Excel
               </Button>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>
