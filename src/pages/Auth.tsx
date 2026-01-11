@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Scale, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { Loader2, Scale, AlertCircle, Clock, CheckCircle2, ArrowLeft, Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -17,6 +18,8 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const { signIn, signUp, signOut, user, isAdmin, isApproved, isPendingApproval, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -100,9 +103,47 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    if (!email.trim()) {
+      setError("Por favor, introduza o seu email");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setResetEmailSent(true);
+        toast({
+          title: "Email enviado",
+          description: "Verifique a sua caixa de correio.",
+        });
+      }
+    } catch (err) {
+      setError("Ocorreu um erro inesperado");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     setRegistrationSuccess(false);
+  };
+
+  const handleBackToLogin = () => {
+    setShowForgotPassword(false);
+    setResetEmailSent(false);
+    setError(null);
   };
 
   // Show loading while checking auth state
@@ -190,6 +231,86 @@ const Auth = () => {
     );
   }
 
+  // Forgot password view
+  if (showForgotPassword) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Mail className="h-6 w-6" />
+            </div>
+            <CardTitle>Recuperar Password</CardTitle>
+            <CardDescription>
+              {resetEmailSent 
+                ? "Verifique o seu email para redefinir a password"
+                : "Introduza o seu email para receber instruções"
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {resetEmailSent ? (
+              <>
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700">
+                    Enviámos um email com instruções para redefinir a sua password. 
+                    Por favor, verifique também a pasta de spam.
+                  </AlertDescription>
+                </Alert>
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2" 
+                  onClick={handleBackToLogin}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Voltar ao login
+                </Button>
+              </>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="email@exemplo.pt"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Enviar instruções
+                </Button>
+
+                <Button 
+                  type="button"
+                  variant="ghost" 
+                  className="w-full gap-2" 
+                  onClick={handleBackToLogin}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Voltar ao login
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -231,7 +352,17 @@ const Auth = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-xs text-muted-foreground hover:text-primary"
+                      onClick={() => setShowForgotPassword(true)}
+                    >
+                      Esqueceu a password?
+                    </Button>
+                  </div>
                   <Input
                     id="password"
                     type="password"
