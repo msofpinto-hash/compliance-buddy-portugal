@@ -25,6 +25,7 @@ interface LoginCheckResult {
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +144,12 @@ const Auth = () => {
 
     if (!isPasswordValid) {
       setError("A password não cumpre os requisitos de segurança");
+      setIsLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("As passwords não coincidem");
       setIsLoading(false);
       return;
     }
@@ -526,7 +533,32 @@ const Auth = () => {
                   )}
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <div className="space-y-2">
+                  <Label htmlFor="reg-confirm-password">Confirmar Password</Label>
+                  <Input
+                    id="reg-confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    className={confirmPassword.length > 0 ? (password === confirmPassword ? "border-green-500 focus-visible:ring-green-500" : "border-red-500 focus-visible:ring-red-500") : ""}
+                  />
+                  {confirmPassword.length > 0 && password !== confirmPassword && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-600 mt-1">
+                      <X className="h-3 w-3" />
+                      As passwords não coincidem
+                    </div>
+                  )}
+                  {confirmPassword.length > 0 && password === confirmPassword && (
+                    <div className="flex items-center gap-1.5 text-xs text-green-600 mt-1">
+                      <Check className="h-3 w-3" />
+                      Passwords coincidem
+                    </div>
+                  )}
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading || !isPasswordValid || password !== confirmPassword}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Criar conta
                 </Button>
