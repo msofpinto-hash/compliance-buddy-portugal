@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.reimport-dre-metadata]
 verify_jwt = false
+
+[functions.extract-requirements]
+verify_jwt = false
