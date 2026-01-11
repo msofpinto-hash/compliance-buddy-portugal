@@ -396,6 +396,8 @@ export type Database = {
           organization_id: string
           updated_at: string
           uploaded_by: string | null
+          user_notes: string | null
+          validity_date: string | null
         }
         Insert: {
           category?: string | null
@@ -407,6 +409,8 @@ export type Database = {
           organization_id: string
           updated_at?: string
           uploaded_by?: string | null
+          user_notes?: string | null
+          validity_date?: string | null
         }
         Update: {
           category?: string | null
@@ -418,6 +422,8 @@ export type Database = {
           organization_id?: string
           updated_at?: string
           uploaded_by?: string | null
+          user_notes?: string | null
+          validity_date?: string | null
         }
         Relationships: [
           {
