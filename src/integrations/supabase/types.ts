@@ -296,13 +296,18 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          executive_summary: string | null
           findings: string | null
           id: string
+          interlocutors: string | null
+          methodology: string | null
           organization_id: string
           recommendations: string | null
           status: Database["public"]["Enums"]["audit_status"]
+          strengths: string | null
           title: string
           updated_at: string
+          weaknesses: string | null
         }
         Insert: {
           audit_date?: string | null
@@ -310,13 +315,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          executive_summary?: string | null
           findings?: string | null
           id?: string
+          interlocutors?: string | null
+          methodology?: string | null
           organization_id: string
           recommendations?: string | null
           status?: Database["public"]["Enums"]["audit_status"]
+          strengths?: string | null
           title: string
           updated_at?: string
+          weaknesses?: string | null
         }
         Update: {
           audit_date?: string | null
@@ -324,13 +334,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          executive_summary?: string | null
           findings?: string | null
           id?: string
+          interlocutors?: string | null
+          methodology?: string | null
           organization_id?: string
           recommendations?: string | null
           status?: Database["public"]["Enums"]["audit_status"]
+          strengths?: string | null
           title?: string
           updated_at?: string
+          weaknesses?: string | null
         }
         Relationships: [
           {

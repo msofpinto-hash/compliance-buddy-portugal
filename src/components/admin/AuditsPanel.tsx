@@ -431,6 +431,11 @@ export function AuditsPanel() {
                   auditId={auditDetails.id}
                   findings={auditDetails.findings}
                   recommendations={auditDetails.recommendations}
+                  interlocutors={(auditDetails as any).interlocutors}
+                  methodology={(auditDetails as any).methodology}
+                  strengths={(auditDetails as any).strengths}
+                  weaknesses={(auditDetails as any).weaknesses}
+                  executiveSummary={(auditDetails as any).executive_summary}
                   onUpdated={() => {
                     queryClient.invalidateQueries({ queryKey: ["audit-details", selectedAudit] });
                     refetchAudits();

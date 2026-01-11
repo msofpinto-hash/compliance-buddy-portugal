@@ -426,6 +426,27 @@ function generateAuditReport(data: any): string {
 
   ${data.audit.description ? `<p style="margin-bottom: 20px; color: #4b5563;">${escapeHtml(data.audit.description)}</p>` : ""}
 
+  ${data.audit.executive_summary ? `
+    <h2>Sumário Executivo</h2>
+    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+      <p style="white-space: pre-wrap;">${escapeHtml(data.audit.executive_summary)}</p>
+    </div>
+  ` : ""}
+
+  ${data.audit.interlocutors ? `
+    <h2>Interlocutores</h2>
+    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+      <p style="white-space: pre-wrap;">${escapeHtml(data.audit.interlocutors)}</p>
+    </div>
+  ` : ""}
+
+  ${data.audit.methodology ? `
+    <h2>Metodologia de Trabalho</h2>
+    <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+      <p style="white-space: pre-wrap;">${escapeHtml(data.audit.methodology)}</p>
+    </div>
+  ` : ""}
+
   <div class="stats-grid">
     <div class="stat-card">
       <div class="value">${total}</div>
@@ -453,17 +474,35 @@ function generateAuditReport(data: any): string {
     </div>
   </div>
 
+  ${(data.audit.strengths || data.audit.weaknesses) ? `
+    <h2>Análise SWOT</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+      ${data.audit.strengths ? `
+        <div style="background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; padding: 15px;">
+          <strong style="color: #16a34a;">Pontos Fortes</strong>
+          <p style="margin-top: 8px; white-space: pre-wrap;">${escapeHtml(data.audit.strengths)}</p>
+        </div>
+      ` : "<div></div>"}
+      ${data.audit.weaknesses ? `
+        <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 15px;">
+          <strong style="color: #dc2626;">Pontos Fracos</strong>
+          <p style="margin-top: 8px; white-space: pre-wrap;">${escapeHtml(data.audit.weaknesses)}</p>
+        </div>
+      ` : "<div></div>"}
+    </div>
+  ` : ""}
+
   ${data.audit.findings ? `
     <div class="findings-box">
       <strong>Constatações Gerais</strong>
-      <p style="margin-top: 8px;">${escapeHtml(data.audit.findings)}</p>
+      <p style="margin-top: 8px; white-space: pre-wrap;">${escapeHtml(data.audit.findings)}</p>
     </div>
   ` : ""}
 
   ${data.audit.recommendations ? `
     <div class="recommendations-box">
       <strong>Recomendações</strong>
-      <p style="margin-top: 8px;">${escapeHtml(data.audit.recommendations)}</p>
+      <p style="margin-top: 8px; white-space: pre-wrap;">${escapeHtml(data.audit.recommendations)}</p>
     </div>
   ` : ""}
 
@@ -603,6 +642,11 @@ serve(async (req) => {
           audit_date: audit.audit_date,
           findings: audit.findings,
           recommendations: audit.recommendations,
+          interlocutors: audit.interlocutors,
+          methodology: audit.methodology,
+          strengths: audit.strengths,
+          weaknesses: audit.weaknesses,
+          executive_summary: audit.executive_summary,
         },
         organization: { name: audit.organizations?.name || "N/A" },
         generatedAt,
