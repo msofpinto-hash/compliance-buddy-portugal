@@ -260,7 +260,7 @@ export default function Biblioteca() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         {/* Top Bar: Theme selector (left) + Search (right) */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
           {/* Theme/Category Selector - Left */}
           <div className="flex items-center gap-2">
             {themes && (
@@ -275,7 +275,7 @@ export default function Biblioteca() {
           </div>
 
           {/* Search bar - Right */}
-          <div className="flex-1 max-w-md ml-auto">
+          <div className="flex-1 max-w-lg ml-auto">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -288,66 +288,62 @@ export default function Biblioteca() {
           </div>
         </div>
 
-        {/* Filters Row */}
-        <Card className="mb-6">
-          <CardContent className="py-4">
-            <div className="flex flex-wrap gap-2 items-center">
-              <DateRangeFilter
-                startDate={filterStartDate}
-                endDate={filterEndDate}
-                onStartDateChange={setFilterStartDate}
-                onEndDateChange={setFilterEndDate}
-                label="Período"
-              />
+        {/* Filters Row - inline without card */}
+        <div className="flex flex-wrap gap-2 items-center mb-6 pb-4 border-b">
+          <DateRangeFilter
+            startDate={filterStartDate}
+            endDate={filterEndDate}
+            onStartDateChange={setFilterStartDate}
+            onEndDateChange={setFilterEndDate}
+            label="Período"
+          />
 
-              <Button
-                variant={selectedSource === "dre" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedSource(selectedSource === "dre" ? "all" : "dre")}
-              >
-                DRE
-              </Button>
-              <Button
-                variant={selectedSource === "eurlex" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedSource(selectedSource === "eurlex" ? "all" : "eurlex")}
-              >
-                EUR-Lex
-              </Button>
+          <Button
+            variant={selectedSource === "dre" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedSource(selectedSource === "dre" ? "all" : "dre")}
+          >
+            DRE
+          </Button>
+          <Button
+            variant={selectedSource === "eurlex" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedSource(selectedSource === "eurlex" ? "all" : "eurlex")}
+          >
+            EUR-Lex
+          </Button>
 
-              {/* Applicability Filter */}
-              {userOrganization && (
-                <Select
-                  value={selectedApplicability}
-                  onValueChange={setSelectedApplicability}
-                >
-                  <SelectTrigger className="w-[200px] h-9">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Aplicabilidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {applicabilityFilterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+          {/* Applicability Filter */}
+          {userOrganization && (
+            <Select
+              value={selectedApplicability}
+              onValueChange={setSelectedApplicability}
+            >
+              <SelectTrigger className="w-[160px] h-9">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                {applicabilityFilterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="text-muted-foreground"
-                >
-                  Limpar filtros
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="text-muted-foreground"
+            >
+              Limpar filtros
+            </Button>
+          )}
+        </div>
 
         {/* Results count and view toggle */}
         <div className="mb-4 flex items-center justify-between">
