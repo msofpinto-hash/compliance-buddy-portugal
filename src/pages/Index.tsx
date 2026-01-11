@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, FileText, RefreshCw, BookOpen, LogIn, Shield, Scale, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Settings, FileText, RefreshCw, LogIn, Shield, Scale, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -23,20 +23,12 @@ const Index = () => {
           </div>
           <nav className="flex items-center gap-2">
             {user ? (
-              <>
-                <Link to="/biblioteca">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    <span className="hidden sm:inline">Biblioteca</span>
-                  </Button>
-                </Link>
-                <Link to="/dashboard">
-                  <Button size="sm" className="gap-2 shadow-md">
-                    <Settings className="h-4 w-4" />
-                    Dashboard
-                  </Button>
-                </Link>
-              </>
+              <Link to="/dashboard">
+                <Button size="sm" className="gap-2 shadow-md">
+                  <Settings className="h-4 w-4" />
+                  Área de Cliente
+                </Button>
+              </Link>
             ) : (
               <Link to="/auth">
                 <Button size="sm" className="gap-2 shadow-md">
@@ -95,21 +87,13 @@ const Index = () => {
             {/* CTA Buttons */}
             <div className="animate-fade-in mt-10 flex flex-col sm:flex-row items-center justify-center gap-4" style={{ animationDelay: "0.3s" }}>
               {user ? (
-                <>
-                  <Link to="/biblioteca">
-                    <Button size="lg" className="gap-2 text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
-                      <BookOpen className="h-5 w-5" />
-                      Explorar Biblioteca
-                      <ArrowRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </Link>
-                  <Link to="/dashboard">
-                    <Button variant="outline" size="lg" className="gap-2 text-base hover:bg-primary/5 transition-all">
-                      <Settings className="h-5 w-5" />
-                      Aceder ao Dashboard
-                    </Button>
-                  </Link>
-                </>
+                <Link to="/dashboard">
+                  <Button size="lg" className="gap-2 text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
+                    <Shield className="h-5 w-5" />
+                    Aceder à Área de Cliente
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
               ) : (
                 <>
                   <Link to="/auth">
@@ -173,31 +157,31 @@ const Index = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <CardHeader className="relative">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/25 mb-4">
-                  <BookOpen className="h-7 w-7" />
+                  <FileText className="h-7 w-7" />
                 </div>
-                <CardTitle className="text-xl">Biblioteca de Legislação</CardTitle>
+                <CardTitle className="text-xl">Legislação Aplicável</CardTitle>
                 <CardDescription className="text-base">
-                  Pesquise e explore toda a legislação disponível organizada por temas e categorias com filtros avançados.
+                  Aceda à legislação específica atribuída à sua organização, organizada por temas e com estado de conformidade.
                 </CardDescription>
               </CardHeader>
               <CardContent className="relative">
                 <ul className="space-y-2 text-sm text-muted-foreground mb-6">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
-                    Pesquisa por palavras-chave
+                    Diplomas relevantes à organização
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
-                    Filtros por tema e fonte
+                    Filtros por tema e estado
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
                     Requisitos legais detalhados
                   </li>
                 </ul>
-                <Link to={user ? "/biblioteca" : "/auth"}>
+                <Link to="/auth">
                   <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    {user ? "Explorar Biblioteca" : "Entrar para Aceder"}
+                    Entrar para Aceder
                   </Button>
                 </Link>
               </CardContent>
