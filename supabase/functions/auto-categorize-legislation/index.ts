@@ -216,93 +216,24 @@ Deno.serve(async (req) => {
 
     console.log(`Loaded ${categories.length} categories`);
 
-    // Get legislation without categories
-    const { data: legislation, error: legError } = await supabase
+    // Get legislation without categories - use LEFT JOIN approach
+    // First get all mappings to filter locally (subquery doesn't work in Supabase JS)
+    // Get all existing mappings (use high limit to get all)
+    const { data: existingMappings } = await supabase
+      .from('legislation_category_mapping')
+      .select('legislation_id')
+      .limit(10000);
+    
+    const mappedIds = new Set((existingMappings || []).map((m: any) => m.legislation_id));
+    
+    const { data: allLegislation, error: legError } = await supabase
       .from('legislation')
       .select('id, number, title, summary, category')
-      .not('id', 'in', `(SELECT legislation_id FROM legislation_category_mapping)`)
-      .limit(limit);
+      .limit(2000);
+    
+    if (legError) throw legError;
 
-    if (legError) {
-      // Fallback query if subquery doesn't work
-      const { data: allLeg } = await supabase
-        .from('legislation')
-        .select('id, number, title, summary, category')
-        .limit(2000);
-      
-      const { data: mappings } = await supabase
-        .from('legislation_category_mapping')
-        .select('legislation_id');
-      
-      const mappedIds = new Set((mappings || []).map(m => m.legislation_id));
-      const uncategorized = (allLeg || []).filter(l => !mappedIds.has(l.id)).slice(0, limit);
-      
-      if (uncategorized.length === 0) {
-        return new Response(
-          JSON.stringify({ success: true, message: 'No uncategorized legislation found', total: 0 }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Background mode
-      if (background) {
-        const { data: logData, error: logError } = await supabase
-          .from('sync_logs')
-          .insert({
-            sync_type: 'auto_categorize',
-            status: 'running',
-            items_processed: 0,
-            items_added: 0,
-            items_updated: 0
-          })
-          .select('id')
-          .single();
-
-        if (logError) throw logError;
-
-        EdgeRuntime.waitUntil(processInBackground(supabase, uncategorized, categories, logData.id));
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: 'Background job started',
-            jobId: logData.id,
-            total: uncategorized.length
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Sync mode - process immediately
-      const results: { number: string; categories: string[] }[] = [];
-      let categorized = 0;
-
-      for (const leg of uncategorized) {
-        const matchedIds = findMatchingCategories(leg, categories);
-        if (matchedIds.length > 0 && !dryRun) {
-          const mappings = matchedIds.map(categoryId => ({
-            legislation_id: leg.id,
-            category_id: categoryId
-          }));
-          await supabase.from('legislation_category_mapping').upsert(mappings, { 
-            onConflict: 'legislation_id,category_id',
-            ignoreDuplicates: true 
-          });
-          categorized++;
-        }
-        if (matchedIds.length > 0) {
-          const matchedNames = categories.filter(c => matchedIds.includes(c.id)).map(c => c.name);
-          results.push({ number: leg.number, categories: matchedNames });
-        }
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, categorized, total: uncategorized.length, results, dryRun }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const uncategorized = legislation || [];
+    const uncategorized = (allLegislation || []).filter((l: any) => !mappedIds.has(l.id)).slice(0, limit);
     console.log(`Found ${uncategorized.length} uncategorized legislation`);
 
     if (uncategorized.length === 0) {
