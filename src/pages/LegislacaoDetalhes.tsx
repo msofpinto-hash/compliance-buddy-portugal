@@ -189,16 +189,13 @@ export default function LegislacaoDetalhes() {
 
   const { themes, categories } = getThemesAndCategories();
 
-  // Relation type labels
-  const relationTypeLabels: Record<string, { label: string; color: string }> = {
-    revoga: { label: "Revoga", color: "destructive" },
-    revogado_por: { label: "Revogado por", color: "destructive" },
-    altera: { label: "Altera", color: "default" },
-    alterado_por: { label: "Alterado por", color: "default" },
-    regulamenta: { label: "Regulamenta", color: "secondary" },
-    regulamentado_por: { label: "Regulamentado por", color: "secondary" },
-    transpoe: { label: "Transpõe", color: "outline" },
-    transposto_por: { label: "Transposto por", color: "outline" },
+  // Relation type labels - matching DB constraint values
+  const relationTypeLabels: Record<string, { label: string; color: string; inverseLabel: string }> = {
+    revogado: { label: "Revoga", color: "destructive", inverseLabel: "Revogado por" },
+    revogacao_parcial: { label: "Revoga parcialmente", color: "destructive", inverseLabel: "Rev. parcial por" },
+    alteracao: { label: "Altera", color: "default", inverseLabel: "Alterado por" },
+    transposicao: { label: "Transpõe", color: "outline", inverseLabel: "Transposto por" },
+    regulamentacao: { label: "Regulamenta", color: "secondary", inverseLabel: "Regulamentado por" },
   };
 
   if (isLoading) {
@@ -518,49 +515,62 @@ export default function LegislacaoDetalhes() {
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <Link2 className="h-4 w-4" />
-                    Relações
+                    Relações com outros diplomas
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {/* Outgoing relations */}
-                    {relations?.outgoing.map((rel: any) => {
-                      const typeInfo = relationTypeLabels[rel.relation_type] || { label: rel.relation_type, color: "outline" };
-                      return (
-                        <div key={rel.id} className="flex items-start gap-2">
-                          <Badge variant={typeInfo.color as any} className="shrink-0 text-xs">
-                            {typeInfo.label}
-                          </Badge>
-                          <Link 
-                            to={`/legislacao/${rel.target?.id}`}
-                            className="text-sm hover:underline text-primary"
-                          >
-                            {rel.target?.number}
-                          </Link>
+                  <div className="space-y-3">
+                    {/* Outgoing relations - this legislation affects others */}
+                    {relations?.outgoing.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Este diploma:</p>
+                        <div className="space-y-2">
+                          {relations.outgoing.map((rel: any) => {
+                            const typeInfo = relationTypeLabels[rel.relation_type] || { label: rel.relation_type, color: "outline" };
+                            return (
+                              <div key={rel.id} className="flex items-center gap-2 pl-2 border-l-2 border-primary/30">
+                                <Badge variant={typeInfo.color as any} className="shrink-0 text-xs">
+                                  {typeInfo.label}
+                                </Badge>
+                                <Link 
+                                  to={`/legislacao/${rel.target?.id}`}
+                                  className="text-sm hover:underline text-primary truncate"
+                                  title={rel.target?.title}
+                                >
+                                  {rel.target?.number}
+                                </Link>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
                     
-                    {/* Incoming relations */}
-                    {relations?.incoming.map((rel: any) => {
-                      const inverseType = rel.relation_type.includes("_por") 
-                        ? rel.relation_type.replace("_por", "")
-                        : rel.relation_type + "_por";
-                      const typeInfo = relationTypeLabels[inverseType] || relationTypeLabels[rel.relation_type] || { label: rel.relation_type, color: "outline" };
-                      return (
-                        <div key={rel.id} className="flex items-start gap-2">
-                          <Badge variant={typeInfo.color as any} className="shrink-0 text-xs">
-                            {typeInfo.label}
-                          </Badge>
-                          <Link 
-                            to={`/legislacao/${rel.source?.id}`}
-                            className="text-sm hover:underline text-primary"
-                          >
-                            {rel.source?.number}
-                          </Link>
+                    {/* Incoming relations - others affect this legislation */}
+                    {relations?.incoming.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Este diploma é afetado por:</p>
+                        <div className="space-y-2">
+                          {relations.incoming.map((rel: any) => {
+                            const typeInfo = relationTypeLabels[rel.relation_type] || { label: rel.relation_type, color: "outline", inverseLabel: rel.relation_type };
+                            return (
+                              <div key={rel.id} className="flex items-center gap-2 pl-2 border-l-2 border-muted-foreground/30">
+                                <Badge variant={typeInfo.color as any} className="shrink-0 text-xs">
+                                  {typeInfo.inverseLabel}
+                                </Badge>
+                                <Link 
+                                  to={`/legislacao/${rel.source?.id}`}
+                                  className="text-sm hover:underline text-primary truncate"
+                                  title={rel.source?.title}
+                                >
+                                  {rel.source?.number}
+                                </Link>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
