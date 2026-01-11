@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
 import { LegislationPanel } from "@/components/admin/LegislationPanel";
@@ -7,6 +7,7 @@ import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
 import { RequirementsExtractionPanel } from "@/components/admin/RequirementsExtractionPanel";
 import { AuditsPanel } from "@/components/admin/AuditsPanel";
+import { ActionPlansPanel } from "@/components/admin/ActionPlansPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -44,7 +45,7 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="legislation" className="space-y-6">
-          <TabsList className="grid w-full max-w-5xl grid-cols-7">
+          <TabsList className="grid w-full max-w-6xl grid-cols-8">
             <TabsTrigger value="legislation" className="gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Legislação</span>
@@ -57,6 +58,10 @@ const Admin = () => {
               <ClipboardCheck className="h-4 w-4" />
               <span className="hidden sm:inline">Auditorias</span>
             </TabsTrigger>
+            <TabsTrigger value="actions" className="gap-2">
+              <ListTodo className="h-4 w-4" />
+              <span className="hidden sm:inline">Ações</span>
+            </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Clientes</span>
@@ -67,7 +72,7 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="sync" className="gap-2">
               <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Sincronização</span>
+              <span className="hidden sm:inline">Sync</span>
             </TabsTrigger>
             <TabsTrigger value="themes" className="gap-2">
               <Palette className="h-4 w-4" />
@@ -85,6 +90,10 @@ const Admin = () => {
 
           <TabsContent value="audits">
             <AuditsPanel />
+          </TabsContent>
+
+          <TabsContent value="actions">
+            <ActionPlansPanel />
           </TabsContent>
 
           <TabsContent value="clients">

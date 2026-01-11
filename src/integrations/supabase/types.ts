@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       action_plans: {
         Row: {
+          audit_requirement_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -30,6 +31,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audit_requirement_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audit_requirement_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -58,6 +61,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "action_plans_audit_requirement_id_fkey"
+            columns: ["audit_requirement_id"]
+            isOneToOne: false
+            referencedRelation: "audit_requirements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "action_plans_organization_id_fkey"
             columns: ["organization_id"]
