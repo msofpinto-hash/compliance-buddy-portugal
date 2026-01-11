@@ -151,6 +151,36 @@ export default function Dashboard() {
     },
   });
 
+  // Fetch total legislation count
+  const { data: totalLegislationCount } = useQuery({
+    queryKey: ["total-legislation-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("legislation")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Fetch user's read legislation count
+  const { data: readLegislationCount } = useQuery({
+    queryKey: ["user-legislation-reads-count", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { count, error } = await supabase
+        .from("user_legislation_reads")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Calculate unread legislation count
+  const unreadLegislationCount = (totalLegislationCount || 0) - (readLegislationCount || 0);
+
   // Fetch user alerts
   const { data: alerts, isLoading: loadingAlerts } = useQuery({
     queryKey: ["user-alerts", user?.id],
@@ -428,6 +458,16 @@ export default function Dashboard() {
                   className="pl-9 w-64 bg-card"
                 />
               </div>
+              <Link to="/legislacao-recente">
+                <Button variant="ghost" size="icon" className="relative">
+                  <FileText className="h-5 w-5" />
+                  {unreadLegislationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                      {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
                 {(alerts?.length || 0) > 0 && (
