@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo, Database, FolderOpen, Eye } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
@@ -15,8 +17,27 @@ import { EvidenceReviewPanel } from "@/components/admin/EvidenceReviewPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
+
+const validTabs = ["quality", "legislation", "requirements", "audits", "actions", "evidence", "review", "clients", "users", "sync", "themes"];
+
 const Admin = () => {
   const { user, signOut } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : "quality"
+  );
+
+  useEffect(() => {
+    if (tabFromUrl && validTabs.includes(tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,7 +69,7 @@ const Admin = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="quality" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full max-w-7xl grid-cols-11">
             <TabsTrigger value="quality" className="gap-2">
               <Database className="h-4 w-4" />
