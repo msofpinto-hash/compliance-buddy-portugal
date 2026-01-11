@@ -62,3 +62,9 @@ verify_jwt = false
 
 [functions.complete-auto-imported-legislation]
 verify_jwt = false
+
+[functions.scheduled-data-quality-fix]
+verify_jwt = false
+
+[functions.auto-categorize-legislation]
+verify_jwt = false
