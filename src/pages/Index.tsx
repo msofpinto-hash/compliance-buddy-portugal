@@ -17,7 +17,7 @@ const Index = () => {
               <Scale className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight">Legal Compliance</h1>
+              <h1 className="text-lg font-bold tracking-tight">I&D Compliance-ex</h1>
               <p className="text-xs text-muted-foreground">Gestão de Legislação</p>
             </div>
           </div>
@@ -261,7 +261,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t bg-muted/30 py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Legal Compliance. Sistema de Gestão de Legislação.</p>
+          <p>© {new Date().getFullYear()} I&D Compliance-ex. Sistema de Gestão de Legislação.</p>
         </div>
       </footer>
     </div>
