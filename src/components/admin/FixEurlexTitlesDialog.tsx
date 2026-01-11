@@ -421,6 +421,11 @@ export function FixEurlexTitlesDialog({
                                         <code className="text-xs font-mono text-muted-foreground">
                                           {result.celex}
                                         </code>
+                                        {isExpanded && (
+                                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                                            Detalhes
+                                          </Badge>
+                                        )}
                                       </div>
                                       <div className="text-sm text-green-700 dark:text-green-400 truncate">
                                         {result.newTitle}
