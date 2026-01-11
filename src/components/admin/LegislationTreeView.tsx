@@ -281,6 +281,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     const isSelected = selectedCategoryId === node.category.id;
     const count = countLegislation(node);
     const CategoryIcon = getCategoryIcon(node.category.name);
+    const isMainCategory = level === 0;
 
     return (
       <div key={node.category.id}>
@@ -289,7 +290,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             isSelected 
               ? `${themeConfig?.bg} ${themeConfig?.text} shadow-sm` 
               : 'hover:bg-accent/50'
-          }`}
+          } ${isMainCategory && !isSelected ? 'bg-muted/50' : ''}`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => {
             setSelectedCategoryId(node.category.id);
@@ -309,17 +310,21 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               }`}
             >
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className={`h-4 w-4 ${isMainCategory ? 'text-foreground' : 'text-muted-foreground'}`} />
               ) : (
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className={`h-4 w-4 ${isMainCategory ? 'text-foreground' : 'text-muted-foreground'}`} />
               )}
             </button>
           ) : (
             <span className="w-5 shrink-0" />
           )}
           
-          <div className={`p-1 rounded shrink-0 ${
-            isSelected ? 'bg-white/30' : themeConfig?.bg || 'bg-muted'
+          <div className={`p-1.5 rounded-md shrink-0 ${
+            isSelected 
+              ? 'bg-white/30' 
+              : isMainCategory 
+                ? `${themeConfig?.accent} bg-opacity-20` 
+                : themeConfig?.bg || 'bg-muted'
           }`}>
             {hasChildren ? (
               isExpanded ? (
@@ -332,7 +337,13 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             )}
           </div>
           
-          <span className={`flex-1 text-sm font-medium min-w-0 ${isSelected ? '' : 'text-foreground'}`} title={node.category.name}>
+          <span className={`flex-1 min-w-0 ${
+            isSelected 
+              ? '' 
+              : isMainCategory 
+                ? 'text-foreground font-semibold' 
+                : 'text-muted-foreground font-medium'
+          } ${isMainCategory ? 'text-sm' : 'text-xs'}`} title={node.category.name}>
             {node.category.name}
           </span>
           
