@@ -276,12 +276,12 @@ export function EvidenceTemplatesPanel() {
                 />
               </div>
             </div>
-            <Select value={selectedArea || ""} onValueChange={(v) => setSelectedArea(v || null)}>
+            <Select value={selectedArea || "all"} onValueChange={(v) => setSelectedArea(v === "all" ? null : v)}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Filtrar por área" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as áreas</SelectItem>
+                <SelectItem value="all">Todas as áreas</SelectItem>
                 {Object.entries(AREA_CONFIG).map(([key, config]) => (
                   <SelectItem key={key} value={key}>
                     <div className="flex items-center gap-2">
