@@ -329,7 +329,7 @@ export default function Dashboard() {
         )}
       </ScrollArea>
 
-      {/* Footer - Settings & Logout */}
+      {/* Footer - Help, Settings & Logout */}
       <div className="p-4 border-t border-sidebar-border mt-auto space-y-1">
         <Link
           to="/settings"
@@ -339,6 +339,13 @@ export default function Dashboard() {
           <User className="h-4 w-4" />
           <span>Definições</span>
         </Link>
+        <a
+          href="mailto:suporte@legalcompliance.pt"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-colors w-full"
+        >
+          <HelpCircle className="h-4 w-4" />
+          <span>Ajuda</span>
+        </a>
         <LogoutConfirmDialog 
           onConfirm={signOut} 
           className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/10 px-3" 
@@ -659,33 +666,6 @@ export default function Dashboard() {
 
             {/* Right Sidebar - 1 column */}
             <div className="space-y-6">
-              {/* Help Card */}
-              <Card className="bg-primary text-primary-foreground overflow-hidden">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-3 mb-4">
-                    <HelpCircle className="h-8 w-8 shrink-0" />
-                    <div>
-                      <h3 className="font-semibold text-lg">Precisa de ajuda?</h3>
-                      <p className="text-sm opacity-90">Confira a nossa documentação</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Button 
-                      variant="secondary" 
-                      className="w-full bg-white/20 hover:bg-white/30 text-primary-foreground border-0"
-                    >
-                      Centro de Suporte
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      className="w-full bg-white/20 hover:bg-white/30 text-primary-foreground border-0"
-                    >
-                      Webinars
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Quick Stats */}
               <Card>
                 <CardHeader className="pb-3">
