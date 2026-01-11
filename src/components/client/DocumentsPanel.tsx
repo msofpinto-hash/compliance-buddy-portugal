@@ -161,7 +161,7 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold">Documentos de Evidência</h2>
+        <h2 className="text-2xl font-bold">Evidências Documentais</h2>
         <p className="text-muted-foreground">
           Carregue documentos para comprovar a conformidade com os requisitos legais
         </p>
