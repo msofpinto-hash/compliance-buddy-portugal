@@ -46,6 +46,7 @@ import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { exportToExcel as exportExcel, SheetData } from "@/lib/excelUtils";
+import { escapeHtml, sanitizeForHtml } from "@/lib/sanitize";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -1003,15 +1004,15 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
           ${filteredPlans.map(plan => {
             const typeClass = plan.audit_requirement_id ? "print-badge-audit" : "print-badge-adhoc";
             const typeLabel = plan.audit_requirement_id ? "Auditoria" : "Ad-hoc";
-            const statusClass = `print-badge-${plan.status || "pendente"}`;
+            const statusClass = `print-badge-${escapeHtml(plan.status) || "pendente"}`;
             const isOverduePlan = plan.due_date && plan.status !== "concluido" && new Date(plan.due_date) < new Date();
             return `
               <tr>
                 <td><span class="print-badge ${typeClass}">${typeLabel}</span></td>
-                <td>${plan.title}</td>
-                <td><span class="print-badge ${statusClass}">${getStatusLabel(plan.status || "pendente")}</span></td>
-                <td>${plan.responsible || "-"}</td>
-                <td class="${isOverduePlan ? "print-overdue" : ""}">${plan.due_date ? formatDateExport(plan.due_date) : "-"}</td>
+                <td>${escapeHtml(plan.title)}</td>
+                <td><span class="print-badge ${statusClass}">${escapeHtml(getStatusLabel(plan.status || "pendente"))}</span></td>
+                <td>${sanitizeForHtml(plan.responsible)}</td>
+                <td class="${isOverduePlan ? "print-overdue" : ""}">${plan.due_date ? escapeHtml(formatDateExport(plan.due_date)) : "-"}</td>
               </tr>
             `;
           }).join("")}
