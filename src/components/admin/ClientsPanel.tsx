@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy, FileSpreadsheet } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy, FileSpreadsheet, Sparkles, Layers, Crown, Gem } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
 import { ManageOrganizationRequirementsDialog } from "./ManageOrganizationRequirementsDialog";
@@ -45,11 +45,24 @@ export function ClientsPanel() {
   const [newUserEmail, setNewUserEmail] = useState("");
 
   const serviceTypes = [
-    { value: "essencial", label: "Conformidade Legal Essencial", description: "Acesso básico à legislação" },
-    { value: "continua", label: "Conformidade Legal Contínua", description: "Acompanhamento contínuo" },
-    { value: "avancada", label: "Conformidade Legal Avançada", description: "Funcionalidades avançadas" },
-    { value: "dedicada", label: "Conformidade Legal Dedicada", description: "Acompanhamento técnico permanente" },
+    { value: "essencial", label: "Essencial", fullLabel: "Conformidade Legal Essencial", description: "Acesso básico à legislação", color: "bg-slate-100 text-slate-700 border-slate-200", icon: FileText },
+    { value: "continua", label: "Contínua", fullLabel: "Conformidade Legal Contínua", description: "Acompanhamento contínuo", color: "bg-blue-100 text-blue-700 border-blue-200", icon: Layers },
+    { value: "avancada", label: "Avançada", fullLabel: "Conformidade Legal Avançada", description: "Funcionalidades avançadas", color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: Sparkles },
+    { value: "dedicada", label: "Dedicada", fullLabel: "Conformidade Legal Dedicada", description: "Acompanhamento técnico permanente", color: "bg-amber-100 text-amber-700 border-amber-200", icon: Crown },
   ];
+
+  const getServiceTypeBadge = (serviceType: string | null) => {
+    if (!serviceType) return null;
+    const type = serviceTypes.find(t => t.value === serviceType);
+    if (!type) return null;
+    const Icon = type.icon;
+    return (
+      <Badge variant="outline" className={`${type.color} border text-xs gap-1`}>
+        <Icon className="h-3 w-3" />
+        {type.label}
+      </Badge>
+    );
+  };
 
   // Fetch organizations
   const { data: organizations, isLoading } = useQuery({
@@ -298,14 +311,20 @@ export function ClientsPanel() {
                     <SelectValue placeholder="Selecione o tipo de serviço..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {serviceTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{type.label}</span>
-                          <span className="text-xs text-muted-foreground">{type.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {serviceTypes.map((type) => {
+                      const Icon = type.icon;
+                      return (
+                        <SelectItem key={type.value} value={type.value}>
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{type.fullLabel}</span>
+                              <span className="text-xs text-muted-foreground">{type.description}</span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -370,8 +389,9 @@ export function ClientsPanel() {
                         <Building2 className="h-5 w-5" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium">{org.name}</p>
+                          {getServiceTypeBadge((org as any).service_type)}
                           <OrganizationThemesBadge organizationId={org.id} />
                           <OrganizationLegislationBadge organizationId={org.id} />
                         </div>
