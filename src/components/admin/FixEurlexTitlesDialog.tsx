@@ -22,7 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Globe, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { Loader2, Globe, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Search, X, ChevronsUpDown } from "lucide-react";
 
 interface FixEurlexTitlesDialogProps {
   open: boolean;
@@ -235,6 +235,16 @@ export function FixEurlexTitlesDialog({
   };
 
   const selectAllVisible = filteredResults.every(r => selectedCelex.has(r.celex));
+  
+  const allExpanded = filteredResults.length > 0 && filteredResults.every(r => expandedItems.has(r.celex));
+
+  const expandAll = () => {
+    setExpandedItems(new Set(filteredResults.map(r => r.celex)));
+  };
+
+  const collapseAll = () => {
+    setExpandedItems(new Set());
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -346,6 +356,16 @@ export function FixEurlexTitlesDialog({
                   <span className="text-xs text-muted-foreground">
                     {selectedCelex.size} selecionados
                   </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={allExpanded ? collapseAll : expandAll} 
+                    disabled={isApplying || filteredResults.length === 0}
+                    title={allExpanded ? "Colapsar todos" : "Expandir todos"}
+                  >
+                    <ChevronsUpDown className="h-4 w-4 mr-1" />
+                    {allExpanded ? "Colapsar" : "Expandir"}
+                  </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
