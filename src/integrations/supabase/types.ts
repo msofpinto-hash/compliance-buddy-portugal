@@ -752,6 +752,38 @@ export type Database = {
           },
         ]
       }
+      legislation_relations_processed: {
+        Row: {
+          id: string
+          legislation_id: string
+          processed_at: string
+          relations_found: number | null
+          relations_matched: number | null
+        }
+        Insert: {
+          id?: string
+          legislation_id: string
+          processed_at?: string
+          relations_found?: number | null
+          relations_matched?: number | null
+        }
+        Update: {
+          id?: string
+          legislation_id?: string
+          processed_at?: string
+          relations_found?: number | null
+          relations_matched?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislation_relations_processed_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: true
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_evidence_requests: {
         Row: {
           assigned_by: string | null
