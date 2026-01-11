@@ -317,6 +317,9 @@ export type Database = {
           interlocutors: string | null
           methodology: string | null
           organization_id: string
+          plan_approved_at: string | null
+          plan_approved_by: string | null
+          plan_feedback: string | null
           recommendations: string | null
           status: Database["public"]["Enums"]["audit_status"]
           strengths: string | null
@@ -338,6 +341,9 @@ export type Database = {
           interlocutors?: string | null
           methodology?: string | null
           organization_id: string
+          plan_approved_at?: string | null
+          plan_approved_by?: string | null
+          plan_feedback?: string | null
           recommendations?: string | null
           status?: Database["public"]["Enums"]["audit_status"]
           strengths?: string | null
@@ -359,6 +365,9 @@ export type Database = {
           interlocutors?: string | null
           methodology?: string | null
           organization_id?: string
+          plan_approved_at?: string | null
+          plan_approved_by?: string | null
+          plan_feedback?: string | null
           recommendations?: string | null
           status?: Database["public"]["Enums"]["audit_status"]
           strengths?: string | null
