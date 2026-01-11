@@ -23,7 +23,7 @@ import { pt } from "date-fns/locale";
 import { useThemesWithCategories } from "@/hooks/useThemes";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { CategoryTreeFilter } from "@/components/CategoryTreeFilter";
-import { ApplicabilityBadge, getApplicabilityInfo } from "@/components/RequirementApplicabilitySelect";
+import { LegislationApplicabilityBadge, getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
 
 const applicabilityFilterOptions = [
   { value: "all", label: "Todos" },
@@ -87,50 +87,30 @@ export default function Biblioteca() {
     },
   });
 
-  // Fetch applicabilities for user's organization
-  const { data: applicabilitiesMap } = useQuery({
-    queryKey: ["org-applicabilities", userOrganization?.id],
+  // Fetch legislation applicabilities for user's organization
+  const { data: legislationApplicabilitiesMap } = useQuery({
+    queryKey: ["org-legislation-applicabilities", userOrganization?.id],
     queryFn: async () => {
       if (!userOrganization?.id) return {};
       const { data, error } = await supabase
-        .from("applicabilities")
-        .select("requirement_id, applicability_type")
+        .from("organization_legislation")
+        .select("legislation_id, applicability_type")
         .eq("organization_id", userOrganization.id);
       if (error) throw error;
       
-      // Create a map: requirement_id -> applicability_type
+      // Create a map: legislation_id -> applicability_type
       const map: Record<string, string> = {};
       data?.forEach((a) => {
-        map[a.requirement_id] = a.applicability_type || "nao_avaliado";
+        map[a.legislation_id] = a.applicability_type || "nao_avaliado";
       });
       return map;
     },
     enabled: !!userOrganization?.id,
   });
 
-  // Helper to get legislation's applicability summary
-  const getLegislationApplicability = (leg: any) => {
-    if (!leg.legal_requirements?.length) return { types: [], dominant: null, hasPending: false };
-    
-    const types: string[] = [];
-    let hasPending = false;
-    
-    leg.legal_requirements.forEach((req: any) => {
-      const type = applicabilitiesMap?.[req.id] || "nao_avaliado";
-      types.push(type);
-      if (type === "nao_avaliado") hasPending = true;
-    });
-    
-    // Find dominant type (most common)
-    const counts: Record<string, number> = {};
-    types.forEach((t) => {
-      counts[t] = (counts[t] || 0) + 1;
-    });
-    
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const dominant = sorted[0]?.[0] || null;
-    
-    return { types, dominant, hasPending };
+  // Helper to get legislation's applicability
+  const getLegislationApplicabilityType = (legId: string) => {
+    return legislationApplicabilitiesMap?.[legId] || "nao_avaliado";
   };
 
   // Filter legislation
@@ -164,14 +144,14 @@ export default function Biblioteca() {
       // Applicability filter
       let matchesApplicability = true;
       if (selectedApplicability !== "all" && userOrganization) {
-        const { types, hasPending } = getLegislationApplicability(leg);
+        const applicabilityType = getLegislationApplicabilityType(leg.id);
         
         if (selectedApplicability === "pending") {
-          matchesApplicability = hasPending;
+          matchesApplicability = applicabilityType === "nao_avaliado";
         } else if (selectedApplicability === "has_any") {
-          matchesApplicability = types.some(t => t !== "nao_avaliado");
+          matchesApplicability = applicabilityType !== "nao_avaliado";
         } else {
-          matchesApplicability = types.includes(selectedApplicability);
+          matchesApplicability = applicabilityType === selectedApplicability;
         }
       }
 
@@ -203,7 +183,7 @@ export default function Biblioteca() {
 
       return matchesSearch && matchesSource && matchesDateRange && matchesThemeCategory && matchesApplicability;
     });
-  }, [legislation, searchTerm, selectedSource, selectedThemeId, selectedCategoryId, filterStartDate, filterEndDate, selectedApplicability, applicabilitiesMap, userOrganization]);
+  }, [legislation, searchTerm, selectedSource, selectedThemeId, selectedCategoryId, filterStartDate, filterEndDate, selectedApplicability, legislationApplicabilitiesMap, userOrganization]);
 
   // Get unique themes from legislation mappings
   const getLegislationThemes = (leg: any) => {
@@ -367,7 +347,7 @@ export default function Biblioteca() {
             {filteredLegislation.map((leg) => {
               const legThemes = getLegislationThemes(leg);
               const legCategories = getLegislationCategories(leg);
-              const applicability = getLegislationApplicability(leg);
+              const applicabilityType = getLegislationApplicabilityType(leg.id);
               return (
                 <Card key={leg.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="pt-6">
@@ -383,13 +363,8 @@ export default function Biblioteca() {
                             <Badge variant="destructive">Revogado</Badge>
                           )}
                           {/* Applicability badge */}
-                          {userOrganization && leg.legal_requirements?.length > 0 && applicability.dominant && (
-                            <ApplicabilityBadge value={applicability.dominant} />
-                          )}
-                          {userOrganization && applicability.hasPending && (
-                            <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-300">
-                              {applicability.types.filter(t => t === "nao_avaliado").length} pendentes
-                            </Badge>
+                          {userOrganization && (
+                            <LegislationApplicabilityBadge value={applicabilityType} />
                           )}
                         </div>
 
