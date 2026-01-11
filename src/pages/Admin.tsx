@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText, Building2, Users } from "lucide-react";
+import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
 import { LegislationPanel } from "@/components/admin/LegislationPanel";
 import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
+import { RequirementsExtractionPanel } from "@/components/admin/RequirementsExtractionPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -42,10 +43,14 @@ const Admin = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="legislation" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="legislation" className="gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Legislação</span>
+            </TabsTrigger>
+            <TabsTrigger value="requirements" className="gap-2">
+              <Brain className="h-4 w-4" />
+              <span className="hidden sm:inline">Requisitos</span>
             </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Building2 className="h-4 w-4" />
@@ -67,6 +72,10 @@ const Admin = () => {
 
           <TabsContent value="legislation">
             <LegislationPanel />
+          </TabsContent>
+
+          <TabsContent value="requirements">
+            <RequirementsExtractionPanel />
           </TabsContent>
 
           <TabsContent value="clients">
