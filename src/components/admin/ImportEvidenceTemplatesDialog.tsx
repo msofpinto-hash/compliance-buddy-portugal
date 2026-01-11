@@ -216,7 +216,7 @@ export function ImportEvidenceTemplatesDialog() {
           Importar Excel
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Importar Templates de Evidência</DialogTitle>
           <DialogDescription>
@@ -224,7 +224,7 @@ export function ImportEvidenceTemplatesDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 overflow-hidden">
           {/* File Upload */}
           {parsedTemplates.length === 0 && !importResult && (
             <div>
