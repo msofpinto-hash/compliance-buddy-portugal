@@ -266,8 +266,12 @@ export default function Dashboard() {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Logo/Org */}
-      <div className="p-4 border-b border-sidebar-border">
+      {/* Logo/Org - Clickable to Dashboard */}
+      <Link 
+        to="/dashboard" 
+        onClick={() => setSidebarOpen(false)}
+        className="p-4 border-b border-sidebar-border hover:bg-sidebar-accent/10 transition-colors cursor-pointer"
+      >
         {currentOrg?.logo_url ? (
           <img 
             src={currentOrg.logo_url} 
@@ -282,7 +286,7 @@ export default function Dashboard() {
             <span className="font-semibold text-sidebar-foreground">Legal Compliance</span>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* User Info */}
       <div className="p-4 border-b border-sidebar-border">
