@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
@@ -17,7 +22,12 @@ import {
   AlertTriangle, 
   FileText,
   Play,
-  Square
+  Square,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
+  Search,
+  X
 } from "lucide-react";
 
 interface ProgressItem {
@@ -47,13 +57,53 @@ export function FixGenericTitlesDialog({ open, onOpenChange, genericTitlesCount 
   const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const [items, setItems] = useState<ProgressItem[]>([]);
   const [summary, setSummary] = useState<{ fixed: number; failed: number; processed: number } | null>(null);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Filter items based on search query
+  const filteredItems = items.filter(item => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      item.number.toLowerCase().includes(query) ||
+      item.updates?.title?.toLowerCase().includes(query) ||
+      item.updates?.summary?.toLowerCase().includes(query) ||
+      item.error?.toLowerCase().includes(query)
+    );
+  });
+
+  const successItems = filteredItems.filter(i => i.success);
+  const failedItems = filteredItems.filter(i => !i.success);
+  const allExpanded = filteredItems.length > 0 && filteredItems.every(item => expandedItems.has(item.id));
+
+  const toggleExpanded = (id: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedItems(new Set(filteredItems.map(item => item.id)));
+  };
+
+  const collapseAll = () => {
+    setExpandedItems(new Set());
+  };
 
   const handleStart = async () => {
     setIsRunning(true);
     setItems([]);
     setSummary(null);
     setProgress({ current: 0, total: 0 });
+    setExpandedItems(new Set());
+    setSearchQuery("");
 
     abortControllerRef.current = new AbortController();
 
@@ -160,52 +210,59 @@ export function FixGenericTitlesDialog({ open, onOpenChange, genericTitlesCount 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh]">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Corrigir Títulos Genéricos
+            Corrigir Títulos Genéricos (PT)
           </DialogTitle>
           <DialogDescription>
             Pesquisa e extrai títulos descritivos do DRE para diplomas com títulos genéricos
+            {genericTitlesCount > 0 && (
+              <Badge variant="outline" className="ml-2">
+                ~{genericTitlesCount} com títulos genéricos
+              </Badge>
+            )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
           {/* Configuration */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Limite</Label>
-              <Input
-                type="number"
-                value={limit}
-                onChange={(e) => setLimit(parseInt(e.target.value) || 20)}
-                min={1}
-                max={100}
-                disabled={isRunning}
-              />
-              <p className="text-xs text-muted-foreground">
-                {genericTitlesCount} títulos genéricos detectados
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Modo</Label>
-              <div className="flex items-center gap-2 h-10">
-                <Switch
-                  id="dryRun"
-                  checked={dryRun}
-                  onCheckedChange={setDryRun}
+          {items.length === 0 && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Limite</Label>
+                <Input
+                  type="number"
+                  value={limit}
+                  onChange={(e) => setLimit(parseInt(e.target.value) || 20)}
+                  min={1}
+                  max={100}
                   disabled={isRunning}
                 />
-                <Label htmlFor="dryRun" className="text-sm">
-                  {dryRun ? "Apenas simular" : "Aplicar correções"}
-                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {genericTitlesCount} títulos genéricos detectados
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Modo</Label>
+                <div className="flex items-center gap-2 h-10">
+                  <Switch
+                    id="dryRun"
+                    checked={dryRun}
+                    onCheckedChange={setDryRun}
+                    disabled={isRunning}
+                  />
+                  <Label htmlFor="dryRun" className="text-sm">
+                    {dryRun ? "Apenas simular" : "Aplicar correções"}
+                  </Label>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {!dryRun && !isRunning && (
+          {!dryRun && !isRunning && items.length === 0 && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -243,38 +300,162 @@ export function FixGenericTitlesDialog({ open, onOpenChange, genericTitlesCount 
             </div>
           )}
 
+          {/* Search and controls */}
+          {items.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Pesquisar por número ou título..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                    disabled={isRunning}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label>
+                  {searchQuery ? (
+                    <>Resultados: {filteredItems.length} de {items.length}</>
+                  ) : (
+                    <>Resultados ({items.length})</>
+                  )}
+                </Label>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={allExpanded ? collapseAll : expandAll} 
+                  disabled={isRunning || filteredItems.length === 0}
+                  title={allExpanded ? "Colapsar todos" : "Expandir todos"}
+                >
+                  <ChevronsUpDown className="h-4 w-4 mr-1" />
+                  {allExpanded ? "Colapsar" : "Expandir"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Results List */}
           {items.length > 0 && (
-            <ScrollArea className="h-[300px] border rounded-lg">
+            <ScrollArea className="flex-1 border rounded-lg min-h-0">
               <div className="p-2 space-y-1">
-                {items.map((item, index) => (
-                  <div
-                    key={`${item.id}-${index}`}
-                    className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 text-sm"
-                  >
-                    {item.success ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium">{item.number}</div>
-                      {item.success && item.updates?.title && (
-                        <div className="text-xs text-green-600 truncate">
-                          → {item.updates.title}
-                        </div>
-                      )}
-                      {!item.success && item.error && (
-                        <div className="text-xs text-red-600">
-                          {item.error}
-                        </div>
-                      )}
-                    </div>
-                    <Badge variant={item.success ? "default" : "destructive"} className="flex-shrink-0">
-                      {item.success ? "OK" : "Erro"}
-                    </Badge>
+                {filteredItems.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhum resultado encontrado para "{searchQuery}"</p>
                   </div>
-                ))}
+                ) : (
+                  filteredItems.map((item, index) => {
+                    const isExpanded = expandedItems.has(item.id);
+                    
+                    return (
+                      <Collapsible
+                        key={`${item.id}-${index}`}
+                        open={isExpanded}
+                        onOpenChange={() => toggleExpanded(item.id)}
+                      >
+                        <div className={`rounded-lg border transition-colors ${
+                          item.success 
+                            ? 'bg-green-500/10 border-green-500/30' 
+                            : 'bg-red-500/10 border-red-500/30'
+                        }`}>
+                          <CollapsibleTrigger asChild>
+                            <button className="w-full flex items-start gap-2 p-2 text-left hover:bg-accent/50 rounded-lg transition-colors">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                              )}
+                              
+                              {item.success ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                              )}
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{item.number}</span>
+                                  {isExpanded && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                                      Detalhes
+                                    </Badge>
+                                  )}
+                                </div>
+                                {item.success && item.updates?.title && (
+                                  <div className="text-xs text-green-600 truncate">
+                                    → {item.updates.title}
+                                  </div>
+                                )}
+                                {!item.success && item.error && !isExpanded && (
+                                  <div className="text-xs text-red-600 truncate">
+                                    {item.error}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <Badge variant={item.success ? "default" : "destructive"} className="flex-shrink-0">
+                                {item.success ? "OK" : "Erro"}
+                              </Badge>
+                            </button>
+                          </CollapsibleTrigger>
+                          
+                          <CollapsibleContent>
+                            <div className="px-10 pb-3 space-y-2">
+                              {item.success && item.updates && (
+                                <>
+                                  {item.updates.title && (
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Novo título:</Label>
+                                      <p className="text-sm text-green-700 dark:text-green-400">
+                                        {item.updates.title}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {item.updates.summary && (
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Sumário:</Label>
+                                      <p className="text-sm text-muted-foreground">
+                                        {item.updates.summary}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {item.updates.entity && (
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Emissor:</Label>
+                                      <p className="text-sm text-muted-foreground">
+                                        {item.updates.entity}
+                                      </p>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              {!item.success && item.error && (
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Erro:</Label>
+                                  <p className="text-sm text-red-600">
+                                    {item.error}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    );
+                  })
+                )}
               </div>
             </ScrollArea>
           )}
