@@ -16,7 +16,11 @@ import {
   Filter,
   List,
   TreePine,
-  X
+  X,
+  Tags,
+  Flag,
+  Globe,
+  CheckCircle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -312,7 +316,8 @@ export default function Biblioteca() {
           <div className="flex flex-wrap gap-2 mb-4">
             {/* Theme chip */}
             {selectedThemeId && !selectedCategoryId && themes && (
-              <Badge variant="default" className="gap-1 pr-1">
+              <Badge variant="default" className="gap-1.5 pr-1">
+                <Tags className="h-3 w-3" />
                 {themes.find(t => t.id === selectedThemeId)?.name}
                 <button
                   onClick={() => setSelectedThemeId(null)}
@@ -327,7 +332,8 @@ export default function Biblioteca() {
               const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
               const category = theme?.categories.find(c => c.id === selectedCategoryId);
               return theme && category ? (
-                <Badge variant="default" className="gap-1 pr-1">
+                <Badge variant="default" className="gap-1.5 pr-1">
+                  <Tags className="h-3 w-3" />
                   {theme.name} → {category.name}
                   <button
                     onClick={() => {
@@ -342,7 +348,8 @@ export default function Biblioteca() {
               ) : null;
             })()}
             {selectedSource === "dre" && (
-              <Badge variant="secondary" className="gap-1 pr-1">
+              <Badge variant="secondary" className="gap-1.5 pr-1">
+                <Flag className="h-3 w-3" />
                 DRE
                 <button
                   onClick={() => setSelectedSource("all")}
@@ -353,7 +360,8 @@ export default function Biblioteca() {
               </Badge>
             )}
             {selectedSource === "eurlex" && (
-              <Badge variant="secondary" className="gap-1 pr-1">
+              <Badge variant="secondary" className="gap-1.5 pr-1">
+                <Globe className="h-3 w-3" />
                 EUR-Lex
                 <button
                   onClick={() => setSelectedSource("all")}
@@ -364,7 +372,8 @@ export default function Biblioteca() {
               </Badge>
             )}
             {filterStartDate && (
-              <Badge variant="secondary" className="gap-1 pr-1">
+              <Badge variant="secondary" className="gap-1.5 pr-1">
+                <Calendar className="h-3 w-3" />
                 De: {format(new Date(filterStartDate), "dd/MM/yyyy")}
                 <button
                   onClick={() => setFilterStartDate(null)}
@@ -375,7 +384,8 @@ export default function Biblioteca() {
               </Badge>
             )}
             {filterEndDate && (
-              <Badge variant="secondary" className="gap-1 pr-1">
+              <Badge variant="secondary" className="gap-1.5 pr-1">
+                <Calendar className="h-3 w-3" />
                 Até: {format(new Date(filterEndDate), "dd/MM/yyyy")}
                 <button
                   onClick={() => setFilterEndDate(null)}
@@ -386,7 +396,8 @@ export default function Biblioteca() {
               </Badge>
             )}
             {selectedApplicability !== "all" && (
-              <Badge variant="secondary" className="gap-1 pr-1">
+              <Badge variant="secondary" className="gap-1.5 pr-1">
+                <CheckCircle className="h-3 w-3" />
                 {applicabilityFilterOptions.find(o => o.value === selectedApplicability)?.label}
                 <button
                   onClick={() => setSelectedApplicability("all")}
