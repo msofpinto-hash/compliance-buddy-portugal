@@ -30,6 +30,7 @@ import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
 import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
 import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
+import { FindMissingUrlsDialog } from "./FindMissingUrlsDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -48,6 +49,7 @@ export function DataQualityPanel() {
   const [showValidateUrlsDialog, setShowValidateUrlsDialog] = useState(false);
   const [showFixTitlesDialog, setShowFixTitlesDialog] = useState(false);
   const [showFixEurlexTitlesDialog, setShowFixEurlexTitlesDialog] = useState(false);
+  const [showFindMissingUrlsDialog, setShowFindMissingUrlsDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
 
   // Fetch comprehensive data quality statistics
@@ -412,11 +414,23 @@ export function DataQualityPanel() {
 
         <ProblemCard
           icon={<LinkIcon className="h-5 w-5" />}
-          title="Sem URL"
+          title="URLs em Falta (PT)"
+          count={qualityStats?.genericTitlesPTNoUrl || 0}
+          total={qualityStats?.ptLegislation || 0}
+          severity="warning"
+          description="Diplomas PT com título genérico mas sem URL do DRE"
+          action="Encontrar URLs"
+          onAction={() => setShowFindMissingUrlsDialog(true)}
+          disabled={(qualityStats?.genericTitlesPTNoUrl || 0) === 0}
+        />
+
+        <ProblemCard
+          icon={<LinkIcon className="h-5 w-5" />}
+          title="Sem URL (Geral)"
           count={qualityStats?.missingUrl || 0}
           total={qualityStats?.total || 0}
           severity="warning"
-          description="Diplomas sem link para documento oficial"
+          description="Todos os diplomas sem link para documento oficial"
           action="Corrigir Metadados"
           onAction={() => setShowFixMetadataDialog(true)}
         />
@@ -528,6 +542,12 @@ export function DataQualityPanel() {
         open={showFixEurlexTitlesDialog}
         onOpenChange={setShowFixEurlexTitlesDialog}
         genericTitlesCount={qualityStats?.genericTitlesEU || 0}
+      />
+
+      <FindMissingUrlsDialog
+        open={showFindMissingUrlsDialog}
+        onOpenChange={setShowFindMissingUrlsDialog}
+        missingUrlsCount={qualityStats?.genericTitlesPTNoUrl || 0}
       />
     </div>
   );
