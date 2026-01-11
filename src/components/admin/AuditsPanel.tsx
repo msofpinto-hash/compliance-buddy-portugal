@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { AddAuditRequirementsDialog } from "./AddAuditRequirementsDialog";
+import { AuditRequirementCard } from "./AuditRequirementCard";
 import { 
   ClipboardCheck, 
   Plus, 
@@ -457,39 +458,13 @@ export function AuditsPanel() {
                     {auditDetails.audit_requirements?.length > 0 ? (
                       <div className="space-y-3">
                         {auditDetails.audit_requirements.map((ar: any) => (
-                          <div key={ar.id} className="rounded-lg border p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-muted-foreground">
-                                  {ar.legislation?.number}
-                                </p>
-                                {ar.legal_requirements?.article && (
-                                  <p className="text-sm font-medium text-primary">
-                                    {ar.legal_requirements.article}
-                                  </p>
-                                )}
-                                <p className="text-sm mt-1 line-clamp-2">
-                                  {ar.legal_requirements?.requirement_text}
-                                </p>
-                              </div>
-                              <Badge 
-                                variant="outline" 
-                                className={
-                                  ar.compliance_status === "compliant" 
-                                    ? "bg-green-100 text-green-700 border-green-300" 
-                                    : ar.compliance_status === "non_compliant"
-                                      ? "bg-red-100 text-red-700 border-red-300"
-                                      : ar.compliance_status === "partial"
-                                        ? "bg-amber-100 text-amber-700 border-amber-300"
-                                        : "bg-gray-100 text-gray-700 border-gray-300"
-                                }
-                              >
-                                {ar.compliance_status === "compliant" ? "Conforme" :
-                                 ar.compliance_status === "non_compliant" ? "Não Conforme" :
-                                 ar.compliance_status === "partial" ? "Parcial" : "Pendente"}
-                              </Badge>
-                            </div>
-                          </div>
+                          <AuditRequirementCard
+                            key={ar.id}
+                            requirement={ar}
+                            onUpdated={() => {
+                              queryClient.invalidateQueries({ queryKey: ["audit-details", selectedAudit] });
+                            }}
+                          />
                         ))}
                       </div>
                     ) : (
