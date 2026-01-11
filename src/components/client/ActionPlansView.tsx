@@ -949,32 +949,16 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
           <h2 className="text-2xl font-bold">Planos de Ação</h2>
           <p className="text-muted-foreground">Gestão de ações corretivas e preventivas</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Exportar
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportToExcel} className="gap-2 cursor-pointer">
-                <FileSpreadsheet className="h-4 w-4" />
-                Exportar Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToPDF} className="gap-2 cursor-pointer">
-                <FileText className="h-4 w-4" />
-                Exportar PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint} className="gap-2 cursor-pointer">
-                <Printer className="h-4 w-4" />
-                Imprimir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <CreateActionPlanDialog organizations={organizations} onCreated={refetch} />
-          <ImportFromAuditDialog organizations={organizations} onImported={refetch} />
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={exportToExcel} title="Exportar Excel">
+            <FileSpreadsheet className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={exportToPDF} title="Exportar PDF">
+            <Download className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handlePrint} title="Imprimir">
+            <Printer className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -1025,54 +1009,58 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button 
-            variant={filtersOpen ? "default" : "outline"} 
-            size="sm" 
-            className="gap-2"
-            onClick={() => setFiltersOpen(!filtersOpen)}
-          >
-            <Filter className="h-4 w-4" />
-            {filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
-          </Button>
-          {activeFiltersCount > 0 && (
-            <Badge variant="secondary" className="gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {activeFiltersCount} filtro(s) aplicado(s)
-              <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1" onClick={clearFilters}>
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar..."
-              value={filters.search}
-              onChange={(e) => setFilters(p => ({ ...p, search: e.target.value }))}
-              className="pl-9 w-64"
-            />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button 
+              variant={filtersOpen ? "default" : "outline"} 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setFiltersOpen(!filtersOpen)}
+            >
+              <Filter className="h-4 w-4" />
+              {filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+            </Button>
+            {activeFiltersCount > 0 && (
+              <Badge variant="secondary" className="gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {activeFiltersCount} filtro(s) aplicado(s)
+                <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1" onClick={clearFilters}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            <CreateActionPlanDialog organizations={organizations} onCreated={refetch} />
+            <ImportFromAuditDialog organizations={organizations} onImported={refetch} />
           </div>
-          <div className="flex border rounded-md">
-            <Button 
-              variant={viewMode === "list" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="rounded-r-none"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant={viewMode === "cards" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="rounded-l-none"
-              onClick={() => setViewMode("cards")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar..."
+                value={filters.search}
+                onChange={(e) => setFilters(p => ({ ...p, search: e.target.value }))}
+                className="pl-9 w-64"
+              />
+            </div>
+            <div className="flex border rounded-md">
+              <Button 
+                variant={viewMode === "list" ? "secondary" : "ghost"} 
+                size="sm" 
+                className="rounded-r-none"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant={viewMode === "cards" ? "secondary" : "ghost"} 
+                size="sm" 
+                className="rounded-l-none"
+                onClick={() => setViewMode("cards")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
