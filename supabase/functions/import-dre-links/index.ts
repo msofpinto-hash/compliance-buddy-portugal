@@ -30,6 +30,94 @@ interface ParsedLegislation {
   requirements: ParsedRequirement[];
 }
 
+// AI endpoint for extracting requirements when parsing fails
+const AI_ENDPOINT = 'https://ai.lovable.dev/v1/chat/completions';
+
+// Extract requirements using AI when HTML/markdown parsing fails or returns no results
+async function extractRequirementsWithAI(
+  legislation: { number: string; title: string; summary: string },
+  supabaseAnonKey: string
+): Promise<ParsedRequirement[]> {
+  try {
+    console.log(`Extracting requirements with AI for: ${legislation.number}`);
+    
+    const prompt = `Analisa o seguinte diploma legal português e extrai os requisitos legais mais importantes.
+
+DIPLOMA: ${legislation.number}
+TÍTULO: ${legislation.title}
+SUMÁRIO: ${legislation.summary || 'Não disponível'}
+
+Extrai entre 3 a 8 requisitos legais principais. Para cada requisito, indica:
+- article: número do artigo (ex: "Art. 5º", "Anexo I", "Art. 12º, n.º 2")
+- text: descrição clara e concisa do requisito ou obrigação legal (máx 200 caracteres)
+
+Retorna APENAS um array JSON válido, sem explicações. Exemplo:
+[{"article": "Art. 5º", "text": "As instalações devem dispor de sistemas de tratamento"}]`;
+
+    const response = await fetch(AI_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-supabase-anon-key': supabaseAnonKey,
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          { role: 'system', content: 'És um especialista em legislação portuguesa. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`AI API error: ${response.status}`);
+      return [];
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices?.[0]?.message?.content || '';
+    
+    // Parse the JSON response
+    let jsonContent = content.trim();
+    // Remove markdown code blocks if present
+    if (jsonContent.startsWith('```json')) {
+      jsonContent = jsonContent.replace(/^```json\s*\n?/, '').replace(/\n?\s*```$/, '');
+    } else if (jsonContent.startsWith('```')) {
+      jsonContent = jsonContent.replace(/^```\s*\n?/, '').replace(/\n?\s*```$/, '');
+    }
+    
+    // Try to find JSON array in the response
+    const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      jsonContent = arrayMatch[0];
+    }
+    
+    const parsed = JSON.parse(jsonContent);
+    
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    
+    // Validate and clean requirements
+    const requirements = parsed
+      .filter((r: any) => r && typeof r === 'object' && (r.text || r.requirement_text))
+      .map((r: any) => ({
+        article: String(r.article || 'Geral').substring(0, 50),
+        text: String(r.text || r.requirement_text).substring(0, 500),
+      }))
+      .slice(0, 10);
+    
+    console.log(`AI extracted ${requirements.length} requirements for ${legislation.number}`);
+    return requirements;
+    
+  } catch (error) {
+    console.error(`AI extraction error for ${legislation.number}:`, error);
+    return [];
+  }
+}
+
 const months: Record<string, string> = {
   janeiro: '01', fevereiro: '02', março: '03', abril: '04',
   maio: '05', junho: '06', julho: '07', agosto: '08',
@@ -565,7 +653,8 @@ serve(async (req) => {
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { links, updateExisting = false } = await req.json();
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const { links, updateExisting = false, extractRequirementsAI = true } = await req.json();
 
     if (!links || !Array.isArray(links) || links.length === 0) {
       return new Response(
@@ -847,8 +936,23 @@ serve(async (req) => {
         let relCount = 0;
 
         // Insert requirements (only for new records or if updating)
-        if (parsed.requirements.length > 0 && !isUpdate) {
-          const requirementsToInsert = parsed.requirements.map(req => ({
+        let requirementsToInsert = parsed.requirements;
+        
+        // If no requirements from parsing and AI extraction is enabled, use AI
+        if (requirementsToInsert.length === 0 && extractRequirementsAI && parsed.summary) {
+          console.log(`No requirements from parsing, using AI extraction for ${parsed.number}...`);
+          requirementsToInsert = await extractRequirementsWithAI(
+            { number: parsed.number, title: parsed.title, summary: parsed.summary },
+            supabaseAnonKey
+          );
+          // Small delay to avoid rate limiting
+          if (requirementsToInsert.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+        
+        if (requirementsToInsert.length > 0 && !isUpdate) {
+          const reqData = requirementsToInsert.map(req => ({
             legislation_id: legislationId,
             article: req.article,
             requirement_text: req.text
@@ -856,12 +960,12 @@ serve(async (req) => {
 
           const { error: reqError } = await supabase
             .from('legal_requirements')
-            .insert(requirementsToInsert);
+            .insert(reqData);
 
           if (reqError) {
             console.error('Error inserting requirements:', reqError.message);
           } else {
-            reqCount = requirementsToInsert.length;
+            reqCount = reqData.length;
             requirementsCreated += reqCount;
           }
         }
