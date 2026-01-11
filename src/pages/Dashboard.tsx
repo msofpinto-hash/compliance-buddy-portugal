@@ -744,13 +744,9 @@ export default function Dashboard() {
               <WelcomeHero
                 userName={userProfile?.full_name || user?.email}
                 organizationName={currentOrg?.name}
-                complianceRate={complianceRate}
-                stats={{
-                  compliant: complianceStats?.compliant || 0,
-                  nonCompliant: complianceStats?.nonCompliant || 0,
-                  inProgress: complianceStats?.inProgress || 0,
-                  total: complianceStats?.applicable || 0,
-                }}
+                alertsCount={0}
+                upcomingAudits={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length || 0}
+                pendingActions={actionPlanStats.pending + actionPlanStats.inProgress}
               />
 
               {/* Modules Grid */}
@@ -975,19 +971,10 @@ export default function Dashboard() {
                       <div className="p-1.5 rounded-lg bg-amber-500/10">
                         <TrendingUp className="h-4 w-4 text-amber-600" />
                       </div>
-                      Resumo Rápido
+                      Atividade
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Taxa de Conformidade</span>
-                      </div>
-                      <span className="font-bold text-lg" style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}>
-                        {complianceRate}%
-                      </span>
-                    </div>
                     <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-amber-600" />
