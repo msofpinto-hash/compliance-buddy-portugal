@@ -13,74 +13,74 @@ interface EURLexResult {
 
 // Fetch title from EUR-Lex SPARQL endpoint for a single CELEX
 async function fetchTitleFromSparql(celex: string): Promise<string | null> {
-  // Build SPARQL query for single CELEX - simpler and more reliable
+  // Publications Office RDF stores the human title on "expressions" and the language as a separate triple.
+  // Using LANG() on the title literal often returns "" (or nothing), so we query via expression_uses_language.
   const query = `
     PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
-    
-    SELECT DISTINCT ?title WHERE {
-      ?doc cdm:resource_legal_id_celex "${celex}" .
-      
-      {
-        ?doc cdm:resource_legal_title ?title .
-        FILTER(lang(?title) = "por")
-      }
-      UNION
-      {
-        ?doc cdm:resource_legal_title ?title .
-        FILTER(lang(?title) = "eng")
-      }
-      UNION
-      {
-        ?doc cdm:work_has_expression ?expr .
-        ?expr cdm:expression_title ?title .
-        FILTER(lang(?title) = "por" || lang(?title) = "eng")
-      }
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+    SELECT DISTINCT ?title ?iso WHERE {
+      ?w cdm:work_id_document "celex:${celex}"^^xsd:string .
+      ?expr cdm:expression_belongs_to_work ?w .
+      ?expr cdm:expression_uses_language ?langRes .
+      ?langRes skos:notation ?iso .
+      ?expr cdm:expression_title ?title .
+
+      BIND(LCASE(STR(?iso)) AS ?iso_lc)
+      FILTER(?iso_lc = "pt" || ?iso_lc = "en")
     }
+    ORDER BY (IF(LCASE(STR(?iso)) = "pt", 0, 1))
     LIMIT 1
   `;
-  
+
   try {
-    const response = await fetch('https://publications.europa.eu/webapi/rdf/sparql', {
-      method: 'POST',
+    const response = await fetch("https://publications.europa.eu/webapi/rdf/sparql", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/sparql-results+json',
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/sparql-results+json",
       },
-      body: `query=${encodeURIComponent(query)}`
+      body: `query=${encodeURIComponent(query)}`,
     });
-    
+
     if (!response.ok) {
       console.warn(`SPARQL query failed for ${celex} with status ${response.status}`);
       return null;
     }
-    
+
     const data = await response.json();
-    const binding = data.results?.bindings?.[0];
-    
-    if (binding?.title?.value) {
-      let title = binding.title.value
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      // Truncate if too long
-      if (title.length > 500) {
-        const periodIdx = title.indexOf('.', 100);
-        if (periodIdx > 0 && periodIdx < 400) {
-          title = title.substring(0, periodIdx);
-        } else {
-          title = title.substring(0, 300) + '...';
-        }
-      }
-      
-      return title;
+    const binding = data?.results?.bindings?.[0];
+
+    const raw = binding?.title?.value as string | undefined;
+    const iso = binding?.iso?.value as string | undefined;
+
+    if (!raw) {
+      console.log(`No SPARQL title found for ${celex}`);
+      return null;
     }
-    
-    return null;
+
+    let title = raw.replace(/\s+/g, " ").trim();
+
+    // Truncate if too long
+    if (title.length > 500) {
+      const periodIdx = title.indexOf(".", 100);
+      if (periodIdx > 0 && periodIdx < 400) {
+        title = title.substring(0, periodIdx);
+      } else {
+        title = title.substring(0, 300) + "...";
+      }
+    }
+
+    console.log(`SPARQL title found for ${celex} (iso=${iso ?? "n/a"})`);
+    return title;
   } catch (error) {
     console.error(`Error querying SPARQL for ${celex}:`, error);
     return null;
   }
 }
+
+
 
 // Build a readable title from CELEX if SPARQL fails
 function buildTitleFromCelex(celex: string): string {
