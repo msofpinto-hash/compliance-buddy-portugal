@@ -11,12 +11,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
 import { ManageOrganizationRequirementsDialog } from "./ManageOrganizationRequirementsDialog";
 import { ManageActionPlansDialog } from "./ManageActionPlansDialog";
 import { AssignThemesDialog, OrganizationThemesBadge } from "./AssignThemesDialog";
+import { CopyOrganizationSettingsDialog } from "./CopyOrganizationSettingsDialog";
 
 // Export report function
 async function exportReport(
@@ -70,6 +71,7 @@ export function ClientsPanel() {
   const [manageRequirementsOrg, setManageRequirementsOrg] = useState<Organization | null>(null);
   const [actionPlansOrg, setActionPlansOrg] = useState<Organization | null>(null);
   const [assignThemesOrg, setAssignThemesOrg] = useState<Organization | null>(null);
+  const [copySettingsOrg, setCopySettingsOrg] = useState<Organization | null>(null);
   const [exportingOrgId, setExportingOrgId] = useState<string | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
@@ -447,6 +449,17 @@ export function ClientsPanel() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Copiar Configurações"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCopySettingsOrg(org);
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title="Planos de Ação"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -744,6 +757,13 @@ export function ClientsPanel() {
           onOpenChange={(open) => !open && setAssignThemesOrg(null)}
         />
       )}
+
+      {/* Copy Settings Dialog */}
+      <CopyOrganizationSettingsDialog
+        sourceOrganization={copySettingsOrg}
+        open={!!copySettingsOrg}
+        onOpenChange={(open) => !open && setCopySettingsOrg(null)}
+      />
     </div>
   );
 }
