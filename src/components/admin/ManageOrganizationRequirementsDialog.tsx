@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Loader2, CheckCircle2, AlertTriangle, Clock, FileText, Building2, Scale, Filter, CheckCheck, X, Plus, ChevronDown } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Clock, FileText, Building2, Scale, Filter, CheckCheck, X, Plus, ChevronDown, Pencil, Trash2, Save } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -273,6 +273,83 @@ export function ManageOrganizationRequirementsDialog({
     onError: (error) => {
       toast({
         title: "Erro ao adicionar requisito",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update requirement mutation
+  const updateRequirementMutation = useMutation({
+    mutationFn: async ({
+      requirementId,
+      article,
+      requirement_text,
+      notes,
+    }: {
+      requirementId: string;
+      article: string | null;
+      requirement_text: string;
+      notes: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("legal_requirements")
+        .update({
+          article,
+          requirement_text,
+          notes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", requirementId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-requirements", organization?.id] });
+      queryClient.invalidateQueries({ queryKey: ["legal-requirements"] });
+      toast({ title: "Requisito atualizado" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar requisito",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete requirement mutation
+  const deleteRequirementMutation = useMutation({
+    mutationFn: async (requirementId: string) => {
+      // First delete any applicabilities
+      await supabase
+        .from("applicabilities")
+        .delete()
+        .eq("requirement_id", requirementId);
+
+      // Then delete any action plans
+      await supabase
+        .from("action_plans")
+        .delete()
+        .eq("requirement_id", requirementId);
+
+      // Finally delete the requirement
+      const { error } = await supabase
+        .from("legal_requirements")
+        .delete()
+        .eq("id", requirementId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-requirements", organization?.id] });
+      queryClient.invalidateQueries({ queryKey: ["legal-requirements"] });
+      queryClient.invalidateQueries({ queryKey: ["org-applicabilities-full", organization?.id] });
+      toast({ title: "Requisito eliminado" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao eliminar requisito",
         description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
@@ -617,71 +694,27 @@ export function ManageOrganizationRequirementsDialog({
                     const isSelected = selectedRequirements.has(req.id);
 
                     return (
-                      <Card key={req.id} className={isSelected ? "ring-2 ring-primary" : ""}>
-                        <CardContent className="pt-4 space-y-3">
-                          <div className="flex items-start gap-3">
-                            <Checkbox 
-                              checked={isSelected}
-                              onCheckedChange={() => toggleRequirement(req.id)}
-                              className="mt-1"
-                            />
-                            <div className="flex-1 space-y-1">
-                              {req.article && (
-                                <Badge variant="outline" className="text-xs">
-                                  {req.article}
-                                </Badge>
-                              )}
-                              <p className="text-sm">{req.requirement_text}</p>
-                              {req.notes && (
-                                <p className="text-xs text-muted-foreground italic">{req.notes}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col sm:flex-row gap-3 pl-7">
-                            <div className="flex gap-2">
-                              {COMPLIANCE_OPTIONS.map(opt => {
-                                const Icon = opt.icon;
-                                const isStatusSelected = currentStatus === opt.value;
-                                return (
-                                  <Button
-                                    key={opt.value}
-                                    size="sm"
-                                    variant={isStatusSelected ? "default" : "outline"}
-                                    className={`gap-1 ${isStatusSelected ? opt.bgClass : ""}`}
-                                    onClick={() => updateApplicabilityMutation.mutate({
-                                      requirementId: req.id,
-                                      isApplicable: true,
-                                      complianceStatus: opt.value,
-                                      notes: app?.notes || undefined,
-                                    })}
-                                    disabled={updateApplicabilityMutation.isPending}
-                                  >
-                                    <Icon className="h-3.5 w-3.5" />
-                                    {opt.label}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Notes field */}
-                          <div className="pl-7">
-                            <NotesField
-                              requirementId={req.id}
-                              initialNotes={app?.notes || ""}
-                              complianceStatus={app?.compliance_status || "em_curso"}
-                              onSave={(notes) => updateApplicabilityMutation.mutate({
-                                requirementId: req.id,
-                                isApplicable: true,
-                                complianceStatus: app?.compliance_status || "em_curso",
-                                notes,
-                              })}
-                              isPending={updateApplicabilityMutation.isPending}
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <RequirementCard
+                        key={req.id}
+                        requirement={req}
+                        applicability={app}
+                        currentStatus={currentStatus}
+                        isSelected={isSelected}
+                        onToggleSelect={() => toggleRequirement(req.id)}
+                        onUpdateCompliance={(status, notes) => updateApplicabilityMutation.mutate({
+                          requirementId: req.id,
+                          isApplicable: true,
+                          complianceStatus: status,
+                          notes,
+                        })}
+                        onUpdateRequirement={(data) => updateRequirementMutation.mutate({
+                          requirementId: req.id,
+                          ...data,
+                        })}
+                        onDeleteRequirement={() => deleteRequirementMutation.mutate(req.id)}
+                        isUpdating={updateApplicabilityMutation.isPending || updateRequirementMutation.isPending}
+                        isDeleting={deleteRequirementMutation.isPending}
+                      />
                     );
                   })}
                 </div>
@@ -694,17 +727,215 @@ export function ManageOrganizationRequirementsDialog({
   );
 }
 
-// Notes field component with local state
-function NotesField({
-  requirementId,
+// Requirement Card component with inline editing
+function RequirementCard({
+  requirement,
+  applicability,
+  currentStatus,
+  isSelected,
+  onToggleSelect,
+  onUpdateCompliance,
+  onUpdateRequirement,
+  onDeleteRequirement,
+  isUpdating,
+  isDeleting,
+}: {
+  requirement: LegalRequirement;
+  applicability: Applicability | undefined;
+  currentStatus: string;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  onUpdateCompliance: (status: string, notes?: string) => void;
+  onUpdateRequirement: (data: { article: string | null; requirement_text: string; notes: string | null }) => void;
+  onDeleteRequirement: () => void;
+  isUpdating: boolean;
+  isDeleting: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editArticle, setEditArticle] = useState(requirement.article || "");
+  const [editText, setEditText] = useState(requirement.requirement_text);
+  const [editNotes, setEditNotes] = useState(requirement.notes || "");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleSave = () => {
+    onUpdateRequirement({
+      article: editArticle.trim() || null,
+      requirement_text: editText.trim(),
+      notes: editNotes.trim() || null,
+    });
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditArticle(requirement.article || "");
+    setEditText(requirement.requirement_text);
+    setEditNotes(requirement.notes || "");
+    setIsEditing(false);
+  };
+
+  return (
+    <Card className={isSelected ? "ring-2 ring-primary" : ""}>
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <Checkbox 
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            className="mt-1"
+          />
+          
+          {isEditing ? (
+            <div className="flex-1 space-y-3">
+              <div className="flex gap-2">
+                <div className="w-24">
+                  <Label className="text-xs">Artigo</Label>
+                  <Input
+                    value={editArticle}
+                    onChange={(e) => setEditArticle(e.target.value)}
+                    placeholder="Art. 5º"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-xs">Texto do Requisito *</Label>
+                  <Textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Notas</Label>
+                <Textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Observações..."
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleSave} disabled={isUpdating || !editText.trim()}>
+                  {isUpdating && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                  <Save className="h-3 w-3 mr-1" />
+                  Guardar
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleCancel}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {requirement.article && (
+                    <Badge variant="outline" className="text-xs">
+                      {requirement.article}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setIsEditing(true)}
+                    title="Editar requisito"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  {showDeleteConfirm ? (
+                    <div className="flex items-center gap-1 animate-in fade-in">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => {
+                          onDeleteRequirement();
+                          setShowDeleteConfirm(false);
+                        }}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirmar"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => setShowDeleteConfirm(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive hover:text-destructive"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      title="Eliminar requisito"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-sm">{requirement.requirement_text}</p>
+              {requirement.notes && (
+                <p className="text-xs text-muted-foreground italic">{requirement.notes}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!isEditing && (
+          <>
+            <div className="flex flex-col sm:flex-row gap-3 pl-7">
+              <div className="flex gap-2">
+                {COMPLIANCE_OPTIONS.map(opt => {
+                  const Icon = opt.icon;
+                  const isStatusSelected = currentStatus === opt.value;
+                  return (
+                    <Button
+                      key={opt.value}
+                      size="sm"
+                      variant={isStatusSelected ? "default" : "outline"}
+                      className={`gap-1 ${isStatusSelected ? opt.bgClass : ""}`}
+                      onClick={() => onUpdateCompliance(opt.value, applicability?.notes || undefined)}
+                      disabled={isUpdating}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {opt.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Compliance Notes */}
+            <div className="pl-7">
+              <ComplianceNotesField
+                initialNotes={applicability?.notes || ""}
+                onSave={(notes) => onUpdateCompliance(applicability?.compliance_status || "em_curso", notes)}
+                isPending={isUpdating}
+              />
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Compliance Notes field component with local state
+function ComplianceNotesField({
   initialNotes,
-  complianceStatus,
   onSave,
   isPending,
 }: {
-  requirementId: string;
   initialNotes: string;
-  complianceStatus: string;
   onSave: (notes: string) => void;
   isPending: boolean;
 }) {
@@ -719,7 +950,7 @@ function NotesField({
         className="text-xs text-muted-foreground"
         onClick={() => setIsEditing(true)}
       >
-        + Adicionar observações
+        + Adicionar observações de conformidade
       </Button>
     );
   }
