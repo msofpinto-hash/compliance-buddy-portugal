@@ -45,6 +45,7 @@ import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { ExportColumnsDialog, ExportColumn } from "@/components/ExportColumnsDialog";
 
 const AREA_CONFIG = {
   area_ambiente: { label: "Ambiente", icon: Leaf, color: "bg-green-100 text-green-800" },
@@ -122,6 +123,21 @@ export function EvidenceReviewPanel() {
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<EvidenceRequestWithOrg | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+
+  // Export columns configuration
+  const exportColumns: ExportColumn[] = [
+    { key: "organizacao", label: "Organização" },
+    { key: "grupo", label: "Grupo" },
+    { key: "titulo", label: "Título" },
+    { key: "descricao", label: "Descrição" },
+    { key: "areas", label: "Áreas" },
+    { key: "estado", label: "Estado" },
+    { key: "dataLimite", label: "Data Limite" },
+    { key: "dataSubmissao", label: "Data Submissão" },
+    { key: "dataRevisao", label: "Data Revisão" },
+    { key: "notas", label: "Notas" },
+  ];
 
   const toggleAreaFilter = (area: string) => {
     setAreaFilters(prev => 
@@ -263,29 +279,46 @@ export function EvidenceReviewPanel() {
       .map(([key, config]) => ({ key, ...config }));
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = (selectedColumns: string[]) => {
     if (!filteredRequests?.length) {
       toast({ title: "Aviso", description: "Não há pedidos para exportar", variant: "destructive" });
       return;
     }
 
-    const exportData = filteredRequests.map(req => {
-      const areas = getTemplateAreas(req.evidence_templates)
-        .map(a => a.label)
-        .join(", ");
+    const columnMapping: Record<string, (req: EvidenceRequestWithOrg) => string> = {
+      organizacao: (req) => req.organizations.name,
+      grupo: (req) => req.evidence_templates.group_name,
+      titulo: (req) => req.evidence_templates.title,
+      descricao: (req) => req.evidence_templates.description || "",
+      areas: (req) => getTemplateAreas(req.evidence_templates).map(a => a.label).join(", "),
+      estado: (req) => STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]?.label || req.status,
+      dataLimite: (req) => req.due_date ? format(new Date(req.due_date), "dd/MM/yyyy", { locale: pt }) : "",
+      dataSubmissao: (req) => req.submitted_at ? format(new Date(req.submitted_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
+      dataRevisao: (req) => req.reviewed_at ? format(new Date(req.reviewed_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
+      notas: (req) => req.notes || "",
+    };
 
-      return {
-        "Organização": req.organizations.name,
-        "Grupo": req.evidence_templates.group_name,
-        "Título": req.evidence_templates.title,
-        "Descrição": req.evidence_templates.description || "",
-        "Áreas": areas,
-        "Estado": STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]?.label || req.status,
-        "Data Limite": req.due_date ? format(new Date(req.due_date), "dd/MM/yyyy", { locale: pt }) : "",
-        "Data Submissão": req.submitted_at ? format(new Date(req.submitted_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
-        "Data Revisão": req.reviewed_at ? format(new Date(req.reviewed_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
-        "Notas": req.notes || "",
-      };
+    const columnLabels: Record<string, string> = {
+      organizacao: "Organização",
+      grupo: "Grupo",
+      titulo: "Título",
+      descricao: "Descrição",
+      areas: "Áreas",
+      estado: "Estado",
+      dataLimite: "Data Limite",
+      dataSubmissao: "Data Submissão",
+      dataRevisao: "Data Revisão",
+      notas: "Notas",
+    };
+
+    const exportData = filteredRequests.map(req => {
+      const row: Record<string, string> = {};
+      selectedColumns.forEach(col => {
+        if (columnMapping[col]) {
+          row[columnLabels[col]] = columnMapping[col](req);
+        }
+      });
+      return row;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -293,10 +326,12 @@ export function EvidenceReviewPanel() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Pedidos de Evidência");
     
     // Auto-size columns
-    const colWidths = Object.keys(exportData[0]).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length).slice(0, 50)) + 2
-    }));
-    worksheet["!cols"] = colWidths;
+    if (exportData.length > 0) {
+      const colWidths = Object.keys(exportData[0]).map(key => ({
+        wch: Math.max(key.length, ...exportData.map(row => String(row[key]).length).slice(0, 50)) + 2
+      }));
+      worksheet["!cols"] = colWidths;
+    }
 
     const fileName = `revisao_evidencias_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
     XLSX.writeFile(workbook, fileName);
@@ -498,7 +533,7 @@ export function EvidenceReviewPanel() {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={exportToExcel}
+                onClick={() => setExportDialogOpen(true)}
                 disabled={!filteredRequests?.length}
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -508,6 +543,15 @@ export function EvidenceReviewPanel() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Export Columns Dialog */}
+      <ExportColumnsDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        columns={exportColumns}
+        onExport={exportToExcel}
+        description={`Selecione as colunas para exportar ${filteredRequests?.length || 0} pedido(s).`}
+      />
 
       {/* Requests List */}
       {isLoading ? (
