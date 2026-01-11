@@ -879,6 +879,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_legislation_without_categories_count: { Args: never; Returns: number }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
