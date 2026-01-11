@@ -18,6 +18,7 @@ import { ManageOrganizationRequirementsDialog } from "./ManageOrganizationRequir
 import { ManageActionPlansDialog } from "./ManageActionPlansDialog";
 import { AssignThemesDialog, OrganizationThemesBadge } from "./AssignThemesDialog";
 import { CopyOrganizationSettingsDialog } from "./CopyOrganizationSettingsDialog";
+import { CopyRequirementsDialog } from "./CopyRequirementsDialog";
 
 // Export report function
 async function exportReport(
@@ -72,6 +73,7 @@ export function ClientsPanel() {
   const [actionPlansOrg, setActionPlansOrg] = useState<Organization | null>(null);
   const [assignThemesOrg, setAssignThemesOrg] = useState<Organization | null>(null);
   const [copySettingsOrg, setCopySettingsOrg] = useState<Organization | null>(null);
+  const [copyRequirementsOrg, setCopyRequirementsOrg] = useState<Organization | null>(null);
   const [exportingOrgId, setExportingOrgId] = useState<string | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
@@ -460,6 +462,17 @@ export function ClientsPanel() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Copiar Requisitos Específicos"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCopyRequirementsOrg(org);
+                        }}
+                      >
+                        <ClipboardCheck className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title="Planos de Ação"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -763,6 +776,13 @@ export function ClientsPanel() {
         sourceOrganization={copySettingsOrg}
         open={!!copySettingsOrg}
         onOpenChange={(open) => !open && setCopySettingsOrg(null)}
+      />
+
+      {/* Copy Requirements Dialog */}
+      <CopyRequirementsDialog
+        sourceOrganization={copyRequirementsOrg}
+        open={!!copyRequirementsOrg}
+        onOpenChange={(open) => !open && setCopyRequirementsOrg(null)}
       />
     </div>
   );
