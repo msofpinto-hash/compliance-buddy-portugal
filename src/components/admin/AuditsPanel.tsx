@@ -37,7 +37,8 @@ import { pt } from "date-fns/locale";
 const statusConfig = {
   planned: { label: "Planeada", color: "bg-blue-100 text-blue-700 border-blue-300", icon: Clock },
   in_progress: { label: "Em Curso", color: "bg-amber-100 text-amber-700 border-amber-300", icon: AlertCircle },
-  completed: { label: "Concluída", color: "bg-green-100 text-green-700 border-green-300", icon: CheckCircle2 },
+  pending_approval: { label: "Em Aprovação", color: "bg-purple-100 text-purple-700 border-purple-300", icon: FileText },
+  closed: { label: "Encerrada", color: "bg-green-100 text-green-700 border-green-300", icon: CheckCircle2 },
   cancelled: { label: "Cancelada", color: "bg-gray-100 text-gray-700 border-gray-300", icon: XCircle },
 };
 
@@ -258,7 +259,7 @@ export function AuditsPanel() {
     }
   };
 
-  const handleStatusChange = async (auditId: string, newStatus: "planned" | "in_progress" | "completed" | "cancelled") => {
+  const handleStatusChange = async (auditId: string, newStatus: "planned" | "in_progress" | "pending_approval" | "closed" | "cancelled") => {
     try {
       const { error } = await supabase
         .from("audits")
@@ -375,7 +376,8 @@ export function AuditsPanel() {
                       </div>
                       <Select
                         value={auditDetails.status}
-                        onValueChange={(v) => handleStatusChange(auditDetails.id, v as "planned" | "in_progress" | "completed" | "cancelled")}
+                        onValueChange={(v) => handleStatusChange(auditDetails.id, v as "planned" | "in_progress" | "pending_approval" | "closed" | "cancelled")}
+                        disabled={auditDetails.status === "closed"}
                       >
                         <SelectTrigger className="w-[160px]">
                           <SelectValue />
@@ -383,7 +385,8 @@ export function AuditsPanel() {
                         <SelectContent>
                           <SelectItem value="planned">Planeada</SelectItem>
                           <SelectItem value="in_progress">Em Curso</SelectItem>
-                          <SelectItem value="completed">Concluída</SelectItem>
+                          <SelectItem value="pending_approval">Em Aprovação</SelectItem>
+                          <SelectItem value="closed">Encerrada</SelectItem>
                           <SelectItem value="cancelled">Cancelada</SelectItem>
                         </SelectContent>
                       </Select>

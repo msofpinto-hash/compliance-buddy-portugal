@@ -304,6 +304,8 @@ export type Database = {
       }
       audits: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           audit_date: string | null
           auditor: string | null
           created_at: string
@@ -323,6 +325,8 @@ export type Database = {
           weaknesses: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           audit_date?: string | null
           auditor?: string | null
           created_at?: string
@@ -342,6 +346,8 @@ export type Database = {
           weaknesses?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           audit_date?: string | null
           auditor?: string | null
           created_at?: string
@@ -983,7 +989,12 @@ export type Database = {
         | "documentos"
         | "indicadores"
       app_role: "admin" | "client"
-      audit_status: "planned" | "in_progress" | "completed" | "cancelled"
+      audit_status:
+        | "planned"
+        | "in_progress"
+        | "pending_approval"
+        | "closed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1119,7 +1130,13 @@ export const Constants = {
         "indicadores",
       ],
       app_role: ["admin", "client"],
-      audit_status: ["planned", "in_progress", "completed", "cancelled"],
+      audit_status: [
+        "planned",
+        "in_progress",
+        "pending_approval",
+        "closed",
+        "cancelled",
+      ],
     },
   },
 } as const
