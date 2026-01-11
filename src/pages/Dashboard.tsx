@@ -29,15 +29,19 @@ import {
   User,
   Calendar,
   XCircle,
-  ExternalLink
+  ExternalLink,
+  Download,
+  Loader2,
+  Lock
 } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { ActionPlansView } from "@/components/client/ActionPlansView";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { format, subDays, eachDayOfInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import {
@@ -87,8 +91,11 @@ const ALL_MODULES: NavItem[] = [
 
 export default function Dashboard() {
   const { user, signOut, isAdmin } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [approvingAuditId, setApprovingAuditId] = useState<string | null>(null);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
@@ -241,7 +248,7 @@ export default function Dashboard() {
   };
 
   // Fetch audits for ALL organizations
-  const { data: audits, isLoading: loadingAudits } = useQuery({
+  const { data: audits, isLoading: loadingAudits, refetch: refetchAudits } = useQuery({
     queryKey: ["audits-all", organizationIds],
     queryFn: async () => {
       if (organizationIds.length === 0) return [];
@@ -255,6 +262,31 @@ export default function Dashboard() {
     },
     enabled: organizationIds.length > 0,
   });
+
+  // Handle audit approval
+  const handleApproveAudit = async (auditId: string) => {
+    setApprovingAuditId(auditId);
+    try {
+      const { error } = await supabase
+        .from("audits")
+        .update({ 
+          status: "closed",
+          approved_by: user?.id,
+          approved_at: new Date().toISOString()
+        })
+        .eq("id", auditId);
+      
+      if (error) throw error;
+      
+      toast({ title: "Auditoria aprovada", description: "A auditoria foi encerrada com sucesso." });
+      refetchAudits();
+    } catch (error) {
+      console.error("Error approving audit:", error);
+      toast({ title: "Erro", description: "Não foi possível aprovar a auditoria", variant: "destructive" });
+    } finally {
+      setApprovingAuditId(null);
+    }
+  };
 
   // Compliance stats for ALL organizations
   const { data: complianceStats } = useQuery({
@@ -797,20 +829,23 @@ export default function Dashboard() {
                         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                           <div className="flex-1 space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge 
+                            <Badge 
                                 variant="outline" 
                                 className={`gap-1 ${
-                                  audit.status === "completed" 
+                                  audit.status === "closed" 
                                     ? "bg-green-500 text-white border-0" 
                                     : audit.status === "in_progress" 
                                     ? "bg-yellow-500 text-white border-0" 
+                                    : audit.status === "pending_approval"
+                                    ? "bg-purple-500 text-white border-0"
                                     : audit.status === "cancelled"
                                     ? "bg-gray-500 text-white border-0"
                                     : "bg-blue-500 text-white border-0"
                                 }`}
                               >
-                                {audit.status === "completed" ? "Concluída" : 
+                                {audit.status === "closed" ? "Encerrada" : 
                                  audit.status === "in_progress" ? "Em Curso" : 
+                                 audit.status === "pending_approval" ? "Em Aprovação" :
                                  audit.status === "cancelled" ? "Cancelada" : "Planeada"}
                               </Badge>
                             </div>
@@ -832,6 +867,30 @@ export default function Dashboard() {
                                 </div>
                               )}
                             </div>
+                          </div>
+                          {/* Action buttons */}
+                          <div className="flex flex-col gap-2">
+                            {audit.status === "pending_approval" && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveAudit(audit.id)}
+                                disabled={approvingAuditId === audit.id}
+                                className="gap-2"
+                              >
+                                {approvingAuditId === audit.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4" />
+                                )}
+                                Aprovar
+                              </Button>
+                            )}
+                            {audit.status === "closed" && (
+                              <div className="flex items-center gap-1 text-sm text-green-600">
+                                <Lock className="h-4 w-4" />
+                                <span>Encerrada</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </CardContent>
