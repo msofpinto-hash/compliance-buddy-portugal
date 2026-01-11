@@ -452,7 +452,7 @@ export default function Dashboard() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Legislação Recente</CardTitle>
-                <Link to="/biblioteca" className="text-sm text-primary hover:underline flex items-center gap-1">
+                <Link to="/legislacao-recente" className="text-sm text-primary hover:underline flex items-center gap-1">
                   Ver mais <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>

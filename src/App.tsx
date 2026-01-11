@@ -12,9 +12,11 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Biblioteca from "./pages/Biblioteca";
 import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
+import LegislacaoRecente from "./pages/LegislacaoRecente";
 import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -72,6 +74,14 @@ const App = () => (
               element={
                 <RequireAuth>
                   <Settings />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/legislacao-recente"
+              element={
+                <RequireAuth>
+                  <LegislacaoRecente />
                 </RequireAuth>
               }
             />
