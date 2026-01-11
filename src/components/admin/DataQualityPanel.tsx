@@ -71,9 +71,9 @@ export function DataQualityPanel() {
       ] = await Promise.all([
         // Total legislation
         supabase.from("legislation").select("id", { count: "exact", head: true }),
-        // Generic titles - fetch all with origin to detect title=number pattern
+        // Generic titles - fetch all with origin and document_url to detect title=number pattern
         supabase.from("legislation")
-          .select("id, number, title, origin, external_id"),
+          .select("id, number, title, origin, external_id, document_url"),
         // Missing summary
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
@@ -131,17 +131,30 @@ export function DataQualityPanel() {
       const duplicateCount = Array.from(reqMap.values()).reduce((acc, count) => acc + (count > 1 ? count - 1 : 0), 0);
 
       // Count generic titles PT (title = number or matches generic pattern)
+      // Only count those with valid DRE URL (can be auto-corrected)
       const genericPatternPT = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Declaração|Acórdão|Aviso|Parecer)\s+n\.?º?\s/i;
       const ptLegislationData = (genericTitles.data || []).filter((leg: any) => 
         leg.origin === 'PT' || leg.origin === 'dre'
       );
-      const genericTitlesPTCount = ptLegislationData.filter((leg: any) => {
+      
+      // Filter PT legislation with generic titles
+      const ptWithGenericTitles = ptLegislationData.filter((leg: any) => {
         const titleEqualsNumber = leg.title === leg.number;
         const hasGenericPattern = genericPatternPT.test(leg.title) && 
           leg.title.length < 80 && 
           !leg.title.includes(' - ');
         return titleEqualsNumber || hasGenericPattern || !leg.title;
-      }).length;
+      });
+      
+      // Count only those with valid DRE URL (can be auto-corrected via scraping)
+      const genericTitlesPTCount = ptWithGenericTitles.filter((leg: any) => 
+        leg.document_url && leg.document_url.includes('/dr/detalhe/')
+      ).length;
+      
+      // Count those without valid URL (need manual intervention)
+      const genericTitlesPTNoUrlCount = ptWithGenericTitles.filter((leg: any) => 
+        !leg.document_url || !leg.document_url.includes('/dr/detalhe/')
+      ).length;
 
       // Count generic titles EU (title equals CELEX/number or is very short)
       const euLegislationData = (genericTitles.data || []).filter((leg: any) => 
@@ -166,6 +179,7 @@ export function DataQualityPanel() {
       return {
         total,
         genericTitlesPT: genericTitlesPTCount,
+        genericTitlesPTNoUrl: genericTitlesPTNoUrlCount,
         genericTitlesEU: genericTitlesEUCount,
         missingSummary: missingSummary.count || 0,
         missingUrl: missingUrlCount,
@@ -365,9 +379,9 @@ export function DataQualityPanel() {
           icon={<FileText className="h-5 w-5" />}
           title="Títulos Genéricos (PT)"
           count={qualityStats?.genericTitlesPT || 0}
-          total={qualityStats?.total || 0}
+          total={qualityStats?.ptLegislation || 0}
           severity="error"
-          description="Diplomas PT com título igual ao número (requer scraping DRE)"
+          description={`Diplomas PT com título genérico e URL válido${qualityStats?.genericTitlesPTNoUrl ? ` (+${qualityStats.genericTitlesPTNoUrl} sem URL)` : ''}`}
           action="Corrigir via DRE"
           onAction={() => setShowFixTitlesDialog(true)}
           disabled={(qualityStats?.genericTitlesPT || 0) === 0}
