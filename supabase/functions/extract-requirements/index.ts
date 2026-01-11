@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { legislationIds, limit, dryRun } = await req.json();
+    const { legislationIds, limit, dryRun, origin } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     if (legislationIds && legislationIds.length > 0) {
       const { data, error } = await supabase
         .from('legislation')
-        .select('id, number, title, summary, document_url')
+        .select('id, number, title, summary, document_url, origin')
         .in('id', legislationIds);
       
       if (error) throw error;
@@ -53,10 +53,20 @@ Deno.serve(async (req) => {
       
       const idsWithReqs = new Set(existingReqs?.map(r => r.legislation_id) || []);
       
-      const { data: allLegislation } = await supabase
+      // Build query with optional origin filter
+      let query = supabase
         .from('legislation')
-        .select('id, number, title, summary, document_url')
+        .select('id, number, title, summary, document_url, origin')
         .order('publication_date', { ascending: false });
+      
+      // Apply origin filter if specified
+      if (origin === 'PT') {
+        query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+      } else if (origin === 'EU') {
+        query = query.or('origin.eq.EU,origin.eq.eurlex');
+      }
+      
+      const { data: allLegislation } = await query;
       
       const legislationWithoutReqs = allLegislation?.filter(l => !idsWithReqs.has(l.id)) || [];
       legislationToProcess = legislationWithoutReqs.slice(0, limit || 10);
