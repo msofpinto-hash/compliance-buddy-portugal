@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy, FileSpreadsheet } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
 import { ManageOrganizationRequirementsDialog } from "./ManageOrganizationRequirementsDialog";
@@ -19,47 +19,7 @@ import { ManageActionPlansDialog } from "./ManageActionPlansDialog";
 import { AssignThemesDialog, OrganizationThemesBadge } from "./AssignThemesDialog";
 import { CopyOrganizationSettingsDialog } from "./CopyOrganizationSettingsDialog";
 import { CopyRequirementsDialog } from "./CopyRequirementsDialog";
-
-// Export report function
-async function exportReport(
-  organizationId: string, 
-  organizationName: string, 
-  reportType: "compliance" | "legislation" | "requirements" = "compliance"
-) {
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-compliance-report`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ organizationId, reportType }),
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Falha ao gerar relatório");
-  }
-
-  const html = await response.text();
-  const blob = new Blob([html], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  
-  const filenames: Record<string, string> = {
-    compliance: `relatorio-conformidade-${organizationName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
-    legislation: `legislacao-aplicavel-${organizationName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
-    requirements: `requisitos-legais-${organizationName.replace(/[^a-zA-Z0-9]/g, "-")}.html`,
-  };
-  
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filenames[reportType];
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
+import { ExportReportDialog } from "./ExportReportDialog";
 
 type Organization = Tables<"organizations">;
 
@@ -74,23 +34,11 @@ export function ClientsPanel() {
   const [assignThemesOrg, setAssignThemesOrg] = useState<Organization | null>(null);
   const [copySettingsOrg, setCopySettingsOrg] = useState<Organization | null>(null);
   const [copyRequirementsOrg, setCopyRequirementsOrg] = useState<Organization | null>(null);
-  const [exportingOrgId, setExportingOrgId] = useState<string | null>(null);
+  const [exportReportOrg, setExportReportOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
-
-  const handleExportReport = async (org: Organization, reportType: "compliance" | "legislation" | "requirements" = "compliance") => {
-    setExportingOrgId(org.id);
-    try {
-      await exportReport(org.id, org.name, reportType);
-      toast.success("Relatório exportado com sucesso");
-    } catch (error) {
-      toast.error("Erro ao exportar relatório");
-    } finally {
-      setExportingOrgId(null);
-    }
-  };
 
   // Fetch organizations
   const { data: organizations, isLoading } = useQuery({
@@ -401,53 +349,18 @@ export function ClientsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {/* Export Dropdown */}
-                      <div className="relative group">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Exportar Relatórios"
-                          disabled={exportingOrgId === org.id}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {exportingOrgId === org.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Download className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <div 
-                          className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="p-1">
-                            <button
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
-                              onClick={() => handleExportReport(org, "legislation")}
-                              disabled={exportingOrgId === org.id}
-                            >
-                              <FileText className="h-4 w-4" />
-                              Lista de Legislação
-                            </button>
-                            <button
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
-                              onClick={() => handleExportReport(org, "requirements")}
-                              disabled={exportingOrgId === org.id}
-                            >
-                              <ClipboardList className="h-4 w-4" />
-                              Lista de Requisitos
-                            </button>
-                            <button
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm flex items-center gap-2 disabled:opacity-50"
-                              onClick={() => handleExportReport(org, "compliance")}
-                              disabled={exportingOrgId === org.id}
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                              Relatório Completo
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                      {/* Export Button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Exportar Relatórios"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExportReportOrg(org);
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -784,6 +697,16 @@ export function ClientsPanel() {
         open={!!copyRequirementsOrg}
         onOpenChange={(open) => !open && setCopyRequirementsOrg(null)}
       />
+
+      {/* Export Report Dialog */}
+      {exportReportOrg && (
+        <ExportReportDialog
+          organizationId={exportReportOrg.id}
+          organizationName={exportReportOrg.name}
+          open={!!exportReportOrg}
+          onOpenChange={(open) => !open && setExportReportOrg(null)}
+        />
+      )}
     </div>
   );
 }
