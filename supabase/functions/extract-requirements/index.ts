@@ -12,9 +12,13 @@ interface Requirement {
 
 interface ExtractionResult {
   legislationId: string;
+  legislationNumber: string;
   requirements: Requirement[];
   error?: string;
 }
+
+// Use Lovable AI gateway - no external API key required
+const AI_ENDPOINT = 'https://ai.lovable.dev/v1/chat/completions';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -26,25 +30,21 @@ Deno.serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-
-    if (!lovableApiKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'LOVABLE_API_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get legislation to process
-    let query = supabase
-      .from('legislation')
-      .select('id, number, title, summary, document_url')
-      .order('publication_date', { ascending: false });
+    let legislationToProcess: any[] = [];
 
     if (legislationIds && legislationIds.length > 0) {
-      query = query.in('id', legislationIds);
+      const { data, error } = await supabase
+        .from('legislation')
+        .select('id, number, title, summary, document_url')
+        .in('id', legislationIds);
+      
+      if (error) throw error;
+      legislationToProcess = data || [];
     } else {
       // Get legislation without requirements
       const { data: existingReqs } = await supabase
@@ -59,77 +59,61 @@ Deno.serve(async (req) => {
         .order('publication_date', { ascending: false });
       
       const legislationWithoutReqs = allLegislation?.filter(l => !idsWithReqs.has(l.id)) || [];
-      
-      const toProcess = legislationWithoutReqs.slice(0, limit || 10);
-      
-      if (toProcess.length === 0) {
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Todos os diplomas já têm requisitos',
-            processed: 0,
-            results: []
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      query = supabase
-        .from('legislation')
-        .select('id, number, title, summary, document_url')
-        .in('id', toProcess.map(l => l.id));
+      legislationToProcess = legislationWithoutReqs.slice(0, limit || 10);
     }
 
-    const { data: legislation, error: legError } = await query;
-
-    if (legError) {
-      console.error('Error fetching legislation:', legError);
+    if (legislationToProcess.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: legError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: true, 
+          message: 'Todos os diplomas já têm requisitos',
+          processed: 0,
+          successful: 0,
+          failed: 0,
+          totalRequirements: 0,
+          results: []
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Processing ${legislation?.length || 0} legislation items`);
+    console.log(`Processing ${legislationToProcess.length} legislation items`);
 
     const results: ExtractionResult[] = [];
     let totalRequirements = 0;
+    let consecutiveErrors = 0;
 
-    for (const leg of legislation || []) {
+    for (const leg of legislationToProcess) {
       console.log(`Extracting requirements from: ${leg.number}`);
       
       try {
         const prompt = `Analisa o seguinte diploma legal português e extrai os requisitos legais mais importantes.
-Para cada requisito, indica o artigo ou secção e o texto do requisito de forma clara e concisa.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-Extrai entre 3 a 10 requisitos legais principais. Para cada requisito:
+Extrai entre 3 a 8 requisitos legais principais. Para cada requisito, indica:
 - article: número do artigo (ex: "Art. 5º", "Anexo I", "Art. 12º, n.º 2")
-- requirement_text: descrição clara do requisito ou obrigação legal
+- requirement_text: descrição clara e concisa do requisito ou obrigação legal (máx 200 caracteres)
 
-Retorna APENAS um array JSON válido com os requisitos, sem explicações adicionais.
-Exemplo de formato:
-[
-  {"article": "Art. 5º", "requirement_text": "As instalações devem dispor de sistemas de tratamento de águas residuais"},
-  {"article": "Art. 12º", "requirement_text": "É obrigatória a monitorização mensal das emissões atmosféricas"}
-]`;
+Retorna APENAS um array JSON válido, sem explicações. Exemplo:
+[{"article": "Art. 5º", "requirement_text": "As instalações devem dispor de sistemas de tratamento"}]`;
 
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const response = await fetch(AI_ENDPOINT, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
             'Content-Type': 'application/json',
+            'x-supabase-anon-key': supabaseAnonKey,
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'google/gemini-2.5-flash-lite',
             messages: [
-              { role: 'system', content: 'És um especialista em legislação portuguesa. Extrai requisitos legais de forma precisa e estruturada. Responde apenas com JSON válido.' },
+              { role: 'system', content: 'És um especialista em legislação portuguesa. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
               { role: 'user', content: prompt }
             ],
-            temperature: 0.3,
+            temperature: 0.2,
+            max_tokens: 1500,
           }),
         });
 
@@ -137,31 +121,51 @@ Exemplo de formato:
           const errorText = await response.text();
           console.error(`AI API error for ${leg.number}:`, response.status, errorText);
           
+          consecutiveErrors++;
+          
           if (response.status === 429) {
-            results.push({ legislationId: leg.id, requirements: [], error: 'Rate limit - aguardar' });
-            // Wait before continuing
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements: [], error: 'Rate limit - aguardar' });
+            await new Promise(resolve => setTimeout(resolve, 10000));
             continue;
           }
           
-          results.push({ legislationId: leg.id, requirements: [], error: `API error: ${response.status}` });
+          if (response.status === 402) {
+            results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements: [], error: 'Créditos insuficientes' });
+            // Stop processing if we hit payment issues
+            if (consecutiveErrors > 3) {
+              console.error('Too many consecutive payment errors, stopping');
+              break;
+            }
+            continue;
+          }
+          
+          results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements: [], error: `API error: ${response.status}` });
           continue;
         }
+
+        // Reset consecutive errors on success
+        consecutiveErrors = 0;
 
         const aiData = await response.json();
         const content = aiData.choices?.[0]?.message?.content || '';
         
-        console.log(`AI response for ${leg.number}:`, content.substring(0, 200));
+        console.log(`AI response for ${leg.number}:`, content.substring(0, 150));
 
         // Parse the JSON response
         let requirements: Requirement[] = [];
         try {
-          // Clean up the response - remove markdown code blocks if present
           let jsonContent = content.trim();
+          // Remove markdown code blocks if present
           if (jsonContent.startsWith('```json')) {
-            jsonContent = jsonContent.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+            jsonContent = jsonContent.replace(/^```json\s*\n?/, '').replace(/\n?\s*```$/, '');
           } else if (jsonContent.startsWith('```')) {
-            jsonContent = jsonContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
+            jsonContent = jsonContent.replace(/^```\s*\n?/, '').replace(/\n?\s*```$/, '');
+          }
+          
+          // Try to find JSON array in the response
+          const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
+          if (arrayMatch) {
+            jsonContent = arrayMatch[0];
           }
           
           requirements = JSON.parse(jsonContent);
@@ -169,9 +173,19 @@ Exemplo de formato:
           if (!Array.isArray(requirements)) {
             requirements = [];
           }
+          
+          // Validate and clean requirements
+          requirements = requirements
+            .filter(r => r && typeof r === 'object' && r.requirement_text)
+            .map(r => ({
+              article: String(r.article || 'Geral').substring(0, 50),
+              requirement_text: String(r.requirement_text).substring(0, 500),
+            }))
+            .slice(0, 10); // Max 10 requirements per legislation
+            
         } catch (parseError) {
-          console.error(`Parse error for ${leg.number}:`, parseError);
-          results.push({ legislationId: leg.id, requirements: [], error: 'Failed to parse AI response' });
+          console.error(`Parse error for ${leg.number}:`, parseError, 'Content:', content.substring(0, 200));
+          results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements: [], error: 'Erro ao processar resposta IA' });
           continue;
         }
 
@@ -179,7 +193,7 @@ Exemplo de formato:
         if (!dryRun && requirements.length > 0) {
           const toInsert = requirements.map(req => ({
             legislation_id: leg.id,
-            article: req.article || 'Geral',
+            article: req.article,
             requirement_text: req.requirement_text,
           }));
 
@@ -189,31 +203,35 @@ Exemplo de formato:
 
           if (insertError) {
             console.error(`Insert error for ${leg.number}:`, insertError);
-            results.push({ legislationId: leg.id, requirements, error: insertError.message });
+            results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements, error: insertError.message });
             continue;
           }
+          
+          console.log(`Inserted ${requirements.length} requirements for ${leg.number}`);
         }
 
         totalRequirements += requirements.length;
-        results.push({ legislationId: leg.id, requirements });
+        results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements });
 
         // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
       } catch (error) {
         console.error(`Error processing ${leg.number}:`, error);
         results.push({ 
           legislationId: leg.id, 
+          legislationNumber: leg.number,
           requirements: [], 
-          error: error instanceof Error ? error.message : 'Unknown error' 
+          error: error instanceof Error ? error.message : 'Erro desconhecido' 
         });
       }
     }
 
-    const successful = results.filter(r => !r.error).length;
+    const successful = results.filter(r => !r.error && r.requirements.length > 0).length;
     const failed = results.filter(r => r.error).length;
+    const noRequirements = results.filter(r => !r.error && r.requirements.length === 0).length;
 
-    console.log(`Extraction complete: ${successful} successful, ${failed} failed, ${totalRequirements} requirements total`);
+    console.log(`Extraction complete: ${successful} successful, ${failed} failed, ${noRequirements} no requirements, ${totalRequirements} total requirements`);
 
     return new Response(
       JSON.stringify({ 
@@ -222,9 +240,11 @@ Exemplo de formato:
         processed: results.length,
         successful,
         failed,
+        noRequirements,
         totalRequirements,
         results: results.map(r => ({
           legislationId: r.legislationId,
+          legislationNumber: r.legislationNumber,
           requirementsCount: r.requirements.length,
           error: r.error,
         })),
