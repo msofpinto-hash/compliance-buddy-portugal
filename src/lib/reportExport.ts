@@ -17,6 +17,7 @@ export interface ReportData {
     id: string;
     name: string;
     description?: string;
+    logoUrl?: string;
   };
   legislation: LegislationItem[];
   requirements: RequirementItem[];
@@ -201,6 +202,7 @@ export async function fetchReportData(organizationId: string): Promise<ReportDat
       id: org.id,
       name: org.name,
       description: org.description || undefined,
+      logoUrl: org.logo_url || undefined,
     },
     legislation,
     requirements,
@@ -391,17 +393,46 @@ const PDF_COLORS = {
   header: [243, 244, 246] as [number, number, number],
 };
 
-function addPDFHeader(doc: jsPDF, title: string, orgName: string): void {
+// Helper to load image as base64
+async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function addPDFHeader(doc: jsPDF, title: string, orgName: string, logoBase64?: string | null): void {
+  let textStartX = 20;
+  
+  // Add logo if available
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', 20, 12, 30, 30);
+      textStartX = 60;
+    } catch {
+      // If logo fails to load, continue without it
+    }
+  }
+  
   doc.setFontSize(20);
   doc.setTextColor(17, 24, 39);
-  doc.text(title, 20, 25);
+  doc.text(title, textStartX, 25);
   
   doc.setFontSize(12);
   doc.setTextColor(...PDF_COLORS.muted);
-  doc.text(orgName, 20, 35);
+  doc.text(orgName, textStartX, 35);
   
   doc.setFontSize(10);
-  doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-PT")}`, 20, 45);
+  doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-PT")}`, textStartX, 45);
   
   // Line under header
   doc.setDrawColor(229, 231, 235);
@@ -443,10 +474,15 @@ function addStatsBox(doc: jsPDF, stats: ReportStats, startY: number): number {
   return startY + boxHeight + 15;
 }
 
-export function exportLegislationToPDF(data: ReportData): void {
+export async function exportLegislationToPDF(data: ReportData): Promise<void> {
   const doc = new jsPDF();
   
-  addPDFHeader(doc, "Lista de Legislação Aplicável", data.organization.name);
+  // Load logo if available
+  const logoBase64 = data.organization.logoUrl 
+    ? await loadImageAsBase64(data.organization.logoUrl) 
+    : null;
+  
+  addPDFHeader(doc, "Lista de Legislação Aplicável", data.organization.name, logoBase64);
   
   doc.autoTable({
     startY: 60,
@@ -499,10 +535,15 @@ export function exportLegislationToPDF(data: ReportData): void {
   doc.save(fileName);
 }
 
-export function exportRequirementsToPDF(data: ReportData): void {
+export async function exportRequirementsToPDF(data: ReportData): Promise<void> {
   const doc = new jsPDF();
   
-  addPDFHeader(doc, "Lista de Requisitos Legais", data.organization.name);
+  // Load logo if available
+  const logoBase64 = data.organization.logoUrl 
+    ? await loadImageAsBase64(data.organization.logoUrl) 
+    : null;
+  
+  addPDFHeader(doc, "Lista de Requisitos Legais", data.organization.name, logoBase64);
   
   let currentY = addStatsBox(doc, data.stats, 55);
   
@@ -583,10 +624,15 @@ export function exportRequirementsToPDF(data: ReportData): void {
   doc.save(fileName);
 }
 
-export function exportComplianceReportToPDF(data: ReportData): void {
+export async function exportComplianceReportToPDF(data: ReportData): Promise<void> {
   const doc = new jsPDF();
   
-  addPDFHeader(doc, "Relatório de Conformidade Legal", data.organization.name);
+  // Load logo if available
+  const logoBase64 = data.organization.logoUrl 
+    ? await loadImageAsBase64(data.organization.logoUrl) 
+    : null;
+  
+  addPDFHeader(doc, "Relatório de Conformidade Legal", data.organization.name, logoBase64);
   
   let currentY = addStatsBox(doc, data.stats, 55);
   
