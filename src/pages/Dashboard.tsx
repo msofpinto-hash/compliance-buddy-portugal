@@ -49,6 +49,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const COLORS = {
   compliant: "hsl(142, 76%, 36%)",
@@ -458,16 +459,25 @@ export default function Dashboard() {
                   className="pl-9 w-64 bg-card"
                 />
               </div>
-              <Link to="/legislacao-recente">
-                <Button variant="ghost" size="icon" className="relative">
-                  <FileText className="h-5 w-5" />
-                  {unreadLegislationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                      {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
-                    </span>
-                  )}
-                </Button>
-              </Link>
+              <TooltipProvider>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <Link to="/legislacao-recente">
+                      <Button variant="ghost" size="icon" className="relative">
+                        <FileText className="h-5 w-5" />
+                        {unreadLegislationCount > 0 && (
+                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                            {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
+                          </span>
+                        )}
+                      </Button>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{unreadLegislationCount > 0 ? `${unreadLegislationCount} diplomas por ler` : "Legislação recente"}</p>
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
             </div>
           </div>
         </header>
