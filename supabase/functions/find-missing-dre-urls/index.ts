@@ -133,13 +133,90 @@ async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string
   }
 }
 
+declare const EdgeRuntime: { waitUntil: (promise: Promise<void>) => void };
+
+async function processInBackground(
+  supabase: any,
+  legislation: any[],
+  firecrawlKey: string,
+  logId: string
+) {
+  let found = 0;
+  let failed = 0;
+  
+  for (let i = 0; i < legislation.length; i++) {
+    const leg = legislation[i];
+    
+    try {
+      console.log(`[${i+1}/${legislation.length}] Searching URL for ${leg.number}...`);
+      
+      const dreUrl = await searchDREWithFirecrawlSearch(leg.number, firecrawlKey);
+      
+      if (dreUrl) {
+        const { error: updateError } = await supabase
+          .from('legislation')
+          .update({ 
+            document_url: dreUrl,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', leg.id);
+        
+        if (!updateError) {
+          console.log(`Updated ${leg.number} with URL: ${dreUrl}`);
+          found++;
+        } else {
+          console.error(`Failed to update ${leg.number}:`, updateError);
+          failed++;
+        }
+      } else {
+        console.log(`No URL found for ${leg.number}`);
+        failed++;
+      }
+      
+      // Update progress every 5 items
+      if ((i + 1) % 5 === 0 || i === legislation.length - 1) {
+        await supabase
+          .from('sync_logs')
+          .update({
+            items_processed: i + 1,
+            items_added: found,
+            items_updated: failed,
+            status: i === legislation.length - 1 ? 'completed' : 'running'
+          })
+          .eq('id', logId);
+      }
+      
+      // Rate limiting - 2 seconds between requests
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+    } catch (error) {
+      console.error(`Error processing ${leg.number}:`, error);
+      failed++;
+    }
+  }
+  
+  // Final update
+  await supabase
+    .from('sync_logs')
+    .update({
+      items_processed: legislation.length,
+      items_added: found,
+      items_updated: failed,
+      status: 'completed',
+      completed_at: new Date().toISOString()
+    })
+    .eq('id', logId);
+  
+  console.log(`Background job completed: ${found} found, ${failed} failed`);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { limit = 20, dryRun = false, stream = false } = await req.json().catch(() => ({}));
+    const { limit = 20, dryRun = false, stream = false, background = false } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -196,6 +273,41 @@ Deno.serve(async (req) => {
     
     console.log(`Found ${toProcess.length} PT legislation without valid DRE URLs`);
     
+    // Background mode
+    if (background) {
+      // Create sync log
+      const { data: logData, error: logError } = await supabase
+        .from('sync_logs')
+        .insert({
+          sync_type: 'find_dre_urls',
+          status: 'running',
+          items_processed: 0,
+          items_added: 0,
+          items_updated: 0
+        })
+        .select('id')
+        .single();
+      
+      if (logError) {
+        throw logError;
+      }
+      
+      const logId = logData.id;
+      
+      // Start background processing
+      EdgeRuntime.waitUntil(processInBackground(supabase, toProcess, firecrawlKey, logId));
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Background job started',
+          jobId: logId,
+          total: toProcess.length
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (toProcess.length === 0) {
       return new Response(
         JSON.stringify({ success: true, message: 'No legislation without URLs found', found: 0, failed: 0, details: [] }),
