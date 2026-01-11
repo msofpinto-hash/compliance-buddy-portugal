@@ -468,11 +468,6 @@ export default function Dashboard() {
                   )}
                 </Button>
               </Link>
-              <Link to="/settings">
-                <Button variant="ghost" size="icon">
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </Link>
             </div>
           </div>
         </header>
