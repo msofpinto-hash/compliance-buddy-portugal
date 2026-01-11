@@ -96,6 +96,7 @@ export default function Dashboard() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [approvingAuditId, setApprovingAuditId] = useState<string | null>(null);
+  const [exportingAuditId, setExportingAuditId] = useState<string | null>(null);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
@@ -285,6 +286,39 @@ export default function Dashboard() {
       toast({ title: "Erro", description: "Não foi possível aprovar a auditoria", variant: "destructive" });
     } finally {
       setApprovingAuditId(null);
+    }
+  };
+
+  // Handle audit PDF export
+  const handleExportAuditPDF = async (auditId: string, auditTitle: string) => {
+    setExportingAuditId(auditId);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-compliance-report", {
+        body: { 
+          auditId,
+          reportType: "audit"
+        }
+      });
+
+      if (error) throw error;
+
+      // Create blob and download
+      const blob = new Blob([data.html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Auditoria_${auditTitle.replace(/[^a-zA-Z0-9]/g, "_")}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({ title: "Relatório gerado", description: "O relatório foi descarregado com sucesso" });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast({ title: "Erro", description: "Não foi possível gerar o relatório", variant: "destructive" });
+    } finally {
+      setExportingAuditId(null);
     }
   };
 
@@ -870,6 +904,23 @@ export default function Dashboard() {
                           </div>
                           {/* Action buttons */}
                           <div className="flex flex-col gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExportAuditPDF(audit.id, audit.title);
+                              }}
+                              disabled={exportingAuditId === audit.id}
+                              className="gap-2"
+                            >
+                              {exportingAuditId === audit.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                              Exportar
+                            </Button>
                             {audit.status === "pending_approval" && (
                               <Button
                                 size="sm"
