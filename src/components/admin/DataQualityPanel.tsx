@@ -800,25 +800,17 @@ function ProblemCard({
 
 // Relation Type Icon Component
 function RelationTypeIcon({ type }: { type: string }) {
-  const iconClass = "h-4 w-4";
-  
   switch (type.toLowerCase()) {
-    case 'revoga':
-    case 'revogado_por':
+    case 'revogado':
+    case 'revogacao_parcial':
       return <span className="text-red-500">✕</span>;
-    case 'altera':
-    case 'alterado_por':
+    case 'alteracao':
       return <span className="text-amber-500">✎</span>;
-    case 'transpoe':
-    case 'transposto_por':
+    case 'transposicao':
       return <span className="text-blue-500">↔</span>;
-    case 'regulamenta':
-    case 'regulamentado_por':
+    case 'regulamentacao':
       return <span className="text-green-500">§</span>;
-    case 'consolida':
-    case 'consolidado_por':
-      return <span className="text-purple-500">⊕</span>;
     default:
-      return <GitBranch className={`${iconClass} text-muted-foreground`} />;
+      return <GitBranch className="h-4 w-4 text-muted-foreground" />;
   }
 }
