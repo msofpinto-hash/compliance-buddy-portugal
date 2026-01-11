@@ -4,17 +4,19 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Upload, 
   FileSpreadsheet, 
   CheckCircle2, 
   AlertCircle,
   Loader2,
-  FileText
+  Building2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 
 interface ParsedTemplate {
@@ -66,11 +68,26 @@ export function ImportEvidenceTemplatesDialog() {
   const [parsedTemplates, setParsedTemplates] = useState<ParsedTemplate[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [importResult, setImportResult] = useState<{
     templatesCreated: number;
     linksCreated: number;
+    requestsCreated: number;
     errors?: string[];
   } | null>(null);
+
+  // Fetch organizations
+  const { data: organizations } = useQuery({
+    queryKey: ["organizations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -150,13 +167,15 @@ export function ImportEvidenceTemplatesDialog() {
       const batchSize = 50;
       let totalCreated = 0;
       let totalLinks = 0;
+      let totalRequests = 0;
       const allErrors: string[] = [];
+      const createdTemplateIds: string[] = [];
 
       for (let i = 0; i < parsedTemplates.length; i += batchSize) {
         const batch = parsedTemplates.slice(i, i + batchSize);
         
         const { data, error } = await supabase.functions.invoke("import-evidence-templates", {
-          body: { templates: batch }
+          body: { templates: batch, organizationId: selectedOrgId || undefined }
         });
 
         if (error) {
@@ -164,6 +183,8 @@ export function ImportEvidenceTemplatesDialog() {
         } else if (data) {
           totalCreated += data.templatesCreated || 0;
           totalLinks += data.linksCreated || 0;
+          totalRequests += data.requestsCreated || 0;
+          if (data.templateIds) createdTemplateIds.push(...data.templateIds);
           if (data.errors) allErrors.push(...data.errors);
         }
 
@@ -173,14 +194,18 @@ export function ImportEvidenceTemplatesDialog() {
       setImportResult({
         templatesCreated: totalCreated,
         linksCreated: totalLinks,
+        requestsCreated: totalRequests,
         errors: allErrors.length > 0 ? allErrors : undefined,
       });
 
       queryClient.invalidateQueries({ queryKey: ["evidence-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["evidence-request-counts"] });
       
       toast({ 
         title: "Importação concluída", 
-        description: `${totalCreated} templates criados, ${totalLinks} ligações a diplomas.` 
+        description: selectedOrgId 
+          ? `${totalCreated} templates criados, ${totalRequests} pedidos atribuídos.`
+          : `${totalCreated} templates criados, ${totalLinks} ligações a diplomas.`
       });
     } catch (error) {
       console.error("Import error:", error);
@@ -198,6 +223,7 @@ export function ImportEvidenceTemplatesDialog() {
     setParsedTemplates([]);
     setImportProgress(0);
     setImportResult(null);
+    setSelectedOrgId("");
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -264,6 +290,32 @@ export function ImportEvidenceTemplatesDialog() {
                 </Button>
               </div>
 
+              {/* Organization selector */}
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Atribuir a organização (opcional)
+                </Label>
+                <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Apenas criar catálogo (sem atribuição)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Apenas criar catálogo</SelectItem>
+                    {organizations?.map(org => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {selectedOrgId && selectedOrgId !== "none"
+                    ? "Os templates serão criados e atribuídos como pedidos de evidência a esta organização."
+                    : "Os templates serão adicionados ao catálogo global, podendo ser atribuídos depois."}
+                </p>
+              </div>
+
               <ScrollArea className="h-[300px] border rounded-lg p-4">
                 <div className="space-y-3">
                   {Object.entries(groupedTemplates).map(([groupName, templates]) => (
@@ -309,7 +361,9 @@ export function ImportEvidenceTemplatesDialog() {
                 <div>
                   <h4 className="font-medium text-green-900">Importação concluída</h4>
                   <p className="text-sm text-green-700">
-                    {importResult.templatesCreated} templates criados, {importResult.linksCreated} ligações a diplomas
+                    {importResult.templatesCreated} templates criados
+                    {importResult.linksCreated > 0 && `, ${importResult.linksCreated} ligações a diplomas`}
+                    {importResult.requestsCreated > 0 && `, ${importResult.requestsCreated} pedidos atribuídos`}
                   </p>
                 </div>
               </div>

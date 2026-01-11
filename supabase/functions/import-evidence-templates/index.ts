@@ -57,13 +57,19 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { templates } = await req.json() as { templates: EvidenceTemplate[] };
+    const { templates, organizationId } = await req.json() as { 
+      templates: EvidenceTemplate[];
+      organizationId?: string;
+    };
 
     if (!templates || !Array.isArray(templates)) {
       throw new Error("Invalid templates data");
     }
 
     console.log(`Processing ${templates.length} evidence templates...`);
+    if (organizationId) {
+      console.log(`Will assign to organization: ${organizationId}`);
+    }
 
     // Get all legislation for matching
     const { data: allLegislation, error: legError } = await supabase
@@ -79,6 +85,8 @@ serve(async (req) => {
 
     let templatesCreated = 0;
     let linksCreated = 0;
+    let requestsCreated = 0;
+    const templateIds: string[] = [];
     const errors: string[] = [];
 
     for (const template of templates) {
@@ -127,6 +135,8 @@ serve(async (req) => {
           templatesCreated++;
         }
 
+        templateIds.push(templateId);
+
         // Link to legislation
         for (const legNumber of template.legislation_numbers) {
           // Find matching legislation by number
@@ -152,6 +162,24 @@ serve(async (req) => {
             }
           }
         }
+
+        // If organizationId is provided, create an evidence request for this organization
+        if (organizationId && organizationId !== "none") {
+          const { error: requestError } = await supabase
+            .from("organization_evidence_requests")
+            .upsert({
+              organization_id: organizationId,
+              template_id: templateId,
+              status: "pending",
+            }, {
+              onConflict: "organization_id,template_id",
+              ignoreDuplicates: true,
+            });
+
+          if (!requestError) {
+            requestsCreated++;
+          }
+        }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         errors.push(`Error processing template "${template.title?.substring(0, 50)}": ${errorMessage}`);
@@ -163,6 +191,8 @@ serve(async (req) => {
         success: true,
         templatesCreated,
         linksCreated,
+        requestsCreated,
+        templateIds,
         errors: errors.length > 0 ? errors : undefined,
       }),
       {
