@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, User, FileText, Target, Users, CheckCircle2, Building2, AlertCircle } from "lucide-react";
+import { Calendar, User, FileText, Target, Users, CheckCircle2, Building2, AlertCircle, Crosshair } from "lucide-react";
 
 interface AuditPlanDetailsDialogProps {
   open: boolean;
@@ -24,6 +24,7 @@ interface AuditPlanDetailsDialogProps {
     methodology?: string | null;
     interlocutors?: string | null;
     scope?: string | null;
+    objectives?: string | null;
     executive_summary?: string | null;
     strengths?: string | null;
     weaknesses?: string | null;
@@ -40,6 +41,13 @@ export function AuditPlanDetailsDialog({
 
   // Required fields that should always be visible with placeholder if empty
   const requiredFields = [
+    {
+      title: "Objetivos da Auditoria",
+      content: audit.objectives,
+      icon: Crosshair,
+      required: true,
+      description: "Objetivos e metas da auditoria",
+    },
     {
       title: "Metodologia",
       content: audit.methodology,
@@ -153,7 +161,7 @@ export function AuditPlanDetailsDialog({
               <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
                 Informação do Plano de Auditoria
               </h3>
-              <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
                 {requiredFields.map((field, index) => (
                   <div 
                     key={index} 
