@@ -4,7 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil, Wrench } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil, Wrench, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { format } from "date-fns";
@@ -21,6 +31,9 @@ import { LegislationTimeline } from "./LegislationTimeline";
 import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 type SortField = "title" | "number" | "publication_date" | "theme";
 type SortOrder = "asc" | "desc";
@@ -29,6 +42,8 @@ const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("publication_date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -50,6 +65,8 @@ export function LegislationPanel() {
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
   const [bulkFixDialogOpen, setBulkFixDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Extract unique themes from legislation categories
   const availableThemes = useMemo(() => {
@@ -267,6 +284,64 @@ export function LegislationPanel() {
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      
+      // Delete related data first (category mappings, organization assignments, relations)
+      await supabase
+        .from("legislation_category_mapping")
+        .delete()
+        .in("legislation_id", idsToDelete);
+      
+      await supabase
+        .from("organization_legislation")
+        .delete()
+        .in("legislation_id", idsToDelete);
+      
+      await supabase
+        .from("legislation_relations")
+        .delete()
+        .or(`source_legislation_id.in.(${idsToDelete.join(",")}),target_legislation_id.in.(${idsToDelete.join(",")})`);
+
+      // Delete legal requirements
+      await supabase
+        .from("legal_requirements")
+        .delete()
+        .in("legislation_id", idsToDelete);
+      
+      // Delete legislation
+      const { error } = await supabase
+        .from("legislation")
+        .delete()
+        .in("id", idsToDelete);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Legislação eliminada",
+        description: `${idsToDelete.length} diploma(s) eliminado(s) com sucesso`,
+      });
+      
+      clearSelection();
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({
+        title: "Erro ao eliminar",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setBulkDeleteDialogOpen(false);
+    }
   };
 
   if (isLoading) {
@@ -551,6 +626,14 @@ export function LegislationPanel() {
                     >
                       <CalendarDays className="h-4 w-4 mr-1" />
                       Editar Datas ({selectedIds.size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setBulkDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Eliminar ({selectedIds.size})
                     </Button>
                   </>
                 )}
@@ -886,6 +969,64 @@ export function LegislationPanel() {
         onOpenChange={setBulkFixDialogOpen}
         problemsCount={problemsCount}
       />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Confirmar Eliminação
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>
+                  Está prestes a eliminar permanentemente <strong>{selectedIds.size} diploma(s)</strong>.
+                </p>
+                
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm">
+                  <strong className="text-destructive">Atenção:</strong> Esta ação é irreversível. 
+                  Serão também eliminados:
+                  <ul className="list-disc list-inside mt-2 text-muted-foreground">
+                    <li>Associações a categorias</li>
+                    <li>Atribuições a organizações</li>
+                    <li>Relações com outros diplomas</li>
+                    <li>Requisitos legais associados</li>
+                  </ul>
+                </div>
+
+                {selectedLegislationList.length <= 10 && (
+                  <div className="max-h-40 overflow-y-auto border rounded p-2 text-sm">
+                    <p className="font-medium mb-2">Diplomas a eliminar:</p>
+                    <ul className="space-y-1">
+                      {selectedLegislationList.map(leg => (
+                        <li key={leg.id} className="text-muted-foreground truncate">
+                          • {leg.number} - {leg.title}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Eliminar {selectedIds.size} diploma(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
