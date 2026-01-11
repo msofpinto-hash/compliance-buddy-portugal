@@ -29,108 +29,106 @@ function sendSSE(controller: ReadableStreamDefaultController<Uint8Array>, event:
   controller.enqueue(new TextEncoder().encode(data));
 }
 
-// Extract a simplified search term from the legislation number
-function extractSearchTerm(number: string): string {
-  // Examples:
-  // "Decreto-Lei n.º 97/2008, de 11 de junho" -> "Decreto-Lei 97/2008"
-  // "Portaria n.º 98/2025/1 de 12 de março" -> "Portaria 98/2025"
-  // "Despacho n.º 3495-C/2025 de 19 de março" -> "Despacho 3495-C/2025"
-  
+// Extract type and number for DRE URL construction
+function extractLegislationParts(number: string): { type: string; num: string; year: string } | null {
   const cleanNumber = number.trim();
   
-  // Try to extract type and number
-  const match = cleanNumber.match(/^([\w-]+)\s+n\.?º?\s*([\d\-A-Za-z\/]+)/i);
-  if (match) {
-    return `${match[1]} ${match[2]}`;
+  // Pattern: "Decreto-Lei n.º 97/2008, de 11 de junho"
+  // Pattern: "Portaria n.º 98/2025/1 de 12 de março"
+  // Pattern: "Despacho n.º 3495-C/2025 de 19 de março"
+  
+  const patterns = [
+    // Decreto-Lei n.º 97/2008
+    /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Portaria n.º 98/2025/1
+    /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Lei n.º 13/2025
+    /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Despacho n.º 3495-C/2025
+    /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Resolução do Conselho de Ministros n.º 10/2025
+    /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Resolução n.º 2/2025
+    /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Declaração de Retificação n.º X/YYYY
+    /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Aviso n.º X/YYYY
+    /^(Aviso)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Regulamento n.º X/YYYY
+    /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Acórdão do Tribunal Constitucional n.º X/YYYY
+    /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Decreto Regulamentar n.º X/YYYY
+    /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    // Decreto n.º X/YYYY
+    /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = cleanNumber.match(pattern);
+    if (match) {
+      return {
+        type: match[1].toLowerCase().replace(/\s+/g, '-'),
+        num: match[2],
+        year: match[3]
+      };
+    }
   }
   
-  // Fallback: just use the first part before comma
-  const parts = cleanNumber.split(',');
-  return parts[0].replace(/\s+de\s+\d+\s+de\s+\w+$/i, '').trim();
+  return null;
 }
 
-async function searchDREForLink(number: string, firecrawlKey: string): Promise<string | null> {
+async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string): Promise<string | null> {
   try {
-    // Extract a simplified search term
-    const searchTerm = extractSearchTerm(number);
+    // Use Firecrawl's search API to find the legislation on DRE
+    const parts = extractLegislationParts(number);
+    let searchQuery: string;
     
-    // Use the DRE search with simpler query
-    const searchUrl = `https://diariodarepublica.pt/dr/pesquisa/-/search/basic?q=${encodeURIComponent(searchTerm)}`;
+    if (parts) {
+      searchQuery = `site:diariodarepublica.pt/dr/detalhe ${parts.type} ${parts.num}/${parts.year}`;
+    } else {
+      // Fallback to simple search
+      const cleanNumber = number.split(',')[0].trim();
+      searchQuery = `site:diariodarepublica.pt/dr/detalhe "${cleanNumber}"`;
+    }
     
-    console.log(`Searching DRE for: "${searchTerm}" (original: ${number})`);
+    console.log(`Searching with Firecrawl: ${searchQuery}`);
     
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const response = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url: searchUrl,
-        formats: ['links', 'markdown'],
-        waitFor: 5000, // Wait longer for JS to load
+        query: searchQuery,
+        limit: 5,
       }),
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.log(`Search scrape failed: ${response.status} - ${errorText}`);
+      console.log(`Search failed: ${response.status} - ${errorText}`);
       return null;
     }
     
     const data = await response.json();
-    const links: string[] = data.data?.links || data.links || [];
-    const markdown: string = data.data?.markdown || data.markdown || '';
+    const results = data.data || [];
     
-    console.log(`Found ${links.length} links on page`);
+    console.log(`Found ${results.length} search results`);
     
-    // Find direct detail link that matches the legislation
-    for (const link of links) {
-      if (link.includes('/dr/detalhe/') && !link.includes('/pesquisa/')) {
-        // Verify this link matches our search term
-        const linkLower = link.toLowerCase();
-        const searchLower = searchTerm.toLowerCase();
-        
-        // Extract number pattern from link (e.g., "decreto-lei/97-2008")
-        const linkMatch = link.match(/\/dr\/detalhe\/([^\/]+)\/(\d+)-?(\d+)/i);
-        if (linkMatch) {
-          // Check if year matches
-          const searchYearMatch = searchTerm.match(/\/(\d{4})/);
-          const searchNumMatch = searchTerm.match(/(\d+)[-\/]/);
-          
-          if (searchYearMatch && linkMatch[3] && linkMatch[3].includes(searchYearMatch[1].slice(-2))) {
-            console.log(`Found matching DRE link: ${link}`);
-            return link;
-          }
-          
-          if (searchNumMatch && linkMatch[2] === searchNumMatch[1]) {
-            console.log(`Found matching DRE link by number: ${link}`);
-            return link;
-          }
-        }
-        
-        // If it's the first detail link, use it as fallback
-        console.log(`Found DRE link (first match): ${link}`);
-        return link;
+    // Find the best matching result
+    for (const result of results) {
+      const url = result.url || '';
+      if (url.includes('/dr/detalhe/') && url.includes('diariodarepublica.pt')) {
+        console.log(`Found DRE link: ${url}`);
+        return url;
       }
-    }
-    
-    // Try to find any relevant link in the markdown content
-    const urlMatches = markdown.match(/https:\/\/diariodarepublica\.pt\/dr\/detalhe\/[^\s\)]+/g);
-    if (urlMatches && urlMatches.length > 0) {
-      console.log(`Found URL in markdown: ${urlMatches[0]}`);
-      return urlMatches[0];
-    }
-    
-    // If we have links, log them for debugging
-    if (links.length > 0) {
-      const dreLinks = links.filter(l => l.includes('diariodarepublica.pt'));
-      console.log(`DRE links found: ${dreLinks.slice(0, 5).join(', ')}`);
     }
     
     return null;
   } catch (error) {
-    console.error(`Error searching DRE: ${error}`);
+    console.error(`Error in search: ${error}`);
     return null;
   }
 }
@@ -168,7 +166,6 @@ Deno.serve(async (req) => {
     }
     
     // Filter to those without valid DRE detail URL
-    // Also filter out non-PT legislation types that might be misclassified
     const toProcess = (legislation || [])
       .filter(leg => {
         // Must be PT origin
@@ -185,6 +182,13 @@ Deno.serve(async (req) => {
                      leg.number.includes('Diretiva ') ||
                      leg.number.includes('UNECE');
         if (isEU) return false;
+        
+        // Must be parseable as PT legislation
+        const parts = extractLegislationParts(leg.number);
+        if (!parts) {
+          console.log(`Skipping unparseable: ${leg.number}`);
+          return false;
+        }
         
         return true;
       })
@@ -212,9 +216,9 @@ Deno.serve(async (req) => {
             const leg = toProcess[i];
             
             try {
-              console.log(`Searching URL for ${leg.number}...`);
+              console.log(`[${i+1}/${toProcess.length}] Searching URL for ${leg.number}...`);
               
-              const dreUrl = await searchDREForLink(leg.number, firecrawlKey);
+              const dreUrl = await searchDREWithFirecrawlSearch(leg.number, firecrawlKey);
               
               if (dreUrl) {
                 if (dryRun) {
@@ -259,7 +263,7 @@ Deno.serve(async (req) => {
                 });
               }
               
-              // Rate limiting - be nice to the DRE (2 seconds between requests)
+              // Rate limiting - 2 seconds between requests
               await new Promise(resolve => setTimeout(resolve, 2000));
               
             } catch (error) {
@@ -302,7 +306,7 @@ Deno.serve(async (req) => {
       try {
         console.log(`Searching URL for ${leg.number}...`);
         
-        const dreUrl = await searchDREForLink(leg.number, firecrawlKey);
+        const dreUrl = await searchDREWithFirecrawlSearch(leg.number, firecrawlKey);
         
         if (dreUrl) {
           if (dryRun) {
