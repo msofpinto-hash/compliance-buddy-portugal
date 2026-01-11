@@ -327,8 +327,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         </Card>
       )}
 
-      {/* Tree View */}
-      <div className="flex gap-4 h-[calc(100vh-380px)]">
+      {/* Tree View - 2 column layout */}
+      <div className="flex gap-4 h-[calc(100vh-340px)]">
       {/* Theme selector - only show if not hidden */}
       {!hideThemesColumn && (
         <Card className="w-64 flex-shrink-0">
@@ -372,7 +372,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
       {/* Category tree */}
       {selectedTheme ? (
-        <Card className="w-72 flex-shrink-0 overflow-hidden">
+        <Card className="w-64 min-w-[200px] flex-shrink-0 overflow-hidden">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
@@ -406,8 +406,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-440px)]">
+          <CardContent className="p-2 overflow-hidden">
+            <ScrollArea className="h-[calc(100vh-400px)]">
               <div className="space-y-0.5 pr-2">
                 {categoryTree.map(node => renderCategoryNode(node))}
               </div>
@@ -415,7 +415,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           </CardContent>
         </Card>
       ) : hideThemesColumn ? (
-        <Card className="w-72 flex-shrink-0 overflow-hidden">
+        <Card className="w-64 min-w-[200px] flex-shrink-0 overflow-hidden">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm flex items-center gap-2">
               <Tags className="h-4 w-4" />
@@ -473,8 +473,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             }
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-2">
-          <ScrollArea className="h-[calc(100vh-420px)]">
+        <CardContent className="p-2 overflow-hidden">
+          <ScrollArea className="h-[calc(100vh-400px)]">
             {displayedLegislation.length > 0 ? (
               <div className="space-y-2">
                 {displayedLegislation.map(leg => {
@@ -491,9 +491,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         isNotEvaluated ? 'border-l-4 border-l-amber-400 bg-amber-50/30' : ''
                       }`}
                     >
-                      {/* Header row: Source badge + Applicability + Number + Actions */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+                      {/* Header row: Source badge + Applicability/Pending + Actions */}
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <Badge 
                             variant="outline"
                             className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${
@@ -531,7 +531,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                                 <TooltipTrigger asChild>
                                   <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 shrink-0">
                                     <AlertCircle className="h-3 w-3" />
-                                    <span className="hidden sm:inline">Pendente</span>
+                                    Pendente
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-xs">
@@ -540,25 +540,21 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                               </Tooltip>
                             </TooltipProvider>
                           )}
-                          <span className="font-mono text-xs text-muted-foreground truncate">
-                            {leg.number}
-                          </span>
+                          {requirementsCount > 0 && (
+                            <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 h-5 bg-primary/10 text-primary border-primary/30">
+                              <ListChecks className="h-2.5 w-2.5 mr-0.5" />
+                              {requirementsCount}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex gap-0.5 shrink-0">
-                          {requirementsCount > 0 && (
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title={`${requirementsCount} requisitos`}>
-                              <Link to={`/legislacao/${leg.id}#requisitos`}>
-                                <ListChecks className="h-3.5 w-3.5" />
-                              </Link>
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title="Ver detalhes">
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Ver detalhes">
                             <Link to={`/legislacao/${leg.id}`}>
                               <Eye className="h-3.5 w-3.5" />
                             </Link>
                           </Button>
                           {leg.document_url && (
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title="Abrir documento">
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild title="Abrir documento">
                               <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </a>
@@ -567,44 +563,24 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         </div>
                       </div>
                       
-                      {/* Title */}
+                      {/* Number + Title */}
                       <Link 
                         to={`/legislacao/${leg.id}`} 
-                        className="font-medium text-sm hover:text-primary hover:underline transition-colors line-clamp-2 block mb-2"
+                        className="block hover:text-primary transition-colors"
                       >
-                        {leg.title}
+                        <p className="font-semibold text-sm">
+                          {leg.number}
+                        </p>
+                        <p className="text-sm text-foreground/90 line-clamp-2">
+                          {leg.title}
+                        </p>
                       </Link>
                       
-                      {/* Entity */}
-                      {leg.entity && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2 truncate">
-                          <Building2 className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{leg.entity}</span>
+                      {/* Summary */}
+                      {(leg as any).summary && (
+                        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                          {(leg as any).summary}
                         </p>
-                      )}
-
-                      {/* Compact dates - inline */}
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground mb-2">
-                        {leg.publication_date && (
-                          <span>Pub: {new Date(leg.publication_date).toLocaleDateString('pt-PT')}</span>
-                        )}
-                        {leg.effective_date && (
-                          <span>Vigor: {new Date(leg.effective_date).toLocaleDateString('pt-PT')}</span>
-                        )}
-                        {(leg as any).revocation_date && (
-                          <span className="text-destructive">Revogado: {new Date((leg as any).revocation_date).toLocaleDateString('pt-PT')}</span>
-                        )}
-                      </div>
-
-                      {/* Requirements count badge */}
-                      {requirementsCount > 0 && (
-                        <Link 
-                          to={`/legislacao/${leg.id}#requisitos`}
-                          className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        >
-                          <ListChecks className="h-3 w-3" />
-                          {requirementsCount} requisito{requirementsCount !== 1 ? 's' : ''}
-                        </Link>
                       )}
                     </div>
                   );
