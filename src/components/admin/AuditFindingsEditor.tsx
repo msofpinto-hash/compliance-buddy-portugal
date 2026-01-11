@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Loader2, AlertTriangle, Lightbulb, Users, FileText, ThumbsUp, ThumbsDown, ClipboardList } from "lucide-react";
+import { Save, Loader2, AlertTriangle, Lightbulb, Users, FileText, ThumbsUp, ThumbsDown, ClipboardList, Crosshair, Building2 } from "lucide-react";
 
 interface AuditFindingsEditorProps {
   auditId: string;
@@ -16,6 +16,8 @@ interface AuditFindingsEditorProps {
   strengths?: string | null;
   weaknesses?: string | null;
   executiveSummary?: string | null;
+  objectives?: string | null;
+  scope?: string | null;
   onUpdated: () => void;
 }
 
@@ -28,6 +30,8 @@ export function AuditFindingsEditor({
   strengths: initialStrengths,
   weaknesses: initialWeaknesses,
   executiveSummary: initialExecutiveSummary,
+  objectives: initialObjectives,
+  scope: initialScope,
   onUpdated 
 }: AuditFindingsEditorProps) {
   const { toast } = useToast();
@@ -40,6 +44,8 @@ export function AuditFindingsEditor({
     strengths: initialStrengths || "",
     weaknesses: initialWeaknesses || "",
     executive_summary: initialExecutiveSummary || "",
+    objectives: initialObjectives || "",
+    scope: initialScope || "",
   });
 
   // Reset form when audit changes
@@ -52,8 +58,10 @@ export function AuditFindingsEditor({
       strengths: initialStrengths || "",
       weaknesses: initialWeaknesses || "",
       executive_summary: initialExecutiveSummary || "",
+      objectives: initialObjectives || "",
+      scope: initialScope || "",
     });
-  }, [auditId, initialFindings, initialRecommendations, initialInterlocutors, initialMethodology, initialStrengths, initialWeaknesses, initialExecutiveSummary]);
+  }, [auditId, initialFindings, initialRecommendations, initialInterlocutors, initialMethodology, initialStrengths, initialWeaknesses, initialExecutiveSummary, initialObjectives, initialScope]);
 
   const hasChanges = 
     form.findings !== (initialFindings || "") ||
@@ -62,7 +70,9 @@ export function AuditFindingsEditor({
     form.methodology !== (initialMethodology || "") ||
     form.strengths !== (initialStrengths || "") ||
     form.weaknesses !== (initialWeaknesses || "") ||
-    form.executive_summary !== (initialExecutiveSummary || "");
+    form.executive_summary !== (initialExecutiveSummary || "") ||
+    form.objectives !== (initialObjectives || "") ||
+    form.scope !== (initialScope || "");
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -77,6 +87,8 @@ export function AuditFindingsEditor({
           strengths: form.strengths || null,
           weaknesses: form.weaknesses || null,
           executive_summary: form.executive_summary || null,
+          objectives: form.objectives || null,
+          scope: form.scope || null,
         })
         .eq("id", auditId);
 
@@ -113,13 +125,77 @@ export function AuditFindingsEditor({
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="summary" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="plan" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="plan" className="text-xs">Plano</TabsTrigger>
             <TabsTrigger value="summary" className="text-xs">Sumário</TabsTrigger>
             <TabsTrigger value="methodology" className="text-xs">Metodologia</TabsTrigger>
             <TabsTrigger value="analysis" className="text-xs">Análise</TabsTrigger>
             <TabsTrigger value="conclusions" className="text-xs">Conclusões</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="plan" className="space-y-4 mt-4">
+            <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
+              <p className="text-sm text-primary font-medium">Campos Obrigatórios do Plano de Auditoria</p>
+              <p className="text-xs text-muted-foreground mt-1">Estes campos são apresentados ao cliente na aprovação do plano</p>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Crosshair className="h-4 w-4 text-primary" />
+                Objetivos da Auditoria <span className="text-destructive">*</span>
+              </label>
+              <Textarea
+                placeholder="Defina os objetivos e metas específicas desta auditoria..."
+                value={form.objectives}
+                onChange={(e) => setForm({ ...form, objectives: e.target.value })}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-orange-500" />
+                Estabelecimentos Abrangidos <span className="text-destructive">*</span>
+              </label>
+              <Textarea
+                placeholder="Liste os estabelecimentos, instalações e locais incluídos no âmbito desta auditoria..."
+                value={form.scope}
+                onChange={(e) => setForm({ ...form, scope: e.target.value })}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-purple-500" />
+                Metodologia <span className="text-destructive">*</span>
+              </label>
+              <Textarea
+                placeholder="Descreva a metodologia a utilizar: entrevistas, análise documental, verificação no local..."
+                value={form.methodology}
+                onChange={(e) => setForm({ ...form, methodology: e.target.value })}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-500" />
+                Interlocutores <span className="text-destructive">*</span>
+              </label>
+              <Textarea
+                placeholder="Liste os interlocutores a contactar (nome, função, departamento)..."
+                value={form.interlocutors}
+                onChange={(e) => setForm({ ...form, interlocutors: e.target.value })}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+          </TabsContent>
 
           <TabsContent value="summary" className="space-y-4 mt-4">
             <div className="space-y-2">

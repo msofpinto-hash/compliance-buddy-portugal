@@ -439,6 +439,8 @@ export function AuditsPanel() {
                   strengths={(auditDetails as any).strengths}
                   weaknesses={(auditDetails as any).weaknesses}
                   executiveSummary={(auditDetails as any).executive_summary}
+                  objectives={(auditDetails as any).objectives}
+                  scope={(auditDetails as any).scope}
                   onUpdated={() => {
                     queryClient.invalidateQueries({ queryKey: ["audit-details", selectedAudit] });
                     refetchAudits();
