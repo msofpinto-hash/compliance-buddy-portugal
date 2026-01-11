@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronUp, Save, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, Loader2, FileText, Link2, ExternalLink, X, Paperclip } from "lucide-react";
 
 const complianceOptions = [
   { value: "pending", label: "Pendente", color: "bg-gray-100 text-gray-700 border-gray-300" },
@@ -18,6 +21,7 @@ const complianceOptions = [
 interface AuditRequirementCardProps {
   requirement: {
     id: string;
+    audit_id: string;
     compliance_status: string | null;
     evidence: string | null;
     findings: string | null;
@@ -25,13 +29,16 @@ interface AuditRequirementCardProps {
     legislation?: { number: string; title: string } | null;
     legal_requirements?: { article: string | null; requirement_text: string } | null;
   };
+  organizationId: string;
   onUpdated: () => void;
 }
 
-export function AuditRequirementCard({ requirement, onUpdated }: AuditRequirementCardProps) {
+export function AuditRequirementCard({ requirement, organizationId, onUpdated }: AuditRequirementCardProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showDocumentSelector, setShowDocumentSelector] = useState(false);
   const [form, setForm] = useState({
     compliance_status: requirement.compliance_status || "pending",
     evidence: requirement.evidence || "",
@@ -39,6 +46,41 @@ export function AuditRequirementCard({ requirement, onUpdated }: AuditRequiremen
   });
 
   const currentStatus = complianceOptions.find(o => o.value === form.compliance_status) || complianceOptions[0];
+
+  // Fetch available documents for the organization
+  const { data: availableDocuments } = useQuery({
+    queryKey: ["documents", organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, name, file_url, category")
+        .eq("organization_id", organizationId)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: isOpen && !!organizationId,
+  });
+
+  // Fetch linked documents for this audit requirement
+  const { data: linkedDocuments, refetch: refetchLinkedDocs } = useQuery({
+    queryKey: ["audit-requirement-documents", requirement.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("audit_requirement_documents")
+        .select(`
+          id,
+          document_id,
+          documents(id, name, file_url, category)
+        `)
+        .eq("audit_requirement_id", requirement.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: isOpen,
+  });
+
+  const linkedDocumentIds = linkedDocuments?.map(ld => ld.document_id) || [];
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -64,10 +106,48 @@ export function AuditRequirementCard({ requirement, onUpdated }: AuditRequiremen
     }
   };
 
+  const handleLinkDocument = async (documentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("audit_requirement_documents")
+        .insert({
+          audit_requirement_id: requirement.id,
+          document_id: documentId,
+        });
+
+      if (error) throw error;
+
+      toast({ title: "Documento associado" });
+      refetchLinkedDocs();
+    } catch (error) {
+      console.error("Error linking document:", error);
+      toast({ title: "Erro ao associar documento", variant: "destructive" });
+    }
+  };
+
+  const handleUnlinkDocument = async (linkId: string) => {
+    try {
+      const { error } = await supabase
+        .from("audit_requirement_documents")
+        .delete()
+        .eq("id", linkId);
+
+      if (error) throw error;
+
+      toast({ title: "Documento removido" });
+      refetchLinkedDocs();
+    } catch (error) {
+      console.error("Error unlinking document:", error);
+      toast({ title: "Erro ao remover documento", variant: "destructive" });
+    }
+  };
+
   const hasChanges = 
     form.compliance_status !== (requirement.compliance_status || "pending") ||
     form.evidence !== (requirement.evidence || "") ||
     form.findings !== (requirement.findings || "");
+
+  const linkedDocsCount = linkedDocuments?.length || 0;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -89,6 +169,12 @@ export function AuditRequirementCard({ requirement, onUpdated }: AuditRequiremen
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {linkedDocsCount > 0 && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Paperclip className="h-3 w-3" />
+                    {linkedDocsCount}
+                  </Badge>
+                )}
                 <Badge variant="outline" className={currentStatus.color}>
                   {currentStatus.label}
                 </Badge>
@@ -133,8 +219,120 @@ export function AuditRequirementCard({ requirement, onUpdated }: AuditRequiremen
               </div>
             </div>
 
+            {/* Linked Documents Section */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Evidência</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Documentos de Evidência
+                </label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDocumentSelector(!showDocumentSelector)}
+                  className="gap-1"
+                >
+                  <Paperclip className="h-3 w-3" />
+                  Associar
+                </Button>
+              </div>
+
+              {/* Linked documents list */}
+              {linkedDocuments && linkedDocuments.length > 0 ? (
+                <div className="space-y-2">
+                  {linkedDocuments.map((link: any) => (
+                    <div
+                      key={link.id}
+                      className="flex items-center justify-between p-2 rounded-md bg-muted/50 border"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">{link.documents?.name}</span>
+                        {link.documents?.category && (
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            {link.documents.category}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {link.documents?.file_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="h-7 w-7 p-0"
+                          >
+                            <a href={link.documents.file_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUnlinkDocument(link.id)}
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum documento associado
+                </p>
+              )}
+
+              {/* Document selector */}
+              {showDocumentSelector && (
+                <div className="border rounded-md p-3 bg-background">
+                  <p className="text-xs font-medium mb-2">Selecione documentos para associar:</p>
+                  {availableDocuments && availableDocuments.length > 0 ? (
+                    <ScrollArea className="h-[150px]">
+                      <div className="space-y-2">
+                        {availableDocuments
+                          .filter(doc => !linkedDocumentIds.includes(doc.id))
+                          .map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="flex items-center justify-between p-2 rounded-md hover:bg-muted cursor-pointer"
+                              onClick={() => handleLinkDocument(doc.id)}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="text-sm truncate">{doc.name}</span>
+                                {doc.category && (
+                                  <Badge variant="secondary" className="text-xs shrink-0">
+                                    {doc.category}
+                                  </Badge>
+                                )}
+                              </div>
+                              <Button variant="ghost" size="sm" className="h-7 gap-1">
+                                <Link2 className="h-3 w-3" />
+                                Associar
+                              </Button>
+                            </div>
+                          ))}
+                        {availableDocuments.filter(doc => !linkedDocumentIds.includes(doc.id)).length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">
+                            Todos os documentos já estão associados
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      Nenhum documento disponível na organização
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Observações de Evidência</label>
               <Textarea
                 placeholder="Descreva as evidências de conformidade..."
                 value={form.evidence}
