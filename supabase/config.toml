@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.scrape-requirements-from-url]
 verify_jwt = false
+
+[functions.extract-legislation-relations]
+verify_jwt = false
