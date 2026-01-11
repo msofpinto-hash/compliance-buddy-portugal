@@ -29,13 +29,35 @@ function sendSSE(controller: ReadableStreamDefaultController<Uint8Array>, event:
   controller.enqueue(new TextEncoder().encode(data));
 }
 
+// Extract a simplified search term from the legislation number
+function extractSearchTerm(number: string): string {
+  // Examples:
+  // "Decreto-Lei n.º 97/2008, de 11 de junho" -> "Decreto-Lei 97/2008"
+  // "Portaria n.º 98/2025/1 de 12 de março" -> "Portaria 98/2025"
+  // "Despacho n.º 3495-C/2025 de 19 de março" -> "Despacho 3495-C/2025"
+  
+  const cleanNumber = number.trim();
+  
+  // Try to extract type and number
+  const match = cleanNumber.match(/^([\w-]+)\s+n\.?º?\s*([\d\-A-Za-z\/]+)/i);
+  if (match) {
+    return `${match[1]} ${match[2]}`;
+  }
+  
+  // Fallback: just use the first part before comma
+  const parts = cleanNumber.split(',');
+  return parts[0].replace(/\s+de\s+\d+\s+de\s+\w+$/i, '').trim();
+}
+
 async function searchDREForLink(number: string, firecrawlKey: string): Promise<string | null> {
   try {
-    // Clean up the number for search
-    const cleanNumber = number.trim();
-    const searchUrl = `https://diariodarepublica.pt/dr/pesquisa/-/search/basic?q=${encodeURIComponent(cleanNumber)}`;
+    // Extract a simplified search term
+    const searchTerm = extractSearchTerm(number);
     
-    console.log(`Searching DRE for: ${cleanNumber}`);
+    // Use the DRE search with simpler query
+    const searchUrl = `https://diariodarepublica.pt/dr/pesquisa/-/search/basic?q=${encodeURIComponent(searchTerm)}`;
+    
+    console.log(`Searching DRE for: "${searchTerm}" (original: ${number})`);
     
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -45,36 +67,65 @@ async function searchDREForLink(number: string, firecrawlKey: string): Promise<s
       },
       body: JSON.stringify({
         url: searchUrl,
-        formats: ['links'],
-        waitFor: 3000,
+        formats: ['links', 'markdown'],
+        waitFor: 5000, // Wait longer for JS to load
       }),
     });
     
     if (!response.ok) {
-      console.log(`Search scrape failed: ${response.status}`);
+      const errorText = await response.text();
+      console.log(`Search scrape failed: ${response.status} - ${errorText}`);
       return null;
     }
     
     const data = await response.json();
-    const links = data.data?.links || data.links || [];
+    const links: string[] = data.data?.links || data.links || [];
+    const markdown: string = data.data?.markdown || data.markdown || '';
     
-    // Find direct detail link
+    console.log(`Found ${links.length} links on page`);
+    
+    // Find direct detail link that matches the legislation
     for (const link of links) {
       if (link.includes('/dr/detalhe/') && !link.includes('/pesquisa/')) {
-        console.log(`Found DRE link: ${link}`);
+        // Verify this link matches our search term
+        const linkLower = link.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Extract number pattern from link (e.g., "decreto-lei/97-2008")
+        const linkMatch = link.match(/\/dr\/detalhe\/([^\/]+)\/(\d+)-?(\d+)/i);
+        if (linkMatch) {
+          // Check if year matches
+          const searchYearMatch = searchTerm.match(/\/(\d{4})/);
+          const searchNumMatch = searchTerm.match(/(\d+)[-\/]/);
+          
+          if (searchYearMatch && linkMatch[3] && linkMatch[3].includes(searchYearMatch[1].slice(-2))) {
+            console.log(`Found matching DRE link: ${link}`);
+            return link;
+          }
+          
+          if (searchNumMatch && linkMatch[2] === searchNumMatch[1]) {
+            console.log(`Found matching DRE link by number: ${link}`);
+            return link;
+          }
+        }
+        
+        // If it's the first detail link, use it as fallback
+        console.log(`Found DRE link (first match): ${link}`);
         return link;
       }
     }
     
-    // Try alternative patterns
-    for (const link of links) {
-      if (link.includes('diariodarepublica.pt') && 
-          !link.includes('/pesquisa/') && 
-          !link.includes('/search/') &&
-          link.includes('/dr/')) {
-        console.log(`Found alternative DRE link: ${link}`);
-        return link;
-      }
+    // Try to find any relevant link in the markdown content
+    const urlMatches = markdown.match(/https:\/\/diariodarepublica\.pt\/dr\/detalhe\/[^\s\)]+/g);
+    if (urlMatches && urlMatches.length > 0) {
+      console.log(`Found URL in markdown: ${urlMatches[0]}`);
+      return urlMatches[0];
+    }
+    
+    // If we have links, log them for debugging
+    if (links.length > 0) {
+      const dreLinks = links.filter(l => l.includes('diariodarepublica.pt'));
+      console.log(`DRE links found: ${dreLinks.slice(0, 5).join(', ')}`);
     }
     
     return null;
@@ -117,6 +168,7 @@ Deno.serve(async (req) => {
     }
     
     // Filter to those without valid DRE detail URL
+    // Also filter out non-PT legislation types that might be misclassified
     const toProcess = (legislation || [])
       .filter(leg => {
         // Must be PT origin
@@ -124,7 +176,17 @@ Deno.serve(async (req) => {
         
         // Must NOT have a valid DRE detail URL
         const hasValidUrl = leg.document_url && leg.document_url.includes('/dr/detalhe/');
-        return !hasValidUrl;
+        if (hasValidUrl) return false;
+        
+        // Skip EU legislation that might be misclassified
+        const isEU = leg.number.includes('(UE)') || 
+                     leg.number.includes('(CE)') || 
+                     leg.number.includes('Regulamento de Execução') ||
+                     leg.number.includes('Diretiva ') ||
+                     leg.number.includes('UNECE');
+        if (isEU) return false;
+        
+        return true;
       })
       .slice(0, limit);
     
@@ -197,8 +259,8 @@ Deno.serve(async (req) => {
                 });
               }
               
-              // Rate limiting - be nice to the DRE
-              await new Promise(resolve => setTimeout(resolve, 1500));
+              // Rate limiting - be nice to the DRE (2 seconds between requests)
+              await new Promise(resolve => setTimeout(resolve, 2000));
               
             } catch (error) {
               console.error(`Error processing ${leg.number}:`, error);
@@ -269,7 +331,7 @@ Deno.serve(async (req) => {
           failed++;
         }
         
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (error) {
         console.error(`Error processing ${leg.number}:`, error);
