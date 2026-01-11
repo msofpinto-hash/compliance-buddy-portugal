@@ -853,6 +853,30 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          attempted_at: string
+          email: string
+          id: string
+          ip_address: string | null
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+        }
+        Update: {
+          attempted_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       organization_evidence_requests: {
         Row: {
           assigned_by: string | null
@@ -1317,6 +1341,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_login_allowed: { Args: { p_email: string }; Returns: Json }
       check_rate_limit: {
         Args: {
           p_function_name: string
@@ -1346,6 +1371,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      record_login_attempt: {
+        Args: { p_email: string; p_success: boolean }
+        Returns: undefined
       }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }

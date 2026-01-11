@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Scale, AlertCircle, Clock, CheckCircle2, ArrowLeft, Mail, Check, X } from "lucide-react";
+import { Loader2, Scale, AlertCircle, Clock, CheckCircle2, ArrowLeft, Mail, Check, X, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
+
+interface LoginCheckResult {
+  allowed: boolean;
+  failed_attempts: number;
+  max_attempts: number;
+  remaining_attempts: number;
+  lockout_until: string | null;
+  lockout_minutes: number;
+}
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -20,6 +31,7 @@ const Auth = () => {
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [loginBlocked, setLoginBlocked] = useState<LoginCheckResult | null>(null);
   const { signIn, signUp, signOut, user, isAdmin, isApproved, isPendingApproval, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,23 +50,68 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoginBlocked(null);
     setIsLoading(true);
 
     try {
+      // Check if login is allowed (brute-force protection)
+      const { data: checkResult, error: checkError } = await supabase
+        .rpc('check_login_allowed', { p_email: email });
+
+      if (checkError) {
+        console.error('Error checking login status:', checkError);
+      } else if (checkResult) {
+        const result = checkResult as unknown as LoginCheckResult;
+        if (!result.allowed) {
+          setLoginBlocked(result);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const { error } = await signIn(email, password);
       
       if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          setError("Email ou password incorretos");
+        // Record failed attempt
+        await supabase.rpc('record_login_attempt', { 
+          p_email: email, 
+          p_success: false 
+        });
+
+        // Re-check if now blocked
+        const { data: newCheckResult } = await supabase
+          .rpc('check_login_allowed', { p_email: email });
+        
+        if (newCheckResult) {
+          const result = newCheckResult as unknown as LoginCheckResult;
+          if (!result.allowed) {
+            setLoginBlocked(result);
+          } else {
+            const remaining = result.remaining_attempts;
+            if (error.message.includes("Invalid login credentials")) {
+              setError(`Email ou password incorretos. ${remaining} tentativa${remaining !== 1 ? 's' : ''} restante${remaining !== 1 ? 's' : ''}.`);
+            } else {
+              setError(error.message);
+            }
+          }
         } else {
-          setError(error.message);
+          if (error.message.includes("Invalid login credentials")) {
+            setError("Email ou password incorretos");
+          } else {
+            setError(error.message);
+          }
         }
       } else {
+        // Record successful attempt (clears failed attempts)
+        await supabase.rpc('record_login_attempt', { 
+          p_email: email, 
+          p_success: true 
+        });
+
         toast({
           title: "Login efetuado",
           description: "A verificar acesso...",
         });
-        // Auth state change will handle the rest
       }
     } catch (err) {
       setError("Ocorreu um erro inesperado");
@@ -342,7 +399,21 @@ const Auth = () => {
 
             <TabsContent value="login">
               <form onSubmit={handleSignIn} className="space-y-4">
-                {error && (
+                {loginBlocked && (
+                  <Alert variant="destructive" className="border-red-300 bg-red-50">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="font-medium">Conta temporariamente bloqueada</div>
+                      <p className="text-xs mt-1">
+                        Demasiadas tentativas falhadas. Tente novamente {loginBlocked.lockout_until 
+                          ? `às ${format(new Date(loginBlocked.lockout_until), "HH:mm", { locale: pt })}`
+                          : `em ${loginBlocked.lockout_minutes} minutos`
+                        }.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {error && !loginBlocked && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>{error}</AlertDescription>
@@ -382,9 +453,9 @@ const Auth = () => {
                   />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoading || !!loginBlocked}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Entrar
+                  {loginBlocked ? "Conta Bloqueada" : "Entrar"}
                 </Button>
               </form>
             </TabsContent>
