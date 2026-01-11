@@ -12,6 +12,30 @@ interface LegislationUpdate {
   effective_date?: string;
 }
 
+interface ProgressEvent {
+  type: 'start' | 'progress' | 'complete' | 'error';
+  current?: number;
+  total?: number;
+  item?: {
+    id: string;
+    number: string;
+    success: boolean;
+    updates?: LegislationUpdate;
+    error?: string;
+  };
+  summary?: {
+    fixed: number;
+    failed: number;
+    processed: number;
+  };
+  error?: string;
+}
+
+function sendSSE(controller: ReadableStreamDefaultController<Uint8Array>, event: ProgressEvent) {
+  const data = `data: ${JSON.stringify(event)}\n\n`;
+  controller.enqueue(new TextEncoder().encode(data));
+}
+
 async function scrapeWithFirecrawl(url: string, apiKey: string): Promise<any> {
   console.log('Scraping URL:', url);
   
@@ -62,45 +86,36 @@ async function scrapeWithFirecrawl(url: string, apiKey: string): Promise<any> {
 function extractMetadataFromDRE(markdown: string, currentNumber: string): LegislationUpdate {
   const update: LegislationUpdate = {};
   
-  // Clean markdown from unwanted patterns first
   const cleanMarkdown = markdown
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove markdown links, keep text
-    .replace(/\*\*/g, '')                     // Remove bold markers
-    .replace(/\n+/g, '\n');                   // Normalize newlines
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/\n+/g, '\n');
   
-  // Try to extract the main title/summary from page title or meta
-  // Common pattern: the first substantial paragraph after series info
   const lines = cleanMarkdown.split('\n').filter(l => l.trim().length > 0);
   
-  // Look for summary after "Sumário:" label
   const summaryMatch = cleanMarkdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n(?:Texto|Data|Publicação|Série|Emissor|$))/i);
   if (summaryMatch) {
     const summary = summaryMatch[1].trim();
     if (summary && summary.length > 20 && !summary.includes('Lamentamos')) {
       update.summary = summary.substring(0, 2000);
-      // Use summary as title if it's descriptive enough
       if (summary.length > 30 && summary.length < 300) {
         update.title = `${currentNumber.split(' de ')[0]} - ${summary.substring(0, 150)}${summary.length > 150 ? '...' : ''}`;
       }
     }
   }
   
-  // Alternative: look for descriptive content in the markdown
   if (!update.title) {
     for (const line of lines) {
-      // Skip short lines, headers, navigation elements
       if (line.length < 40) continue;
       if (line.startsWith('#')) continue;
       if (line.includes('http')) continue;
       if (line.toLowerCase().includes('série')) continue;
       if (line.toLowerCase().includes('emissor')) continue;
       if (line.toLowerCase().includes('publicação')) continue;
-      if (line.toLowerCase().match(/^\d+[º°]/)) continue; // Article numbers
+      if (line.toLowerCase().match(/^\d+[º°]/)) continue;
       
-      // Check if it looks like a descriptive title/summary
       const cleanLine = line.trim();
       if (cleanLine.length > 40 && cleanLine.length < 500) {
-        // Extract just the first part as title
         const titlePart = cleanLine.split('.')[0];
         if (titlePart.length > 30) {
           update.title = `${currentNumber.split(' de ')[0]} - ${titlePart.substring(0, 120)}${titlePart.length > 120 ? '...' : ''}`;
@@ -113,7 +128,6 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
     }
   }
   
-  // Extract entity/emissor
   const entityMatch = cleanMarkdown.match(/Emissor[:\s]+([^\n]+)/i);
   if (entityMatch) {
     const entity = entityMatch[1].trim();
@@ -122,7 +136,6 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
     }
   }
   
-  // Extract effective date
   const effectiveDatePatterns = [
     /(?:entra(?:da)?\s+em\s+vigor|vigência|vigor\s+a\s+partir\s+de)[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
     /(\d{1,2})\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})(?:\s*[,.]\s*(?:entra|vigor|vigência))/i,
@@ -159,10 +172,8 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
   return update;
 }
 
-// Search DRE for a diploma and get the direct link
 async function searchDREForLink(number: string, firecrawlKey: string): Promise<string | null> {
   try {
-    // Use Firecrawl search to find the DRE page
     const searchUrl = `https://diariodarepublica.pt/dr/pesquisa/-/search/basic?q=${encodeURIComponent(number)}`;
     
     console.log(`Searching DRE for: ${number}`);
@@ -188,7 +199,6 @@ async function searchDREForLink(number: string, firecrawlKey: string): Promise<s
     const data = await response.json();
     const links = data.data?.links || data.links || [];
     
-    // Find a direct link to the diploma detail page
     for (const link of links) {
       if (link.includes('/dr/detalhe/') && !link.includes('/pesquisa/')) {
         console.log(`Found DRE link: ${link}`);
@@ -209,7 +219,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 20, dryRun = false } = await req.json().catch(() => ({}));
+    const { limit = 20, dryRun = false, stream = false } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -224,7 +234,7 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get legislation with generic titles (title = number pattern)
+    // Get legislation with generic titles
     const { data: legislation, error: fetchError } = await supabase
       .from('legislation')
       .select('id, number, title, summary, entity, document_url, origin')
@@ -235,12 +245,10 @@ Deno.serve(async (req) => {
       throw fetchError;
     }
     
-    // Filter to find items with generic titles
     const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
     
     const toProcess = (legislation || [])
       .filter(leg => {
-        // Has generic title (title equals number or matches pattern without description)
         const titleEqualsNumber = leg.title === leg.number;
         const hasGenericPattern = genericPattern.test(leg.title) && 
           leg.title.length < 80 && 
@@ -257,7 +265,154 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
+
+    // If streaming is requested, return SSE stream
+    if (stream) {
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          let fixed = 0;
+          let failed = 0;
+
+          // Send start event
+          sendSSE(controller, { 
+            type: 'start', 
+            total: toProcess.length 
+          });
+
+          for (let i = 0; i < toProcess.length; i++) {
+            const leg = toProcess[i];
+            
+            try {
+              let dreUrl = leg.document_url;
+              
+              if (!dreUrl || dreUrl.includes('/pesquisa/') || !dreUrl.includes('/dr/detalhe/')) {
+                console.log(`Searching for direct DRE link for ${leg.number}...`);
+                dreUrl = await searchDREForLink(leg.number, firecrawlKey);
+                
+                if (!dreUrl) {
+                  console.log(`Could not find DRE link for ${leg.number}`);
+                  failed++;
+                  sendSSE(controller, {
+                    type: 'progress',
+                    current: i + 1,
+                    total: toProcess.length,
+                    item: { id: leg.id, number: leg.number, success: false, error: 'No DRE link found' }
+                  });
+                  continue;
+                }
+              }
+              
+              console.log(`Scraping ${leg.number} from ${dreUrl}...`);
+              
+              const scrapeResult = await scrapeWithFirecrawl(dreUrl, firecrawlKey);
+              
+              if (!scrapeResult.success || !scrapeResult.data?.markdown) {
+                console.log(`Failed to scrape ${leg.number}`);
+                failed++;
+                sendSSE(controller, {
+                  type: 'progress',
+                  current: i + 1,
+                  total: toProcess.length,
+                  item: { id: leg.id, number: leg.number, success: false, error: 'Scrape failed' }
+                });
+                continue;
+              }
+              
+              const updates = extractMetadataFromDRE(scrapeResult.data.markdown, leg.number);
+              
+              const finalUpdates: Record<string, any> = {};
+              
+              if (updates.title && updates.title !== leg.title) {
+                finalUpdates.title = updates.title;
+              }
+              if (updates.summary && (!leg.summary || leg.summary.length < 20)) {
+                finalUpdates.summary = updates.summary;
+              }
+              if (updates.entity && !leg.entity) {
+                finalUpdates.entity = updates.entity;
+              }
+              if (dreUrl && dreUrl !== leg.document_url) {
+                finalUpdates.document_url = dreUrl;
+              }
+              
+              if (Object.keys(finalUpdates).length > 0) {
+                if (dryRun) {
+                  console.log(`[DRY RUN] Would update ${leg.number}:`, finalUpdates);
+                  fixed++;
+                  sendSSE(controller, {
+                    type: 'progress',
+                    current: i + 1,
+                    total: toProcess.length,
+                    item: { id: leg.id, number: leg.number, success: true, updates: finalUpdates as LegislationUpdate }
+                  });
+                } else {
+                  finalUpdates.updated_at = new Date().toISOString();
+                  
+                  const { error: updateError } = await supabase
+                    .from('legislation')
+                    .update(finalUpdates)
+                    .eq('id', leg.id);
+                  
+                  if (updateError) {
+                    throw updateError;
+                  }
+                  
+                  console.log(`Updated ${leg.number}:`, Object.keys(finalUpdates));
+                  fixed++;
+                  sendSSE(controller, {
+                    type: 'progress',
+                    current: i + 1,
+                    total: toProcess.length,
+                    item: { id: leg.id, number: leg.number, success: true, updates: finalUpdates as LegislationUpdate }
+                  });
+                }
+              } else {
+                console.log(`No useful updates found for ${leg.number}`);
+                failed++;
+                sendSSE(controller, {
+                  type: 'progress',
+                  current: i + 1,
+                  total: toProcess.length,
+                  item: { id: leg.id, number: leg.number, success: false, error: 'No updates extracted' }
+                });
+              }
+              
+              // Rate limiting
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+            } catch (error) {
+              console.error(`Error processing ${leg.number}:`, error);
+              failed++;
+              sendSSE(controller, {
+                type: 'progress',
+                current: i + 1,
+                total: toProcess.length,
+                item: { id: leg.id, number: leg.number, success: false, error: String(error) }
+              });
+            }
+          }
+
+          // Send complete event
+          sendSSE(controller, {
+            type: 'complete',
+            summary: { fixed, failed, processed: toProcess.length }
+          });
+
+          controller.close();
+        }
+      });
+
+      return new Response(readableStream, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        }
+      });
+    }
+
+    // Non-streaming mode (original behavior)
     const results: { id: string; number: string; success: boolean; updates?: LegislationUpdate; error?: string }[] = [];
     let fixed = 0;
     let failed = 0;
@@ -266,7 +421,6 @@ Deno.serve(async (req) => {
       try {
         let dreUrl = leg.document_url;
         
-        // If no URL or URL is a search page, try to find the direct link
         if (!dreUrl || dreUrl.includes('/pesquisa/') || !dreUrl.includes('/dr/detalhe/')) {
           console.log(`Searching for direct DRE link for ${leg.number}...`);
           dreUrl = await searchDREForLink(leg.number, firecrawlKey);
@@ -292,7 +446,6 @@ Deno.serve(async (req) => {
         
         const updates = extractMetadataFromDRE(scrapeResult.data.markdown, leg.number);
         
-        // Also update the URL if we found a better one
         const finalUpdates: Record<string, any> = {};
         
         if (updates.title && updates.title !== leg.title) {
@@ -334,7 +487,6 @@ Deno.serve(async (req) => {
           failed++;
         }
         
-        // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
         
       } catch (error) {

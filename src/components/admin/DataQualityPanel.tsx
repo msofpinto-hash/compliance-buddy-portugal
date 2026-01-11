@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
+import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -44,9 +45,8 @@ export function DataQualityPanel() {
   const queryClient = useQueryClient();
   const [showFixMetadataDialog, setShowFixMetadataDialog] = useState(false);
   const [showValidateUrlsDialog, setShowValidateUrlsDialog] = useState(false);
+  const [showFixTitlesDialog, setShowFixTitlesDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
-  const [isFixingGenericTitles, setIsFixingGenericTitles] = useState(false);
-  const [fixTitlesResults, setFixTitlesResults] = useState<{ fixed: number; failed: number } | null>(null);
 
   // Fetch comprehensive data quality statistics
   const { data: qualityStats, isLoading, refetch } = useQuery({
@@ -225,40 +225,6 @@ export function DataQualityPanel() {
     }
   };
 
-  // Fix generic titles via DRE scraping
-  const handleFixGenericTitles = async () => {
-    setIsFixingGenericTitles(true);
-    setFixTitlesResults(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("fix-generic-titles", {
-        body: { limit: 20, dryRun: false },
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        setFixTitlesResults({ fixed: data.fixed, failed: data.failed });
-        toast({
-          title: "Correção concluída",
-          description: `${data.fixed} títulos corrigidos, ${data.failed} falharam`,
-        });
-        queryClient.invalidateQueries({ queryKey: ["data-quality-stats"] });
-        refetch();
-      } else {
-        throw new Error(data.error || "Erro desconhecido");
-      }
-    } catch (error) {
-      console.error("Error fixing titles:", error);
-      toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao corrigir títulos",
-        variant: "destructive",
-      });
-    } finally {
-      setIsFixingGenericTitles(false);
-    }
-  };
-
   const calculateQualityScore = () => {
     if (!qualityStats) return 0;
     const { total, genericTitles, missingSummary, missingUrl, noRequirements } = qualityStats;
@@ -374,9 +340,9 @@ export function DataQualityPanel() {
           total={qualityStats?.total || 0}
           severity="error"
           description="Diplomas com título igual ao número (requer scraping DRE)"
-          action={isFixingGenericTitles ? "A corrigir..." : "Corrigir via DRE"}
-          onAction={handleFixGenericTitles}
-          disabled={isFixingGenericTitles || (qualityStats?.genericTitles || 0) === 0}
+          action="Corrigir via DRE"
+          onAction={() => setShowFixTitlesDialog(true)}
+          disabled={(qualityStats?.genericTitles || 0) === 0}
         />
 
         <ProblemCard
@@ -496,6 +462,12 @@ export function DataQualityPanel() {
       <ValidateUrlsDialog
         open={showValidateUrlsDialog}
         onOpenChange={setShowValidateUrlsDialog}
+      />
+
+      <FixGenericTitlesDialog
+        open={showFixTitlesDialog}
+        onOpenChange={setShowFixTitlesDialog}
+        genericTitlesCount={qualityStats?.genericTitles || 0}
       />
     </div>
   );
