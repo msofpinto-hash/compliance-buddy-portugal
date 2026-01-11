@@ -22,8 +22,8 @@ export function LegislationTimeline({
   if (!hasAnyDate) return null;
 
   return (
-    <div className="mt-3 pt-3 border-t">
-      <p className="text-xs font-medium text-muted-foreground mb-2">Datas</p>
+    <div className="mt-4 pt-4 border-t">
+      <p className="text-xs font-medium text-muted-foreground mb-3">Datas</p>
       <div className="relative flex items-center">
         {/* Timeline line */}
         <div className="absolute left-0 right-0 h-[2px] bg-border top-[10px]" />
