@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Declare EdgeRuntime for Supabase Edge Functions
+declare const EdgeRuntime: {
+  waitUntil(promise: Promise<any>): void;
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -293,13 +298,216 @@ function findMatchingLegislation(
   return null;
 }
 
+// Background processing function
+async function processRelationsInBackground(
+  supabase: any,
+  legislationToProcess: any[],
+  allLegislation: any[],
+  existingRelationSet: Set<string>,
+  firecrawlApiKey: string,
+  lovableApiKey: string,
+  dryRun: boolean,
+  autoImport: boolean,
+  jobId: string
+) {
+  const results: RelationResult[] = [];
+  let totalRelationsFound = 0;
+  let totalRelationsMatched = 0;
+  let totalRelationsCreated = 0;
+  let totalLegislationCreated = 0;
+  
+  const newlyCreatedLegislation: Array<{ id: string; number: string; title: string }> = [];
+
+  for (let i = 0; i < legislationToProcess.length; i++) {
+    const leg = legislationToProcess[i];
+    console.log(`\n=== [BG Job ${jobId}] Processing ${i + 1}/${legislationToProcess.length}: ${leg.number} ===`);
+    
+    // Update progress in sync_logs
+    await supabase
+      .from('sync_logs')
+      .update({
+        items_processed: i + 1,
+        items_added: totalRelationsCreated,
+      })
+      .eq('id', jobId);
+    
+    try {
+      const textContent = await scrapeUrl(leg.document_url, firecrawlApiKey);
+      
+      if (!textContent || textContent.length < 100) {
+        console.log(`No content for ${leg.number}`);
+        results.push({ 
+          legislationId: leg.id, 
+          legislationNumber: leg.number, 
+          relationsFound: 0,
+          relationsMatched: 0,
+          relationsCreated: 0,
+          relations: [],
+          error: 'Não foi possível obter conteúdo da página' 
+        });
+        continue;
+      }
+
+      const extractedRelations = await extractRelationsWithAI(
+        { number: leg.number, title: leg.title, summary: leg.summary || '' },
+        textContent,
+        lovableApiKey
+      );
+
+      if (extractedRelations.length === 0) {
+        console.log(`No relations found for ${leg.number}`);
+        results.push({ 
+          legislationId: leg.id, 
+          legislationNumber: leg.number, 
+          relationsFound: 0,
+          relationsMatched: 0,
+          relationsCreated: 0,
+          relations: []
+        });
+        continue;
+      }
+
+      totalRelationsFound += extractedRelations.length;
+
+      const relationDetails: RelationResult['relations'] = [];
+      const toInsert: Array<{
+        source_legislation_id: string;
+        target_legislation_id: string;
+        relation_type: string;
+        notes: string | null;
+      }> = [];
+
+      for (const rel of extractedRelations) {
+        const combinedLegislation = [...allLegislation, ...newlyCreatedLegislation];
+        let match = findMatchingLegislation(rel.target_number, combinedLegislation);
+        
+        let wasCreated = false;
+        if (!match && autoImport && !dryRun) {
+          const created = await createMissingLegislation(supabase, rel.target_number, rel.notes);
+          if (created) {
+            match = created;
+            wasCreated = true;
+            totalLegislationCreated++;
+            newlyCreatedLegislation.push({ id: created.id, number: created.number, title: created.number });
+            allLegislation.push({ id: created.id, number: created.number, title: created.number });
+          }
+        }
+        
+        relationDetails.push({
+          type: rel.relation_type,
+          targetNumber: rel.target_number,
+          targetId: match?.id,
+          matched: !!match,
+          created: wasCreated,
+        } as any);
+
+        if (match) {
+          totalRelationsMatched++;
+          
+          const relationKey = `${leg.id}-${match.id}-${rel.relation_type}`;
+          if (!existingRelationSet.has(relationKey)) {
+            toInsert.push({
+              source_legislation_id: leg.id,
+              target_legislation_id: match.id,
+              relation_type: rel.relation_type,
+              notes: rel.notes || null,
+            });
+            existingRelationSet.add(relationKey);
+          }
+        }
+      }
+
+      let relationsCreated = 0;
+      if (!dryRun && toInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('legislation_relations')
+          .insert(toInsert);
+
+        if (insertError) {
+          console.error(`Insert error for ${leg.number}:`, insertError);
+        } else {
+          relationsCreated = toInsert.length;
+          totalRelationsCreated += relationsCreated;
+          console.log(`✓ Created ${relationsCreated} relations for ${leg.number}`);
+          
+          const revokedRelations = toInsert.filter(r => r.relation_type === 'revogado' || r.relation_type === 'revogacao_parcial');
+          for (const revokedRel of revokedRelations) {
+            const { error: updateError } = await supabase
+              .from('legislation')
+              .update({ 
+                revocation_date: leg.publication_date || new Date().toISOString().split('T')[0]
+              })
+              .eq('id', revokedRel.target_legislation_id)
+              .is('revocation_date', null);
+            
+            if (!updateError) {
+              console.log(`✓ Set revocation_date for target legislation ${revokedRel.target_legislation_id}`);
+            }
+          }
+        }
+      } else if (dryRun && toInsert.length > 0) {
+        relationsCreated = toInsert.length;
+        totalRelationsCreated += relationsCreated;
+      }
+
+      results.push({ 
+        legislationId: leg.id, 
+        legislationNumber: leg.number, 
+        relationsFound: extractedRelations.length,
+        relationsMatched: relationDetails.filter(r => r.matched).length,
+        relationsCreated,
+        relations: relationDetails
+      });
+
+      // Delay between requests
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+    } catch (error) {
+      console.error(`Error processing ${leg.number}:`, error);
+      results.push({ 
+        legislationId: leg.id, 
+        legislationNumber: leg.number,
+        relationsFound: 0,
+        relationsMatched: 0,
+        relationsCreated: 0,
+        relations: [],
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      });
+    }
+  }
+
+  const successful = results.filter(r => !r.error).length;
+  const failed = results.filter(r => r.error).length;
+
+  console.log(`\n=== [BG Job ${jobId}] COMPLETE ===`);
+  console.log(`Successful: ${successful}, Failed: ${failed}`);
+  console.log(`Relations: ${totalRelationsFound} found, ${totalRelationsMatched} matched, ${totalRelationsCreated} created`);
+
+  // Update final status
+  await supabase
+    .from('sync_logs')
+    .update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      items_processed: legislationToProcess.length,
+      items_added: totalRelationsCreated,
+      items_updated: totalRelationsMatched,
+    })
+    .eq('id', jobId);
+}
+
+// Handle shutdown for background tasks
+addEventListener('beforeunload', (ev: any) => {
+  console.log('Function shutdown due to:', ev.detail?.reason);
+});
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true } = await req.json();
+    const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true, background = false } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -384,6 +592,55 @@ Deno.serve(async (req) => {
           message: 'Nenhum diploma com URL para processar',
           processed: 0,
           results: []
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Background mode: create a job and process in background
+    if (background && !dryRun) {
+      const jobId = crypto.randomUUID();
+      
+      // Create sync_log entry for tracking progress
+      const { error: logError } = await supabase
+        .from('sync_logs')
+        .insert({
+          id: jobId,
+          sync_type: 'extract_relations',
+          status: 'running',
+          items_processed: 0,
+          items_added: 0,
+        });
+      
+      if (logError) {
+        console.error('Failed to create sync log:', logError);
+        throw new Error('Não foi possível iniciar processamento em background');
+      }
+      
+      console.log(`Starting background job ${jobId} for ${legislationToProcess.length} legislation`);
+      
+      // Start background processing
+      EdgeRuntime.waitUntil(
+        processRelationsInBackground(
+          supabase,
+          legislationToProcess,
+          allLegislation,
+          existingRelationSet,
+          firecrawlApiKey,
+          lovableApiKey,
+          dryRun,
+          autoImport,
+          jobId
+        )
+      );
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          background: true,
+          jobId,
+          toProcess: legislationToProcess.length,
+          message: `Processamento iniciado em background. A processar ${legislationToProcess.length} diplomas.`,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
