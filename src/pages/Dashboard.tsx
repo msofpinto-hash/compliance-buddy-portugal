@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,11 +26,15 @@ import {
   ClipboardCheck,
   FolderOpen,
   BarChart3,
-  User
+  User,
+  Calendar,
+  XCircle,
+  ExternalLink
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
+import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, eachDayOfInterval } from "date-fns";
@@ -50,6 +54,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
 const COLORS = {
   compliant: "hsl(142, 76%, 36%)",
@@ -71,11 +77,11 @@ type NavItem = {
 };
 
 const ALL_MODULES: NavItem[] = [
-  { id: "legislacao", moduleKey: "legislacao", label: "Legislação", icon: Gavel, href: "/cliente", alwaysShow: true },
-  { id: "planos_acao", moduleKey: "planos_acao", label: "Planos de Ação", icon: ClipboardList, href: "/cliente?tab=actions" },
-  { id: "auditorias", moduleKey: "auditorias", label: "Auditorias", icon: ClipboardCheck, href: "/cliente?tab=audits" },
-  { id: "documentos", moduleKey: "documentos", label: "Evidências Documentais", icon: FolderOpen, href: "/cliente?tab=documents" },
-  { id: "indicadores", moduleKey: "indicadores", label: "Indicadores", icon: BarChart3, href: "/cliente?tab=indicators" },
+  { id: "legislacao", moduleKey: "legislacao", label: "Legislação", icon: Gavel, href: "/biblioteca", alwaysShow: true },
+  { id: "planos_acao", moduleKey: "planos_acao", label: "Planos de Ação", icon: ClipboardList, href: "/dashboard?tab=actions" },
+  { id: "auditorias", moduleKey: "auditorias", label: "Auditorias", icon: ClipboardCheck, href: "/dashboard?tab=audits" },
+  { id: "documentos", moduleKey: "documentos", label: "Evidências Documentais", icon: FolderOpen, href: "/dashboard?tab=documents" },
+  { id: "indicadores", moduleKey: "indicadores", label: "Indicadores", icon: BarChart3, href: "/dashboard?tab=indicators" },
 ];
 
 export default function Dashboard() {
@@ -83,6 +89,13 @@ export default function Dashboard() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  // Get active tab from URL params
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabType = (tabParam === "actions" || tabParam === "audits" || tabParam === "documents" || tabParam === "indicators") 
+    ? tabParam 
+    : "overview";
 
   // Fetch user's organizations (multiple)
   const { data: userRoles } = useQuery({
@@ -225,6 +238,22 @@ export default function Dashboard() {
       return new Date(p.due_date) < new Date();
     }).length || 0,
   };
+
+  // Fetch audits for ALL organizations
+  const { data: audits, isLoading: loadingAudits } = useQuery({
+    queryKey: ["audits-all", organizationIds],
+    queryFn: async () => {
+      if (organizationIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("audits")
+        .select("*")
+        .in("organization_id", organizationIds)
+        .order("audit_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: organizationIds.length > 0,
+  });
 
   // Compliance stats for ALL organizations
   const { data: complianceStats } = useQuery({
@@ -484,6 +513,9 @@ export default function Dashboard() {
 
         {/* Page Content */}
         <main className="p-4 lg:p-8 space-y-6">
+          {/* Overview Tab Content */}
+          {activeTab === "overview" && (
+            <>
           {/* Recent Legislation - Full Width at Top */}
           <Card>
             <CardHeader>
@@ -722,6 +754,243 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </div>
+            </>
+          )}
+
+          {/* Action Plans Tab */}
+          {activeTab === "actions" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">Planos de Ação</h2>
+                <p className="text-muted-foreground">
+                  Ações corretivas pendentes e em curso
+                </p>
+              </div>
+
+              {/* Action Plan Stats */}
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-gray-500/10">
+                        <Clock className="h-5 w-5 text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{actionPlanStats.pending}</p>
+                        <p className="text-xs text-muted-foreground">Pendentes</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-yellow-500/10">
+                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{actionPlanStats.inProgress}</p>
+                        <p className="text-xs text-muted-foreground">Em Curso</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-green-500/10">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{actionPlanStats.completed}</p>
+                        <p className="text-xs text-muted-foreground">Concluídas</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-red-500/10">
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-destructive">{actionPlanStats.overdue}</p>
+                        <p className="text-xs text-muted-foreground">Em Atraso</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Action Plans List */}
+              {!actionPlans || actionPlans.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <ClipboardList className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">Sem planos de ação</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {actionPlans.map((plan) => {
+                    const isOverdue = plan.due_date && plan.status !== "concluido" && new Date(plan.due_date) < new Date();
+                    
+                    return (
+                      <Card key={plan.id} className={`${isOverdue ? "border-destructive/50" : ""}`}>
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge 
+                                  variant="outline" 
+                                  className={`gap-1 ${
+                                    plan.status === "concluido" 
+                                      ? "bg-green-500 text-white border-0" 
+                                      : plan.status === "em_curso" 
+                                      ? "bg-yellow-500 text-white border-0" 
+                                      : "bg-gray-500 text-white border-0"
+                                  }`}
+                                >
+                                  {plan.status === "concluido" && <CheckCircle2 className="h-3 w-3" />}
+                                  {plan.status === "em_curso" && <Clock className="h-3 w-3" />}
+                                  {plan.status === "pendente" && <Clock className="h-3 w-3" />}
+                                  {plan.status === "concluido" ? "Concluída" : plan.status === "em_curso" ? "Em Curso" : "Pendente"}
+                                </Badge>
+                                {isOverdue && (
+                                  <Badge variant="destructive" className="gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Em Atraso
+                                  </Badge>
+                                )}
+                              </div>
+                              <h3 className="font-semibold">{plan.title}</h3>
+                              {plan.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
+                              )}
+                              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                {plan.due_date && (
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-4 w-4" />
+                                    <span>Prazo: {format(new Date(plan.due_date), "d MMM yyyy", { locale: pt })}</span>
+                                  </div>
+                                )}
+                                {plan.responsible && (
+                                  <div className="flex items-center gap-1">
+                                    <User className="h-4 w-4" />
+                                    <span>{plan.responsible}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Audits Tab */}
+          {activeTab === "audits" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">Auditorias</h2>
+                <p className="text-muted-foreground">
+                  Auditorias realizadas à sua organização
+                </p>
+              </div>
+
+              {loadingAudits ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : !audits || audits.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <ClipboardCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">Sem auditorias registadas</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {audits.map((audit) => (
+                    <Card key={audit.id}>
+                      <CardContent className="p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge 
+                                variant="outline" 
+                                className={`gap-1 ${
+                                  audit.status === "completed" 
+                                    ? "bg-green-500 text-white border-0" 
+                                    : audit.status === "in_progress" 
+                                    ? "bg-yellow-500 text-white border-0" 
+                                    : audit.status === "cancelled"
+                                    ? "bg-gray-500 text-white border-0"
+                                    : "bg-blue-500 text-white border-0"
+                                }`}
+                              >
+                                {audit.status === "completed" ? "Concluída" : 
+                                 audit.status === "in_progress" ? "Em Curso" : 
+                                 audit.status === "cancelled" ? "Cancelada" : "Planeada"}
+                              </Badge>
+                            </div>
+                            <h3 className="font-semibold">{audit.title}</h3>
+                            {audit.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">{audit.description}</p>
+                            )}
+                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                              {audit.audit_date && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{format(new Date(audit.audit_date), "d MMM yyyy", { locale: pt })}</span>
+                                </div>
+                              )}
+                              {audit.auditor && (
+                                <div className="flex items-center gap-1">
+                                  <User className="h-4 w-4" />
+                                  <span>{audit.auditor}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Documents Tab */}
+          {activeTab === "documents" && (
+            <DocumentsPanel organizationIds={organizationIds as string[]} />
+          )}
+
+          {/* Indicators Tab */}
+          {activeTab === "indicators" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">Indicadores</h2>
+                <p className="text-muted-foreground">
+                  Métricas e indicadores de desempenho
+                </p>
+              </div>
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground">Indicadores em desenvolvimento</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </main>
       </div>
     </div>
