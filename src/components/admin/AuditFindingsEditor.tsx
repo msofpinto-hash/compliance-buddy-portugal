@@ -127,7 +127,12 @@ export function AuditFindingsEditor({
       <CardContent>
         <Tabs defaultValue="plan" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="plan" className="text-xs">Plano</TabsTrigger>
+            <TabsTrigger value="plan" className="text-xs gap-1">
+              Plano
+              {(!form.objectives || !form.methodology || !form.scope || !form.interlocutors) && (
+                <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              )}
+            </TabsTrigger>
             <TabsTrigger value="summary" className="text-xs">Sumário</TabsTrigger>
             <TabsTrigger value="methodology" className="text-xs">Metodologia</TabsTrigger>
             <TabsTrigger value="analysis" className="text-xs">Análise</TabsTrigger>
@@ -135,64 +140,84 @@ export function AuditFindingsEditor({
           </TabsList>
 
           <TabsContent value="plan" className="space-y-4 mt-4">
-            <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
-              <p className="text-sm text-primary font-medium">Campos Obrigatórios do Plano de Auditoria</p>
-              <p className="text-xs text-muted-foreground mt-1">Estes campos são apresentados ao cliente na aprovação do plano</p>
+            <div className={`p-3 rounded-lg mb-4 ${
+              (!form.objectives || !form.methodology || !form.scope || !form.interlocutors)
+                ? "bg-destructive/10 border border-destructive/30"
+                : "bg-green-500/10 border border-green-500/30"
+            }`}>
+              <p className={`text-sm font-medium ${
+                (!form.objectives || !form.methodology || !form.scope || !form.interlocutors)
+                  ? "text-destructive"
+                  : "text-green-600"
+              }`}>
+                {(!form.objectives || !form.methodology || !form.scope || !form.interlocutors)
+                  ? "⚠️ Campos Obrigatórios em Falta"
+                  : "✓ Plano de Auditoria Completo"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {(!form.objectives || !form.methodology || !form.scope || !form.interlocutors)
+                  ? "Preencha todos os campos para enviar o plano para aprovação"
+                  : "Todos os campos obrigatórios estão preenchidos"}
+              </p>
             </div>
             
             <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Crosshair className="h-4 w-4 text-primary" />
+              <label className={`text-sm font-medium flex items-center gap-2 ${!form.objectives ? "text-destructive" : ""}`}>
+                <Crosshair className={`h-4 w-4 ${!form.objectives ? "text-destructive" : "text-primary"}`} />
                 Objetivos da Auditoria <span className="text-destructive">*</span>
+                {!form.objectives && <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">Em falta</span>}
               </label>
               <Textarea
                 placeholder="Defina os objetivos e metas específicas desta auditoria..."
                 value={form.objectives}
                 onChange={(e) => setForm({ ...form, objectives: e.target.value })}
                 rows={4}
-                className="resize-none"
+                className={`resize-none ${!form.objectives ? "border-destructive/50 focus-visible:ring-destructive/50" : ""}`}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-orange-500" />
+              <label className={`text-sm font-medium flex items-center gap-2 ${!form.scope ? "text-destructive" : ""}`}>
+                <Building2 className={`h-4 w-4 ${!form.scope ? "text-destructive" : "text-orange-500"}`} />
                 Estabelecimentos Abrangidos <span className="text-destructive">*</span>
+                {!form.scope && <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">Em falta</span>}
               </label>
               <Textarea
                 placeholder="Liste os estabelecimentos, instalações e locais incluídos no âmbito desta auditoria..."
                 value={form.scope}
                 onChange={(e) => setForm({ ...form, scope: e.target.value })}
                 rows={3}
-                className="resize-none"
+                className={`resize-none ${!form.scope ? "border-destructive/50 focus-visible:ring-destructive/50" : ""}`}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <ClipboardList className="h-4 w-4 text-purple-500" />
+              <label className={`text-sm font-medium flex items-center gap-2 ${!form.methodology ? "text-destructive" : ""}`}>
+                <ClipboardList className={`h-4 w-4 ${!form.methodology ? "text-destructive" : "text-purple-500"}`} />
                 Metodologia <span className="text-destructive">*</span>
+                {!form.methodology && <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">Em falta</span>}
               </label>
               <Textarea
                 placeholder="Descreva a metodologia a utilizar: entrevistas, análise documental, verificação no local..."
                 value={form.methodology}
                 onChange={(e) => setForm({ ...form, methodology: e.target.value })}
                 rows={4}
-                className="resize-none"
+                className={`resize-none ${!form.methodology ? "border-destructive/50 focus-visible:ring-destructive/50" : ""}`}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Users className="h-4 w-4 text-blue-500" />
+              <label className={`text-sm font-medium flex items-center gap-2 ${!form.interlocutors ? "text-destructive" : ""}`}>
+                <Users className={`h-4 w-4 ${!form.interlocutors ? "text-destructive" : "text-blue-500"}`} />
                 Interlocutores <span className="text-destructive">*</span>
+                {!form.interlocutors && <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">Em falta</span>}
               </label>
               <Textarea
                 placeholder="Liste os interlocutores a contactar (nome, função, departamento)..."
                 value={form.interlocutors}
                 onChange={(e) => setForm({ ...form, interlocutors: e.target.value })}
                 rows={3}
-                className="resize-none"
+                className={`resize-none ${!form.interlocutors ? "border-destructive/50 focus-visible:ring-destructive/50" : ""}`}
               />
             </div>
           </TabsContent>
