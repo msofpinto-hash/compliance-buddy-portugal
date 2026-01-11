@@ -55,6 +55,12 @@ export function SyncPanel() {
   } | null>(null);
   const [liveRequirementsCount, setLiveRequirementsCount] = useState(0);
   const [liveLegislationCount, setLiveLegislationCount] = useState(0);
+  const [recentlyImportedLegislation, setRecentlyImportedLegislation] = useState<Array<{
+    id: string;
+    number: string;
+    title: string;
+    created_at: string;
+  }>>([]);
   const [reimportStats, setReimportStats] = useState<{
     total: number;
     created: number;
@@ -416,6 +422,7 @@ export function SyncPanel() {
     setLinksImportStats(null);
     setLiveRequirementsCount(0);
     setLiveLegislationCount(0);
+    setRecentlyImportedLegislation([]);
 
     // Set up realtime subscription to track requirements being created
     const requirementsChannel = supabase
@@ -438,8 +445,19 @@ export function SyncPanel() {
           schema: 'public',
           table: 'legislation'
         },
-        () => {
+        (payload) => {
           setLiveLegislationCount(prev => prev + 1);
+          // Add to recently imported list (keep last 10)
+          const newLeg = payload.new as { id: string; number: string; title: string; created_at: string };
+          setRecentlyImportedLegislation(prev => [
+            { 
+              id: newLeg.id, 
+              number: newLeg.number || 'Sem número', 
+              title: newLeg.title || 'Sem título',
+              created_at: newLeg.created_at
+            },
+            ...prev
+          ].slice(0, 10));
         }
       )
       .subscribe();
@@ -1203,6 +1221,27 @@ https://dre.pt/application/file/..."
                   </div>
                 )}
               </div>
+              
+              {/* Recently imported legislation list */}
+              {recentlyImportedLegislation.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-teal-200">
+                  <h5 className="text-xs font-medium text-teal-700 mb-2">Últimos diplomas importados:</h5>
+                  <div className="max-h-[150px] overflow-y-auto space-y-1.5">
+                    {recentlyImportedLegislation.map((leg) => (
+                      <div 
+                        key={leg.id} 
+                        className="flex items-start gap-2 p-2 rounded bg-white border border-teal-100 text-xs animate-in slide-in-from-top-2 duration-300"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-teal-900 truncate">{leg.number}</p>
+                          <p className="text-muted-foreground truncate">{leg.title}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           
