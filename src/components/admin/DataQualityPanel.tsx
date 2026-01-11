@@ -71,9 +71,9 @@ export function DataQualityPanel() {
       ] = await Promise.all([
         // Total legislation
         supabase.from("legislation").select("id", { count: "exact", head: true }),
-        // Generic titles - fetch all and count locally to detect title=number pattern
+        // Generic titles - fetch all with origin to detect title=number pattern
         supabase.from("legislation")
-          .select("id, number, title"),
+          .select("id, number, title, origin, external_id"),
         // Missing summary
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
@@ -130,14 +130,34 @@ export function DataQualityPanel() {
       });
       const duplicateCount = Array.from(reqMap.values()).reduce((acc, count) => acc + (count > 1 ? count - 1 : 0), 0);
 
-      // Count generic titles (title = number or matches generic pattern)
-      const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)\s+n\.?º?\s/i;
-      const genericTitlesCount = (genericTitles.data || []).filter((leg: any) => {
+      // Count generic titles PT (title = number or matches generic pattern)
+      const genericPatternPT = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Declaração|Acórdão|Aviso|Parecer)\s+n\.?º?\s/i;
+      const ptLegislationData = (genericTitles.data || []).filter((leg: any) => 
+        leg.origin === 'PT' || leg.origin === 'dre'
+      );
+      const genericTitlesPTCount = ptLegislationData.filter((leg: any) => {
         const titleEqualsNumber = leg.title === leg.number;
-        const hasGenericPattern = genericPattern.test(leg.title) && 
+        const hasGenericPattern = genericPatternPT.test(leg.title) && 
           leg.title.length < 80 && 
           !leg.title.includes(' - ');
         return titleEqualsNumber || hasGenericPattern || !leg.title;
+      }).length;
+
+      // Count generic titles EU (title equals CELEX/number or is very short)
+      const euLegislationData = (genericTitles.data || []).filter((leg: any) => 
+        leg.origin === 'EU' || leg.origin === 'eurlex'
+      );
+      const genericTitlesEUCount = euLegislationData.filter((leg: any) => {
+        if (!leg.external_id) return false;
+        const titleEqualsCelex = leg.title === leg.external_id || leg.title === leg.number;
+        const isGenericTitle = 
+          leg.title?.startsWith('Documento ') ||
+          leg.title?.startsWith('32') ||
+          leg.title?.startsWith('22') ||
+          leg.title?.startsWith('52') ||
+          !leg.title ||
+          (leg.title?.length || 0) < 30;
+        return titleEqualsCelex || isGenericTitle;
       }).length;
 
       const total = totalLegislation.count || 0;
@@ -145,7 +165,8 @@ export function DataQualityPanel() {
       
       return {
         total,
-        genericTitles: genericTitlesCount,
+        genericTitlesPT: genericTitlesPTCount,
+        genericTitlesEU: genericTitlesEUCount,
         missingSummary: missingSummary.count || 0,
         missingUrl: missingUrlCount,
         withUrl: total - missingUrlCount,
@@ -233,10 +254,11 @@ export function DataQualityPanel() {
 
   const calculateQualityScore = () => {
     if (!qualityStats) return 0;
-    const { total, genericTitles, missingSummary, missingUrl, noRequirements } = qualityStats;
+    const { total, genericTitlesPT, genericTitlesEU, missingSummary, missingUrl, noRequirements } = qualityStats;
     if (total === 0) return 100;
 
     // Weighted score (titles and requirements are most important)
+    const genericTitles = genericTitlesPT + genericTitlesEU;
     const titleScore = ((total - genericTitles) / total) * 30;
     const summaryScore = ((total - missingSummary) / total) * 20;
     const urlScore = ((total - missingUrl) / total) * 20;
@@ -342,20 +364,20 @@ export function DataQualityPanel() {
         <ProblemCard
           icon={<FileText className="h-5 w-5" />}
           title="Títulos Genéricos (PT)"
-          count={qualityStats?.genericTitles || 0}
+          count={qualityStats?.genericTitlesPT || 0}
           total={qualityStats?.total || 0}
           severity="error"
           description="Diplomas PT com título igual ao número (requer scraping DRE)"
           action="Corrigir via DRE"
           onAction={() => setShowFixTitlesDialog(true)}
-          disabled={(qualityStats?.genericTitles || 0) === 0}
+          disabled={(qualityStats?.genericTitlesPT || 0) === 0}
         />
 
         <ProblemCard
           icon={<Globe className="h-5 w-5" />}
           title="Títulos Genéricos (EU)"
-          count={qualityStats?.euLegislation || 0}
-          total={qualityStats?.total || 0}
+          count={qualityStats?.genericTitlesEU || 0}
+          total={qualityStats?.euLegislation || 0}
           severity="warning"
           description="Diplomas EU que podem ter títulos incompletos (via SPARQL)"
           action="Corrigir via EUR-Lex"
@@ -474,7 +496,7 @@ export function DataQualityPanel() {
       <BulkFixMetadataDialog
         open={showFixMetadataDialog}
         onOpenChange={setShowFixMetadataDialog}
-        problemsCount={(qualityStats?.genericTitles || 0) + (qualityStats?.missingSummary || 0) + (qualityStats?.missingUrl || 0)}
+        problemsCount={(qualityStats?.genericTitlesPT || 0) + (qualityStats?.genericTitlesEU || 0) + (qualityStats?.missingSummary || 0) + (qualityStats?.missingUrl || 0)}
       />
 
       <ValidateUrlsDialog
@@ -485,13 +507,13 @@ export function DataQualityPanel() {
       <FixGenericTitlesDialog
         open={showFixTitlesDialog}
         onOpenChange={setShowFixTitlesDialog}
-        genericTitlesCount={qualityStats?.genericTitles || 0}
+        genericTitlesCount={qualityStats?.genericTitlesPT || 0}
       />
 
       <FixEurlexTitlesDialog
         open={showFixEurlexTitlesDialog}
         onOpenChange={setShowFixEurlexTitlesDialog}
-        genericTitlesCount={qualityStats?.euLegislation || 0}
+        genericTitlesCount={qualityStats?.genericTitlesEU || 0}
       />
     </div>
   );
