@@ -44,10 +44,31 @@ export function ClientsPanel() {
   const [newOrgServiceType, setNewOrgServiceType] = useState<string>("");
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserType, setNewUserType] = useState("consulta");
+  const [newUserLanguage, setNewUserLanguage] = useState("pt");
+  const [newUserCalendar, setNewUserCalendar] = useState("generico");
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [editingThemes, setEditingThemes] = useState<string[]>([]);
   const [editingModules, setEditingModules] = useState<string[]>([]);
+
+  const userTypes = [
+    { value: "consulta", label: "Consulta" },
+    { value: "editor", label: "Editor" },
+    { value: "admin_org", label: "Administrador Org." },
+  ];
+
+  const languages = [
+    { value: "pt", label: "Português" },
+    { value: "en", label: "English" },
+    { value: "es", label: "Español" },
+  ];
+
+  const calendarTypes = [
+    { value: "generico", label: "Genérico" },
+    { value: "personalizado", label: "Personalizado" },
+  ];
 
   const serviceTypes = [
     { value: "essencial", label: "Essencial", fullLabel: "Conformidade Legal Essencial", description: "Acesso básico à legislação", color: "bg-slate-100 text-slate-700 border-slate-200", icon: FileText },
@@ -252,7 +273,7 @@ export function ClientsPanel() {
   // Add user to organization mutation
   const addUserMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedOrg || !newUserEmail) return;
+      if (!selectedOrg || !newUserEmail || !newUserName) return;
       
       // First, find the user by email in profiles
       const { data: profile, error: profileError } = await supabase
@@ -276,6 +297,17 @@ export function ClientsPanel() {
       if (existingRole) {
         throw new Error("Este utilizador já pertence a esta organização.");
       }
+
+      // Update profile with additional info
+      await supabase
+        .from("profiles")
+        .update({
+          full_name: newUserName,
+          user_type: newUserType,
+          language: newUserLanguage,
+          calendar_type: newUserCalendar,
+        } as any)
+        .eq("id", profile.id);
       
       // Add user role
       const { error } = await supabase
@@ -293,6 +325,10 @@ export function ClientsPanel() {
       toast.success("Utilizador adicionado à organização");
       setIsAddUserOpen(false);
       setNewUserEmail("");
+      setNewUserName("");
+      setNewUserType("consulta");
+      setNewUserLanguage("pt");
+      setNewUserCalendar("generico");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -697,7 +733,7 @@ export function ClientsPanel() {
                       Adicionar
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Adicionar Utilizador</DialogTitle>
                       <DialogDescription>
@@ -705,16 +741,86 @@ export function ClientsPanel() {
                         O utilizador deve já estar registado no sistema.
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="user-name" className="flex items-center gap-1">
+                            <span className="text-destructive">*</span> Nome
+                          </Label>
+                          <Input
+                            id="user-name"
+                            placeholder="Nome completo"
+                            value={newUserName}
+                            onChange={(e) => setNewUserName(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="user-email" className="flex items-center gap-1">
+                            <span className="text-destructive">*</span> Login
+                          </Label>
+                          <Input
+                            id="user-email"
+                            type="email"
+                            placeholder="exemplo@empresa.pt"
+                            value={newUserEmail}
+                            onChange={(e) => setNewUserEmail(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="user-type" className="flex items-center gap-1">
+                            <span className="text-destructive">*</span> Tipo
+                          </Label>
+                          <Select value={newUserType} onValueChange={setNewUserType}>
+                            <SelectTrigger id="user-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {userTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="user-language" className="flex items-center gap-1">
+                            <span className="text-destructive">*</span> Idioma
+                          </Label>
+                          <Select value={newUserLanguage} onValueChange={setNewUserLanguage}>
+                            <SelectTrigger id="user-language">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {languages.map((lang) => (
+                                <SelectItem key={lang.value} value={lang.value}>
+                                  {lang.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email do Utilizador</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="exemplo@empresa.pt"
-                          value={newUserEmail}
-                          onChange={(e) => setNewUserEmail(e.target.value)}
-                        />
+                        <Label htmlFor="user-calendar" className="flex items-center gap-1">
+                          <span className="text-destructive">*</span> Calendário
+                        </Label>
+                        <Select value={newUserCalendar} onValueChange={setNewUserCalendar}>
+                          <SelectTrigger id="user-calendar" className="w-1/2">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {calendarTypes.map((cal) => (
+                              <SelectItem key={cal.value} value={cal.value}>
+                                {cal.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <DialogFooter>
@@ -723,7 +829,7 @@ export function ClientsPanel() {
                       </Button>
                       <Button
                         onClick={() => addUserMutation.mutate()}
-                        disabled={!newUserEmail.trim() || addUserMutation.isPending}
+                        disabled={!newUserEmail.trim() || !newUserName.trim() || addUserMutation.isPending}
                       >
                         {addUserMutation.isPending ? "A adicionar..." : "Adicionar"}
                       </Button>

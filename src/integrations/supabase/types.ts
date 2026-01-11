@@ -931,34 +931,46 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           avatar_url: string | null
+          calendar_type: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
           is_approved: boolean
+          language: string | null
+          phone: string | null
           updated_at: string
+          user_type: string | null
         }
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
           avatar_url?: string | null
+          calendar_type?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id: string
           is_approved?: boolean
+          language?: string | null
+          phone?: string | null
           updated_at?: string
+          user_type?: string | null
         }
         Update: {
           approved_at?: string | null
           approved_by?: string | null
           avatar_url?: string | null
+          calendar_type?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
           is_approved?: boolean
+          language?: string | null
+          phone?: string | null
           updated_at?: string
+          user_type?: string | null
         }
         Relationships: []
       }
