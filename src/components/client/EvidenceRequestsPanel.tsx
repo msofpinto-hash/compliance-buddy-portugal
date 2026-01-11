@@ -48,6 +48,7 @@ import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import { ExportColumnsDialog, ExportColumn } from "@/components/ExportColumnsDialog";
 import { cn } from "@/lib/utils";
 
 interface EvidenceRequest {
@@ -126,6 +127,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
   const [selectedRequest, setSelectedRequest] = useState<EvidenceRequest | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [notes, setNotes] = useState("");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   
   // Document upload form state
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -133,6 +135,20 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
   const [validityDate, setValidityDate] = useState<Date | undefined>(undefined);
   const [documentNotes, setDocumentNotes] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Export columns configuration
+  const exportColumns: ExportColumn[] = [
+    { key: "grupo", label: "Grupo" },
+    { key: "titulo", label: "Título" },
+    { key: "descricao", label: "Descrição" },
+    { key: "areas", label: "Áreas" },
+    { key: "estado", label: "Estado" },
+    { key: "dataLimite", label: "Data Limite" },
+    { key: "dataSubmissao", label: "Data Submissão" },
+    { key: "notas", label: "Notas" },
+    { key: "numDocumentos", label: "Nº Documentos" },
+    { key: "documentos", label: "Documentos" },
+  ];
 
   // Fetch evidence requests for this organization
   const { data: requests, isLoading: loadingRequests } = useQuery({
@@ -389,33 +405,46 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     a.click();
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = (selectedColumns: string[]) => {
     if (!filteredRequests?.length) {
       toast({ title: "Aviso", description: "Não há pedidos para exportar", variant: "destructive" });
       return;
     }
 
-    const exportData = filteredRequests.map(req => {
-      const areas = getTemplateAreas(req.evidence_templates)
-        .map(a => a.label)
-        .join(", ");
-      
-      const docs = requestDocuments?.[req.id] || [];
-      const docCount = docs.length;
-      const docNames = docs.map(d => d.documents?.name).filter(Boolean).join("; ");
+    const columnMapping: Record<string, (req: EvidenceRequest) => string | number> = {
+      grupo: (req) => req.evidence_templates.group_name,
+      titulo: (req) => req.evidence_templates.title,
+      descricao: (req) => req.evidence_templates.description || "",
+      areas: (req) => getTemplateAreas(req.evidence_templates).map(a => a.label).join(", "),
+      estado: (req) => STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]?.label || req.status,
+      dataLimite: (req) => req.due_date ? format(new Date(req.due_date), "dd/MM/yyyy", { locale: pt }) : "",
+      dataSubmissao: (req) => req.submitted_at ? format(new Date(req.submitted_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
+      notas: (req) => req.notes || "",
+      numDocumentos: (req) => (requestDocuments?.[req.id] || []).length,
+      documentos: (req) => (requestDocuments?.[req.id] || []).map(d => d.documents?.name).filter(Boolean).join("; "),
+    };
 
-      return {
-        "Grupo": req.evidence_templates.group_name,
-        "Título": req.evidence_templates.title,
-        "Descrição": req.evidence_templates.description || "",
-        "Áreas": areas,
-        "Estado": STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG]?.label || req.status,
-        "Data Limite": req.due_date ? format(new Date(req.due_date), "dd/MM/yyyy", { locale: pt }) : "",
-        "Data Submissão": req.submitted_at ? format(new Date(req.submitted_at), "dd/MM/yyyy HH:mm", { locale: pt }) : "",
-        "Notas": req.notes || "",
-        "Nº Documentos": docCount,
-        "Documentos": docNames,
-      };
+    const columnLabels: Record<string, string> = {
+      grupo: "Grupo",
+      titulo: "Título",
+      descricao: "Descrição",
+      areas: "Áreas",
+      estado: "Estado",
+      dataLimite: "Data Limite",
+      dataSubmissao: "Data Submissão",
+      notas: "Notas",
+      numDocumentos: "Nº Documentos",
+      documentos: "Documentos",
+    };
+
+    const exportData = filteredRequests.map(req => {
+      const row: Record<string, string | number> = {};
+      selectedColumns.forEach(col => {
+        if (columnMapping[col]) {
+          row[columnLabels[col]] = columnMapping[col](req);
+        }
+      });
+      return row;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -423,10 +452,12 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
     XLSX.utils.book_append_sheet(workbook, worksheet, "Pedidos de Evidência");
     
     // Auto-size columns
-    const colWidths = Object.keys(exportData[0]).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length).slice(0, 50)) + 2
-    }));
-    worksheet["!cols"] = colWidths;
+    if (exportData.length > 0) {
+      const colWidths = Object.keys(exportData[0]).map(key => ({
+        wch: Math.max(key.length, ...exportData.map(row => String(row[key]).length).slice(0, 50)) + 2
+      }));
+      worksheet["!cols"] = colWidths;
+    }
 
     const fileName = `pedidos_evidencia_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
     XLSX.writeFile(workbook, fileName);
@@ -565,7 +596,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={exportToExcel}
+                onClick={() => setExportDialogOpen(true)}
                 disabled={!filteredRequests?.length}
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -575,6 +606,15 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
           </div>
         </CardContent>
       </Card>
+
+      {/* Export Columns Dialog */}
+      <ExportColumnsDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        columns={exportColumns}
+        onExport={exportToExcel}
+        description={`Selecione as colunas para exportar ${filteredRequests?.length || 0} pedido(s).`}
+      />
 
       {/* Requests List */}
       {loadingRequests ? (
