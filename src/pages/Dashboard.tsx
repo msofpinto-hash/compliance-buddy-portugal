@@ -131,6 +131,22 @@ export default function Dashboard() {
     ? tabParam 
     : "overview";
 
+  // Fetch user profile
+  const { data: userProfile } = useQuery({
+    queryKey: ["user-profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   // Fetch user's organizations (multiple)
   const { data: userRoles } = useQuery({
     queryKey: ["user-roles", user?.id],
@@ -606,7 +622,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">Home</p>
                 <h1 className="text-2xl font-bold">
-                  Bem-vindo, {user?.email?.split("@")[0]}
+                  Bem-vindo, {userProfile?.full_name || user?.email?.split("@")[0]}
                 </h1>
               </div>
             </div>
@@ -655,7 +671,7 @@ export default function Dashboard() {
             <>
               {/* Welcome Hero Section */}
               <WelcomeHero
-                userName={user?.email}
+                userName={userProfile?.full_name || user?.email}
                 organizationName={currentOrg?.name}
                 complianceRate={complianceRate}
                 stats={{
