@@ -16,12 +16,12 @@ interface LegislationApplicabilitySelectProps {
 }
 
 const applicabilityTypes = [
-  { value: "nao_avaliado", label: "Não Avaliado", color: "bg-gray-100 text-gray-700 border-gray-300" },
-  { value: "aplicavel_direto", label: "Aplicável Direto", color: "bg-green-100 text-green-700 border-green-300" },
-  { value: "aplicavel_indireto", label: "Aplicável Indireto", color: "bg-blue-100 text-blue-700 border-blue-300" },
-  { value: "aplicavel_condicionado", label: "Aplicável Condicionado", color: "bg-amber-100 text-amber-700 border-amber-300" },
-  { value: "nao_aplicavel", label: "Não Aplicável", color: "bg-red-100 text-red-700 border-red-300" },
-  { value: "informativo", label: "Informativo", color: "bg-purple-100 text-purple-700 border-purple-300" },
+  { value: "nao_avaliado", label: "Não Avaliado", color: "bg-gray-100 text-gray-700 border-gray-300", description: "Este diploma ainda não foi avaliado pela organização." },
+  { value: "aplicavel_direto", label: "Aplicável Direto", color: "bg-green-100 text-green-700 border-green-300", description: "Aplicação obrigatória e direta às atividades da organização." },
+  { value: "aplicavel_indireto", label: "Aplicável Indireto", color: "bg-blue-100 text-blue-700 border-blue-300", description: "Aplicação através de terceiros (fornecedores, clientes, etc.)." },
+  { value: "aplicavel_condicionado", label: "Aplicável Condicionado", color: "bg-amber-100 text-amber-700 border-amber-300", description: "Aplicação dependente de condições específicas ou futuras." },
+  { value: "nao_aplicavel", label: "Não Aplicável", color: "bg-red-100 text-red-700 border-red-300", description: "Este diploma não se aplica às atividades da organização." },
+  { value: "informativo", label: "Informativo", color: "bg-purple-100 text-purple-700 border-purple-300", description: "Diploma para conhecimento, sem obrigações de conformidade." },
 ];
 
 export function getLegislationApplicabilityInfo(value: string) {
