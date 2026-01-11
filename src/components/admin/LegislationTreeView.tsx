@@ -642,15 +642,19 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
                     const isNotEvaluated = applicabilityMap && (!applicabilityType || applicabilityType === "nao_avaliado");
 
+                    const isRevoked = !!(leg as any).revocation_date;
+
                     return (
                       <div
                         key={leg.id}
                         className={`rounded-lg border p-3 hover:shadow-md transition-all duration-200 overflow-hidden group ${
                           isNotEvaluated ? "border-l-4 border-l-amber-400" : ""
                         } ${
-                          leg.origin === "PT" 
-                            ? "hover:border-green-300" 
-                            : "hover:border-blue-300"
+                          isRevoked
+                            ? "bg-muted/50 border-muted opacity-75"
+                            : leg.origin === "PT" 
+                              ? "hover:border-green-300" 
+                              : "hover:border-blue-300"
                         }`}
                       >
                         {/* Header row */}
@@ -687,7 +691,15 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                                 </Tooltip>
                               </TooltipProvider>
                             )}
-                            {isNotEvaluated && (
+                            {isRevoked && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 text-xs px-2 py-0.5 bg-destructive/10 text-destructive border-destructive/30"
+                              >
+                                Revogado
+                              </Badge>
+                            )}
+                            {isNotEvaluated && !isRevoked && (
                               <TooltipProvider delayDuration={200}>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -729,9 +741,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         </div>
 
                         {/* Number + Title */}
-                        <Link to={`/legislacao/${leg.id}`} className="block group-hover:text-primary transition-colors">
-                          <p className="font-semibold text-sm">{leg.number}</p>
-                          <p className="text-sm text-foreground/90 line-clamp-2">{leg.title}</p>
+                        <Link to={`/legislacao/${leg.id}`} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
+                          <p className={`font-semibold text-sm ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
+                          <p className={`text-sm line-clamp-2 ${isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'}`}>{leg.title}</p>
                         </Link>
 
                         {/* Summary + Date */}
