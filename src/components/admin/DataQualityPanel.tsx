@@ -25,7 +25,8 @@ import {
   Flag,
   Globe,
   Unlink,
-  GitBranch
+  GitBranch,
+  Download
 } from "lucide-react";
 import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
@@ -35,6 +36,7 @@ import { FindMissingUrlsDialog } from "./FindMissingUrlsDialog";
 import { ImportUrlsCsvDialog } from "./ImportUrlsCsvDialog";
 import { ImportEurlexSummariesDialog } from "./ImportEurlexSummariesDialog";
 import { ExtractRelationsDialog } from "./ExtractRelationsDialog";
+import { CompleteAutoImportedDialog } from "./CompleteAutoImportedDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -57,6 +59,7 @@ export function DataQualityPanel() {
   const [showImportUrlsCsvDialog, setShowImportUrlsCsvDialog] = useState(false);
   const [showImportEurlexSummariesDialog, setShowImportEurlexSummariesDialog] = useState(false);
   const [showExtractRelationsDialog, setShowExtractRelationsDialog] = useState(false);
+  const [showCompleteAutoImportedDialog, setShowCompleteAutoImportedDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
 
   // Fetch comprehensive data quality statistics
@@ -78,6 +81,7 @@ export function DataQualityPanel() {
         ptRequirements,
         euRequirements,
         relationsData,
+        incompleteAutoImported,
       ] = await Promise.all([
         // Total legislation
         supabase.from("legislation").select("id", { count: "exact", head: true }),
@@ -120,6 +124,10 @@ export function DataQualityPanel() {
           .or("origin.eq.EU,origin.eq.eurlex", { foreignTable: "legislation" }),
         // Relations data
         supabase.from("legislation_relations").select("relation_type"),
+        // Incomplete auto-imported legislation
+        supabase.from("legislation")
+          .select("id", { count: "exact", head: true })
+          .or("document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null"),
       ]);
 
       // Get legislation without requirements
@@ -228,6 +236,7 @@ export function DataQualityPanel() {
         relationsByType,
         legislationWithRelations: uniqueLegislationWithRelations.size,
         legislationWithoutRelations: total - uniqueLegislationWithRelations.size,
+        incompleteAutoImported: incompleteAutoImported.count || 0,
       };
     },
   });
@@ -518,6 +527,18 @@ export function DataQualityPanel() {
         />
 
         <ProblemCard
+          icon={<Download className="h-5 w-5" />}
+          title="Auto-Importados Incompletos"
+          count={qualityStats?.incompleteAutoImported || 0}
+          total={qualityStats?.total || 0}
+          severity="warning"
+          description="Diplomas criados automaticamente com dados em falta (sem URL ou sumário)"
+          action="Completar Dados"
+          onAction={() => setShowCompleteAutoImportedDialog(true)}
+          disabled={(qualityStats?.incompleteAutoImported || 0) === 0}
+        />
+
+        <ProblemCard
           icon={<BarChart3 className="h-5 w-5" />}
           title="Sem Categoria"
           count={qualityStats?.noCategories || 0}
@@ -646,6 +667,11 @@ export function DataQualityPanel() {
       <ExtractRelationsDialog
         open={showExtractRelationsDialog}
         onOpenChange={setShowExtractRelationsDialog}
+      />
+
+      <CompleteAutoImportedDialog
+        open={showCompleteAutoImportedDialog}
+        onOpenChange={setShowCompleteAutoImportedDialog}
       />
     </div>
   );
