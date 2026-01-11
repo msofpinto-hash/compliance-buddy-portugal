@@ -44,6 +44,7 @@ import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
 import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDialog";
+import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -1293,8 +1294,8 @@ export default function Dashboard() {
           )}
 
           {/* Documents Tab */}
-          {activeTab === "documents" && (
-            <DocumentsPanel organizationIds={organizationIds as string[]} />
+          {activeTab === "documents" && currentOrg?.id && (
+            <EvidenceRequestsPanel organizationId={currentOrg.id} />
           )}
 
           {/* Indicators Tab */}
