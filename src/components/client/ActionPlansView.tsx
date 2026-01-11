@@ -491,6 +491,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
     search: "",
     type: "all", // all, audit, adhoc
     status: [] as string[],
+    priority: "all", // all, alta, media, baixa
     responsible: "",
     dateStart: "",
     dateEnd: "",
@@ -551,6 +552,9 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
       // Status filter
       if (filters.status.length > 0 && !filters.status.includes(plan.status || "pendente")) return false;
 
+      // Priority filter
+      if (filters.priority !== "all" && (plan.priority || "media") !== filters.priority) return false;
+
       // Responsible filter
       if (filters.responsible && plan.responsible !== filters.responsible) return false;
 
@@ -587,6 +591,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
     if (filters.search) count++;
     if (filters.type !== "all") count++;
     if (filters.status.length > 0) count++;
+    if (filters.priority !== "all") count++;
     if (filters.responsible) count++;
     if (filters.dateStart || filters.dateEnd) count++;
     if (filters.hideCompleted) count++;
@@ -598,6 +603,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
       search: "",
       type: "all",
       status: [],
+      priority: "all",
       responsible: "",
       dateStart: "",
       dateEnd: "",
@@ -1107,7 +1113,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
         <CollapsibleContent>
           <Card>
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Tipo de Registo</Label>
                   <Select value={filters.type} onValueChange={(v) => setFilters(p => ({ ...p, type: v }))}>
@@ -1136,6 +1142,35 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                       <SelectItem value="em_curso">Em Curso</SelectItem>
                       <SelectItem value="concluido">Concluído</SelectItem>
                       <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Prioridade</Label>
+                  <Select value={filters.priority} onValueChange={(v) => setFilters(p => ({ ...p, priority: v }))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="alta">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-red-500" />
+                          Alta
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="media">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-amber-500" />
+                          Média
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="baixa">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-green-500" />
+                          Baixa
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
