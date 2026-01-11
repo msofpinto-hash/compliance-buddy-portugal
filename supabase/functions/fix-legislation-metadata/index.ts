@@ -32,23 +32,39 @@ Deno.serve(async (req) => {
 
     console.log(`Starting metadata fix - Type: ${fixType}, Limit: ${limit}, DryRun: ${dryRun}`);
 
-    // Find legislation with problems
+    // Find legislation with problems - get all and filter in code since we need to compare title=number
     let query = supabase
       .from('legislation')
-      .select('id, number, title, origin, document_url, summary, publication_date, effective_date')
-      .or('title.like.Documento %,origin.is.null,publication_date.is.null');
+      .select('id, number, title, origin, document_url, summary, publication_date, effective_date');
 
     if (fixType === 'eurlex') {
-      query = query.eq('origin', 'EU');
+      query = query.or('origin.eq.EU,origin.eq.eurlex');
     } else if (fixType === 'dre') {
-      query = query.eq('origin', 'PT');
+      query = query.or('origin.eq.PT,origin.eq.dre');
     }
 
-    const { data: legislationToFix, error: fetchError } = await query.limit(limit);
-
+    const { data: allLegislation, error: fetchError } = await query.limit(1000);
+    
     if (fetchError) {
       throw new Error(`Failed to fetch legislation: ${fetchError.message}`);
     }
+
+    // Filter to find legislation with actual problems
+    const legislationToFix = (allLegislation || []).filter(leg => {
+      // Check for generic title (title equals number or starts with type name)
+      const titleEqualsNumber = leg.title === leg.number;
+      const hasGenericTitlePattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração)\s+n\.?º?\s/i.test(leg.title) && 
+        leg.title.length < 80 && !leg.title.includes(' - ');
+      const hasGenericTitle = titleEqualsNumber || hasGenericTitlePattern;
+      
+      // Check for missing data
+      const hasMissingOrigin = !leg.origin || (leg.origin !== 'PT' && leg.origin !== 'EU' && leg.origin !== 'dre' && leg.origin !== 'eurlex');
+      const hasMissingSummary = !leg.summary || leg.summary.length < 10;
+      const hasMissingUrl = !leg.document_url;
+      
+      return hasGenericTitle || hasMissingOrigin || hasMissingSummary || hasMissingUrl;
+    }).slice(0, limit);
+
 
     console.log(`Found ${legislationToFix?.length || 0} items to fix`);
 
@@ -71,9 +87,13 @@ Deno.serve(async (req) => {
       const problems: string[] = [];
       const updates: Record<string, any> = {};
 
-      // Detect problems
-      const hasGenericTitle = leg.title?.startsWith('Documento ');
-      const hasMissingOrigin = !leg.origin || (leg.origin !== 'PT' && leg.origin !== 'EU');
+      // Detect problems - improved detection for generic titles
+      const titleEqualsNumber = leg.title === leg.number;
+      const hasGenericTitlePattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão)\s+n\.?º?\s/i.test(leg.title) && 
+        leg.title.length < 80 && !leg.title.includes(' - ');
+      const hasGenericTitle = titleEqualsNumber || hasGenericTitlePattern || leg.title?.startsWith('Documento ');
+      
+      const hasMissingOrigin = !leg.origin || (leg.origin !== 'PT' && leg.origin !== 'EU' && leg.origin !== 'dre' && leg.origin !== 'eurlex');
       const hasMissingUrl = !leg.document_url;
       const hasMissingSummary = !leg.summary || leg.summary.length < 10;
 
