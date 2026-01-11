@@ -47,6 +47,8 @@ import { type LegislationWithCategories } from "@/hooks/useLegislation";
 import { getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import emptySearchImage from "@/assets/empty-search.png";
+import treeCategoriesImage from "@/assets/tree-categories.png";
 
 // Theme color configurations
 const themeColors: Record<string, { bg: string; text: string; border: string; accent: string; icon: LucideIcon }> = {
@@ -573,9 +575,11 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 flex flex-col items-center justify-center text-muted-foreground">
-              <div className="p-4 rounded-full bg-muted mb-3">
-                <FolderOpen className="h-8 w-8 opacity-50" />
-              </div>
+              <img 
+                src={treeCategoriesImage} 
+                alt="Selecione um tema" 
+                className="w-24 h-24 object-contain opacity-80 mb-3"
+              />
               <p className="text-sm text-center">Utilize o filtro "Tema / Categoria" para selecionar um tema</p>
             </CardContent>
           </Card>
@@ -748,9 +752,11 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               </ScrollArea>
             ) : (
               <div className="py-12 text-center text-muted-foreground">
-                <div className="p-4 rounded-full bg-muted inline-block mb-3">
-                  <FileText className="h-8 w-8 opacity-50" />
-                </div>
+                <img 
+                  src={emptySearchImage} 
+                  alt="Sem resultados" 
+                  className="w-20 h-20 object-contain mx-auto opacity-80 mb-3"
+                />
                 <p className="text-sm">
                   {selectedCategoryId ? "Nenhuma legislação nesta categoria" : "Selecione uma categoria para ver os diplomas"}
                 </p>

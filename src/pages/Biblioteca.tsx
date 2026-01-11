@@ -30,6 +30,7 @@ import { useLegislationWithCategories } from "@/hooks/useLegislation";
 import { CategoryTreeFilter } from "@/components/CategoryTreeFilter";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
+import bibliotecaHero from "@/assets/biblioteca-hero.png";
 
 const applicabilityFilterOptions = [
   { value: "all", label: "Todos" },
@@ -165,23 +166,34 @@ export default function Biblioteca() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-gradient-to-r from-primary/5 via-primary/10 to-background sticky top-0 z-10 backdrop-blur-sm">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+      {/* Hero Header with Image */}
+      <header className="relative border-b overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={bibliotecaHero} 
+            alt="" 
+            className="w-full h-full object-cover opacity-20"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80" />
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10 container mx-auto flex items-center justify-between px-4 py-6">
           <div className="flex items-center gap-4">
             <Link to={user ? "/dashboard" : "/"}>
-              <Button variant="ghost" size="icon" className="rounded-full">
+              <Button variant="ghost" size="icon" className="rounded-full bg-background/50 backdrop-blur-sm">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
-                <BookOpen className="h-6 w-6" />
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xl">
+                <BookOpen className="h-7 w-7" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">Biblioteca de Legislação</h1>
-                <p className="text-sm text-muted-foreground">
-                  Explore e pesquise toda a legislação disponível
+                <h1 className="text-3xl font-bold tracking-tight">Biblioteca de Legislação</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Explore e pesquise toda a legislação disponível organizada por temas e categorias
                 </p>
               </div>
             </div>
