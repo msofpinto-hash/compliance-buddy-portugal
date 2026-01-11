@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronUp, Save, Loader2, FileText, Link2, ExternalLink, X, Paperclip } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, Loader2, FileText, Link2, ExternalLink, X, Paperclip, Upload, Trash2 } from "lucide-react";
 
 const complianceOptions = [
   { value: "pending", label: "Pendente", color: "bg-gray-100 text-gray-700 border-gray-300" },
@@ -35,9 +35,12 @@ interface AuditRequirementCardProps {
 
 export function AuditRequirementCard({ requirement, organizationId, onUpdated }: AuditRequirementCardProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [showDocumentSelector, setShowDocumentSelector] = useState(false);
   const [form, setForm] = useState({
     compliance_status: requirement.compliance_status || "pending",
@@ -142,6 +145,110 @@ export function AuditRequirementCard({ requirement, organizationId, onUpdated }:
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      // Upload file to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `audit-evidence/${organizationId}/${requirement.audit_id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("requirement-documents")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("requirement-documents")
+        .getPublicUrl(filePath);
+
+      // Create document record
+      const { data: docData, error: docError } = await supabase
+        .from("documents")
+        .insert({
+          name: file.name,
+          file_url: urlData.publicUrl,
+          organization_id: organizationId,
+          category: "Evidência Auditoria",
+          uploaded_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (docError) throw docError;
+
+      // Link document to audit requirement
+      const { error: linkError } = await supabase
+        .from("audit_requirement_documents")
+        .insert({
+          audit_requirement_id: requirement.id,
+          document_id: docData.id,
+        });
+
+      if (linkError) throw linkError;
+
+      toast({ title: "Documento carregado e associado" });
+      refetchLinkedDocs();
+      queryClient.invalidateQueries({ queryKey: ["documents", organizationId] });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast({ title: "Erro ao carregar documento", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleDeleteDocument = async (linkId: string, documentId: string, fileUrl: string | null) => {
+    try {
+      // Remove link first
+      await supabase
+        .from("audit_requirement_documents")
+        .delete()
+        .eq("id", linkId);
+
+      // Try to delete from storage if it's an audit evidence file
+      if (fileUrl && fileUrl.includes("audit-evidence")) {
+        const path = fileUrl.split("/requirement-documents/")[1];
+        if (path) {
+          await supabase.storage.from("requirement-documents").remove([path]);
+        }
+      }
+
+      // Delete document record if it was created for this audit
+      const { data: linkCount } = await supabase
+        .from("audit_requirement_documents")
+        .select("id")
+        .eq("document_id", documentId);
+
+      if (!linkCount || linkCount.length === 0) {
+        const { data: doc } = await supabase
+          .from("documents")
+          .select("category")
+          .eq("id", documentId)
+          .single();
+
+        if (doc?.category === "Evidência Auditoria") {
+          await supabase.from("documents").delete().eq("id", documentId);
+        }
+      }
+
+      toast({ title: "Documento removido" });
+      refetchLinkedDocs();
+      queryClient.invalidateQueries({ queryKey: ["documents", organizationId] });
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      toast({ title: "Erro ao remover documento", variant: "destructive" });
+    }
+  };
+
   const hasChanges = 
     form.compliance_status !== (requirement.compliance_status || "pending") ||
     form.evidence !== (requirement.evidence || "") ||
@@ -219,22 +326,45 @@ export function AuditRequirementCard({ requirement, organizationId, onUpdated }:
               </div>
             </div>
 
-            {/* Linked Documents Section */}
+            {/* Documents Section */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Link2 className="h-4 w-4" />
                   Documentos de Evidência
                 </label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDocumentSelector(!showDocumentSelector)}
-                  className="gap-1"
-                >
-                  <Paperclip className="h-3 w-3" />
-                  Associar
-                </Button>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="gap-1"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Upload className="h-3 w-3" />
+                    )}
+                    Carregar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDocumentSelector(!showDocumentSelector)}
+                    className="gap-1"
+                  >
+                    <Paperclip className="h-3 w-3" />
+                    Associar
+                  </Button>
+                </div>
               </div>
 
               {/* Linked documents list */}
@@ -267,14 +397,25 @@ export function AuditRequirementCard({ requirement, organizationId, onUpdated }:
                             </a>
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleUnlinkDocument(link.id)}
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
+                        {link.documents?.category === "Evidência Auditoria" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteDocument(link.id, link.document_id, link.documents?.file_url)}
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUnlinkDocument(link.id)}
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -288,7 +429,7 @@ export function AuditRequirementCard({ requirement, organizationId, onUpdated }:
               {/* Document selector */}
               {showDocumentSelector && (
                 <div className="border rounded-md p-3 bg-background">
-                  <p className="text-xs font-medium mb-2">Selecione documentos para associar:</p>
+                  <p className="text-xs font-medium mb-2">Selecione documentos existentes para associar:</p>
                   {availableDocuments && availableDocuments.length > 0 ? (
                     <ScrollArea className="h-[150px]">
                       <div className="space-y-2">
