@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface ExtractedRelation {
-  relation_type: 'revoga' | 'altera' | 'alterado_por' | 'regulamenta' | 'regulamentado_por' | 'transpoe' | 'transposto_por' | 'complementa';
+  relation_type: 'revogado' | 'revogacao_parcial' | 'alteracao' | 'transposicao' | 'regulamentacao';
   target_number: string;
   notes?: string;
 }
@@ -86,30 +86,28 @@ TEXTO DO DIPLOMA:
 ${textForAI}
 
 INSTRUÇÕES:
-Identifica relações dos seguintes tipos:
-- "revoga": diplomas que ESTE diploma revoga
-- "altera": diplomas que ESTE diploma altera/modifica
-- "alterado_por": diplomas que alteram ESTE diploma (menos comum, só se explicitamente mencionado)
-- "regulamenta": diplomas que ESTE diploma regulamenta
-- "regulamentado_por": diplomas que regulamentam ESTE diploma
-- "transpoe": diretivas europeias que ESTE diploma transpõe
-- "transposto_por": leis nacionais que transpõem ESTA diretiva (só para legislação EU)
-- "complementa": diplomas relacionados/complementares
+Identifica relações dos seguintes tipos (USA EXATAMENTE ESTES VALORES):
+- "revogado": diplomas que ESTE diploma revoga totalmente
+- "revogacao_parcial": diplomas que ESTE diploma revoga parcialmente
+- "alteracao": diplomas que ESTE diploma altera/modifica
+- "transposicao": diretivas europeias que ESTE diploma transpõe
+- "regulamentacao": diplomas que ESTE diploma regulamenta ou é regulamentado
 
 Para cada relação encontrada, extrai:
-- relation_type: um dos tipos acima
+- relation_type: um dos tipos EXATOS acima (revogado, revogacao_parcial, alteracao, transposicao, regulamentacao)
 - target_number: número do diploma alvo (ex: "Decreto-Lei n.º 123/2020", "Diretiva 2010/75/UE", "Portaria n.º 456/2019")
 - notes: contexto adicional se relevante (opcional)
 
 IMPORTANTE:
+- Usa APENAS os tipos: revogado, revogacao_parcial, alteracao, transposicao, regulamentacao
 - Extrai os números dos diplomas EXATAMENTE como aparecem
 - Procura nas secções "Revoga", "Altera", "Regulamenta", "Transpõe" e no texto geral
 - Não inventes relações - só as que estão explicitamente mencionadas
 
 Retorna APENAS um array JSON válido. Exemplo:
 [
-  {"relation_type": "revoga", "target_number": "Decreto-Lei n.º 123/2020"},
-  {"relation_type": "transpoe", "target_number": "Diretiva 2010/75/UE", "notes": "parcialmente"}
+  {"relation_type": "revogado", "target_number": "Decreto-Lei n.º 123/2020"},
+  {"relation_type": "transposicao", "target_number": "Diretiva 2010/75/UE", "notes": "parcialmente"}
 ]
 
 Se não encontrares relações, retorna um array vazio: []`;
@@ -161,8 +159,8 @@ Se não encontrares relações, retorna um array vazio: []`;
       return [];
     }
     
-    // Validate relations
-    const validTypes = ['revoga', 'altera', 'alterado_por', 'regulamenta', 'regulamentado_por', 'transpoe', 'transposto_por', 'complementa'];
+    // Validate relations - only allow DB constraint values
+    const validTypes = ['revogado', 'revogacao_parcial', 'alteracao', 'transposicao', 'regulamentacao'];
     const relations = parsed
       .filter((r: any) => r && typeof r === 'object' && r.relation_type && r.target_number)
       .filter((r: any) => validTypes.includes(r.relation_type))
