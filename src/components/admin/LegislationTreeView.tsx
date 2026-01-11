@@ -18,7 +18,9 @@ import {
   Tags,
   Building2,
   Search,
-  X
+  X,
+  ChevronsUpDown,
+  ChevronsDownUp
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
@@ -96,6 +98,25 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
     if (!selectedTheme) return [];
     return buildCategoryTree(selectedTheme.categories);
   }, [selectedTheme, legislationByCategory]);
+
+  // Get all category IDs for expand/collapse all
+  const getAllCategoryIds = (nodes: CategoryNode[]): string[] => {
+    let ids: string[] = [];
+    nodes.forEach(node => {
+      ids.push(node.category.id);
+      ids = [...ids, ...getAllCategoryIds(node.children)];
+    });
+    return ids;
+  };
+
+  const expandAll = () => {
+    const allIds = getAllCategoryIds(categoryTree);
+    setExpandedCategories(new Set(allIds));
+  };
+
+  const collapseAll = () => {
+    setExpandedCategories(new Set());
+  };
 
   // Count total legislation in a category (including children)
   const countLegislation = (node: CategoryNode): number => {
@@ -333,16 +354,40 @@ export function LegislationTreeView({ legislation, onSelectLegislation }: Legisl
       {selectedTheme && (
         <Card className="w-80 flex-shrink-0">
           <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Tags className="h-4 w-4" />
-              {selectedTheme.name}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Categorias e subcategorias
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Tags className="h-4 w-4" />
+                  {selectedTheme.name}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Categorias e subcategorias
+                </CardDescription>
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={expandAll}
+                  title="Expandir tudo"
+                >
+                  <ChevronsUpDown className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={collapseAll}
+                  title="Colapsar tudo"
+                >
+                  <ChevronsDownUp className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-2">
-            <ScrollArea className="h-[calc(100vh-420px)]">
+            <ScrollArea className="h-[calc(100vh-440px)]">
               <div className="space-y-0.5">
                 {categoryTree.map(node => renderCategoryNode(node))}
               </div>
