@@ -429,6 +429,141 @@ export type Database = {
           },
         ]
       }
+      evidence_request_documents: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          request_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          request_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          request_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_request_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_request_documents_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "organization_evidence_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_template_legislation: {
+        Row: {
+          created_at: string
+          id: string
+          legislation_id: string
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          legislation_id: string
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          legislation_id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_template_legislation_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_template_legislation_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_templates: {
+        Row: {
+          area_ambiente: boolean | null
+          area_conciliacao: boolean | null
+          area_energia: boolean | null
+          area_florestas: boolean | null
+          area_qualidade: boolean | null
+          area_saude: boolean | null
+          area_seguranca: boolean | null
+          area_seguranca_alimentar: boolean | null
+          area_sustentabilidade: boolean | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          group_name: string
+          id: string
+          legislation_references: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          area_ambiente?: boolean | null
+          area_conciliacao?: boolean | null
+          area_energia?: boolean | null
+          area_florestas?: boolean | null
+          area_qualidade?: boolean | null
+          area_saude?: boolean | null
+          area_seguranca?: boolean | null
+          area_seguranca_alimentar?: boolean | null
+          area_sustentabilidade?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          group_name: string
+          id?: string
+          legislation_references?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          area_ambiente?: boolean | null
+          area_conciliacao?: boolean | null
+          area_energia?: boolean | null
+          area_florestas?: boolean | null
+          area_qualidade?: boolean | null
+          area_saude?: boolean | null
+          area_seguranca?: boolean | null
+          area_seguranca_alimentar?: boolean | null
+          area_sustentabilidade?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          group_name?: string
+          id?: string
+          legislation_references?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       legal_requirements: {
         Row: {
           article: string | null
@@ -601,6 +736,66 @@ export type Database = {
             columns: ["target_legislation_id"]
             isOneToOne: false
             referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_evidence_requests: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string | null
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_evidence_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_evidence_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_templates"
             referencedColumns: ["id"]
           },
         ]
