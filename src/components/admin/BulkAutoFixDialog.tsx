@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,19 +15,19 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Loader2, 
-  CheckCircle2, 
-  XCircle, 
-  Play, 
-  Square, 
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Play,
+  Square,
   FileText,
   Globe,
   Link as LinkIcon,
   BookOpen,
   FolderTree,
   AlertTriangle,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 
 interface FixTask {
@@ -62,22 +62,25 @@ export function BulkAutoFixDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const abortRef = useRef(false);
-  
+
   const [isRunning, setIsRunning] = useState(false);
   const [currentTask, setCurrentTask] = useState<string | null>(null);
-  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set([
-    "fix-pt-titles",
-    "fix-eu-titles",
-    "auto-categorize",
-  ]));
-  
-  const [tasks, setTasks] = useState<FixTask[]>([
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(
+    () =>
+      new Set([
+        "fix-pt-titles",
+        "fix-eu-titles",
+        "auto-categorize",
+      ]),
+  );
+
+  const buildTasks = (stats: BulkAutoFixDialogProps["qualityStats"]): FixTask[] => [
     {
       id: "fix-pt-titles",
       name: "Corrigir Títulos PT",
       description: "Extrair títulos completos do DRE via scraping",
       icon: <FileText className="h-4 w-4" />,
-      count: qualityStats.genericTitlesPT,
+      count: stats.genericTitlesPT,
       status: "pending",
     },
     {
@@ -85,7 +88,7 @@ export function BulkAutoFixDialog({
       name: "Corrigir Títulos EU",
       description: "Extrair títulos do EUR-Lex via API",
       icon: <Globe className="h-4 w-4" />,
-      count: qualityStats.genericTitlesEU,
+      count: stats.genericTitlesEU,
       status: "pending",
     },
     {
@@ -93,7 +96,7 @@ export function BulkAutoFixDialog({
       name: "Encontrar URLs em falta",
       description: "Pesquisar URLs no DRE para diplomas sem link",
       icon: <LinkIcon className="h-4 w-4" />,
-      count: qualityStats.missingUrl,
+      count: stats.missingUrl,
       status: "pending",
     },
     {
@@ -101,7 +104,7 @@ export function BulkAutoFixDialog({
       name: "Auto-categorizar",
       description: "Categorizar diplomas via IA baseado em keywords",
       icon: <FolderTree className="h-4 w-4" />,
-      count: qualityStats.noCategories,
+      count: stats.noCategories,
       status: "pending",
     },
     {
@@ -109,10 +112,31 @@ export function BulkAutoFixDialog({
       name: "Extrair Requisitos",
       description: "Extrair requisitos legais via IA (lento)",
       icon: <BookOpen className="h-4 w-4" />,
-      count: qualityStats.noRequirements,
+      count: stats.noRequirements,
       status: "pending",
     },
-  ]);
+  ];
+
+  const [tasks, setTasks] = useState<FixTask[]>(() => buildTasks(qualityStats));
+
+  // Sempre que o diálogo abre (ou as métricas mudam), re-sincronizar contagens/estado.
+  useEffect(() => {
+    if (!open) return;
+    abortRef.current = false;
+    setIsRunning(false);
+    setCurrentTask(null);
+    setTasks(buildTasks(qualityStats));
+  }, [open, qualityStats]);
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      // Se o utilizador fechar durante execução, aborta imediatamente.
+      abortRef.current = true;
+      setIsRunning(false);
+      setCurrentTask(null);
+    }
+    onOpenChange(nextOpen);
+  };
 
   const toggleTask = (taskId: string) => {
     setSelectedTasks(prev => {
@@ -360,7 +384,7 @@ export function BulkAutoFixDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -470,16 +494,17 @@ export function BulkAutoFixDialog({
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-4">
           {isRunning ? (
-            <Button variant="destructive" onClick={handleStop}>
+            <Button type="button" variant="destructive" onClick={handleStop}>
               <Square className="h-4 w-4 mr-2" />
               Parar
             </Button>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Fechar
               </Button>
-              <Button 
+              <Button
+                type="button"
                 onClick={handleStart}
                 disabled={selectedTasks.size === 0}
               >
