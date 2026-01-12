@@ -13,18 +13,72 @@ interface FixResult {
   error?: string;
 }
 
+// Helper function to check if a job of the same type is already running
+async function checkConcurrency(supabase: any, syncType: string, maxAgeMinutes: number = 30): Promise<{ canProceed: boolean; runningJob?: any }> {
+  // First, mark any very old "running" jobs as timed out
+  const { error: timeoutError } = await supabase
+    .from("sync_logs")
+    .update({ 
+      status: "completed_timeout", 
+      completed_at: new Date().toISOString(),
+      error_message: "Timeout automático após execução prolongada"
+    })
+    .eq("status", "running")
+    .eq("sync_type", syncType)
+    .lt("started_at", new Date(Date.now() - maxAgeMinutes * 60 * 1000).toISOString());
+
+  if (timeoutError) {
+    console.warn("Failed to timeout old jobs:", timeoutError);
+  }
+
+  // Check for any currently running jobs
+  const { data: runningJobs, error: checkError } = await supabase
+    .from("sync_logs")
+    .select("id, started_at")
+    .eq("sync_type", syncType)
+    .eq("status", "running")
+    .limit(1);
+
+  if (checkError) {
+    console.error("Failed to check concurrency:", checkError);
+    return { canProceed: true }; // Allow to proceed on error to avoid blocking
+  }
+
+  if (runningJobs && runningJobs.length > 0) {
+    return { canProceed: false, runningJob: runningJobs[0] };
+  }
+
+  return { canProceed: true };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   const startTime = Date.now();
+  const SYNC_TYPE = "scheduled-quality-fix";
   console.log("🔧 Starting scheduled data quality fix...");
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check concurrency - prevent multiple simultaneous runs
+    const { canProceed, runningJob } = await checkConcurrency(supabase, SYNC_TYPE);
+    if (!canProceed) {
+      console.log(`⚠️ Job já em execução desde ${runningJob?.started_at}, ignorando nova execução`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Job já em execução",
+          runningJobId: runningJob?.id,
+          runningJobStartedAt: runningJob?.started_at,
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const results: FixResult[] = [];
 
