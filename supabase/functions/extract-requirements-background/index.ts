@@ -218,9 +218,12 @@ async function runBackgroundExtraction(
           
           // Build prompt based on available content
           let prompt: string;
+          let useAdvancedModel = false;
+          
           if (textContent) {
             // Full text extraction - more comprehensive
             const truncatedText = textContent.length > 15000 ? textContent.substring(0, 15000) + '...' : textContent;
+            useAdvancedModel = true;
             
             prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS - obrigações, deveres, proibições e condições que as entidades devem cumprir.
 
@@ -245,19 +248,33 @@ INSTRUÇÕES:
 Retorna APENAS um array JSON válido. Exemplo:
 [{"article": "Art. 5º", "requirement_text": "As instalações industriais devem dispor de sistema de tratamento de efluentes", "notes": "Aplicável a instalações com capacidade superior a 50m³/dia"}]`;
           } else {
-            // Summary-based extraction - simpler
-            prompt = `Analisa o seguinte diploma legal português e extrai os requisitos legais mais importantes.
+            // Summary-based extraction - USE ADVANCED MODEL to compensate for lack of full text
+            // This is the key improvement: even without full text, we use the better model and a more detailed prompt
+            useAdvancedModel = true;
+            
+            prompt = `És um especialista em legislação portuguesa. Com base no título e sumário deste diploma, identifica e infere os REQUISITOS LEGAIS mais prováveis.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
+${leg.document_url ? `URL: ${leg.document_url}` : ''}
 
-Extrai entre 3 a 8 requisitos legais principais. Para cada requisito, indica:
-- article: número do artigo (ex: "Art. 5º", "Anexo I", "Art. 12º, n.º 2")
-- requirement_text: descrição clara e concisa do requisito ou obrigação legal (máx 200 caracteres)
+INSTRUÇÕES IMPORTANTES:
+1. Analisa cuidadosamente o título e sumário para inferir que tipo de obrigações este diploma provavelmente contém
+2. Com base no tipo de diploma (Decreto-Lei, Portaria, etc.) e tema, extrai requisitos típicos e específicos
+3. Para Decretos-Lei: frequentemente estabelecem regimes jurídicos completos - inclui requisitos de licenciamento, registo, prazos, sanções
+4. Usa o contexto do sumário para ser o mais específico possível
 
-Retorna APENAS um array JSON válido, sem explicações. Exemplo:
-[{"article": "Art. 5º", "requirement_text": "As instalações devem dispor de sistemas de tratamento"}]`;
+Para cada requisito, indica:
+- article: referência provável do artigo (ex: "Art. 5º", "Anexo I") ou "Geral" se não for possível determinar
+- requirement_text: descrição clara e específica do requisito/obrigação (máx 300 caracteres)
+- notes: contexto ou condições de aplicação inferidas (opcional, máx 200 caracteres)
+
+OBJETIVO: Extrair entre 5 e 10 requisitos legais relevantes, mesmo que alguns sejam inferidos do contexto.
+Sê específico e evita requisitos demasiado genéricos.
+
+Retorna APENAS um array JSON válido. Exemplo:
+[{"article": "Art. 5º", "requirement_text": "As entidades devem registar-se no sistema eletrónico no prazo de 90 dias", "notes": "Regime transitório para entidades existentes"}]`;
           }
 
           const response = await fetch(AI_ENDPOINT, {
@@ -267,13 +284,14 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
               'Authorization': `Bearer ${lovableApiKey}`,
             },
             body: JSON.stringify({
-              model: textContent ? 'google/gemini-2.5-flash' : 'google/gemini-2.5-flash-lite',
+              // Always use the advanced model now - even for summary-based extraction
+              model: useAdvancedModel ? 'google/gemini-2.5-flash' : 'google/gemini-2.5-flash-lite',
               messages: [
-                { role: 'system', content: 'És um especialista em legislação portuguesa e europeia. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
+                { role: 'system', content: 'És um especialista em legislação portuguesa e europeia. Extrai requisitos legais de forma precisa e detalhada. Quando não tens o texto completo, infere requisitos prováveis com base no tipo de diploma e tema. Responde APENAS com JSON válido, sem markdown.' },
                 { role: 'user', content: prompt }
               ],
-              temperature: 0.2,
-              max_tokens: textContent ? 4000 : 1500,
+              temperature: 0.3,
+              max_tokens: 4000, // Always use higher token limit for better extraction
             }),
           });
 
