@@ -8,6 +8,7 @@ const corsHeaders = {
 interface Requirement {
   article: string;
   requirement_text: string;
+  notes?: string;
 }
 
 // Regex to detect malformed articles containing diploma type keywords
@@ -55,14 +56,82 @@ function cleanArticle(article: string | undefined | null, legislationNumber: str
 // Use Lovable AI gateway - no external API key required
 const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
+// Scrape URL using Firecrawl
+async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<{ markdown: string; html: string } | null> {
+  try {
+    console.log('🔍 Scraping URL:', url);
+    
+    // Format URL
+    let formattedUrl = url.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: formattedUrl,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        waitFor: 3000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Firecrawl error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const markdown = data.data?.markdown || data.markdown || '';
+    console.log(`✅ Scraped ${markdown.length} chars from URL`);
+    
+    return {
+      markdown,
+      html: data.data?.html || data.html || '',
+    };
+  } catch (error) {
+    console.error('Scrape error:', error);
+    return null;
+  }
+}
+
+// Check for error pages
+function isErrorPage(content: string): boolean {
+  const errorPatterns = [
+    'The requested document does not exist',
+    'Access denied',
+    'Page not found',
+    'página que acedeu não se encontra disponível',
+    'Document not available',
+    '404',
+  ];
+  
+  // Check for error patterns or very short content
+  if (content.length < 300) return true;
+  return errorPatterns.some(pattern => content.toLowerCase().includes(pattern.toLowerCase()));
+}
+
 // Background extraction function
 async function runBackgroundExtraction(
   supabase: any,
   lovableApiKey: string,
   userId: string,
-  options: { batchSize: number; maxBatches: number; origin?: string }
+  options: { 
+    batchSize: number; 
+    maxBatches: number; 
+    origin?: string;
+    useUrl?: boolean;
+    firecrawlApiKey?: string;
+  }
 ) {
-  const { batchSize, maxBatches, origin } = options;
+  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey } = options;
+  
+  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}`);
   
   // Create a sync log entry to track progress
   const { data: logEntry, error: logError } = await supabase
@@ -86,6 +155,8 @@ async function runBackgroundExtraction(
   let totalProcessed = 0;
   let totalRequirements = 0;
   let batchesCompleted = 0;
+  let urlScrapedCount = 0;
+  let summaryFallbackCount = 0;
 
   try {
     while (batchesCompleted < maxBatches) {
@@ -118,12 +189,64 @@ async function runBackgroundExtraction(
         break;
       }
 
-      console.log(`Background batch ${batchesCompleted + 1}: processing ${legislationToProcess.length} items`);
+      console.log(`📦 Batch ${batchesCompleted + 1}: processing ${legislationToProcess.length} items`);
 
       // Process this batch
       for (const leg of legislationToProcess) {
         try {
-          const prompt = `Analisa o seguinte diploma legal português e extrai os requisitos legais mais importantes.
+          let textContent = '';
+          let usedUrl = false;
+          
+          // Try to scrape URL if enabled and available
+          if (useUrl && firecrawlApiKey && leg.document_url) {
+            const scraped = await scrapeUrl(leg.document_url, firecrawlApiKey);
+            
+            if (scraped && scraped.markdown && !isErrorPage(scraped.markdown)) {
+              textContent = scraped.markdown;
+              usedUrl = true;
+              urlScrapedCount++;
+              console.log(`📄 ${leg.number}: Using scraped content (${textContent.length} chars)`);
+            } else {
+              console.log(`⚠️ ${leg.number}: Scrape failed or error page, falling back to summary`);
+            }
+          }
+          
+          // Fallback to summary-based extraction
+          if (!textContent) {
+            summaryFallbackCount++;
+          }
+          
+          // Build prompt based on available content
+          let prompt: string;
+          if (textContent) {
+            // Full text extraction - more comprehensive
+            const truncatedText = textContent.length > 15000 ? textContent.substring(0, 15000) + '...' : textContent;
+            
+            prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS - obrigações, deveres, proibições e condições que as entidades devem cumprir.
+
+DIPLOMA: ${leg.number}
+TÍTULO: ${leg.title}
+${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
+
+TEXTO COMPLETO DO DIPLOMA:
+${truncatedText}
+
+INSTRUÇÕES:
+1. Identifica os artigos que contêm obrigações legais concretas
+2. Extrai apenas requisitos relevantes para compliance (não extrair definições, âmbito de aplicação genérico, disposições transitórias)
+3. Para cada requisito, indica:
+   - article: referência do artigo (ex: "Art. 5º", "Art. 12º, n.º 2", "Anexo I, ponto 3")
+   - requirement_text: descrição clara do requisito/obrigação (máx 300 caracteres)
+   - notes: contexto adicional ou condições de aplicação (opcional, máx 200 caracteres)
+
+4. Extrai entre 5 e 15 requisitos principais
+5. Prioriza requisitos com prazos, valores limite, obrigações de registo, formação, licenciamento
+
+Retorna APENAS um array JSON válido. Exemplo:
+[{"article": "Art. 5º", "requirement_text": "As instalações industriais devem dispor de sistema de tratamento de efluentes", "notes": "Aplicável a instalações com capacidade superior a 50m³/dia"}]`;
+          } else {
+            // Summary-based extraction - simpler
+            prompt = `Analisa o seguinte diploma legal português e extrai os requisitos legais mais importantes.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
@@ -135,6 +258,7 @@ Extrai entre 3 a 8 requisitos legais principais. Para cada requisito, indica:
 
 Retorna APENAS um array JSON válido, sem explicações. Exemplo:
 [{"article": "Art. 5º", "requirement_text": "As instalações devem dispor de sistemas de tratamento"}]`;
+          }
 
           const response = await fetch(AI_ENDPOINT, {
             method: 'POST',
@@ -143,13 +267,13 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
               'Authorization': `Bearer ${lovableApiKey}`,
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash-lite',
+              model: textContent ? 'google/gemini-2.5-flash' : 'google/gemini-2.5-flash-lite',
               messages: [
-                { role: 'system', content: 'És um especialista em legislação portuguesa. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
+                { role: 'system', content: 'És um especialista em legislação portuguesa e europeia. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
                 { role: 'user', content: prompt }
               ],
               temperature: 0.2,
-              max_tokens: 1500,
+              max_tokens: textContent ? 4000 : 1500,
             }),
           });
 
@@ -193,8 +317,9 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
               .map(r => ({
                 article: cleanArticle(r.article, leg.number),
                 requirement_text: String(r.requirement_text).substring(0, 500),
+                notes: r.notes ? String(r.notes).substring(0, 300) : undefined,
               }))
-              .slice(0, 10);
+              .slice(0, 20);
               
           } catch (parseError) {
             console.error(`Parse error for ${leg.number}:`, parseError);
@@ -225,6 +350,7 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
                 legislation_id: leg.id,
                 article: req.article,
                 requirement_text: req.requirement_text,
+                notes: req.notes || null,
               }));
 
               const { error: insertError } = await supabase
@@ -233,15 +359,16 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
 
               if (!insertError) {
                 totalRequirements += newRequirements.length;
-                console.log(`Inserted ${newRequirements.length} new requirements for ${leg.number}`);
+                console.log(`✅ ${leg.number}: Inserted ${newRequirements.length} requirements (URL: ${usedUrl})`);
               }
             }
           }
 
           totalProcessed++;
           
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Delay based on whether we're scraping URLs (more expensive)
+          const delay = useUrl && firecrawlApiKey ? 1000 : 300;
+          await new Promise(resolve => setTimeout(resolve, delay));
 
         } catch (error) {
           console.error(`Error processing ${leg.number}:`, error);
@@ -259,10 +386,11 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
         .update({
           items_processed: totalProcessed,
           items_added: totalRequirements,
+          error_message: useUrl ? `URL: ${urlScrapedCount}, Sumário: ${summaryFallbackCount}` : null,
         })
         .eq('id', logId);
 
-      console.log(`Completed batch ${batchesCompleted}/${maxBatches}. Total: ${totalProcessed} processed, ${totalRequirements} requirements`);
+      console.log(`📊 Batch ${batchesCompleted}/${maxBatches} complete. Total: ${totalProcessed} processed, ${totalRequirements} reqs (URL: ${urlScrapedCount}, Summary: ${summaryFallbackCount})`);
       
       // Small delay between batches
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -276,10 +404,11 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
         completed_at: new Date().toISOString(),
         items_processed: totalProcessed,
         items_added: totalRequirements,
+        error_message: useUrl ? `✅ Concluído. URL: ${urlScrapedCount}, Sumário: ${summaryFallbackCount}` : null,
       })
       .eq('id', logId);
 
-    console.log(`Background extraction completed: ${totalProcessed} processed, ${totalRequirements} requirements added`);
+    console.log(`🎉 Background extraction completed: ${totalProcessed} processed, ${totalRequirements} requirements added (URL: ${urlScrapedCount}, Summary: ${summaryFallbackCount})`);
 
   } catch (error) {
     console.error('Background extraction error:', error);
@@ -338,6 +467,7 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
 
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
@@ -379,7 +509,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { batchSize = 50, maxBatches = 20, origin } = await req.json();
+    const { batchSize = 50, maxBatches = 20, origin, useUrl = false } = await req.json();
+
+    // Validate useUrl - needs Firecrawl API key
+    if (useUrl && !firecrawlApiKey) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'useUrl requer o conector Firecrawl. Por favor ative em Definições → Conectores.' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Check concurrency - prevent multiple simultaneous runs
     const { canProceed, runningJob } = await checkConcurrency(supabase, SYNC_TYPE);
@@ -396,20 +537,35 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}`);
+    console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}`);
 
     // Start background task using Deno's EdgeRuntime
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
     (globalThis as any).EdgeRuntime?.waitUntil?.(
-      runBackgroundExtraction(supabase, lovableApiKey, userId, { batchSize, maxBatches, origin })
-    ) || runBackgroundExtraction(supabase, lovableApiKey, userId, { batchSize, maxBatches, origin });
+      runBackgroundExtraction(supabase, lovableApiKey, userId, { 
+        batchSize, 
+        maxBatches, 
+        origin,
+        useUrl,
+        firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
+      })
+    ) || runBackgroundExtraction(supabase, lovableApiKey, userId, { 
+      batchSize, 
+      maxBatches, 
+      origin,
+      useUrl,
+      firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
+    });
 
     // Return immediately
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Extração em segundo plano iniciada. Pode fechar esta janela.',
+        message: useUrl 
+          ? 'Extração com scraping de URLs iniciada em segundo plano.' 
+          : 'Extração em segundo plano iniciada. Pode fechar esta janela.',
         trackingType: 'background-requirements-extraction',
+        useUrl,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
