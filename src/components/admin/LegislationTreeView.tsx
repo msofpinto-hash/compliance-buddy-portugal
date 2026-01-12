@@ -267,7 +267,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       const matchesSearch = !searchTerm || 
         leg.title?.toLowerCase().includes(searchLower) ||
         leg.number?.toLowerCase().includes(searchLower) ||
-        leg.entity?.toLowerCase().includes(searchLower);
+        leg.entity?.toLowerCase().includes(searchLower) ||
+        leg.summary?.toLowerCase().includes(searchLower);
       
       const matchesSource = sourceFilter === "all" || 
         (sourceFilter === "dre" && leg.source === "dre") ||
