@@ -80,13 +80,47 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Create sync_log entry for tracking
+    const { data: syncLog, error: syncLogError } = await supabase
+      .from("sync_logs")
+      .insert({
+        sync_type: SYNC_TYPE,
+        status: "running",
+        started_at: new Date().toISOString(),
+        items_processed: 0,
+        items_added: 0,
+      })
+      .select("id")
+      .single();
+
+    if (syncLogError) {
+      console.error("Failed to create sync log:", syncLogError);
+    }
+    const syncLogId = syncLog?.id;
+    console.log("📊 Sync log created:", syncLogId);
+
     const results: FixResult[] = [];
+
+    // Helper to update sync log progress
+    const updateProgress = async (processed: number, added: number) => {
+      if (!syncLogId) return;
+      await supabase
+        .from("sync_logs")
+        .update({ items_processed: processed, items_added: added })
+        .eq("id", syncLogId);
+    };
+
+    let totalProcessed = 0;
+    let totalAdded = 0;
 
     // Task 1: Fix PT titles via DRE scraping (limit to avoid timeout)
     console.log("📝 Task 1: Fixing PT generic titles...");
     try {
-      const ptResult = await fixPTTitles(supabase, 30);
+      const ptResult = await fixPTTitles(supabase, 10); // Reduced limit for faster execution
       results.push({ task: "fix-pt-titles", ...ptResult });
+      totalProcessed += ptResult.success + ptResult.failed;
+      totalAdded += ptResult.success;
+      await updateProgress(totalProcessed, totalAdded);
       console.log(`✅ PT titles: ${ptResult.success} fixed, ${ptResult.failed} failed`);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -97,8 +131,11 @@ Deno.serve(async (req) => {
     // Task 2: Fix EU titles via EUR-Lex API
     console.log("🌍 Task 2: Fixing EU generic titles...");
     try {
-      const euResult = await fixEUTitles(supabase, 50);
+      const euResult = await fixEUTitles(supabase, 20); // Reduced limit
       results.push({ task: "fix-eu-titles", ...euResult });
+      totalProcessed += euResult.success + euResult.failed;
+      totalAdded += euResult.success;
+      await updateProgress(totalProcessed, totalAdded);
       console.log(`✅ EU titles: ${euResult.success} fixed, ${euResult.failed} failed`);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -109,8 +146,11 @@ Deno.serve(async (req) => {
     // Task 3: Auto-categorize legislation without categories
     console.log("📁 Task 3: Auto-categorizing legislation...");
     try {
-      const catResult = await autoCategorize(supabase, 100);
+      const catResult = await autoCategorize(supabase, 50); // Reduced limit
       results.push({ task: "auto-categorize", ...catResult });
+      totalProcessed += catResult.success + catResult.failed;
+      totalAdded += catResult.success;
+      await updateProgress(totalProcessed, totalAdded);
       console.log(`✅ Categorization: ${catResult.success} categorized`);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -121,8 +161,10 @@ Deno.serve(async (req) => {
     // Task 4: Generate EUR-Lex URLs for EU legislation without document_url
     console.log("🔗 Task 4: Generating EUR-Lex URLs...");
     try {
-      const urlResult = await generateEURLexUrls(supabase, 50);
+      const urlResult = await generateEURLexUrls(supabase, 30); // Reduced limit
       results.push({ task: "generate-eurlex-urls", ...urlResult });
+      totalProcessed += urlResult.success + urlResult.failed;
+      totalAdded += urlResult.success;
       console.log(`✅ EUR-Lex URLs: ${urlResult.success} generated`);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -137,16 +179,16 @@ Deno.serve(async (req) => {
 
     console.log(`\n📊 Summary: ${totalSuccess} fixes, ${totalFailed} failures in ${duration}s`);
 
-    // Create sync log entry
-    await supabase.from("sync_logs").insert({
-      sync_type: "scheduled-quality-fix",
-      status: totalFailed > 0 ? "completed_with_errors" : "completed",
-      items_processed: totalSuccess + totalFailed,
-      items_added: totalSuccess,
-      items_updated: 0,
-      completed_at: new Date().toISOString(),
-      error_message: results.filter(r => r.error).map(r => `${r.task}: ${r.error}`).join("; ") || null,
-    });
+    // Update sync log with final status
+    if (syncLogId) {
+      await supabase.from("sync_logs").update({
+        status: totalFailed > 0 ? "completed_with_errors" : "completed",
+        items_processed: totalProcessed,
+        items_added: totalAdded,
+        completed_at: new Date().toISOString(),
+        error_message: results.filter(r => r.error).map(r => `${r.task}: ${r.error}`).join("; ") || null,
+      }).eq("id", syncLogId);
+    }
 
     return new Response(
       JSON.stringify({
