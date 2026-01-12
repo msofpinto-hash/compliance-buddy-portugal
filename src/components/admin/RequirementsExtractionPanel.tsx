@@ -155,40 +155,83 @@ export function RequirementsExtractionPanel() {
     }
   };
 
-  // Fetch statistics with origin filter
+  // Fetch statistics with origin filter - using count for accurate totals
   const { data: dbStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
     queryKey: ["requirements-stats", originFilter],
     queryFn: async () => {
-      // Get legislation filtered by origin
-      let legislationQuery = supabase.from("legislation").select("id, origin");
-      
+      // Build origin filter condition
+      let originCondition = "";
       if (originFilter === "PT") {
-        legislationQuery = legislationQuery.or("origin.eq.PT,origin.eq.dre,origin.is.null");
+        originCondition = "origin.eq.PT,origin.eq.dre,origin.is.null";
       } else if (originFilter === "EU") {
-        legislationQuery = legislationQuery.or("origin.eq.EU,origin.eq.eurlex");
+        originCondition = "origin.eq.EU,origin.eq.eurlex";
+      }
+
+      // Get total legislation count with proper count
+      let legislationCountQuery = supabase
+        .from("legislation")
+        .select("id", { count: "exact", head: true });
+      
+      if (originCondition) {
+        legislationCountQuery = legislationCountQuery.or(originCondition);
       }
       
-      const [legislationResult, requirementsResult, withReqsResult] = await Promise.all([
-        legislationQuery,
-        supabase.from("legal_requirements").select("id, legislation_id"),
-        supabase.from("legal_requirements").select("legislation_id"),
-      ]);
+      const { count: totalLegislation } = await legislationCountQuery;
 
-      const legislationIds = new Set(legislationResult.data?.map(l => l.id) || []);
+      // Get legislation IDs (need to paginate for accuracy)
+      const allLegislationIds: string[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        let query = supabase
+          .from("legislation")
+          .select("id")
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        
+        if (originCondition) {
+          query = query.or(originCondition);
+        }
+        
+        const { data } = await query;
+        if (!data || data.length === 0) break;
+        
+        allLegislationIds.push(...data.map(l => l.id));
+        if (data.length < pageSize) break;
+        page++;
+      }
+
+      const legislationIds = new Set(allLegislationIds);
+
+      // Get requirements with pagination
+      const allRequirements: { legislation_id: string }[] = [];
+      page = 0;
+      
+      while (true) {
+        const { data } = await supabase
+          .from("legal_requirements")
+          .select("legislation_id")
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        
+        if (!data || data.length === 0) break;
+        allRequirements.push(...data);
+        if (data.length < pageSize) break;
+        page++;
+      }
+
       const uniqueLegislationWithReqs = new Set(
-        withReqsResult.data
-          ?.filter(r => legislationIds.has(r.legislation_id))
-          .map(r => r.legislation_id) || []
+        allRequirements
+          .filter(r => legislationIds.has(r.legislation_id))
+          .map(r => r.legislation_id)
       );
       
-      const totalLegislation = legislationResult.data?.length || 0;
-      const totalRequirements = requirementsResult.data?.filter(r => legislationIds.has(r.legislation_id)).length || 0;
+      const totalRequirements = allRequirements.filter(r => legislationIds.has(r.legislation_id)).length;
 
       return {
-        totalLegislation,
+        totalLegislation: totalLegislation || 0,
         totalRequirements,
         legislationWithRequirements: uniqueLegislationWithReqs.size,
-        legislationWithoutRequirements: totalLegislation - uniqueLegislationWithReqs.size,
+        legislationWithoutRequirements: (totalLegislation || 0) - uniqueLegislationWithReqs.size,
       };
     },
   });
