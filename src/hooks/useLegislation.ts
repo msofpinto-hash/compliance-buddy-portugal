@@ -75,7 +75,8 @@ export function useLegislationWithCategories() {
           const { data, error } = await supabase
             .from("legislation")
             .select("*")
-            .order("publication_date", { ascending: false })
+            .order("publication_date", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
             .range(from, from + pageSize - 1);
 
           if (error) throw error;
@@ -88,6 +89,15 @@ export function useLegislationWithCategories() {
             hasMore = false;
           }
         }
+
+        // Sort again to ensure consistent ordering after combining pages
+        // Nulls at the end, then sort by date descending
+        allData.sort((a, b) => {
+          if (!a.publication_date && !b.publication_date) return 0;
+          if (!a.publication_date) return 1;
+          if (!b.publication_date) return -1;
+          return new Date(b.publication_date).getTime() - new Date(a.publication_date).getTime();
+        });
 
         return allData;
       };
