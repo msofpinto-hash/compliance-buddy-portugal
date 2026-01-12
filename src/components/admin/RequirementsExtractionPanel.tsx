@@ -747,18 +747,47 @@ export function RequirementsExtractionPanel() {
               value={(dbStats.legislationWithRequirements / dbStats.totalLegislation) * 100} 
               className="h-2"
             />
-            {runningJob && (
+            {runningJob && dbStats && (
               <div className="mt-3 p-3 bg-muted/50 rounded-md text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    Processados: <strong>{runningJob.items_processed}</strong> | 
-                    Requisitos: <strong>{runningJob.items_added}</strong>
-                  </span>
-                  {runningJob.error_message && (
-                    <span className="text-xs text-muted-foreground">
-                      {runningJob.error_message}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Processados: <strong>{runningJob.items_processed || 0}</strong> | 
+                      Requisitos: <strong>{runningJob.items_added || 0}</strong>
                     </span>
-                  )}
+                    {runningJob.error_message && (
+                      <span className="text-xs text-muted-foreground">
+                        {runningJob.error_message}
+                      </span>
+                    )}
+                  </div>
+                  {(() => {
+                    const processed = runningJob.items_processed || 0;
+                    const remaining = dbStats.legislationWithoutRequirements - processed;
+                    const elapsedMs = new Date().getTime() - new Date(runningJob.started_at).getTime();
+                    const elapsedMin = elapsedMs / 60000;
+                    
+                    if (processed > 0 && remaining > 0) {
+                      const avgTimePerItem = elapsedMs / processed;
+                      const estimatedRemainingMs = avgTimePerItem * remaining;
+                      const estimatedMin = Math.ceil(estimatedRemainingMs / 60000);
+                      const hours = Math.floor(estimatedMin / 60);
+                      const mins = estimatedMin % 60;
+                      
+                      return (
+                        <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
+                          <span>
+                            ⏱️ Decorrido: {Math.floor(elapsedMin)}min | 
+                            Faltam: ~{remaining} diplomas
+                          </span>
+                          <span className="font-medium text-primary">
+                            Tempo estimado: {hours > 0 ? `${hours}h ${mins}min` : `${mins}min`}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             )}
