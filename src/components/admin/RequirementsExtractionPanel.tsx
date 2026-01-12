@@ -115,6 +115,9 @@ export function RequirementsExtractionPanel() {
   const stopContinuousRef = useRef(false);
   const [speedHistory, setSpeedHistory] = useState<SpeedDataPoint[]>([]);
   const lastProcessedRef = useRef<{ count: number; timestamp: number } | null>(null);
+  const [autoSequential, setAutoSequential] = useState(true);
+  const [pendingSequentialOrigin, setPendingSequentialOrigin] = useState<"EU" | null>(null);
+  const lastCompletedJobRef = useRef<string | null>(null);
 
   // Handle URL scraping extraction
   const handleScrapeExtract = async () => {
@@ -183,6 +186,79 @@ export function RequirementsExtractionPanel() {
     },
     refetchInterval: 5000, // Check every 5 seconds
   });
+
+  // Query to check for recently completed PT jobs (for auto-sequential)
+  const { data: lastCompletedJob } = useQuery({
+    queryKey: ["last-completed-extraction-job"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sync_logs")
+        .select("id, status, error_message, completed_at")
+        .eq("sync_type", "background-requirements-extraction")
+        .in("status", ["completed", "completed_timeout"])
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    refetchInterval: 5000,
+  });
+
+  // Auto-start EU extraction when PT completes
+  useEffect(() => {
+    if (
+      autoSequential &&
+      pendingSequentialOrigin === "EU" &&
+      lastCompletedJob?.id &&
+      lastCompletedJob.id !== lastCompletedJobRef.current &&
+      !runningJob
+    ) {
+      lastCompletedJobRef.current = lastCompletedJob.id;
+      
+      // Auto-start EU extraction
+      toast({
+        title: "🇪🇺 Iniciando extração EU automaticamente",
+        description: "A extração PT terminou. A iniciar extração para legislação europeia...",
+      });
+      
+      // Trigger EU extraction
+      const startEUExtraction = async () => {
+        setIsBackgroundExtracting(true);
+        try {
+          const { data, error } = await supabase.functions.invoke("extract-requirements-background", {
+            body: { 
+              batchSize: batchSize,
+              maxBatches: 100,
+              origin: "EU",
+              useUrl: true
+            },
+          });
+
+          if (error) throw error;
+
+          if (data.success) {
+            toast({
+              title: "Extração EU iniciada em segundo plano",
+              description: `Job ID: ${data.syncLogId?.substring(0, 8)}...`,
+            });
+            setPendingSequentialOrigin(null);
+            refetchRunningJob();
+          }
+        } catch (error) {
+          console.error("Auto EU extraction error:", error);
+          toast({
+            title: "Erro ao iniciar extração EU automática",
+            description: error instanceof Error ? error.message : "Erro desconhecido",
+            variant: "destructive",
+          });
+        } finally {
+          setIsBackgroundExtracting(false);
+        }
+      };
+      
+      startEUExtraction();
+    }
+  }, [lastCompletedJob?.id, runningJob, autoSequential, pendingSequentialOrigin, batchSize, toast, refetchRunningJob]);
 
   // Track speed history when job is running
   useEffect(() => {
@@ -1024,20 +1100,32 @@ export function RequirementsExtractionPanel() {
                   onClick={async () => {
                     setIsBackgroundExtracting(true);
                     try {
+                      const selectedOrigin = originFilter === "all" ? undefined : originFilter;
                       const { data, error } = await supabase.functions.invoke("extract-requirements-background", {
                         body: { 
                           batchSize, 
-                          maxBatches: 50, 
-                          origin: originFilter === "all" ? undefined : originFilter 
+                          maxBatches: 100, 
+                          origin: selectedOrigin,
+                          useUrl: true
                         },
                       });
                       
                       if (error) throw error;
                       
+                      // Set pending sequential if starting PT and auto-sequential is enabled
+                      if (autoSequential && (selectedOrigin === "PT" || !selectedOrigin)) {
+                        setPendingSequentialOrigin("EU");
+                        lastCompletedJobRef.current = null; // Reset to detect new completion
+                      }
+                      
                       toast({
                         title: "Extração em segundo plano iniciada",
-                        description: "Pode fechar esta janela. O progresso será registado em sync_logs.",
+                        description: autoSequential && (selectedOrigin === "PT" || !selectedOrigin)
+                          ? "Quando terminar, iniciará automaticamente a extração EU."
+                          : "Pode fechar esta janela. O progresso será registado em sync_logs.",
                       });
+                      
+                      refetchRunningJob();
                     } catch (error) {
                       console.error("Background extraction error:", error);
                       toast({
@@ -1064,9 +1152,42 @@ export function RequirementsExtractionPanel() {
             )}
           </div>
 
+          {/* Auto-Sequential Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Flag className="h-4 w-4 text-green-600" />
+                <span className="text-sm">PT</span>
+              </div>
+              <span className="text-muted-foreground">→</span>
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-blue-600" />
+                <span className="text-sm">EU</span>
+              </div>
+              <span className="text-sm text-muted-foreground ml-2">
+                Extração sequencial automática
+              </span>
+              {pendingSequentialOrigin && (
+                <Badge variant="secondary" className="animate-pulse">
+                  EU pendente
+                </Badge>
+              )}
+            </div>
+            <Switch
+              checked={autoSequential}
+              onCheckedChange={(checked) => {
+                setAutoSequential(checked);
+                if (!checked) setPendingSequentialOrigin(null);
+              }}
+            />
+          </div>
+
           <div className="text-sm text-muted-foreground bg-muted/50 rounded p-3">
             <p><strong>Browser:</strong> Mais rápido com lotes paralelos, mas para se fechar a janela.</p>
             <p><strong>Servidor:</strong> Continua mesmo após fechar o browser. Progresso visível em Cron Jobs.</p>
+            {autoSequential && (
+              <p className="mt-1 text-primary"><strong>Sequencial:</strong> Quando PT terminar, EU inicia automaticamente.</p>
+            )}
           </div>
 
           {/* Continuous Stats */}
