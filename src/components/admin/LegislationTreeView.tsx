@@ -844,10 +844,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
                         {/* Number + Title */}
                         <Link to={`/legislacao/${leg.id}`} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
-                          {/* For EUR-Lex: show CELEX small, title bold. For DRE: number IS the title, show bold */}
+                          {/* For EUR-Lex: hide CELEX, show title bold. For DRE: number IS the title, show bold */}
                           {leg.origin === 'EU' ? (
                             <>
-                              <p className={`text-xs text-muted-foreground ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
                               {leg.title && !isTitleRedundant(leg.number, leg.title) && (() => {
                                 const displayTitle = splitEurlexTitle(leg.title).title;
                                 return (
