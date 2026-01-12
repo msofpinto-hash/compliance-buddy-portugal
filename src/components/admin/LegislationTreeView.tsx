@@ -170,6 +170,42 @@ const isTitleRedundant = (number: string, title: string): boolean => {
   return false;
 };
 
+// Helper to split EUR-Lex title at the date, keeping only up to the date as title
+// Pattern: "Regulamento (UE) XXXX/YYYY da Comissão, de DD de Mês de AAAA, que fixa..."
+const splitEurlexTitle = (title: string): { title: string; rest: string | null } => {
+  if (!title) return { title: '', rest: null };
+  
+  // Match pattern: ", de DD de [month] de YYYY," followed by more content
+  // Portuguese months
+  const monthPattern = '(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)';
+  const datePattern = new RegExp(`(,\\s*de\\s+\\d{1,2}\\s+de\\s+${monthPattern}\\s+de\\s+\\d{4})(.*)`, 'i');
+  
+  const match = title.match(datePattern);
+  
+  if (match) {
+    const titlePart = title.substring(0, match.index! + match[1].length);
+    const restPart = match[3]?.trim();
+    
+    // Clean up the rest part (remove leading comma or "que")
+    let cleanRest = restPart?.replace(/^[,\s]+/, '').trim() || null;
+    if (cleanRest && cleanRest.toLowerCase().startsWith('que ')) {
+      cleanRest = cleanRest.substring(4).trim();
+    }
+    
+    // Capitalize first letter
+    if (cleanRest && cleanRest.length > 0) {
+      cleanRest = cleanRest.charAt(0).toUpperCase() + cleanRest.slice(1);
+    }
+    
+    return { 
+      title: titlePart, 
+      rest: cleanRest && cleanRest.length > 10 ? cleanRest : null 
+    };
+  }
+  
+  return { title, rest: null };
+};
+
 // Helper to detect if summary is redundant with title or number
 const isSummaryRedundant = (number: string, title: string, summary: string): boolean => {
   if (!summary) return true;
@@ -810,16 +846,29 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         <Link to={`/legislacao/${leg.id}`} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
                           <p className={`font-semibold text-sm ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
                           {/* Only show title if it's different from number and not a generic repetition */}
-                          {leg.title && !isTitleRedundant(leg.number, leg.title) && (
-                            <p className={`text-sm line-clamp-2 ${isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'}`}>{leg.title}</p>
-                          )}
+                          {leg.title && !isTitleRedundant(leg.number, leg.title) && (() => {
+                            // For EUR-Lex, split title at the date and show rest as summary
+                            const displayTitle = leg.origin === 'EU' ? splitEurlexTitle(leg.title).title : leg.title;
+                            return (
+                              <p className={`text-sm line-clamp-2 ${
+                                isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'
+                              } ${leg.origin === 'PT' ? 'font-bold' : ''}`}>{displayTitle}</p>
+                            );
+                          })()}
                         </Link>
 
                         {/* Summary + Date - only show if not redundant with title */}
                         <div className="flex items-end justify-between mt-2">
-                          {(leg as any).summary && !isSummaryRedundant(leg.number, leg.title, (leg as any).summary) && (
-                            <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">{(leg as any).summary}</p>
-                          )}
+                          {(() => {
+                            // For EUR-Lex, use the remainder of the title as summary if no explicit summary
+                            const eurlexSummaryPart = leg.origin === 'EU' ? splitEurlexTitle(leg.title).rest : null;
+                            const displaySummary = eurlexSummaryPart || (leg as any).summary;
+                            
+                            if (displaySummary && !isSummaryRedundant(leg.number, leg.title, displaySummary)) {
+                              return <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">{displaySummary}</p>;
+                            }
+                            return null;
+                          })()}
                           {leg.publication_date && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                               <Calendar className="h-3 w-3" />

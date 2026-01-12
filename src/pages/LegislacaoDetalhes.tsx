@@ -189,6 +189,57 @@ export default function LegislacaoDetalhes() {
 
   const { themes, categories } = getThemesAndCategories();
 
+  // Helper to split EUR-Lex title at the date
+  const splitEurlexTitle = (title: string): { title: string; rest: string | null } => {
+    if (!title) return { title: '', rest: null };
+    
+    const monthPattern = '(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)';
+    const datePattern = new RegExp(`(,\\s*de\\s+\\d{1,2}\\s+de\\s+${monthPattern}\\s+de\\s+\\d{4})(.*)`, 'i');
+    
+    const match = title.match(datePattern);
+    
+    if (match) {
+      const titlePart = title.substring(0, match.index! + match[1].length);
+      const restPart = match[3]?.trim();
+      
+      let cleanRest = restPart?.replace(/^[,\s]+/, '').trim() || null;
+      if (cleanRest && cleanRest.toLowerCase().startsWith('que ')) {
+        cleanRest = cleanRest.substring(4).trim();
+      }
+      
+      if (cleanRest && cleanRest.length > 0) {
+        cleanRest = cleanRest.charAt(0).toUpperCase() + cleanRest.slice(1);
+      }
+      
+      return { 
+        title: titlePart, 
+        rest: cleanRest && cleanRest.length > 10 ? cleanRest : null 
+      };
+    }
+    
+    return { title, rest: null };
+  };
+
+  // Get display title and summary based on origin
+  const getDisplayTitleAndSummary = () => {
+    if (!legislation) return { displayTitle: '', displaySummary: '' };
+    
+    if (legislation.origin === 'EU') {
+      const { title: euTitle, rest } = splitEurlexTitle(legislation.title);
+      return {
+        displayTitle: euTitle,
+        displaySummary: rest || legislation.summary || ''
+      };
+    }
+    
+    return {
+      displayTitle: legislation.title,
+      displaySummary: legislation.summary || ''
+    };
+  };
+
+  const { displayTitle, displaySummary } = getDisplayTitleAndSummary();
+
   // Relation type labels - matching DB constraint values
   const relationTypeLabels: Record<string, { label: string; color: string; inverseLabel: string }> = {
     revogado: { label: "Revoga", color: "destructive", inverseLabel: "Revogado por" },
@@ -311,12 +362,12 @@ export default function LegislacaoDetalhes() {
                     <Badge variant="destructive">Revogado</Badge>
                   )}
                 </div>
-                <CardTitle className={`text-2xl ${isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : ''}`}>
-                  {legislation.title}
+                <CardTitle className={`text-2xl ${isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : ''} ${legislation.origin === 'PT' ? 'font-bold' : ''}`}>
+                  {displayTitle}
                 </CardTitle>
-                {legislation.summary && (
+                {displaySummary && (
                   <CardDescription className={`text-base mt-2 ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>
-                    {legislation.summary}
+                    {displaySummary}
                   </CardDescription>
                 )}
               </CardHeader>
