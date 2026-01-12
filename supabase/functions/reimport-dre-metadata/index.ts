@@ -277,10 +277,41 @@ async function processLegislationBatch(
   }
 }
 
+// Helper function to check concurrency
+async function checkConcurrency(supabase: any, syncType: string, maxAgeMinutes: number = 30): Promise<{ canProceed: boolean; runningJob?: any }> {
+  // Mark old running jobs as timed out
+  await supabase
+    .from("sync_logs")
+    .update({ 
+      status: "completed_timeout", 
+      completed_at: new Date().toISOString(),
+      error_message: "Timeout automático após execução prolongada"
+    })
+    .eq("status", "running")
+    .eq("sync_type", syncType)
+    .lt("started_at", new Date(Date.now() - maxAgeMinutes * 60 * 1000).toISOString());
+
+  // Check for currently running jobs
+  const { data: runningJobs } = await supabase
+    .from("sync_logs")
+    .select("id, started_at")
+    .eq("sync_type", syncType)
+    .eq("status", "running")
+    .limit(1);
+
+  if (runningJobs && runningJobs.length > 0) {
+    return { canProceed: false, runningJob: runningJobs[0] };
+  }
+
+  return { canProceed: true };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const SYNC_TYPE = 'reimport-dre-metadata';
 
   try {
     const { legislationIds, all2026, scheduled, batchSize = 50 } = await req.json().catch(() => ({}));
@@ -297,6 +328,23 @@ Deno.serve(async (req) => {
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Check concurrency for scheduled runs
+    if (scheduled) {
+      const { canProceed, runningJob } = await checkConcurrency(supabase, SYNC_TYPE);
+      if (!canProceed) {
+        console.log(`⚠️ Job já em execução desde ${runningJob?.started_at}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Job já em execução",
+            runningJobId: runningJob?.id,
+            runningJobStartedAt: runningJob?.started_at,
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
     
     // Create sync log for scheduled runs
     let syncLogId: string | null = null;

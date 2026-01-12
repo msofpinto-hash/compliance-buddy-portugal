@@ -235,10 +235,41 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
   }
 }
 
+// Helper function to check concurrency
+async function checkConcurrency(supabase: any, syncType: string, maxAgeMinutes: number = 30): Promise<{ canProceed: boolean; runningJob?: any }> {
+  // Mark old running jobs as timed out
+  await supabase
+    .from("sync_logs")
+    .update({ 
+      status: "completed_timeout", 
+      completed_at: new Date().toISOString(),
+      error_message: "Timeout automático após execução prolongada"
+    })
+    .eq("status", "running")
+    .eq("sync_type", syncType)
+    .lt("started_at", new Date(Date.now() - maxAgeMinutes * 60 * 1000).toISOString());
+
+  // Check for currently running jobs
+  const { data: runningJobs } = await supabase
+    .from("sync_logs")
+    .select("id, started_at")
+    .eq("sync_type", syncType)
+    .eq("status", "running")
+    .limit(1);
+
+  if (runningJobs && runningJobs.length > 0) {
+    return { canProceed: false, runningJob: runningJobs[0] };
+  }
+
+  return { canProceed: true };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const SYNC_TYPE = 'background-requirements-extraction';
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -287,6 +318,21 @@ Deno.serve(async (req) => {
     }
 
     const { batchSize = 50, maxBatches = 20, origin } = await req.json();
+
+    // Check concurrency - prevent multiple simultaneous runs
+    const { canProceed, runningJob } = await checkConcurrency(supabase, SYNC_TYPE);
+    if (!canProceed) {
+      console.log(`⚠️ Job já em execução desde ${runningJob?.started_at}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Extração já em curso. Aguarde a conclusão ou verifique o painel de monitorização.",
+          runningJobId: runningJob?.id,
+          runningJobStartedAt: runningJob?.started_at,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log(`Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}`);
 
