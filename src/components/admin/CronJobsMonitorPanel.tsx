@@ -57,44 +57,20 @@ interface CronJob {
 
 const CRON_JOBS: CronJob[] = [
   {
-    id: "daily-data-quality-fix",
-    name: "Correção de Qualidade de Dados",
-    schedule: "0 3 * * *",
-    description: "Corrige títulos, categoriza diplomas e gera URLs diariamente às 3:00 AM",
-    functionName: "scheduled-data-quality-fix",
-    syncType: "scheduled-quality-fix", // Matches sync_logs.sync_type
-  },
-  {
     id: "sync-dre",
     name: "Sincronização DRE",
     schedule: "0 7 * * *",
-    description: "Sincroniza novos diplomas do Diário da República às 7:00 AM",
-    functionName: "sync-dre",
-    syncType: "dre-daily",
+    description: "Importa novos diplomas do Diário da República para validação às 7:00 AM",
+    functionName: "fetch-legislation-candidates",
+    syncType: "fetch-dre-candidates",
   },
   {
     id: "sync-eurlex",
     name: "Sincronização EUR-Lex",
     schedule: "0 6 * * *",
-    description: "Sincroniza novos diplomas do EUR-Lex às 6:00 AM",
-    functionName: "sync-eurlex",
-    syncType: "eurlex-daily",
-  },
-  {
-    id: "check-deadlines",
-    name: "Verificar Prazos",
-    schedule: "0 8 * * *",
-    description: "Verifica prazos de planos de ação e cria alertas às 8:00 AM",
-    functionName: "check-action-plan-deadlines",
-    syncType: "check-deadlines",
-  },
-  {
-    id: "reimport-dre-metadata",
-    name: "Reimportar Metadados DRE",
-    schedule: "0 */2 * * *",
-    description: "Completa sumários e entidades em falta de diplomas PT a cada 2 horas",
-    functionName: "reimport-dre-metadata",
-    syncType: "reimport-dre-metadata",
+    description: "Importa novos diplomas do EUR-Lex para validação às 6:00 AM",
+    functionName: "fetch-legislation-candidates",
+    syncType: "fetch-eurlex-candidates",
   },
 ];
 
