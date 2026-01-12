@@ -49,8 +49,47 @@ export function EditCategoryDialog({
   const [keywords, setKeywords] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLegislationDialog, setShowLegislationDialog] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Check for duplicate category at the same level (excluding current category)
+  const checkDuplicate = (categoryName: string, parent: string | null): boolean => {
+    if (!category) return false;
+    const normalizedName = categoryName.trim().toLowerCase();
+    const siblingsAtLevel = allCategories.filter(c => 
+      c.parent_id === parent && 
+      c.theme_id === category.theme_id &&
+      c.id !== category.id // Exclude self
+    );
+    return siblingsAtLevel.some(c => c.name.trim().toLowerCase() === normalizedName);
+  };
+
+  // Validate on name change
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    if (newName.trim() && checkDuplicate(newName, parentId)) {
+      const levelLabel = parentId 
+        ? `dentro de "${allCategories.find(c => c.id === parentId)?.name}"`
+        : "como categoria principal";
+      setDuplicateError(`Já existe uma categoria "${newName.trim()}" ${levelLabel}`);
+    } else {
+      setDuplicateError(null);
+    }
+  };
+
+  // Re-validate when parent changes
+  const handleParentChange = (newParentId: string | null) => {
+    setParentId(newParentId);
+    if (name.trim() && checkDuplicate(name, newParentId)) {
+      const levelLabel = newParentId 
+        ? `dentro de "${allCategories.find(c => c.id === newParentId)?.name}"`
+        : "como categoria principal";
+      setDuplicateError(`Já existe uma categoria "${name.trim()}" ${levelLabel}`);
+    } else {
+      setDuplicateError(null);
+    }
+  };
 
   // Get legislation count for this category
   const { data: legislationCount } = useQuery({
@@ -124,6 +163,7 @@ export function EditCategoryDialog({
       setName(category.name);
       setParentId(category.parent_id);
       setKeywords(category.keywords?.join(", ") || "");
+      setDuplicateError(null);
     }
   }, [category]);
 
@@ -271,13 +311,17 @@ export function EditCategoryDialog({
               <Input
                 id="edit-cat-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className={duplicateError ? "border-destructive" : ""}
               />
+              {duplicateError && (
+                <p className="text-xs text-destructive">{duplicateError}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="edit-parent">Mover para dentro de</Label>
-              <Select value={parentId || "none"} onValueChange={(v) => setParentId(v === "none" ? null : v)}>
+              <Select value={parentId || "none"} onValueChange={(v) => handleParentChange(v === "none" ? null : v)}>
                 <SelectTrigger>
                   <SelectValue>
                     {parentId ? selectedParent?.fullPath : "Nenhuma (categoria principal)"}
@@ -333,7 +377,7 @@ export function EditCategoryDialog({
                 </Button>
                 <Button
                   onClick={() => updateMutation.mutate()}
-                  disabled={!name.trim() || updateMutation.isPending}
+                  disabled={!name.trim() || !!duplicateError || updateMutation.isPending}
                 >
                   {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Save className="mr-2 h-4 w-4" />
