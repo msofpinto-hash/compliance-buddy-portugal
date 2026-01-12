@@ -10,6 +10,48 @@ interface Requirement {
   requirement_text: string;
 }
 
+// Regex to detect malformed articles containing diploma type keywords
+const MALFORMED_ARTICLE_PATTERNS = [
+  /\bDespacho\b/i,
+  /\bPortaria\b/i,
+  /\bDecreto\b/i,
+  /\bRegulamento\b/i,
+  /\bLei\s+n/i,
+  /\bDiretiva\b/i,
+  /\bDecisão\b/i,
+  /\bDeclaração\b/i,
+];
+
+// Function to validate and clean article field
+function cleanArticle(article: string | undefined | null, legislationNumber: string): string {
+  if (!article) return 'Geral';
+  
+  const trimmed = article.trim();
+  
+  // Check if article contains diploma-type keywords (malformed)
+  const isMalformed = MALFORMED_ARTICLE_PATTERNS.some(pattern => pattern.test(trimmed));
+  
+  if (isMalformed) {
+    // Try to extract just the article part if it exists (e.g., "Despacho n.º 123, Art. 2º" -> "Art. 2º")
+    const articleMatch = trimmed.match(/\b(Art(?:igo)?\.?\s*\d+[ºª]?(?:\s*,?\s*n\.?\s*º?\s*\d+)?)/i);
+    if (articleMatch) {
+      return articleMatch[1].substring(0, 50);
+    }
+    
+    // Check for Anexo pattern
+    const anexoMatch = trimmed.match(/\b(Anexo\s+[IVX\d]+)/i);
+    if (anexoMatch) {
+      return anexoMatch[1].substring(0, 50);
+    }
+    
+    // If no valid article pattern found, return 'Geral'
+    console.log(`Cleaned malformed article for ${legislationNumber}: "${trimmed}" -> "Geral"`);
+    return 'Geral';
+  }
+  
+  return trimmed.substring(0, 50);
+}
+
 // Use Lovable AI gateway - no external API key required
 const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
@@ -149,7 +191,7 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
             requirements = requirements
               .filter(r => r && typeof r === 'object' && r.requirement_text)
               .map(r => ({
-                article: String(r.article || 'Geral').substring(0, 50),
+                article: cleanArticle(r.article, leg.number),
                 requirement_text: String(r.requirement_text).substring(0, 500),
               }))
               .slice(0, 10);
