@@ -19,6 +19,7 @@ import { CronJobsMonitorPanel } from "@/components/admin/CronJobsMonitorPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
+import { useBackgroundJobNotifications } from "@/hooks/useBackgroundJobNotifications";
 
 const validTabs = ["quality", "cron", "legislation", "requirements", "audits", "actions", "evidence", "review", "compliance", "clients", "users", "sync", "themes"];
 
@@ -29,6 +30,9 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState(
     tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : "quality"
   );
+
+  // Enable background job notifications
+  useBackgroundJobNotifications();
 
   useEffect(() => {
     if (tabFromUrl && validTabs.includes(tabFromUrl) && tabFromUrl !== activeTab) {

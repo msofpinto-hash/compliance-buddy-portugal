@@ -42,28 +42,63 @@ export function BulkAISuggestCategoriesDialog({
   const [totalItems, setTotalItems] = useState(0);
   const queryClient = useQueryClient();
 
-  // Poll for sync log updates
+  // Use realtime subscription for sync log updates
   useEffect(() => {
     if (!syncLogId) return;
 
-    const interval = setInterval(async () => {
+    // Initial fetch
+    const fetchSyncLog = async () => {
       const { data } = await supabase
         .from("sync_logs")
         .select("id, status, items_processed, items_added, error_message, completed_at")
         .eq("id", syncLogId)
         .single();
-
+      
       if (data) {
         setSyncLog(data);
-        
         if (data.status === "completed") {
-          clearInterval(interval);
           queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+          toast.success(`Processamento concluído! ${data.items_added || 0} categorias atribuídas.`, {
+            duration: 10000,
+          });
         }
       }
-    }, 2000);
+    };
 
-    return () => clearInterval(interval);
+    fetchSyncLog();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel(`sync-log-${syncLogId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sync_logs',
+          filter: `id=eq.${syncLogId}`,
+        },
+        (payload) => {
+          const data = payload.new as SyncLog;
+          setSyncLog(data);
+          
+          if (data.status === "completed") {
+            queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+            toast.success(`Processamento concluído! ${data.items_added || 0} categorias atribuídas.`, {
+              duration: 10000,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Fallback polling in case realtime doesn't work
+    const interval = setInterval(fetchSyncLog, 5000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [syncLogId, queryClient]);
 
   const handleStartBackgroundProcess = async () => {
