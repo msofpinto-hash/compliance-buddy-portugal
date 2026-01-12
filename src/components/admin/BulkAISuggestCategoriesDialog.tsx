@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, Loader2, Check, AlertCircle, ChevronDown, ChevronRight, Pause, Play } from "lucide-react";
+import { Sparkles, Loader2, Check, AlertCircle, ChevronDown, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -121,11 +121,11 @@ export function BulkAISuggestCategoriesDialog({
     }
   };
 
-  const processAll = async () => {
+  const processAll = async (startFrom = currentIndex) => {
     setIsProcessing(true);
     setIsPaused(false);
 
-    for (let i = currentIndex; i < items.length; i++) {
+    for (let i = startFrom; i < items.length; i++) {
       // Check if paused
       if (isPaused) {
         setCurrentIndex(i);
@@ -133,11 +133,41 @@ export function BulkAISuggestCategoriesDialog({
         return;
       }
 
+      // Skip items that are already done
+      if (items[i].status === "done") {
+        continue;
+      }
+
       await fetchSuggestionsForItem(i);
       setCurrentIndex(i + 1);
 
       // Small delay to avoid rate limiting
       if (i < items.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    setIsProcessing(false);
+  };
+
+  const retryErrors = async () => {
+    setIsProcessing(true);
+    setIsPaused(false);
+
+    const errorIndices = items
+      .map((item, index) => (item.status === "error" ? index : -1))
+      .filter(index => index !== -1);
+
+    for (let i = 0; i < errorIndices.length; i++) {
+      if (isPaused) {
+        setIsProcessing(false);
+        return;
+      }
+
+      await fetchSuggestionsForItem(errorIndices[i]);
+
+      // Small delay to avoid rate limiting
+      if (i < errorIndices.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
@@ -296,7 +326,7 @@ export function BulkAISuggestCategoriesDialog({
                 </div>
                 <Progress value={progress} className="h-2" />
                 
-                {isProcessing && (
+                {isProcessing ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -315,6 +345,18 @@ export function BulkAISuggestCategoriesDialog({
                       </>
                     )}
                   </Button>
+                ) : (
+                  errorCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={retryErrors}
+                      className="w-full gap-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Reprocessar {errorCount} com erro
+                    </Button>
+                  )
                 )}
               </div>
 
