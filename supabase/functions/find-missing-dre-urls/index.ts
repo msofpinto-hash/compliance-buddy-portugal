@@ -39,24 +39,33 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Portaria n.º 98/2025/1 or 989/93
     /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Lei Constitucional n.º 1/2005
+    /^(Lei\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Lei n.º 13/2025 or 11/90
     /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    // Despacho n.º 3495-C/2025
+    // Despacho n.º 3495-C/2025 or 16140/2009
     /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    // Resolução do Conselho de Ministros n.º 10/2025
+    // Resolução do Conselho de Ministros n.º 10/2025 or RCM n.º 45/2015
     /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    /^(RCM)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Resolução da Assembleia da República n.º 67/98
     /^(Resolução\s+da\s+Assembleia\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Resolução n.º 2/2025
     /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Declaração de Retificação n.º X/YYYY
     /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Deliberação n.º 1024/2025
+    /^(Deliberação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Aviso n.º X/YYYY
     /^(Aviso)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Regulamento n.º X/YYYY
     /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Acórdão do Tribunal Constitucional n.º X/YYYY
     /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Decreto do Presidente da República n.º 57/98
+    /^(Decreto\s+do\s+Presidente\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    // Decreto Legislativo Regional n.º 17/2025/A or 17/2025
+    /^(Decreto\s+Legislativo\s+Regional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?:\/[A-Z])?/i,
     // Decreto Regulamentar n.º X/YYYY
     /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
     // Decreto n.º X/YYYY or X/80
@@ -73,8 +82,16 @@ function extractLegislationParts(number: string): { type: string; num: string; y
         // Assume 00-30 is 2000s, 31-99 is 1900s
         year = yearNum <= 30 ? `20${year}` : `19${year}`;
       }
+      
+      // Normalize type for search query
+      let type = match[1].toLowerCase().replace(/\s+/g, '-');
+      // Map RCM abbreviation to full name for search
+      if (type === 'rcm') {
+        type = 'resolução-do-conselho-de-ministros';
+      }
+      
       return {
-        type: match[1].toLowerCase().replace(/\s+/g, '-'),
+        type: type,
         num: match[2],
         year: year
       };
