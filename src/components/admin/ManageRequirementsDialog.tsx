@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, Save, FileText } from "lucide-react";
+import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +30,8 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [newRequirement, setNewRequirement] = useState({ article: "", requirement_text: "", notes: "" });
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const { data: requirements, isLoading } = useQuery({
     queryKey: ["legal-requirements", legislation?.id],
@@ -95,8 +98,101 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
     },
   });
 
+  const handleAIExtract = async (replaceExisting: boolean) => {
+    if (!legislation) return;
+    
+    setIsExtracting(true);
+    setShowReplaceConfirm(false);
+
+    try {
+      // If replacing, delete existing requirements first
+      if (replaceExisting && requirements && requirements.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("legal_requirements")
+          .delete()
+          .eq("legislation_id", legislation.id);
+        
+        if (deleteError) throw deleteError;
+      }
+
+      const { data, error } = await supabase.functions.invoke("extract-requirements", {
+        body: { 
+          legislationIds: [legislation.id],
+          dryRun: false 
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        const result = data.results?.[0];
+        if (result?.error) {
+          throw new Error(result.error);
+        }
+        
+        toast({
+          title: "Extração concluída",
+          description: `${result?.requirementsCount || 0} requisitos extraídos via IA`,
+        });
+        
+        queryClient.invalidateQueries({ queryKey: ["legal-requirements", legislation.id] });
+        queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
+      } else {
+        throw new Error(data.error || "Erro desconhecido");
+      }
+    } catch (error) {
+      console.error("AI extraction error:", error);
+      toast({
+        title: "Erro na extração",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handleAIExtractClick = () => {
+    if (requirements && requirements.length > 0) {
+      setShowReplaceConfirm(true);
+    } else {
+      handleAIExtract(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <AlertDialog open={showReplaceConfirm} onOpenChange={setShowReplaceConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Diploma já tem requisitos
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Este diploma já tem <strong>{requirements?.length || 0} requisitos</strong> definidos. 
+              O que pretende fazer?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleAIExtract(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Adicionar aos existentes
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleAIExtract(true)}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Substituir todos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -147,15 +243,30 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
                 />
               </div>
 
-              <Button
-                onClick={() => addMutation.mutate()}
-                disabled={addMutation.isPending || !newRequirement.requirement_text.trim()}
-                className="w-full"
-              >
-                {addMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Requisito
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => addMutation.mutate()}
+                  disabled={addMutation.isPending || !newRequirement.requirement_text.trim()}
+                  className="flex-1"
+                >
+                  {addMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar Manual
+                </Button>
+                <Button
+                  onClick={handleAIExtractClick}
+                  disabled={isExtracting}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  {isExtracting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Brain className="h-4 w-4" />
+                  )}
+                  Extrair via IA
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -211,5 +322,6 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
