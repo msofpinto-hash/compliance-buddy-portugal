@@ -64,6 +64,18 @@ Deno.serve(async (req) => {
       results.push({ task: "auto-categorize", success: 0, failed: 0, skipped: 0, error: errorMsg });
     }
 
+    // Task 4: Generate EUR-Lex URLs for EU legislation without document_url
+    console.log("🔗 Task 4: Generating EUR-Lex URLs...");
+    try {
+      const urlResult = await generateEURLexUrls(supabase, 50);
+      results.push({ task: "generate-eurlex-urls", ...urlResult });
+      console.log(`✅ EUR-Lex URLs: ${urlResult.success} generated`);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("❌ EUR-Lex URLs error:", errorMsg);
+      results.push({ task: "generate-eurlex-urls", success: 0, failed: 0, skipped: 0, error: errorMsg });
+    }
+
     // Log summary
     const totalSuccess = results.reduce((acc, r) => acc + r.success, 0);
     const totalFailed = results.reduce((acc, r) => acc + r.failed, 0);
@@ -386,4 +398,93 @@ async function fetchEURLexTitle(celex: string): Promise<string | null> {
   }
 
   return null;
+}
+
+// Generate EUR-Lex URLs for EU legislation without document_url
+async function generateEURLexUrls(supabase: any, limit: number): Promise<{ success: number; failed: number; skipped: number }> {
+  // Get EU legislation without document_url
+  const { data: legislation, error } = await supabase
+    .from("legislation")
+    .select("id, number, title, origin")
+    .or("origin.eq.EU,origin.eq.eurlex")
+    .or("document_url.is.null,document_url.eq.")
+    .limit(limit);
+
+  if (error) throw error;
+
+  // Filter to only those truly missing URLs
+  const toFix = (legislation || []).filter((leg: any) => !leg.document_url);
+
+  if (toFix.length === 0) {
+    return { success: 0, failed: 0, skipped: 0 };
+  }
+
+  let success = 0;
+  let failed = 0;
+
+  for (const leg of toFix) {
+    try {
+      const url = generateCelexUrl(leg.number);
+      if (url) {
+        const { error: updateError } = await supabase
+          .from("legislation")
+          .update({ document_url: url })
+          .eq("id", leg.id);
+
+        if (updateError) throw updateError;
+        success++;
+        console.log(`✅ Generated URL for ${leg.number}: ${url}`);
+      } else {
+        console.log(`⚠️ Could not parse number for URL: ${leg.number}`);
+        failed++;
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to generate URL for ${leg.number}:`, errorMsg);
+      failed++;
+    }
+  }
+
+  return { success, failed, skipped: 0 };
+}
+
+// Generate CELEX URL from EU legislation number
+function generateCelexUrl(number: string): string | null {
+  // Patterns for EU legislation:
+  // Diretiva 1999/31/CE → 31999L0031
+  // Diretiva de Execução (UE) 2022/1647 → 32022L1647
+  // Regulamento (UE) 2024/1234 → 32024R1234
+  // Decisão (UE) 2023/456 → 32023D0456
+  // Regulamento de Execução (UE) 2024/789 → 32024R0789
+  
+  // Extract year and number from patterns like "2022/1647" or "1999/31"
+  const yearNumMatch = number.match(/(\d{2,4})\/(\d+)/);
+  if (!yearNumMatch) return null;
+
+  let year = yearNumMatch[1];
+  const num = yearNumMatch[2];
+
+  // Convert 2-digit year to 4-digit
+  if (year.length === 2) {
+    const yearNum = parseInt(year, 10);
+    year = yearNum <= 30 ? `20${year}` : `19${year}`;
+  }
+
+  // Determine document type letter
+  let typeCode = 'L'; // Default to Directive
+  const lowerNumber = number.toLowerCase();
+  
+  if (lowerNumber.includes('regulamento')) {
+    typeCode = 'R';
+  } else if (lowerNumber.includes('decisão') || lowerNumber.includes('decisao')) {
+    typeCode = 'D';
+  } else if (lowerNumber.includes('diretiva') || lowerNumber.includes('directiva')) {
+    typeCode = 'L';
+  }
+
+  // Pad number to at least 4 digits
+  const paddedNum = num.padStart(4, '0');
+  
+  const celex = `3${year}${typeCode}${paddedNum}`;
+  return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
 }
