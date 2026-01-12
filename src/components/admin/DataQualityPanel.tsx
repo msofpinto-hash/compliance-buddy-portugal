@@ -28,7 +28,6 @@ import {
 import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
 import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
 import { FindMissingUrlsDialog } from "./FindMissingUrlsDialog";
-import { BulkAutoFixDialog } from "./BulkAutoFixDialog";
 
 interface DataQualityMetric {
   label: string;
@@ -46,8 +45,8 @@ export function DataQualityPanel() {
   const [showFixTitlesDialog, setShowFixTitlesDialog] = useState(false);
   const [showFixEurlexTitlesDialog, setShowFixEurlexTitlesDialog] = useState(false);
   const [showFindMissingUrlsDialog, setShowFindMissingUrlsDialog] = useState(false);
-  const [showBulkAutoFixDialog, setShowBulkAutoFixDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
+  const [isRunningFullFix, setIsRunningFullFix] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
@@ -457,11 +456,41 @@ export function DataQualityPanel() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button 
-                onClick={() => setShowBulkAutoFixDialog(true)}
+              <Button
+                onClick={async () => {
+                  setIsRunningFullFix(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("full-data-fix", {
+                      body: {},
+                    });
+
+                    if (error) throw error;
+
+                    toast({
+                      title: "Correção iniciada",
+                      description: data?.message || "A correção completa foi iniciada em segundo plano.",
+                    });
+
+                    setAutoRefresh(true);
+                    queryClient.invalidateQueries({ queryKey: ["active-sync-jobs"] });
+                  } catch (err) {
+                    toast({
+                      title: "Erro",
+                      description: err instanceof Error ? err.message : "Erro ao iniciar correção",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsRunningFullFix(false);
+                  }
+                }}
                 className="bg-gradient-to-r from-primary to-primary/80"
+                disabled={isRunningFullFix}
               >
-                <Sparkles className="h-4 w-4 mr-2" />
+                {isRunningFullFix ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
                 Corrigir Tudo
               </Button>
               <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
@@ -696,20 +725,6 @@ export function DataQualityPanel() {
         missingUrlsCount={qualityStats?.missingUrl || 0}
       />
 
-      {qualityStats && (
-        <BulkAutoFixDialog
-          open={showBulkAutoFixDialog}
-          onOpenChange={setShowBulkAutoFixDialog}
-          qualityStats={{
-            genericTitlesPT: qualityStats.genericTitlesPT,
-            genericTitlesEU: qualityStats.genericTitlesEU,
-            missingSummary: qualityStats.missingSummary,
-            missingUrl: qualityStats.missingUrl,
-            noRequirements: qualityStats.noRequirements,
-            noCategories: qualityStats.noCategories,
-          }}
-        />
-      )}
     </div>
   );
 }
