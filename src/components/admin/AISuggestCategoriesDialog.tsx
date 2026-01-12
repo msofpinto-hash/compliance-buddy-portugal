@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,6 +58,7 @@ export function AISuggestCategoriesDialog({
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [showConfirmRemove, setShowConfirmRemove] = useState(false);
   const queryClient = useQueryClient();
 
   // Reset selectedToRemove when existingCategories change
@@ -122,10 +133,20 @@ export function AISuggestCategoriesDialog({
     setSelectedToRemove(newSelected);
   };
 
+  const handleRequestApply = () => {
+    // If there are categories to remove, show confirmation first
+    if (selectedToRemove.size > 0) {
+      setShowConfirmRemove(true);
+    } else {
+      handleApplyChanges();
+    }
+  };
+
   const handleApplyChanges = async () => {
     if (!legislation) return;
     if (selectedToAdd.size === 0 && selectedToRemove.size === 0) return;
 
+    setShowConfirmRemove(false);
     setIsAssigning(true);
     try {
       // Remove selected categories
@@ -349,7 +370,7 @@ export function AISuggestCategoriesDialog({
           </Button>
           {hasChanges && (
             <Button
-              onClick={handleApplyChanges}
+              onClick={handleRequestApply}
               disabled={isAssigning}
               className="gap-2"
             >
@@ -363,6 +384,52 @@ export function AISuggestCategoriesDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Confirmation Dialog for Removing Categories */}
+      <AlertDialog open={showConfirmRemove} onOpenChange={setShowConfirmRemove}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Confirmar Remoção de Categorias
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Tem a certeza que pretende remover {selectedToRemove.size} categoria(s) deste diploma?
+                </p>
+                <div className="max-h-32 overflow-y-auto border rounded-lg p-2 bg-muted/50">
+                  <ul className="space-y-1 text-sm">
+                    {existingCategories
+                      .filter(c => selectedToRemove.has(c.id))
+                      .map(cat => (
+                        <li key={cat.id} className="flex items-center gap-2">
+                          <X className="h-3 w-3 text-destructive shrink-0" />
+                          <span className="truncate">{cat.full_path || cat.name}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+                {selectedToAdd.size > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Serão também adicionadas {selectedToAdd.size} nova(s) categoria(s).
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleApplyChanges}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Confirmar Remoção
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
