@@ -29,8 +29,42 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState<string | null>(initialParentId || null);
   const [keywords, setKeywords] = useState("");
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Check for duplicate category at the same level
+  const checkDuplicate = (categoryName: string, parent: string | null): boolean => {
+    const normalizedName = categoryName.trim().toLowerCase();
+    const siblingsAtLevel = categories.filter(c => c.parent_id === parent);
+    return siblingsAtLevel.some(c => c.name.trim().toLowerCase() === normalizedName);
+  };
+
+  // Validate on name change
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    if (newName.trim() && checkDuplicate(newName, parentId)) {
+      const levelLabel = parentId 
+        ? `dentro de "${categories.find(c => c.id === parentId)?.name}"`
+        : "como categoria principal";
+      setDuplicateError(`Já existe uma categoria "${newName.trim()}" ${levelLabel}`);
+    } else {
+      setDuplicateError(null);
+    }
+  };
+
+  // Re-validate when parent changes
+  const handleParentChange = (newParentId: string | null) => {
+    setParentId(newParentId);
+    if (name.trim() && checkDuplicate(name, newParentId)) {
+      const levelLabel = newParentId 
+        ? `dentro de "${categories.find(c => c.id === newParentId)?.name}"`
+        : "como categoria principal";
+      setDuplicateError(`Já existe uma categoria "${name.trim()}" ${levelLabel}`);
+    } else {
+      setDuplicateError(null);
+    }
+  };
 
   // Reset form when dialog opens with new initial parent
   const handleOpenChange = (newOpen: boolean) => {
@@ -38,6 +72,7 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
       setParentId(initialParentId || null);
       setName("");
       setKeywords("");
+      setDuplicateError(null);
     }
     onOpenChange(newOpen);
   };
@@ -140,14 +175,18 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
             <Input
               id="cat-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Ex: Equipamentos de Proteção"
+              className={duplicateError ? "border-destructive" : ""}
             />
+            {duplicateError && (
+              <p className="text-xs text-destructive">{duplicateError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="parent">Categoria Pai (opcional)</Label>
-            <Select value={parentId || "none"} onValueChange={(v) => setParentId(v === "none" ? null : v)}>
+            <Select value={parentId || "none"} onValueChange={(v) => handleParentChange(v === "none" ? null : v)}>
               <SelectTrigger>
                 <SelectValue>
                   {parentId ? selectedCategory?.fullPath : "Nenhuma (categoria principal)"}
@@ -189,7 +228,7 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
             </Button>
             <Button
               onClick={() => createMutation.mutate()}
-              disabled={!name.trim() || createMutation.isPending}
+              disabled={!name.trim() || !!duplicateError || createMutation.isPending}
             >
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Plus className="mr-2 h-4 w-4" />
