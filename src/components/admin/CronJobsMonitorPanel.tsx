@@ -44,6 +44,7 @@ interface CronJob {
   schedule: string;
   description: string;
   functionName: string;
+  syncType: string; // Maps to sync_logs.sync_type
   lastRun?: {
     status: string;
     startedAt: string;
@@ -59,8 +60,9 @@ const CRON_JOBS: CronJob[] = [
     id: "daily-data-quality-fix",
     name: "Correção de Qualidade de Dados",
     schedule: "0 3 * * *",
-    description: "Corrige títulos, categoriza diplomas e valida URLs diariamente às 3:00 AM",
+    description: "Corrige títulos, categoriza diplomas e gera URLs diariamente às 3:00 AM",
     functionName: "scheduled-data-quality-fix",
+    syncType: "scheduled-quality-fix", // Matches sync_logs.sync_type
   },
   {
     id: "sync-dre",
@@ -68,6 +70,7 @@ const CRON_JOBS: CronJob[] = [
     schedule: "0 7 * * *",
     description: "Sincroniza novos diplomas do Diário da República às 7:00 AM",
     functionName: "sync-dre",
+    syncType: "dre-daily",
   },
   {
     id: "sync-eurlex",
@@ -75,6 +78,7 @@ const CRON_JOBS: CronJob[] = [
     schedule: "0 6 * * *",
     description: "Sincroniza novos diplomas do EUR-Lex às 6:00 AM",
     functionName: "sync-eurlex",
+    syncType: "eurlex-daily",
   },
   {
     id: "check-deadlines",
@@ -82,6 +86,15 @@ const CRON_JOBS: CronJob[] = [
     schedule: "0 8 * * *",
     description: "Verifica prazos de planos de ação e cria alertas às 8:00 AM",
     functionName: "check-action-plan-deadlines",
+    syncType: "check-deadlines",
+  },
+  {
+    id: "reimport-dre-metadata",
+    name: "Reimportar Metadados DRE",
+    schedule: "0 */2 * * *",
+    description: "Completa sumários e entidades em falta de diplomas PT a cada 2 horas",
+    functionName: "reimport-dre-metadata",
+    syncType: "reimport-dre-metadata",
   },
 ];
 
@@ -120,12 +133,9 @@ export function CronJobsMonitorPanel() {
     lastExecution: executionHistory?.[0],
   };
 
-  // Get last run for each cron job
+  // Get last run for each cron job using exact syncType match
   const getLastRun = (syncType: string) => {
-    return executionHistory?.find((e) => 
-      e.sync_type.toLowerCase().includes(syncType.toLowerCase()) ||
-      syncType.toLowerCase().includes(e.sync_type.toLowerCase())
-    );
+    return executionHistory?.find((e) => e.sync_type === syncType);
   };
 
   // Trigger manual run
@@ -300,7 +310,7 @@ export function CronJobsMonitorPanel() {
         <CardContent>
           <div className="space-y-4">
             {CRON_JOBS.map((job) => {
-              const lastRun = getLastRun(job.functionName.replace(/-/g, ""));
+              const lastRun = getLastRun(job.syncType);
               
               return (
                 <div
