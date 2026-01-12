@@ -39,13 +39,24 @@ serve(async (req) => {
 
     if (catError) throw catError;
 
-    // Build category tree for context
-    const categoryList = categories?.map(cat => ({
+    // Build a set of category IDs that have children (parent categories)
+    const parentIds = new Set<string>();
+    categories?.forEach(cat => {
+      if (cat.parent_id) {
+        parentIds.add(cat.parent_id);
+      }
+    });
+
+    // Filter to only include leaf categories (no children)
+    const leafCategories = categories?.filter(cat => !parentIds.has(cat.id)) || [];
+
+    // Build category list for context (only leaf categories)
+    const categoryList = leafCategories.map(cat => ({
       id: cat.id,
       name: cat.name,
       theme: (cat.themes as any)?.name || "Sem tema",
       keywords: cat.keywords || []
-    })) || [];
+    }));
 
     // Create a structured list for the AI
     const categoryContext = categoryList.map(c => 
