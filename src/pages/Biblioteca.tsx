@@ -136,7 +136,8 @@ export default function Biblioteca() {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = !searchTerm || 
         leg.title?.toLowerCase().includes(searchLower) ||
-        leg.number?.toLowerCase().includes(searchLower);
+        leg.number?.toLowerCase().includes(searchLower) ||
+        leg.summary?.toLowerCase().includes(searchLower);
 
       const matchesSource = selectedSource === "all" || leg.source === selectedSource;
 
@@ -150,7 +151,7 @@ export default function Biblioteca() {
 
       return matchesSearch && matchesSource && matchesThemeCategory;
     }).length;
-  }, [legislationWithCategories, searchTerm, selectedSource, selectedThemeId, selectedCategoryId]);
+  }, [legislationWithCategories, searchTerm, selectedSource, selectedThemeId, selectedCategoryId, themes]);
 
   const hasActiveFilters = !!(selectedThemeId || selectedCategoryId || selectedSource !== "all" || filterStartDate || filterEndDate || selectedApplicability !== "all" || searchTerm);
 
@@ -330,7 +331,7 @@ export default function Biblioteca() {
               <div className="relative flex-1 w-full lg:max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Pesquisar por título, número ou entidade..."
+                  placeholder="Pesquisar por título, número ou palavras no sumário..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
