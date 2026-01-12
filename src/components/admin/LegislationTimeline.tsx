@@ -22,59 +22,56 @@ export function LegislationTimeline({
   if (!hasAnyDate) return null;
 
   return (
-    <div className="mt-4 pt-4 border-t">
-      <p className="text-xs font-medium text-muted-foreground mb-3">Datas</p>
-      <div className="relative flex items-center">
-        {/* Timeline line */}
-        <div className="absolute left-0 right-0 h-[2px] bg-border top-[10px]" />
-        
-        {/* Timeline points */}
-        <div className="relative flex justify-between w-full">
-          {/* Publicação */}
-          <div className="flex flex-col items-center z-10">
-            <span className="text-[10px] text-muted-foreground mb-1">Publicação</span>
-            <div 
-              className={`w-4 h-4 rounded-full border-2 ${
-                publicationDate 
-                  ? 'bg-foreground border-foreground' 
-                  : 'bg-background border-muted-foreground'
-              }`}
-            />
-            <span className="text-[10px] font-medium mt-1">
-              {formatDate(publicationDate) || "—"}
-            </span>
-          </div>
+    <div className="flex items-center gap-6 text-xs pt-2">
+      {/* Publicação */}
+      <div className="flex items-center gap-1.5">
+        <div 
+          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+            publicationDate 
+              ? 'bg-foreground' 
+              : 'bg-muted-foreground/30'
+          }`}
+        />
+        <span className="text-muted-foreground">Publicação:</span>
+        <span className="font-medium">
+          {formatDate(publicationDate) || "—"}
+        </span>
+      </div>
 
-          {/* Em vigor */}
-          <div className="flex flex-col items-center z-10">
-            <span className="text-[10px] text-muted-foreground mb-1">Em vigor</span>
-            <div 
-              className={`w-4 h-4 rounded-full border-2 ${
-                effectiveDate 
-                  ? 'bg-foreground border-foreground' 
-                  : 'bg-background border-muted-foreground'
-              }`}
-            />
-            <span className="text-[10px] font-medium mt-1">
-              {formatDate(effectiveDate) || "—"}
-            </span>
-          </div>
+      {/* Separator */}
+      <div className="w-8 h-[1px] bg-border" />
 
-          {/* Revogado em */}
-          <div className="flex flex-col items-center z-10">
-            <span className="text-[10px] text-muted-foreground mb-1">Revogado em</span>
-            <div 
-              className={`w-4 h-4 rounded-full border-2 ${
-                revocationDate 
-                  ? 'bg-destructive border-destructive' 
-                  : 'bg-background border-muted-foreground'
-              }`}
-            />
-            <span className={`text-[10px] font-medium mt-1 ${revocationDate ? 'text-destructive' : ''}`}>
-              {formatDate(revocationDate) || "—"}
-            </span>
-          </div>
-        </div>
+      {/* Em vigor */}
+      <div className="flex items-center gap-1.5">
+        <div 
+          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+            effectiveDate 
+              ? 'bg-foreground' 
+              : 'bg-muted-foreground/30'
+          }`}
+        />
+        <span className="text-muted-foreground">Em vigor:</span>
+        <span className="font-medium">
+          {formatDate(effectiveDate) || "—"}
+        </span>
+      </div>
+
+      {/* Separator */}
+      <div className="w-8 h-[1px] bg-border" />
+
+      {/* Revogado em */}
+      <div className="flex items-center gap-1.5">
+        <div 
+          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+            revocationDate 
+              ? 'bg-destructive' 
+              : 'bg-muted-foreground/30'
+          }`}
+        />
+        <span className="text-muted-foreground">Revogado:</span>
+        <span className={`font-medium ${revocationDate ? 'text-destructive' : ''}`}>
+          {formatDate(revocationDate) || "—"}
+        </span>
       </div>
     </div>
   );
