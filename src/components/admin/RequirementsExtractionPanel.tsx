@@ -864,10 +864,19 @@ export function RequirementsExtractionPanel() {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Progresso da extração</span>
                 {runningJob && (
-                  <Badge variant="default" className="gap-1 bg-green-600 animate-pulse">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    A executar
-                  </Badge>
+                  <>
+                    <Badge variant="default" className="gap-1 bg-green-600 animate-pulse">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      A executar
+                    </Badge>
+                    {runningJob.error_message?.includes('Origem:') && (
+                      <Badge variant="outline" className="gap-1">
+                        {runningJob.error_message.includes('PT') && <Flag className="h-3 w-3 text-green-600" />}
+                        {runningJob.error_message.includes('EU') && <Globe className="h-3 w-3 text-blue-600" />}
+                        {runningJob.error_message.replace('Origem: ', '')}
+                      </Badge>
+                    )}
+                  </>
                 )}
               </div>
               <div className="flex items-center gap-2">
