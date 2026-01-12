@@ -844,18 +844,24 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
                         {/* Number + Title */}
                         <Link to={`/legislacao/${leg.id}`} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
-                          {/* For EUR-Lex: hide CELEX, show title bold. For DRE: number IS the title, show bold */}
+                          {/* For EUR-Lex: show title bold (with fallback to number). For DRE: number IS the title, show bold */}
                           {leg.origin === 'EU' ? (
-                            <>
-                              {leg.title && !isTitleRedundant(leg.number, leg.title) && (() => {
-                                const displayTitle = splitEurlexTitle(leg.title).title;
-                                return (
-                                  <p className={`text-sm font-bold line-clamp-2 ${
-                                    isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground'
-                                  }`}>{displayTitle}</p>
-                                );
-                              })()}
-                            </>
+                            (() => {
+                              const hasGoodTitle = leg.title && !isTitleRedundant(leg.number, leg.title);
+                              const splitResult = hasGoodTitle ? splitEurlexTitle(leg.title) : null;
+                              // Use the split title if it starts with "Regulamento", "Diretiva", "Decisão", etc.
+                              // Otherwise use the full title or fall back to number
+                              const startsWithLegalType = splitResult?.title && /^(Regulamento|Diretiva|Decisão|Recomendação)/i.test(splitResult.title);
+                              const displayTitle = startsWithLegalType 
+                                ? splitResult!.title 
+                                : (hasGoodTitle ? leg.title : leg.number);
+                              
+                              return (
+                                <p className={`text-sm font-bold line-clamp-2 ${
+                                  isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground'
+                                }`}>{displayTitle}</p>
+                              );
+                            })()
                           ) : (
                             <>
                               <p className={`font-bold text-sm ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
