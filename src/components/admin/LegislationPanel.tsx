@@ -1007,7 +1007,7 @@ export function LegislationPanel() {
         open={aiSuggestDialogOpen}
         onOpenChange={setAiSuggestDialogOpen}
         legislation={selectedLegislation}
-        existingCategoryIds={selectedLegislation?.categories.map(c => c.id) || []}
+        existingCategories={selectedLegislation?.categories || []}
       />
 
       {/* Bulk AI Suggestions Dialog */}
