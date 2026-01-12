@@ -71,3 +71,12 @@ verify_jwt = false
 
 [functions.extract-requirements-background]
 verify_jwt = false
+
+[functions.bulk-suggest-categories]
+verify_jwt = false
+
+[functions.suggest-categories]
+verify_jwt = false
+
+[functions.reimport-eurlex-dates]
+verify_jwt = false
