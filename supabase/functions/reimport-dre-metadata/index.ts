@@ -83,11 +83,21 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
     const match = cleanMarkdown.match(pattern);
     if (match && match[1]) {
       const potentialTitle = match[1].trim();
-      // Validate it's a good title (not too short, not just the number)
+      // Validate it's a good title (not too short, not just the number, not UI garbage)
+      const isGarbageTitle = 
+        potentialTitle.toLowerCase().includes('enviar por email') ||
+        potentialTitle.toLowerCase().includes('copiar link') ||
+        potentialTitle.toLowerCase().includes('facebook') ||
+        potentialTitle.toLowerCase().includes('linkedin') ||
+        potentialTitle.toLowerCase().includes('twitter') ||
+        potentialTitle.toLowerCase().includes('whatsapp') ||
+        potentialTitle.toLowerCase().includes('publicação: diário');
+      
       if (potentialTitle.length > 20 && 
           !potentialTitle.includes('http') &&
           !potentialTitle.toLowerCase().startsWith('emissor') &&
-          !potentialTitle.toLowerCase().startsWith('série')) {
+          !potentialTitle.toLowerCase().startsWith('série') &&
+          !isGarbageTitle) {
         update.title = potentialTitle.substring(0, 500);
         break;
       }
