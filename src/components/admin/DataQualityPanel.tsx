@@ -23,7 +23,8 @@ import {
   Flag,
   Globe,
   Activity,
-  Clock
+  Clock,
+  Calendar
 } from "lucide-react";
 import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
 import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
@@ -47,6 +48,7 @@ export function DataQualityPanel() {
   const [showFindMissingUrlsDialog, setShowFindMissingUrlsDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
   const [isRunningFullFix, setIsRunningFullFix] = useState(false);
+  const [isReimportingEurlexDates, setIsReimportingEurlexDates] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
@@ -102,6 +104,7 @@ export function DataQualityPanel() {
         relationsData,
         incompleteAutoImported,
         legislationWithReqsCount,
+        euSuspiciousDates,
       ] = await Promise.all([
         // Total legislation
         supabase.from("legislation").select("id", { count: "exact", head: true }),
@@ -139,6 +142,11 @@ export function DataQualityPanel() {
         supabase.from("legal_requirements")
           .select("legislation_id")
           .limit(15000),
+        // EU legislation with suspicious dates (before 1990 or missing)
+        supabase.from("legislation")
+          .select("id", { count: "exact", head: true })
+          .or("origin.eq.EU,origin.eq.eurlex")
+          .or("publication_date.lt.1990-01-01,effective_date.lt.1990-01-01,publication_date.is.null,effective_date.is.null"),
       ]);
 
       const total = totalLegislation.count || 0;
@@ -266,6 +274,7 @@ export function DataQualityPanel() {
         legislationWithRelations: uniqueLegislationWithRelations.size,
         legislationWithoutRelations: total - uniqueLegislationWithRelations.size,
         incompleteAutoImported: incompleteAutoImported.count || 0,
+        euSuspiciousDates: euSuspiciousDates.count || 0,
       };
     },
     refetchInterval: autoRefresh ? 10000 : false, // Refetch every 10 seconds when auto-refresh is enabled
@@ -403,6 +412,7 @@ export function DataQualityPanel() {
       'sync-eurlex': 'Sincronização EUR-Lex',
       'scheduled-data-quality-fix': 'Correção Automática',
       'full-data-fix': 'Correção Completa',
+      'reimport-eurlex-dates': 'Reimportação Datas EUR-Lex',
     };
     return typeMap[type] || type;
   };
@@ -806,6 +816,74 @@ export function DataQualityPanel() {
                 ) : (
                   <>
                     Remover Duplicados
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* EU Suspicious Dates - Separate Section */}
+      {(qualityStats?.euSuspiciousDates || 0) > 0 && (
+        <Card className="border-blue-200 bg-blue-500/5">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-blue-600" />
+                <div>
+                  <div className="font-medium">Datas EUR-Lex Suspeitas</div>
+                  <div className="text-sm text-muted-foreground">
+                    {qualityStats?.euSuspiciousDates || 0} diplomas EU com datas de publicação/vigência antes de 1990 ou em falta
+                  </div>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  setIsReimportingEurlexDates(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("reimport-eurlex-dates", {
+                      body: { 
+                        onlyMissingDates: true, 
+                        limit: 50,
+                        scheduled: true 
+                      },
+                    });
+
+                    if (error) throw error;
+
+                    toast({
+                      title: "Reimportação iniciada",
+                      description: data?.message || `A reimportar datas de ${data?.itemsToProcess || 0} diplomas EU em segundo plano.`,
+                    });
+
+                    setAutoRefresh(true);
+                    queryClient.invalidateQueries({ queryKey: ["active-sync-jobs"] });
+                  } catch (err) {
+                    toast({
+                      title: "Erro",
+                      description: err instanceof Error ? err.message : "Erro ao reimportar datas",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsReimportingEurlexDates(false);
+                  }
+                }}
+                disabled={isReimportingEurlexDates}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+              >
+                {isReimportingEurlexDates ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    A iniciar...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="h-4 w-4 mr-2" />
+                    Reimportar via EUR-Lex
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </>
                 )}
