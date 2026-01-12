@@ -18,6 +18,7 @@ export function ThemesPanel() {
   const [showEditTheme, setShowEditTheme] = useState(false);
   
   const [creatingCategoryForTheme, setCreatingCategoryForTheme] = useState<ThemeWithCategories | null>(null);
+  const [creatingCategoryParent, setCreatingCategoryParent] = useState<ThemeCategory | null>(null);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   
   const [editingCategory, setEditingCategory] = useState<ThemeCategory | null>(null);
@@ -54,14 +55,23 @@ export function ThemesPanel() {
     setShowEditTheme(true);
   };
 
-  const handleAddCategory = (theme: ThemeWithCategories) => {
+  const handleAddCategory = (theme: ThemeWithCategories, parentCategory?: ThemeCategory) => {
     setCreatingCategoryForTheme(theme);
+    setCreatingCategoryParent(parentCategory || null);
     setShowCreateCategory(true);
   };
 
   const handleEditCategory = (category: ThemeCategory) => {
     setEditingCategory(category);
     setShowEditCategory(true);
+  };
+
+  const handleAddSubcategoryFromEdit = (parentCategory: ThemeCategory) => {
+    // Find the theme for this category
+    const theme = themes?.find(t => t.categories.some(c => c.id === parentCategory.id));
+    if (theme) {
+      handleAddCategory(theme, parentCategory);
+    }
   };
 
   return (
@@ -162,15 +172,22 @@ export function ThemesPanel() {
       <CreateCategoryDialog 
         theme={creatingCategoryForTheme}
         categories={creatingCategoryForTheme?.categories || []}
+        initialParentId={creatingCategoryParent?.id || null}
         open={showCreateCategory} 
-        onOpenChange={setShowCreateCategory} 
+        onOpenChange={(open) => {
+          setShowCreateCategory(open);
+          if (!open) {
+            setCreatingCategoryParent(null);
+          }
+        }} 
       />
       
       <EditCategoryDialog 
         category={editingCategory}
         allCategories={allCategories}
         open={showEditCategory} 
-        onOpenChange={setShowEditCategory} 
+        onOpenChange={setShowEditCategory}
+        onAddSubcategory={handleAddSubcategoryFromEdit}
       />
     </div>
   );

@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, Trash2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Save, Trash2, Plus, FileText } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { ThemeCategory } from "@/hooks/useThemes";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,28 +20,104 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { CategoryLegislationDialog } from "./CategoryLegislationDialog";
 
 interface EditCategoryDialogProps {
   category: ThemeCategory | null;
   allCategories: ThemeCategory[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAddSubcategory?: (parentCategory: ThemeCategory) => void;
 }
 
-export function EditCategoryDialog({ category, allCategories, open, onOpenChange }: EditCategoryDialogProps) {
+interface CategoryOption {
+  id: string;
+  name: string;
+  level: number;
+  fullPath: string;
+}
+
+export function EditCategoryDialog({ 
+  category, 
+  allCategories, 
+  open, 
+  onOpenChange,
+  onAddSubcategory 
+}: EditCategoryDialogProps) {
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState<string | null>(null);
   const [keywords, setKeywords] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLegislationDialog, setShowLegislationDialog] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Filter to show only valid parent options (same theme, not self, not children)
-  const parentOptions = allCategories.filter(cat => 
-    cat.theme_id === category?.theme_id && 
-    cat.id !== category?.id && 
-    !cat.parent_id // Only top-level can be parents
-  );
+  // Get legislation count for this category
+  const { data: legislationCount } = useQuery({
+    queryKey: ["category-legislation-count", category?.id],
+    queryFn: async () => {
+      if (!category) return 0;
+      const { count, error } = await supabase
+        .from("legislation_category_mapping")
+        .select("*", { count: "exact", head: true })
+        .eq("category_id", category.id);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!category,
+  });
+
+  // Build hierarchical list of all categories with indentation (same theme only)
+  const categoryOptions = useMemo(() => {
+    if (!category) return [];
+    
+    const samethemeCategories = allCategories.filter(c => c.theme_id === category.theme_id);
+    const options: CategoryOption[] = [];
+    
+    // Get all descendant IDs to prevent circular references
+    const getDescendantIds = (catId: string): Set<string> => {
+      const descendants = new Set<string>();
+      const children = samethemeCategories.filter(c => c.parent_id === catId);
+      children.forEach(child => {
+        descendants.add(child.id);
+        getDescendantIds(child.id).forEach(id => descendants.add(id));
+      });
+      return descendants;
+    };
+    
+    const descendantIds = getDescendantIds(category.id);
+    
+    const buildPath = (catId: string): string => {
+      const cat = samethemeCategories.find(c => c.id === catId);
+      if (!cat) return "";
+      if (!cat.parent_id) return cat.name;
+      return `${buildPath(cat.parent_id)} > ${cat.name}`;
+    };
+
+    const addCategoryAndChildren = (parentId: string | null, level: number) => {
+      const children = samethemeCategories.filter(c => c.parent_id === parentId);
+      children.sort((a, b) => a.name.localeCompare(b.name));
+      
+      for (const child of children) {
+        // Skip self and descendants
+        if (child.id === category.id || descendantIds.has(child.id)) {
+          continue;
+        }
+        options.push({
+          id: child.id,
+          name: child.name,
+          level,
+          fullPath: buildPath(child.id),
+        });
+        addCategoryAndChildren(child.id, level + 1);
+      }
+    };
+
+    // Start with top-level categories
+    addCategoryAndChildren(null, 0);
+    
+    return options;
+  }, [allCategories, category]);
 
   useEffect(() => {
     if (category) {
@@ -117,10 +194,20 @@ export function EditCategoryDialog({ category, allCategories, open, onOpenChange
     },
   });
 
+  // Get selected category display name
+  const selectedParent = categoryOptions.find(c => c.id === parentId);
+
+  const handleAddSubcategory = () => {
+    if (category && onAddSubcategory) {
+      onOpenChange(false);
+      onAddSubcategory(category);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar Categoria</DialogTitle>
             <DialogDescription>
@@ -129,6 +216,30 @@ export function EditCategoryDialog({ category, allCategories, open, onOpenChange
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Quick actions */}
+            <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddSubcategory}
+                disabled={!onAddSubcategory}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Criar Subcategoria
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLegislationDialog(true)}
+              >
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                Diplomas
+                {legislationCount !== undefined && legislationCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5">{legislationCount}</Badge>
+                )}
+              </Button>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="edit-cat-name">Nome *</Label>
               <Input
@@ -142,17 +253,25 @@ export function EditCategoryDialog({ category, allCategories, open, onOpenChange
               <Label htmlFor="edit-parent">Categoria Pai</Label>
               <Select value={parentId || "none"} onValueChange={(v) => setParentId(v === "none" ? null : v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria pai" />
+                  <SelectValue>
+                    {parentId ? selectedParent?.fullPath : "Nenhuma (categoria principal)"}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[300px]">
                   <SelectItem value="none">Nenhuma (categoria principal)</SelectItem>
-                  {parentOptions.map((cat) => (
+                  {categoryOptions.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
+                      <span style={{ paddingLeft: `${cat.level * 16}px` }} className="flex items-center">
+                        {cat.level > 0 && <span className="text-muted-foreground mr-1">└</span>}
+                        {cat.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Selecione qualquer categoria para mover esta para dentro dela
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -164,7 +283,7 @@ export function EditCategoryDialog({ category, allCategories, open, onOpenChange
                 placeholder="palavra1, palavra2, palavra3"
               />
               <p className="text-xs text-muted-foreground">
-                Separadas por vírgula
+                Separadas por vírgula. Usadas para categorização automática.
               </p>
             </div>
 
@@ -215,6 +334,12 @@ export function EditCategoryDialog({ category, allCategories, open, onOpenChange
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CategoryLegislationDialog
+        category={category}
+        open={showLegislationDialog}
+        onOpenChange={setShowLegislationDialog}
+      />
     </>
   );
 }
