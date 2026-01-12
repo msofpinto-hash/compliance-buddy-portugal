@@ -26,6 +26,7 @@ import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTreeView } from "./LegislationTreeView";
 import { LegislationCard } from "./LegislationCard";
+import { AISuggestCategoriesDialog } from "./AISuggestCategoriesDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,6 +68,7 @@ export function LegislationPanel() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
   const [bulkFixDialogOpen, setBulkFixDialogOpen] = useState(false);
+  const [aiSuggestDialogOpen, setAiSuggestDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -761,6 +763,10 @@ export function LegislationPanel() {
                   onOpenDates={openDatesDialog}
                   onOpenRelations={openRelationsDialog}
                   onOpenEdit={openEditDialog}
+                  onOpenAISuggestions={(leg) => {
+                    setSelectedLegislation(leg);
+                    setAiSuggestDialogOpen(true);
+                  }}
                 />
               ))}
 
@@ -984,6 +990,14 @@ export function LegislationPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Suggestions Dialog */}
+      <AISuggestCategoriesDialog
+        open={aiSuggestDialogOpen}
+        onOpenChange={setAiSuggestDialogOpen}
+        legislation={selectedLegislation}
+        existingCategoryIds={selectedLegislation?.categories.map(c => c.id) || []}
+      />
     </div>
   );
 }

@@ -12,7 +12,8 @@ import {
   Globe, 
   Building2,
   Pencil,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LegislationTimeline } from "./LegislationTimeline";
@@ -30,6 +31,7 @@ interface LegislationCardProps {
   onOpenDates: (leg: LegislationWithCategories) => void;
   onOpenRelations: (leg: LegislationWithCategories) => void;
   onOpenEdit: (leg: LegislationWithCategories) => void;
+  onOpenAISuggestions: (leg: LegislationWithCategories) => void;
 }
 
 export function LegislationCard({
@@ -42,6 +44,7 @@ export function LegislationCard({
   onOpenDates,
   onOpenRelations,
   onOpenEdit,
+  onOpenAISuggestions,
 }: LegislationCardProps) {
   const hasCategories = leg.categories.length > 0;
 
@@ -163,6 +166,15 @@ export function LegislationCard({
           >
             <Tags className="h-4 w-4" />
             Categorias
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenAISuggestions(leg)}
+            className="h-8 gap-1.5 justify-start text-amber-600 border-amber-300 hover:bg-amber-50"
+          >
+            <Sparkles className="h-4 w-4" />
+            Sugerir (IA)
           </Button>
           <Button
             variant={hasProblems ? "default" : "outline"}
