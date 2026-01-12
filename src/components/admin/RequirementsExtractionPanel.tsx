@@ -116,7 +116,7 @@ export function RequirementsExtractionPanel() {
   const [speedHistory, setSpeedHistory] = useState<SpeedDataPoint[]>([]);
   const lastProcessedRef = useRef<{ count: number; timestamp: number } | null>(null);
   const [autoSequential, setAutoSequential] = useState(true);
-  const [pendingSequentialOrigin, setPendingSequentialOrigin] = useState<"EU" | null>(null);
+  const [pendingSequentialStep, setPendingSequentialStep] = useState<"EU" | "RELATIONS" | null>(null);
   const lastCompletedJobRef = useRef<string | null>(null);
 
   // Handle URL scraping extraction
@@ -204,61 +204,103 @@ export function RequirementsExtractionPanel() {
     refetchInterval: 5000,
   });
 
-  // Auto-start EU extraction when PT completes
+  // Auto-start next step when current completes (PT → EU → Relations)
   useEffect(() => {
     if (
       autoSequential &&
-      pendingSequentialOrigin === "EU" &&
+      pendingSequentialStep &&
       lastCompletedJob?.id &&
       lastCompletedJob.id !== lastCompletedJobRef.current &&
       !runningJob
     ) {
       lastCompletedJobRef.current = lastCompletedJob.id;
       
-      // Auto-start EU extraction
-      toast({
-        title: "🇪🇺 Iniciando extração EU automaticamente",
-        description: "A extração PT terminou. A iniciar extração para legislação europeia...",
-      });
-      
-      // Trigger EU extraction
-      const startEUExtraction = async () => {
-        setIsBackgroundExtracting(true);
-        try {
-          const { data, error } = await supabase.functions.invoke("extract-requirements-background", {
-            body: { 
-              batchSize: batchSize,
-              maxBatches: 100,
-              origin: "EU",
-              useUrl: true
-            },
-          });
-
-          if (error) throw error;
-
-          if (data.success) {
-            toast({
-              title: "Extração EU iniciada em segundo plano",
-              description: `Job ID: ${data.syncLogId?.substring(0, 8)}...`,
+      if (pendingSequentialStep === "EU") {
+        // Auto-start EU extraction
+        toast({
+          title: "🇪🇺 Iniciando extração EU automaticamente",
+          description: "A extração PT terminou. A iniciar extração para legislação europeia...",
+        });
+        
+        const startEUExtraction = async () => {
+          setIsBackgroundExtracting(true);
+          try {
+            const { data, error } = await supabase.functions.invoke("extract-requirements-background", {
+              body: { 
+                batchSize: batchSize,
+                maxBatches: 100,
+                origin: "EU",
+                useUrl: true
+              },
             });
-            setPendingSequentialOrigin(null);
-            refetchRunningJob();
+
+            if (error) throw error;
+
+            if (data.success) {
+              toast({
+                title: "Extração EU iniciada em segundo plano",
+                description: `Job ID: ${data.syncLogId?.substring(0, 8)}...`,
+              });
+              setPendingSequentialStep("RELATIONS"); // Next step: relations
+              refetchRunningJob();
+            }
+          } catch (error) {
+            console.error("Auto EU extraction error:", error);
+            toast({
+              title: "Erro ao iniciar extração EU automática",
+              description: error instanceof Error ? error.message : "Erro desconhecido",
+              variant: "destructive",
+            });
+            setPendingSequentialStep(null);
+          } finally {
+            setIsBackgroundExtracting(false);
           }
-        } catch (error) {
-          console.error("Auto EU extraction error:", error);
-          toast({
-            title: "Erro ao iniciar extração EU automática",
-            description: error instanceof Error ? error.message : "Erro desconhecido",
-            variant: "destructive",
-          });
-        } finally {
-          setIsBackgroundExtracting(false);
-        }
-      };
-      
-      startEUExtraction();
+        };
+        
+        startEUExtraction();
+      } else if (pendingSequentialStep === "RELATIONS") {
+        // Auto-start relations extraction
+        toast({
+          title: "🔗 Iniciando extração de relações automaticamente",
+          description: "A extração EU terminou. A iniciar extração de relações entre diplomas...",
+        });
+        
+        const startRelationsExtraction = async () => {
+          setIsBackgroundExtracting(true);
+          try {
+            const { data, error } = await supabase.functions.invoke("extract-legislation-relations", {
+              body: { 
+                limit: 500,
+                dryRun: false,
+                background: true,
+              },
+            });
+
+            if (error) throw error;
+
+            toast({
+              title: "Extração de relações iniciada em segundo plano",
+              description: data.message || "A processar diplomas...",
+            });
+            setPendingSequentialStep(null); // Finished sequence
+            refetchRunningJob();
+          } catch (error) {
+            console.error("Auto relations extraction error:", error);
+            toast({
+              title: "Erro ao iniciar extração de relações automática",
+              description: error instanceof Error ? error.message : "Erro desconhecido",
+              variant: "destructive",
+            });
+            setPendingSequentialStep(null);
+          } finally {
+            setIsBackgroundExtracting(false);
+          }
+        };
+        
+        startRelationsExtraction();
+      }
     }
-  }, [lastCompletedJob?.id, runningJob, autoSequential, pendingSequentialOrigin, batchSize, toast, refetchRunningJob]);
+  }, [lastCompletedJob?.id, runningJob, autoSequential, pendingSequentialStep, batchSize, toast, refetchRunningJob]);
 
   // Track speed history when job is running
   useEffect(() => {
@@ -1123,14 +1165,14 @@ export function RequirementsExtractionPanel() {
                       
                       // Set pending sequential if starting PT and auto-sequential is enabled
                       if (autoSequential && (selectedOrigin === "PT" || !selectedOrigin)) {
-                        setPendingSequentialOrigin("EU");
+                        setPendingSequentialStep("EU");
                         lastCompletedJobRef.current = null; // Reset to detect new completion
                       }
                       
                       toast({
                         title: "Extração em segundo plano iniciada",
                         description: autoSequential && (selectedOrigin === "PT" || !selectedOrigin)
-                          ? "Quando terminar, iniciará automaticamente a extração EU."
+                          ? "Sequência: PT → EU → Relações"
                           : "Pode fechar esta janela. O progresso será registado em sync_logs.",
                       });
                       
@@ -1173,12 +1215,17 @@ export function RequirementsExtractionPanel() {
                 <Globe className="h-4 w-4 text-blue-600" />
                 <span className="text-sm">EU</span>
               </div>
+              <span className="text-muted-foreground">→</span>
+              <div className="flex items-center gap-2">
+                <Link className="h-4 w-4 text-purple-600" />
+                <span className="text-sm">Relações</span>
+              </div>
               <span className="text-sm text-muted-foreground ml-2">
                 Extração sequencial automática
               </span>
-              {pendingSequentialOrigin && (
+              {pendingSequentialStep && (
                 <Badge variant="secondary" className="animate-pulse">
-                  EU pendente
+                  {pendingSequentialStep === "EU" ? "EU pendente" : "Relações pendentes"}
                 </Badge>
               )}
             </div>
@@ -1186,7 +1233,7 @@ export function RequirementsExtractionPanel() {
               checked={autoSequential}
               onCheckedChange={(checked) => {
                 setAutoSequential(checked);
-                if (!checked) setPendingSequentialOrigin(null);
+                if (!checked) setPendingSequentialStep(null);
               }}
             />
           </div>
@@ -1195,7 +1242,7 @@ export function RequirementsExtractionPanel() {
             <p><strong>Browser:</strong> Mais rápido com lotes paralelos, mas para se fechar a janela.</p>
             <p><strong>Servidor:</strong> Continua mesmo após fechar o browser. Progresso visível em Cron Jobs.</p>
             {autoSequential && (
-              <p className="mt-1 text-primary"><strong>Sequencial:</strong> Quando PT terminar, EU inicia automaticamente.</p>
+              <p className="mt-1 text-primary"><strong>Sequencial:</strong> PT → EU → Relações (automático)</p>
             )}
           </div>
 
