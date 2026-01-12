@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Edit2, Plus, FolderTree } from "lucide-react";
+import { ChevronDown, ChevronRight, Edit2, Plus, FolderTree, FileText } from "lucide-react";
 import { useState } from "react";
 import type { ThemeWithCategories, ThemeCategory } from "@/hooks/useThemes";
 import * as Icons from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 // Theme images mapping
 import themeAmbiente from "@/assets/theme-ambiente.png";
@@ -41,7 +43,7 @@ interface ThemeCardProps {
   theme: ThemeWithCategories;
   onEditTheme?: (theme: ThemeWithCategories) => void;
   onEditCategory?: (category: ThemeCategory) => void;
-  onAddCategory?: (theme: ThemeWithCategories) => void;
+  onAddCategory?: (theme: ThemeWithCategories, parentCategory?: ThemeCategory) => void;
 }
 
 // Recursive component for category hierarchy
@@ -50,19 +52,29 @@ interface CategoryItemProps {
   allCategories: ThemeCategory[];
   level: number;
   onEditCategory?: (category: ThemeCategory) => void;
+  onAddSubcategory?: (parentCategory: ThemeCategory) => void;
+  legislationCounts: Record<string, number>;
 }
 
-function CategoryItem({ category, allCategories, level, onEditCategory }: CategoryItemProps) {
+function CategoryItem({ 
+  category, 
+  allCategories, 
+  level, 
+  onEditCategory,
+  onAddSubcategory,
+  legislationCounts 
+}: CategoryItemProps) {
   const [expanded, setExpanded] = useState(level < 2); // Auto-expand first 2 levels
   const subcategories = allCategories.filter(cat => cat.parent_id === category.id);
   const hasSubcategories = subcategories.length > 0;
+  const legislationCount = legislationCounts[category.id] || 0;
 
   return (
     <div className="space-y-2">
       <div 
         className={`flex items-center justify-between rounded-lg border p-2 ${
           level === 0 ? 'bg-card/50 p-3' : 'bg-muted/30'
-        }`}
+        } hover:bg-accent/30 transition-colors`}
       >
         <div className="flex items-center gap-2 flex-1">
           {hasSubcategories && (
@@ -92,10 +104,16 @@ function CategoryItem({ category, allCategories, level, onEditCategory }: Catego
                   {subcategories.length}
                 </Badge>
               )}
+              {legislationCount > 0 && (
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  <FileText className="mr-1 h-3 w-3" />
+                  {legislationCount}
+                </Badge>
+              )}
             </div>
             <div className="mt-1 flex flex-wrap gap-1">
               {category.keywords?.slice(0, level === 0 ? 4 : 3).map((keyword, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
+                <Badge key={idx} variant="secondary" className="text-xs bg-muted">
                   {keyword}
                 </Badge>
               ))}
@@ -108,16 +126,30 @@ function CategoryItem({ category, allCategories, level, onEditCategory }: Catego
           </div>
         </div>
         
-        {onEditCategory && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className={level === 0 ? 'h-8 w-8' : 'h-6 w-6'}
-            onClick={() => onEditCategory(category)}
-          >
-            <Edit2 className={level === 0 ? 'h-4 w-4' : 'h-3 w-3'} />
-          </Button>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {onAddSubcategory && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={level === 0 ? 'h-8 w-8' : 'h-6 w-6'}
+              onClick={() => onAddSubcategory(category)}
+              title="Adicionar subcategoria"
+            >
+              <Plus className={level === 0 ? 'h-4 w-4' : 'h-3 w-3'} />
+            </Button>
+          )}
+          {onEditCategory && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={level === 0 ? 'h-8 w-8' : 'h-6 w-6'}
+              onClick={() => onEditCategory(category)}
+              title="Editar categoria"
+            >
+              <Edit2 className={level === 0 ? 'h-4 w-4' : 'h-3 w-3'} />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Recursive subcategories */}
@@ -130,6 +162,8 @@ function CategoryItem({ category, allCategories, level, onEditCategory }: Catego
               allCategories={allCategories}
               level={level + 1}
               onEditCategory={onEditCategory}
+              onAddSubcategory={onAddSubcategory}
+              legislationCounts={legislationCounts}
             />
           ))}
         </div>
@@ -151,6 +185,35 @@ export function ThemeCard({ theme, onEditTheme, onEditCategory, onAddCategory }:
 
   // Get top-level categories only
   const topLevelCategories = theme.categories.filter(cat => !cat.parent_id);
+
+  // Fetch legislation counts for all categories in this theme
+  const { data: legislationCounts = {} } = useQuery({
+    queryKey: ["category-legislation-counts", theme.id],
+    queryFn: async () => {
+      const categoryIds = theme.categories.map(c => c.id);
+      if (categoryIds.length === 0) return {};
+
+      const { data, error } = await supabase
+        .from("legislation_category_mapping")
+        .select("category_id")
+        .in("category_id", categoryIds);
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data?.forEach(row => {
+        counts[row.category_id] = (counts[row.category_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: expanded,
+  });
+
+  const handleAddSubcategory = (parentCategory: ThemeCategory) => {
+    if (onAddCategory) {
+      onAddCategory(theme, parentCategory);
+    }
+  };
 
   return (
     <Card className="transition-all hover:shadow-md overflow-hidden">
@@ -221,6 +284,8 @@ export function ThemeCard({ theme, onEditTheme, onEditCategory, onAddCategory }:
                 allCategories={theme.categories}
                 level={0}
                 onEditCategory={onEditCategory}
+                onAddSubcategory={handleAddSubcategory}
+                legislationCounts={legislationCounts}
               />
             ))}
             {theme.categories.length === 0 && (

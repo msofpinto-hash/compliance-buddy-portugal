@@ -13,6 +13,7 @@ import type { Theme, ThemeCategory } from "@/hooks/useThemes";
 interface CreateCategoryDialogProps {
   theme: Theme | null;
   categories: ThemeCategory[];
+  initialParentId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -24,12 +25,22 @@ interface CategoryOption {
   fullPath: string;
 }
 
-export function CreateCategoryDialog({ theme, categories, open, onOpenChange }: CreateCategoryDialogProps) {
+export function CreateCategoryDialog({ theme, categories, initialParentId, open, onOpenChange }: CreateCategoryDialogProps) {
   const [name, setName] = useState("");
-  const [parentId, setParentId] = useState<string | null>(null);
+  const [parentId, setParentId] = useState<string | null>(initialParentId || null);
   const [keywords, setKeywords] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Reset form when dialog opens with new initial parent
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      setParentId(initialParentId || null);
+      setName("");
+      setKeywords("");
+    }
+    onOpenChange(newOpen);
+  };
 
   // Build hierarchical list of all categories with indentation
   const categoryOptions = useMemo(() => {
@@ -114,7 +125,7 @@ export function CreateCategoryDialog({ theme, categories, open, onOpenChange }: 
   const selectedCategory = categoryOptions.find(c => c.id === parentId);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Criar Nova Categoria</DialogTitle>
