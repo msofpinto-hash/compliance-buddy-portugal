@@ -743,17 +743,23 @@ export function LegislationPanel() {
                             'Sem Origem'
                           )}
                         </Badge>
-                        <span className="font-mono text-sm text-muted-foreground">
+                        <Link 
+                          to={`/legislacao/${leg.id}`} 
+                          className="font-mono text-sm text-muted-foreground hover:text-primary hover:underline transition-colors"
+                        >
                           {leg.number}
-                        </span>
+                        </Link>
                       </div>
                       
-                      <Link 
-                        to={`/legislacao/${leg.id}`} 
-                        className="font-semibold hover:text-primary hover:underline transition-colors"
-                      >
-                        {leg.title}
-                      </Link>
+                      {/* Only show title if it's different from number (contains additional info like description) */}
+                      {leg.title !== leg.number && !leg.title.startsWith(leg.number) && (
+                        <Link 
+                          to={`/legislacao/${leg.id}`} 
+                          className="font-semibold hover:text-primary hover:underline transition-colors"
+                        >
+                          {leg.title}
+                        </Link>
+                      )}
                       
                       {leg.summary && (
                         <p className="text-sm text-muted-foreground line-clamp-2">
