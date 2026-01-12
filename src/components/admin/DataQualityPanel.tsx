@@ -3,8 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,28 +17,17 @@ import {
   RefreshCw,
   Pause,
   Play,
-  Trash2,
   ArrowRight,
-  BarChart3,
   Sparkles,
   Copy,
   Flag,
   Globe,
-  Unlink,
-  GitBranch,
-  Download,
   Activity,
   Clock
 } from "lucide-react";
-import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
-import { ValidateUrlsDialog } from "./ValidateUrlsDialog";
 import { FixGenericTitlesDialog } from "./FixGenericTitlesDialog";
 import { FixEurlexTitlesDialog } from "./FixEurlexTitlesDialog";
 import { FindMissingUrlsDialog } from "./FindMissingUrlsDialog";
-import { ImportUrlsCsvDialog } from "./ImportUrlsCsvDialog";
-import { ImportEurlexSummariesDialog } from "./ImportEurlexSummariesDialog";
-import { ExtractRelationsDialog } from "./ExtractRelationsDialog";
-import { CompleteAutoImportedDialog } from "./CompleteAutoImportedDialog";
 import { BulkAutoFixDialog } from "./BulkAutoFixDialog";
 
 interface DataQualityMetric {
@@ -56,15 +43,9 @@ interface DataQualityMetric {
 export function DataQualityPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [showFixMetadataDialog, setShowFixMetadataDialog] = useState(false);
-  const [showValidateUrlsDialog, setShowValidateUrlsDialog] = useState(false);
   const [showFixTitlesDialog, setShowFixTitlesDialog] = useState(false);
   const [showFixEurlexTitlesDialog, setShowFixEurlexTitlesDialog] = useState(false);
   const [showFindMissingUrlsDialog, setShowFindMissingUrlsDialog] = useState(false);
-  const [showImportUrlsCsvDialog, setShowImportUrlsCsvDialog] = useState(false);
-  const [showImportEurlexSummariesDialog, setShowImportEurlexSummariesDialog] = useState(false);
-  const [showExtractRelationsDialog, setShowExtractRelationsDialog] = useState(false);
-  const [showCompleteAutoImportedDialog, setShowCompleteAutoImportedDialog] = useState(false);
   const [showBulkAutoFixDialog, setShowBulkAutoFixDialog] = useState(false);
   const [isRemovingDuplicateReqs, setIsRemovingDuplicateReqs] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -570,70 +551,8 @@ export function DataQualityPanel() {
         </CardContent>
       </Card>
 
-      {/* Problems Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <ProblemCard
-          icon={<FileText className="h-5 w-5" />}
-          title="Títulos Genéricos (PT)"
-          count={qualityStats?.genericTitlesPT || 0}
-          total={qualityStats?.ptLegislation || 0}
-          severity="error"
-          description={`Diplomas PT com título genérico e URL válido${qualityStats?.genericTitlesPTNoUrl ? ` (+${qualityStats.genericTitlesPTNoUrl} sem URL)` : ''}`}
-          action="Corrigir via DRE"
-          onAction={() => setShowFixTitlesDialog(true)}
-          disabled={(qualityStats?.genericTitlesPT || 0) === 0}
-        />
-
-        <ProblemCard
-          icon={<Globe className="h-5 w-5" />}
-          title="Títulos Genéricos (EU)"
-          count={qualityStats?.genericTitlesEU || 0}
-          total={qualityStats?.euLegislation || 0}
-          severity="warning"
-          description="Diplomas EU que podem ter títulos incompletos (via SPARQL)"
-          action="Corrigir via EUR-Lex"
-          onAction={() => setShowFixEurlexTitlesDialog(true)}
-          disabled={(qualityStats?.euLegislation || 0) === 0}
-        />
-
-        <ProblemCard
-          icon={<BookOpen className="h-5 w-5" />}
-          title="Sem Sumário"
-          count={qualityStats?.missingSummary || 0}
-          total={qualityStats?.total || 0}
-          severity="warning"
-          description="Diplomas sem descrição/resumo (maioria EU)"
-          action="Importar EUR-Lex"
-          onAction={() => setShowImportEurlexSummariesDialog(true)}
-          secondaryAction="Corrigir Metadados"
-          onSecondaryAction={() => setShowFixMetadataDialog(true)}
-        />
-
-        <ProblemCard
-          icon={<LinkIcon className="h-5 w-5" />}
-          title="URLs em Falta (PT)"
-          count={qualityStats?.genericTitlesPTNoUrl || 0}
-          total={qualityStats?.ptLegislation || 0}
-          severity="warning"
-          description="Diplomas PT com título genérico mas sem URL do DRE"
-          action="Encontrar URLs"
-          onAction={() => setShowFindMissingUrlsDialog(true)}
-          disabled={(qualityStats?.genericTitlesPTNoUrl || 0) === 0}
-          secondaryAction="Importar via CSV"
-          onSecondaryAction={() => setShowImportUrlsCsvDialog(true)}
-        />
-
-        <ProblemCard
-          icon={<LinkIcon className="h-5 w-5" />}
-          title="Sem URL (Geral)"
-          count={qualityStats?.missingUrl || 0}
-          total={qualityStats?.total || 0}
-          severity="warning"
-          description="Todos os diplomas sem link para documento oficial"
-          action="Corrigir Metadados"
-          onAction={() => setShowFixMetadataDialog(true)}
-        />
-
+      {/* Problems Overview - Simplified to 4 key metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <ProblemCard
           icon={<Sparkles className="h-5 w-5" />}
           title="Sem Requisitos"
@@ -646,66 +565,82 @@ export function DataQualityPanel() {
         />
 
         <ProblemCard
-          icon={<Copy className="h-5 w-5" />}
-          title="Requisitos Duplicados"
-          count={qualityStats?.duplicateRequirements || 0}
-          total={qualityStats?.totalRequirements || 0}
+          icon={<FileText className="h-5 w-5" />}
+          title="Títulos Genéricos (PT)"
+          count={qualityStats?.genericTitlesPT || 0}
+          total={qualityStats?.ptLegislation || 0}
           severity="warning"
-          description="Requisitos repetidos no mesmo diploma"
-          action={isRemovingDuplicateReqs ? "A remover..." : "Remover Duplicados"}
-          onAction={handleRemoveDuplicateRequirements}
-          disabled={isRemovingDuplicateReqs || (qualityStats?.duplicateRequirements || 0) === 0}
+          description="Títulos incompletos, corrigíveis via DRE"
+          action="Corrigir via DRE"
+          onAction={() => setShowFixTitlesDialog(true)}
+          disabled={(qualityStats?.genericTitlesPT || 0) === 0}
         />
 
         <ProblemCard
-          icon={<Unlink className="h-5 w-5" />}
-          title="Validar URLs"
-          count={qualityStats?.withUrl || 0}
-          total={qualityStats?.total || 0}
-          severity="info"
-          description="Verificar acessibilidade dos links existentes"
-          action="Validar URLs"
-          onAction={() => setShowValidateUrlsDialog(true)}
+          icon={<Globe className="h-5 w-5" />}
+          title="Títulos Genéricos (EU)"
+          count={qualityStats?.genericTitlesEU || 0}
+          total={qualityStats?.euLegislation || 0}
+          severity="warning"
+          description="Títulos incompletos, corrigíveis via EUR-Lex"
+          action="Corrigir via EUR-Lex"
+          onAction={() => setShowFixEurlexTitlesDialog(true)}
+          disabled={(qualityStats?.genericTitlesEU || 0) === 0}
         />
 
         <ProblemCard
-          icon={<GitBranch className="h-5 w-5" />}
-          title="Sem Relações"
-          count={qualityStats?.legislationWithoutRelations || 0}
-          total={qualityStats?.total || 0}
-          severity="info"
-          description={`${qualityStats?.totalRelations || 0} relações identificadas entre ${qualityStats?.legislationWithRelations || 0} diplomas`}
-          action="Extrair Relações"
-          onAction={() => setShowExtractRelationsDialog(true)}
-        />
-
-        <ProblemCard
-          icon={<Download className="h-5 w-5" />}
-          title="Auto-Importados Incompletos"
-          count={qualityStats?.incompleteAutoImported || 0}
+          icon={<LinkIcon className="h-5 w-5" />}
+          title="URLs em Falta"
+          count={qualityStats?.missingUrl || 0}
           total={qualityStats?.total || 0}
           severity="warning"
-          description="Diplomas criados automaticamente com dados em falta (sem URL ou sumário)"
-          action="Completar Dados"
-          onAction={() => setShowCompleteAutoImportedDialog(true)}
-          disabled={(qualityStats?.incompleteAutoImported || 0) === 0}
-        />
-
-        <ProblemCard
-          icon={<BarChart3 className="h-5 w-5" />}
-          title="Sem Categoria"
-          count={qualityStats?.noCategories || 0}
-          total={qualityStats?.total || 0}
-          severity="info"
-          description="Diplomas não classificados por tema"
-          action="Ir para Temas"
-          actionLink="/admin?tab=themes"
+          description="Diplomas sem link para documento oficial"
+          action="Encontrar URLs"
+          onAction={() => setShowFindMissingUrlsDialog(true)}
+          disabled={(qualityStats?.missingUrl || 0) === 0}
         />
       </div>
 
+      {/* Duplicate Requirements - Separate Section */}
+      {(qualityStats?.duplicateRequirements || 0) > 0 && (
+        <Card className="border-amber-200 bg-amber-500/5">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Copy className="h-5 w-5 text-amber-600" />
+                <div>
+                  <div className="font-medium">Requisitos Duplicados</div>
+                  <div className="text-sm text-muted-foreground">
+                    {qualityStats?.duplicateRequirements || 0} requisitos repetidos no mesmo diploma
+                  </div>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRemoveDuplicateRequirements}
+                disabled={isRemovingDuplicateReqs}
+              >
+                {isRemovingDuplicateReqs ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    A remover...
+                  </>
+                ) : (
+                  <>
+                    Remover Duplicados
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Origin Distribution */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">Distribuição por Origem</CardTitle>
         </CardHeader>
         <CardContent>
@@ -743,52 +678,6 @@ export function DataQualityPanel() {
         </CardContent>
       </Card>
 
-      {/* Relations Statistics */}
-      {(qualityStats?.totalRelations || 0) > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <GitBranch className="h-5 w-5" />
-              Relações entre Diplomas
-            </CardTitle>
-            <CardDescription>
-              {qualityStats?.totalRelations || 0} relações identificadas entre {qualityStats?.legislationWithRelations || 0} diplomas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {Object.entries(qualityStats?.relationsByType || {})
-                .sort((a, b) => b[1] - a[1])
-                .map(([type, count]) => (
-                  <div 
-                    key={type} 
-                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div>
-                      <div className="text-xs text-muted-foreground capitalize">
-                        {type.replace(/_/g, ' ')}
-                      </div>
-                      <div className="text-lg font-bold">{count}</div>
-                    </div>
-                    <RelationTypeIcon type={type} />
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <BulkFixMetadataDialog
-        open={showFixMetadataDialog}
-        onOpenChange={setShowFixMetadataDialog}
-        problemsCount={(qualityStats?.genericTitlesPT || 0) + (qualityStats?.genericTitlesEU || 0) + (qualityStats?.missingSummary || 0) + (qualityStats?.missingUrl || 0)}
-      />
-
-      <ValidateUrlsDialog
-        open={showValidateUrlsDialog}
-        onOpenChange={setShowValidateUrlsDialog}
-      />
-
       <FixGenericTitlesDialog
         open={showFixTitlesDialog}
         onOpenChange={setShowFixTitlesDialog}
@@ -804,27 +693,7 @@ export function DataQualityPanel() {
       <FindMissingUrlsDialog
         open={showFindMissingUrlsDialog}
         onOpenChange={setShowFindMissingUrlsDialog}
-        missingUrlsCount={qualityStats?.genericTitlesPTNoUrl || 0}
-      />
-
-      <ImportUrlsCsvDialog
-        open={showImportUrlsCsvDialog}
-        onOpenChange={setShowImportUrlsCsvDialog}
-      />
-
-      <ImportEurlexSummariesDialog
-        open={showImportEurlexSummariesDialog}
-        onOpenChange={setShowImportEurlexSummariesDialog}
-      />
-
-      <ExtractRelationsDialog
-        open={showExtractRelationsDialog}
-        onOpenChange={setShowExtractRelationsDialog}
-      />
-
-      <CompleteAutoImportedDialog
-        open={showCompleteAutoImportedDialog}
-        onOpenChange={setShowCompleteAutoImportedDialog}
+        missingUrlsCount={qualityStats?.missingUrl || 0}
       />
 
       {qualityStats && (
@@ -992,19 +861,3 @@ function ProblemCard({
   );
 }
 
-// Relation Type Icon Component
-function RelationTypeIcon({ type }: { type: string }) {
-  switch (type.toLowerCase()) {
-    case 'revogado':
-    case 'revogacao_parcial':
-      return <span className="text-red-500">✕</span>;
-    case 'alteracao':
-      return <span className="text-amber-500">✎</span>;
-    case 'transposicao':
-      return <span className="text-blue-500">↔</span>;
-    case 'regulamentacao':
-      return <span className="text-green-500">§</span>;
-    default:
-      return <GitBranch className="h-4 w-4 text-muted-foreground" />;
-  }
-}
