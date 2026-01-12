@@ -151,103 +151,16 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
   return update;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+// Background processing function
+async function processLegislationBatch(
+  supabase: any,
+  legislation: any[],
+  firecrawlKey: string,
+  syncLogId: string | null
+) {
+  const results: { id: string; number: string; success: boolean; updates?: LegislationUpdate; error?: string }[] = [];
+  
   try {
-    const { legislationIds, all2026, scheduled, batchSize = 50 } = await req.json().catch(() => ({}));
-    
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
-    
-    if (!firecrawlKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'FIRECRAWL_API_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Create sync log for scheduled runs
-    let syncLogId: string | null = null;
-    if (scheduled) {
-      const { data: syncLog } = await supabase
-        .from('sync_logs')
-        .insert({
-          sync_type: 'reimport-dre-metadata',
-          status: 'running',
-          started_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
-      syncLogId = syncLog?.id || null;
-    }
-    
-    // Determine which legislation to process
-    let query = supabase
-      .from('legislation')
-      .select('id, number, title, summary, entity, document_url, publication_date, effective_date')
-      .or('origin.eq.PT,origin.eq.dre,source.ilike.dre%')
-      .not('document_url', 'is', null)
-      .like('document_url', '%diariodarepublica.pt%');
-    
-    if (all2026) {
-      // Get all 2026+ DRE legislation with missing data
-      query = query.gte('publication_date', '2026-01-01');
-    } else if (legislationIds && legislationIds.length > 0) {
-      query = query.in('id', legislationIds);
-    } else if (scheduled) {
-      // Scheduled mode: get ALL legislation with missing data, limited by batchSize
-      // No date filter - process oldest first
-      query = query.order('publication_date', { ascending: true });
-    } else {
-      // Default: get recent legislation (last 60 days) with missing metadata
-      const sixtyDaysAgo = new Date();
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-      query = query.gte('publication_date', sixtyDaysAgo.toISOString().split('T')[0]);
-    }
-    
-    // Filter to only get items with missing/bad data
-    query = query.or('summary.is.null,summary.eq.,summary.ilike.%Diploma referenciado%,entity.is.null,entity.eq.');
-    
-    // Apply batch size limit for scheduled runs
-    if (scheduled) {
-      query = query.limit(batchSize);
-    }
-    
-    const { data: legislation, error: fetchError } = await query;
-    
-    if (fetchError) {
-      if (syncLogId) {
-        await supabase
-          .from('sync_logs')
-          .update({ status: 'error', error_message: fetchError.message, completed_at: new Date().toISOString() })
-          .eq('id', syncLogId);
-      }
-      throw fetchError;
-    }
-    
-    if (!legislation || legislation.length === 0) {
-      if (syncLogId) {
-        await supabase
-          .from('sync_logs')
-          .update({ status: 'completed', items_processed: 0, completed_at: new Date().toISOString() })
-          .eq('id', syncLogId);
-      }
-      return new Response(
-        JSON.stringify({ success: true, message: 'No legislation to process', updated: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log(`Processing ${legislation.length} legislation items...`);
-    
-    const results: { id: string; number: string; success: boolean; updates?: LegislationUpdate; error?: string }[] = [];
-    
     for (const leg of legislation) {
       try {
         // Skip if already has good data
@@ -317,9 +230,10 @@ Deno.serve(async (req) => {
     const updated = results.filter(r => r.success && r.updates && Object.keys(r.updates).length > 0).length;
     const failed = results.filter(r => !r.success).length;
     
-    // Update sync log if scheduled
+    // Update sync log - this is the critical part that was failing
     if (syncLogId) {
-      await supabase
+      console.log(`Updating sync log ${syncLogId}: ${updated} updated, ${failed} failed out of ${legislation.length}`);
+      const { error: syncLogError } = await supabase
         .from('sync_logs')
         .update({
           status: failed > 0 ? 'completed_with_errors' : 'completed',
@@ -329,17 +243,190 @@ Deno.serve(async (req) => {
           completed_at: new Date().toISOString(),
         })
         .eq('id', syncLogId);
+      
+      if (syncLogError) {
+        console.error('Failed to update sync log:', syncLogError);
+      } else {
+        console.log('Sync log updated successfully');
+      }
     }
     
     console.log(`Reimport completed: ${updated} updated, ${failed} failed out of ${legislation.length} processed`);
+    
+    return { updated, failed, results };
+  } catch (error) {
+    console.error('Error in background processing:', error);
+    
+    // Make sure to update sync log even on error
+    if (syncLogId) {
+      try {
+        await supabase
+          .from('sync_logs')
+          .update({
+            status: 'error',
+            error_message: String(error),
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', syncLogId);
+      } catch (syncError) {
+        console.error('Failed to update sync log on error:', syncError);
+      }
+    }
+    
+    throw error;
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { legislationIds, all2026, scheduled, batchSize = 50 } = await req.json().catch(() => ({}));
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
+    
+    if (!firecrawlKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'FIRECRAWL_API_KEY not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Create sync log for scheduled runs
+    let syncLogId: string | null = null;
+    if (scheduled) {
+      const { data: syncLog, error: syncLogCreateError } = await supabase
+        .from('sync_logs')
+        .insert({
+          sync_type: 'reimport-dre-metadata',
+          status: 'running',
+          started_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      
+      if (syncLogCreateError) {
+        console.error('Failed to create sync log:', syncLogCreateError);
+      } else {
+        syncLogId = syncLog?.id || null;
+        console.log('Created sync log:', syncLogId);
+      }
+    }
+    
+    // Determine which legislation to process
+    let query = supabase
+      .from('legislation')
+      .select('id, number, title, summary, entity, document_url, publication_date, effective_date')
+      .or('origin.eq.PT,origin.eq.dre,source.ilike.dre%')
+      .not('document_url', 'is', null)
+      .like('document_url', '%diariodarepublica.pt%');
+    
+    if (all2026) {
+      // Get all 2026+ DRE legislation with missing data
+      query = query.gte('publication_date', '2026-01-01');
+    } else if (legislationIds && legislationIds.length > 0) {
+      query = query.in('id', legislationIds);
+    } else if (scheduled) {
+      // Scheduled mode: get ALL legislation with missing data, limited by batchSize
+      // No date filter - process oldest first
+      query = query.order('publication_date', { ascending: true });
+    } else {
+      // Default: get recent legislation (last 60 days) with missing metadata
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      query = query.gte('publication_date', sixtyDaysAgo.toISOString().split('T')[0]);
+    }
+    
+    // Filter to only get items with missing/bad data
+    query = query.or('summary.is.null,summary.eq.,summary.ilike.%Diploma referenciado%,entity.is.null,entity.eq.');
+    
+    // Apply batch size limit for scheduled runs
+    if (scheduled) {
+      query = query.limit(batchSize);
+    }
+    
+    const { data: legislation, error: fetchError } = await query;
+    
+    if (fetchError) {
+      console.error('Failed to fetch legislation:', fetchError);
+      if (syncLogId) {
+        await supabase
+          .from('sync_logs')
+          .update({ status: 'error', error_message: fetchError.message, completed_at: new Date().toISOString() })
+          .eq('id', syncLogId);
+      }
+      throw fetchError;
+    }
+    
+    if (!legislation || legislation.length === 0) {
+      console.log('No legislation to process');
+      if (syncLogId) {
+        await supabase
+          .from('sync_logs')
+          .update({ status: 'completed', items_processed: 0, items_updated: 0, completed_at: new Date().toISOString() })
+          .eq('id', syncLogId);
+      }
+      return new Response(
+        JSON.stringify({ success: true, message: 'No legislation to process', updated: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log(`Found ${legislation.length} legislation items to process`);
+    
+    // For scheduled runs, use background task to ensure completion
+    if (scheduled) {
+      // Use EdgeRuntime.waitUntil to process in background
+      const backgroundTask = processLegislationBatch(supabase, legislation, firecrawlKey, syncLogId);
+      
+      // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(backgroundTask);
+        console.log('Background task scheduled for', legislation.length, 'items');
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Processing ${legislation.length} items in background`,
+            syncLogId,
+            itemsToProcess: legislation.length
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        // Fallback: process synchronously if EdgeRuntime.waitUntil is not available
+        console.log('EdgeRuntime.waitUntil not available, processing synchronously');
+        const result = await backgroundTask;
+        return new Response(
+          JSON.stringify({
+            success: true,
+            processed: legislation.length,
+            updated: result.updated,
+            failed: result.failed,
+            results: result.results
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    // Non-scheduled runs: process synchronously
+    const result = await processLegislationBatch(supabase, legislation, firecrawlKey, syncLogId);
     
     return new Response(
       JSON.stringify({
         success: true,
         processed: legislation.length,
-        updated,
-        failed,
-        results
+        updated: result.updated,
+        failed: result.failed,
+        results: result.results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -351,4 +438,9 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+});
+
+// Handle shutdown to log incomplete tasks
+addEventListener('beforeunload', (ev: any) => {
+  console.log('Function shutting down:', ev.detail?.reason || 'unknown reason');
 });
