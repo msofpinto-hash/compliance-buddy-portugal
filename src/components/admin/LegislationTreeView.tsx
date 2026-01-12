@@ -844,17 +844,30 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
                         {/* Number + Title */}
                         <Link to={`/legislacao/${leg.id}`} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
-                          <p className={`font-semibold text-sm ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
-                          {/* Only show title if it's different from number and not a generic repetition */}
-                          {leg.title && !isTitleRedundant(leg.number, leg.title) && (() => {
-                            // For EUR-Lex, split title at the date and show rest as summary
-                            const displayTitle = leg.origin === 'EU' ? splitEurlexTitle(leg.title).title : leg.title;
-                            return (
-                              <p className={`text-sm line-clamp-2 ${
-                                isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'
-                              } ${leg.origin === 'PT' ? 'font-bold' : ''}`}>{displayTitle}</p>
-                            );
-                          })()}
+                          {/* For EUR-Lex: show CELEX small, title bold. For DRE: number IS the title, show bold */}
+                          {leg.origin === 'EU' ? (
+                            <>
+                              <p className={`text-xs text-muted-foreground ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
+                              {leg.title && !isTitleRedundant(leg.number, leg.title) && (() => {
+                                const displayTitle = splitEurlexTitle(leg.title).title;
+                                return (
+                                  <p className={`text-sm font-bold line-clamp-2 ${
+                                    isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground'
+                                  }`}>{displayTitle}</p>
+                                );
+                              })()}
+                            </>
+                          ) : (
+                            <>
+                              <p className={`font-bold text-sm ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
+                              {/* For DRE, show title below if different from number */}
+                              {leg.title && !isTitleRedundant(leg.number, leg.title) && (
+                                <p className={`text-sm line-clamp-2 ${
+                                  isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'
+                                }`}>{leg.title}</p>
+                              )}
+                            </>
+                          )}
                         </Link>
 
                         {/* Summary + Date - only show if not redundant with title */}
