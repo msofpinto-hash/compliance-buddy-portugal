@@ -649,6 +649,7 @@ export type Database = {
         Row: {
           article: string | null
           created_at: string
+          display_order: number | null
           id: string
           legislation_id: string
           notes: string | null
@@ -658,6 +659,7 @@ export type Database = {
         Insert: {
           article?: string | null
           created_at?: string
+          display_order?: number | null
           id?: string
           legislation_id: string
           notes?: string | null
@@ -667,6 +669,7 @@ export type Database = {
         Update: {
           article?: string | null
           created_at?: string
+          display_order?: number | null
           id?: string
           legislation_id?: string
           notes?: string | null

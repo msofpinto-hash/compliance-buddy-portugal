@@ -6,11 +6,28 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check, GripVertical } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { LegislationWithCategories } from "@/hooks/useLegislation";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface LegalRequirement {
   id: string;
@@ -18,12 +35,162 @@ interface LegalRequirement {
   article: string | null;
   requirement_text: string;
   notes: string | null;
+  display_order: number | null;
 }
 
 interface ManageRequirementsDialogProps {
   legislation: LegislationWithCategories | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface SortableRequirementCardProps {
+  requirement: LegalRequirement;
+  isEditing: boolean;
+  editForm: { article: string; requirement_text: string; notes: string };
+  setEditForm: React.Dispatch<React.SetStateAction<{ article: string; requirement_text: string; notes: string }>>;
+  onStartEditing: () => void;
+  onCancelEditing: () => void;
+  onSaveEditing: () => void;
+  onDelete: () => void;
+  isUpdating: boolean;
+  isDeleting: boolean;
+  disableActions: boolean;
+}
+
+function SortableRequirementCard({
+  requirement,
+  isEditing,
+  editForm,
+  setEditForm,
+  onStartEditing,
+  onCancelEditing,
+  onSaveEditing,
+  onDelete,
+  isUpdating,
+  isDeleting,
+  disableActions,
+}: SortableRequirementCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: requirement.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={`${isEditing ? "ring-2 ring-primary" : ""} ${isDragging ? "shadow-lg" : ""}`}
+    >
+      <CardContent className="pt-4">
+        {isEditing ? (
+          // Editing mode
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Artigo</Label>
+                <Input
+                  value={editForm.article}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, article: e.target.value }))}
+                  placeholder="Art. 5º"
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-3">
+                <Label className="text-xs">Requisito *</Label>
+                <Textarea
+                  value={editForm.requirement_text}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, requirement_text: e.target.value }))}
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Notas</Label>
+              <Input
+                value={editForm.notes}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Observações..."
+                className="h-8"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={onCancelEditing} disabled={isUpdating}>
+                <X className="h-4 w-4 mr-1" />
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={onSaveEditing}
+                disabled={isUpdating || !editForm.requirement_text.trim()}
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Check className="h-4 w-4 mr-1" />
+                )}
+                Guardar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          // View mode
+          <div className="flex items-start gap-2">
+            <button
+              type="button"
+              className="mt-1 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+            <div className="flex-1 space-y-1">
+              {requirement.article && (
+                <span className="inline-block rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  {requirement.article}
+                </span>
+              )}
+              <p className="text-sm">{requirement.requirement_text}</p>
+              {requirement.notes && (
+                <p className="text-xs text-muted-foreground italic">{requirement.notes}</p>
+              )}
+            </div>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onStartEditing}
+                disabled={disableActions}
+                className="h-8 w-8"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onDelete}
+                disabled={isDeleting || disableActions}
+                className="h-8 w-8 text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export function ManageRequirementsDialog({ legislation, open, onOpenChange }: ManageRequirementsDialogProps) {
@@ -35,6 +202,11 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ article: "", requirement_text: "", notes: "" });
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   const { data: requirements, isLoading } = useQuery({
     queryKey: ["legal-requirements", legislation?.id],
     queryFn: async () => {
@@ -43,7 +215,7 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
         .from("legal_requirements")
         .select("*")
         .eq("legislation_id", legislation.id)
-        .order("article");
+        .order("display_order", { ascending: true, nullsFirst: false });
 
       if (error) throw error;
       return data as LegalRequirement[];
@@ -55,11 +227,15 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
     mutationFn: async () => {
       if (!legislation || !newRequirement.requirement_text.trim()) return;
 
+      // Get max display_order for this legislation
+      const maxOrder = requirements?.reduce((max, r) => Math.max(max, r.display_order || 0), 0) || 0;
+
       const { error } = await supabase.from("legal_requirements").insert({
         legislation_id: legislation.id,
         article: newRequirement.article || null,
         requirement_text: newRequirement.requirement_text,
         notes: newRequirement.notes || null,
+        display_order: maxOrder + 1,
       });
 
       if (error) throw error;
@@ -75,6 +251,30 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
         description: error instanceof Error ? error.message : "Erro ao adicionar",
         variant: "destructive",
       });
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Update each requirement with its new order
+      const updates = orderedIds.map((id, index) =>
+        supabase
+          .from("legal_requirements")
+          .update({ display_order: index + 1 })
+          .eq("id", id)
+      );
+
+      const results = await Promise.all(updates);
+      const error = results.find((r) => r.error)?.error;
+      if (error) throw error;
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao reordenar",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+      queryClient.invalidateQueries({ queryKey: ["legal-requirements", legislation?.id] });
     },
   });
 
@@ -213,6 +413,26 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
     }
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id && requirements) {
+      const oldIndex = requirements.findIndex((r) => r.id === active.id);
+      const newIndex = requirements.findIndex((r) => r.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(requirements, oldIndex, newIndex);
+        // Optimistically update the cache
+        queryClient.setQueryData(
+          ["legal-requirements", legislation?.id],
+          newOrder
+        );
+        // Persist the new order
+        reorderMutation.mutate(newOrder.map((r) => r.id));
+      }
+    }
+  };
+
   return (
     <>
       <AlertDialog open={showReplaceConfirm} onOpenChange={setShowReplaceConfirm}>
@@ -325,115 +545,51 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
 
           {/* Existing requirements */}
           <div className="space-y-3">
-            <h4 className="font-medium">
-              Requisitos Existentes ({requirements?.length || 0})
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">
+                Requisitos Existentes ({requirements?.length || 0})
+              </h4>
+              {requirements && requirements.length > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  Arraste para reordenar
+                </span>
+              )}
+            </div>
 
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
             ) : requirements && requirements.length > 0 ? (
-              <div className="space-y-3">
-                {requirements.map((req) => (
-                  <Card key={req.id} className={editingId === req.id ? "ring-2 ring-primary" : ""}>
-                    <CardContent className="pt-4">
-                      {editingId === req.id ? (
-                        // Editing mode
-                        <div className="space-y-3">
-                          <div className="grid gap-3 sm:grid-cols-4">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Artigo</Label>
-                              <Input
-                                value={editForm.article}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, article: e.target.value }))}
-                                placeholder="Art. 5º"
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-1 sm:col-span-3">
-                              <Label className="text-xs">Requisito *</Label>
-                              <Textarea
-                                value={editForm.requirement_text}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, requirement_text: e.target.value }))}
-                                rows={2}
-                                className="resize-none"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Notas</Label>
-                            <Input
-                              value={editForm.notes}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                              placeholder="Observações..."
-                              className="h-8"
-                            />
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={cancelEditing}
-                              disabled={updateMutation.isPending}
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Cancelar
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={saveEditing}
-                              disabled={updateMutation.isPending || !editForm.requirement_text.trim()}
-                            >
-                              {updateMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                              ) : (
-                                <Check className="h-4 w-4 mr-1" />
-                              )}
-                              Guardar
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        // View mode
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-1">
-                            {req.article && (
-                              <span className="inline-block rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                                {req.article}
-                              </span>
-                            )}
-                            <p className="text-sm">{req.requirement_text}</p>
-                            {req.notes && (
-                              <p className="text-xs text-muted-foreground italic">{req.notes}</p>
-                            )}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => startEditing(req)}
-                              disabled={editingId !== null}
-                              className="h-8 w-8"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteMutation.mutate(req.id)}
-                              disabled={deleteMutation.isPending || editingId !== null}
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={requirements.map((r) => r.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3">
+                    {requirements.map((req) => (
+                      <SortableRequirementCard
+                        key={req.id}
+                        requirement={req}
+                        isEditing={editingId === req.id}
+                        editForm={editForm}
+                        setEditForm={setEditForm}
+                        onStartEditing={() => startEditing(req)}
+                        onCancelEditing={cancelEditing}
+                        onSaveEditing={saveEditing}
+                        onDelete={() => deleteMutation.mutate(req.id)}
+                        isUpdating={updateMutation.isPending}
+                        isDeleting={deleteMutation.isPending}
+                        disableActions={editingId !== null && editingId !== req.id}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             ) : (
               <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
                 <FileText className="mx-auto mb-2 h-8 w-8 opacity-50" />
