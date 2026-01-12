@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,7 +155,22 @@ export function RequirementsExtractionPanel() {
     }
   };
 
-  // Fetch statistics with origin filter - using count for accurate totals
+  // Query to check for running background jobs
+  const { data: runningJob, refetch: refetchRunningJob } = useQuery({
+    queryKey: ["running-extraction-job"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sync_logs")
+        .select("id, status, items_processed, items_added, started_at, error_message")
+        .eq("sync_type", "background-requirements-extraction")
+        .eq("status", "running")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    refetchInterval: 5000, // Check every 5 seconds
+  });
   const { data: dbStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
     queryKey: ["requirements-stats", originFilter],
     queryFn: async () => {
@@ -234,6 +249,7 @@ export function RequirementsExtractionPanel() {
         legislationWithoutRequirements: (totalLegislation || 0) - uniqueLegislationWithReqs.size,
       };
     },
+    refetchInterval: runningJob ? 10000 : false, // Auto-refresh every 10s when job is running
   });
 
   // Export failed items to Excel
@@ -701,10 +717,18 @@ export function RequirementsExtractionPanel() {
 
       {/* Progress bar */}
       {dbStats && dbStats.totalLegislation > 0 && (
-        <Card>
+        <Card className={runningJob ? "border-green-500/50 bg-green-50/30" : ""}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Progresso da extração</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Progresso da extração</span>
+                {runningJob && (
+                  <Badge variant="default" className="gap-1 bg-green-600 animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    A executar
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">
                   {Math.round((dbStats.legislationWithRequirements / dbStats.totalLegislation) * 100)}%
@@ -715,7 +739,7 @@ export function RequirementsExtractionPanel() {
                   className="h-6 w-6"
                   onClick={() => refetchStats()}
                 >
-                  <RefreshCw className="h-3 w-3" />
+                  <RefreshCw className={`h-3 w-3 ${runningJob ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </div>
@@ -723,6 +747,21 @@ export function RequirementsExtractionPanel() {
               value={(dbStats.legislationWithRequirements / dbStats.totalLegislation) * 100} 
               className="h-2"
             />
+            {runningJob && (
+              <div className="mt-3 p-3 bg-muted/50 rounded-md text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">
+                    Processados: <strong>{runningJob.items_processed}</strong> | 
+                    Requisitos: <strong>{runningJob.items_added}</strong>
+                  </span>
+                  {runningJob.error_message && (
+                    <span className="text-xs text-muted-foreground">
+                      {runningJob.error_message}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
