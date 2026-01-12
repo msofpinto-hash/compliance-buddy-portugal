@@ -28,10 +28,20 @@ import {
   Globe,
   Flag,
   CloudOff,
-  Server
+  Server,
+  TrendingUp
 } from "lucide-react";
 import { exportSimpleExcel } from "@/lib/excelUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+
+interface SpeedDataPoint {
+  time: string;
+  timestamp: number;
+  itemsProcessed: number;
+  speed: number; // items per minute
+  requirementsAdded: number;
+}
 
 type OriginFilter = "all" | "PT" | "EU";
 
@@ -103,6 +113,8 @@ export function RequirementsExtractionPanel() {
     retriesPerformed: number;
   } | null>(null);
   const stopContinuousRef = useRef(false);
+  const [speedHistory, setSpeedHistory] = useState<SpeedDataPoint[]>([]);
+  const lastProcessedRef = useRef<{ count: number; timestamp: number } | null>(null);
 
   // Handle URL scraping extraction
   const handleScrapeExtract = async () => {
@@ -171,6 +183,59 @@ export function RequirementsExtractionPanel() {
     },
     refetchInterval: 5000, // Check every 5 seconds
   });
+
+  // Track speed history when job is running
+  useEffect(() => {
+    if (runningJob && runningJob.items_processed) {
+      const now = Date.now();
+      const processed = runningJob.items_processed || 0;
+      const requirements = runningJob.items_added || 0;
+      
+      // Calculate speed (items per minute)
+      let speed = 0;
+      if (lastProcessedRef.current && processed > lastProcessedRef.current.count) {
+        const timeDiff = (now - lastProcessedRef.current.timestamp) / 60000; // in minutes
+        const itemsDiff = processed - lastProcessedRef.current.count;
+        speed = timeDiff > 0 ? Math.round(itemsDiff / timeDiff) : 0;
+      }
+      
+      // Update last processed ref
+      lastProcessedRef.current = { count: processed, timestamp: now };
+      
+      // Add data point if we have speed data
+      if (speed > 0) {
+        const timeStr = new Date().toLocaleTimeString('pt-PT', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        
+        setSpeedHistory(prev => {
+          const newHistory = [...prev, {
+            time: timeStr,
+            timestamp: now,
+            itemsProcessed: processed,
+            speed,
+            requirementsAdded: requirements
+          }];
+          // Keep last 60 data points (5 minutes at 5 second intervals)
+          return newHistory.slice(-60);
+        });
+      }
+    } else if (!runningJob) {
+      // Reset when no job is running
+      lastProcessedRef.current = null;
+    }
+  }, [runningJob?.items_processed, runningJob?.items_added]);
+
+  // Clear speed history when new job starts
+  useEffect(() => {
+    if (runningJob?.id) {
+      setSpeedHistory([]);
+      lastProcessedRef.current = null;
+    }
+  }, [runningJob?.id]);
+
   const { data: dbStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
     queryKey: ["requirements-stats", originFilter],
     queryFn: async () => {
@@ -795,7 +860,81 @@ export function RequirementsExtractionPanel() {
         </Card>
       )}
 
-      {/* Continuous Extraction */}
+      {/* Speed Chart */}
+      {runningJob && speedHistory.length > 1 && (
+        <Card className="border-blue-500/50 bg-blue-50/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              Velocidade de Processamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={speedHistory} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="speedGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="time" 
+                    tick={{ fontSize: 10 }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 10 }}
+                    label={{ value: 'items/min', angle: -90, position: 'insideLeft', fontSize: 10 }}
+                  />
+                  <Tooltip
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px',
+                      fontSize: '12px'
+                    }}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'speed') return [`${value} diplomas/min`, 'Velocidade'];
+                      if (name === 'requirementsAdded') return [value, 'Requisitos'];
+                      return [value, name];
+                    }}
+                    labelFormatter={(label) => `Hora: ${label}`}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="speed" 
+                    stroke="hsl(var(--primary))" 
+                    fillOpacity={1}
+                    fill="url(#speedGradient)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+              <span>
+                Média: <strong>
+                  {Math.round(speedHistory.reduce((a, b) => a + b.speed, 0) / speedHistory.length)} diplomas/min
+                </strong>
+              </span>
+              <span>
+                Pico: <strong>
+                  {Math.max(...speedHistory.map(s => s.speed))} diplomas/min
+                </strong>
+              </span>
+              <span>
+                Atual: <strong>
+                  {speedHistory[speedHistory.length - 1]?.speed || 0} diplomas/min
+                </strong>
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-primary/50 bg-primary/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
