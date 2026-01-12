@@ -160,19 +160,39 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
           }
 
           if (requirements.length > 0) {
-            const toInsert = requirements.map(req => ({
-              legislation_id: leg.id,
-              article: req.article,
-              requirement_text: req.requirement_text,
-            }));
-
-            const { error: insertError } = await supabase
+            // Check for existing requirements to avoid duplicates
+            const { data: existingReqsForLeg } = await supabase
               .from('legal_requirements')
-              .insert(toInsert);
+              .select('article, requirement_text')
+              .eq('legislation_id', leg.id);
 
-            if (!insertError) {
-              totalRequirements += requirements.length;
-              console.log(`Inserted ${requirements.length} requirements for ${leg.number}`);
+            const existingSet = new Set(
+              (existingReqsForLeg || []).map((r: { article: string; requirement_text: string }) => `${r.article}::${r.requirement_text.substring(0, 100)}`)
+            );
+
+            // Filter out duplicates
+            const newRequirements = requirements.filter(req => {
+              const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
+              return !existingSet.has(key);
+            });
+
+            if (newRequirements.length === 0) {
+              console.log(`All requirements already exist for ${leg.number}, skipping`);
+            } else {
+              const toInsert = newRequirements.map(req => ({
+                legislation_id: leg.id,
+                article: req.article,
+                requirement_text: req.requirement_text,
+              }));
+
+              const { error: insertError } = await supabase
+                .from('legal_requirements')
+                .insert(toInsert);
+
+              if (!insertError) {
+                totalRequirements += newRequirements.length;
+                console.log(`Inserted ${newRequirements.length} new requirements for ${leg.number}`);
+              }
             }
           }
 
