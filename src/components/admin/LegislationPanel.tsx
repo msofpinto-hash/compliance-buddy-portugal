@@ -52,6 +52,7 @@ export function LegislationPanel() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterNoCategory, setFilterNoCategory] = useState<boolean>(false);
   const [filterProblems, setFilterProblems] = useState<boolean>(false);
+  const [filterOrigin, setFilterOrigin] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,6 +148,11 @@ export function LegislationPanel() {
       result = result.filter(hasProblems);
     }
 
+    // Filter by origin
+    if (filterOrigin !== "all") {
+      result = result.filter(leg => leg.origin === filterOrigin);
+    }
+
     // Filter by "no category"
     if (filterNoCategory) {
       result = result.filter(leg => leg.categories.length === 0);
@@ -196,7 +202,7 @@ export function LegislationPanel() {
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterStartDate, filterEndDate, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterOrigin, filterStartDate, filterEndDate, sortField, sortOrder]);
 
   // Count items without category
   const noCategoryCount = useMemo(() => {
@@ -560,6 +566,34 @@ export function LegislationPanel() {
                 }}
                 label="Período"
               />
+
+              {/* Origin Filter */}
+              <div className="flex items-center gap-1 border rounded-md p-0.5">
+                <Button
+                  variant={filterOrigin === "all" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => { setFilterOrigin("all"); setCurrentPage(1); }}
+                  className="h-7 px-2 text-xs"
+                >
+                  Todas
+                </Button>
+                <Button
+                  variant={filterOrigin === "PT" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => { setFilterOrigin("PT"); setCurrentPage(1); }}
+                  className="h-7 px-2 text-xs gap-1"
+                >
+                  🇵🇹 PT
+                </Button>
+                <Button
+                  variant={filterOrigin === "EU" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => { setFilterOrigin("EU"); setCurrentPage(1); }}
+                  className="h-7 px-2 text-xs gap-1"
+                >
+                  🇪🇺 EU
+                </Button>
+              </div>
 
               <Button
                 variant={filterNoCategory ? "default" : "outline"}
