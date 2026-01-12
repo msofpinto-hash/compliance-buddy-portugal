@@ -197,6 +197,27 @@ export function EditCategoryDialog({
   // Get selected category display name
   const selectedParent = categoryOptions.find(c => c.id === parentId);
 
+  // Calculate current level
+  const getCurrentLevel = (): number => {
+    if (!category) return 0;
+    let level = 0;
+    let currentParentId = category.parent_id;
+    while (currentParentId) {
+      level++;
+      const parent = allCategories.find(c => c.id === currentParentId);
+      currentParentId = parent?.parent_id || null;
+    }
+    return level;
+  };
+  const currentLevel = getCurrentLevel();
+
+  const getLevelLabel = (level: number): string => {
+    if (level === 0) return "Categoria principal";
+    if (level === 1) return "Subcategoria";
+    if (level === 2) return "Sub-subcategoria";
+    return `Nível ${level + 1}`;
+  };
+
   const handleAddSubcategory = () => {
     if (category && onAddSubcategory) {
       onOpenChange(false);
@@ -209,9 +230,14 @@ export function EditCategoryDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Editar Categoria</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              Editar Categoria
+              <Badge variant="outline" className="font-normal">
+                {getLevelLabel(currentLevel)}
+              </Badge>
+            </DialogTitle>
             <DialogDescription>
-              Modifique as propriedades da categoria
+              Modifique as propriedades ou mova para outro nível na hierarquia
             </DialogDescription>
           </DialogHeader>
 
@@ -250,7 +276,7 @@ export function EditCategoryDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-parent">Categoria Pai</Label>
+              <Label htmlFor="edit-parent">Mover para dentro de</Label>
               <Select value={parentId || "none"} onValueChange={(v) => setParentId(v === "none" ? null : v)}>
                 <SelectTrigger>
                   <SelectValue>
@@ -258,11 +284,17 @@ export function EditCategoryDialog({
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
-                  <SelectItem value="none">Nenhuma (categoria principal)</SelectItem>
+                  <SelectItem value="none">
+                    <span className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px]">Nível 1</Badge>
+                      Categoria principal (raiz do tema)
+                    </span>
+                  </SelectItem>
                   {categoryOptions.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      <span style={{ paddingLeft: `${cat.level * 16}px` }} className="flex items-center">
+                      <span style={{ paddingLeft: `${cat.level * 16}px` }} className="flex items-center gap-2">
                         {cat.level > 0 && <span className="text-muted-foreground mr-1">└</span>}
+                        <Badge variant="outline" className="text-[10px]">Nível {cat.level + 2}</Badge>
                         {cat.name}
                       </span>
                     </SelectItem>
@@ -270,7 +302,7 @@ export function EditCategoryDialog({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Selecione qualquer categoria para mover esta para dentro dela
+                Selecione "Nenhuma" para tornar categoria principal, ou escolha outra categoria para criar uma subcategoria/sub-subcategoria
               </p>
             </div>
 
