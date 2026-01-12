@@ -64,39 +64,113 @@ export function useLegislationWithCategories() {
   return useQuery({
     queryKey: ["legislation-with-categories"],
     queryFn: async () => {
-      // Fetch legislation
-      const { data: legislation, error: legError } = await supabase
-        .from("legislation")
-        .select("*")
-        .order("publication_date", { ascending: false });
+      // Helper to fetch all legislation with pagination (Supabase default limit is 1000)
+      const fetchAllLegislation = async (): Promise<Legislation[]> => {
+        const pageSize = 1000;
+        let allData: Legislation[] = [];
+        let from = 0;
+        let hasMore = true;
 
-      if (legError) throw legError;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("legislation")
+            .select("*")
+            .order("publication_date", { ascending: false })
+            .range(from, from + pageSize - 1);
 
-      // Fetch mappings with category info
-      const { data: mappings, error: mapError } = await supabase
-        .from("legislation_category_mapping")
-        .select(`
-          legislation_id,
-          category_id,
-          theme_categories (
-            id,
-            name,
-            theme_id,
-            parent_id,
-            themes (
-              name
-            )
-          )
-        `);
+          if (error) throw error;
 
-      if (mapError) throw mapError;
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            from += pageSize;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
 
-      // Fetch all categories to build paths
-      const { data: allCategories, error: catError } = await supabase
-        .from("theme_categories")
-        .select("id, name, parent_id, theme_id");
+        return allData;
+      };
 
-      if (catError) throw catError;
+      const fetchAllMappings = async (): Promise<any[]> => {
+        const pageSize = 1000;
+        let allData: any[] = [];
+        let from = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("legislation_category_mapping")
+            .select(`
+              legislation_id,
+              category_id,
+              theme_categories (
+                id,
+                name,
+                theme_id,
+                parent_id,
+                themes (
+                  name
+                )
+              )
+            `)
+            .range(from, from + pageSize - 1);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            from += pageSize;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        return allData;
+      };
+
+      const fetchAllRelations = async (): Promise<any[]> => {
+        const pageSize = 1000;
+        let allData: any[] = [];
+        let from = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("legislation_relations")
+            .select(`
+              id,
+              source_legislation_id,
+              relation_type,
+              target_legislation:legislation!legislation_relations_target_legislation_id_fkey(id, number, title)
+            `)
+            .range(from, from + pageSize - 1);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            from += pageSize;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        return allData;
+      };
+
+      // Fetch all data in parallel
+      const [legislation, mappings, relations, categoriesResult] = await Promise.all([
+        fetchAllLegislation(),
+        fetchAllMappings(),
+        fetchAllRelations(),
+        supabase.from("theme_categories").select("id, name, parent_id, theme_id")
+      ]);
+
+      const allCategories = categoriesResult.data;
+      if (categoriesResult.error) throw categoriesResult.error;
 
       // Build a function to get full path for a category
       const buildFullPath = (categoryId: string, themeName: string): string => {
@@ -115,18 +189,6 @@ export function useLegislationWithCategories() {
         
         return [themeName, ...pathParts].join(" → ");
       };
-
-      // Fetch relations
-      const { data: relations, error: relError } = await supabase
-        .from("legislation_relations")
-        .select(`
-          id,
-          source_legislation_id,
-          relation_type,
-          target_legislation:legislation!legislation_relations_target_legislation_id_fkey(id, number, title)
-        `);
-
-      if (relError) throw relError;
 
       // Combine data
       const result: LegislationWithCategories[] = (legislation || []).map((leg) => {
