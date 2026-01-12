@@ -134,6 +134,7 @@ async function runBackgroundExtraction(
   console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}`);
   
   // Create a sync log entry to track progress
+  const originLabel = origin === 'PT' ? 'PT' : origin === 'EU' ? 'EU' : 'Todos';
   const { data: logEntry, error: logError } = await supabase
     .from('sync_logs')
     .insert({
@@ -142,6 +143,7 @@ async function runBackgroundExtraction(
       created_by: userId,
       items_processed: 0,
       items_added: 0,
+      error_message: `Origem: ${originLabel}`,
     })
     .select()
     .single();
