@@ -490,6 +490,7 @@ export default function Biblioteca() {
             hideFilters 
             externalThemeId={selectedThemeId}
             applicabilityMap={legislationApplicabilitiesMap}
+            externalSearchTerm={searchTerm}
           />
         ) : (
           <Card className="py-16">

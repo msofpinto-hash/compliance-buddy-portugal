@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { highlightText } from "@/lib/highlightText";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -242,6 +243,7 @@ interface LegislationTreeViewProps {
   hideFilters?: boolean;
   externalThemeId?: string | null;
   applicabilityMap?: Record<string, string>;
+  externalSearchTerm?: string;
 }
 
 interface CategoryNode {
@@ -250,13 +252,17 @@ interface CategoryNode {
   legislation: LegislationWithCategories[];
 }
 
-export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap }: LegislationTreeViewProps) {
+export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, externalSearchTerm }: LegislationTreeViewProps) {
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
   const [internalSelectedThemeId, setInternalSelectedThemeId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
+  
+  // Use external search term if provided (from Biblioteca), otherwise use internal
+  const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
+  const setSearchTerm = externalSearchTerm !== undefined ? () => {} : setInternalSearchTerm;
   
   const selectedThemeId = externalThemeId !== undefined ? externalThemeId : internalSelectedThemeId;
   const hideThemesColumn = externalThemeId !== undefined;
@@ -884,7 +890,11 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             const displaySummary = eurlexSummaryPart || (leg as any).summary;
                             
                             if (displaySummary && !isSummaryRedundant(leg.number, leg.title, displaySummary)) {
-                              return <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">{displaySummary}</p>;
+                              return (
+                                <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">
+                                  {highlightText(displaySummary, searchTerm, "bg-yellow-200 text-yellow-900 rounded px-0.5 font-medium")}
+                                </p>
+                              );
                             }
                             return null;
                           })()}
