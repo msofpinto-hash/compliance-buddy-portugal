@@ -430,14 +430,14 @@ export function AISuggestCategoriesDialog({
                 <p>
                   Tem a certeza que pretende remover {selectedToRemove.size} categoria(s) deste diploma?
                 </p>
-                <div className="max-h-32 overflow-y-auto border rounded-lg p-2 bg-muted/50">
-                  <ul className="space-y-1 text-sm">
+                <div className="max-h-40 overflow-y-auto border rounded-lg p-2 bg-muted/50">
+                  <ul className="space-y-2 text-sm">
                     {existingCategories
                       .filter(c => selectedToRemove.has(c.id))
                       .map(cat => (
-                        <li key={cat.id} className="flex items-center gap-2">
-                          <X className="h-3 w-3 text-destructive shrink-0" />
-                          <span className="truncate">{cat.full_path || cat.name}</span>
+                        <li key={cat.id} className="flex items-start gap-2">
+                          <X className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
+                          <span className="break-words">{cat.full_path || cat.name}</span>
                         </li>
                       ))}
                   </ul>
