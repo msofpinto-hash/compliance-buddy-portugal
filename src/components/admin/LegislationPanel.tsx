@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList } from "lucide-react";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
@@ -27,6 +27,7 @@ import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTreeView } from "./LegislationTreeView";
 import { LegislationCard } from "./LegislationCard";
 import { AISuggestCategoriesDialog } from "./AISuggestCategoriesDialog";
+import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,6 +70,7 @@ export function LegislationPanel() {
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
   const [bulkFixDialogOpen, setBulkFixDialogOpen] = useState(false);
   const [aiSuggestDialogOpen, setAiSuggestDialogOpen] = useState(false);
+  const [bulkAiSuggestDialogOpen, setBulkAiSuggestDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -729,6 +731,15 @@ export function LegislationPanel() {
                     <Button
                       size="sm"
                       variant="outline"
+                      onClick={() => setBulkAiSuggestDialogOpen(true)}
+                      className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Sugerir (IA) ({selectedIds.size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => setBulkDatesDialogOpen(true)}
                     >
                       <CalendarDays className="h-4 w-4 mr-1" />
@@ -997,6 +1008,19 @@ export function LegislationPanel() {
         onOpenChange={setAiSuggestDialogOpen}
         legislation={selectedLegislation}
         existingCategoryIds={selectedLegislation?.categories.map(c => c.id) || []}
+      />
+
+      {/* Bulk AI Suggestions Dialog */}
+      <BulkAISuggestCategoriesDialog
+        open={bulkAiSuggestDialogOpen}
+        onOpenChange={setBulkAiSuggestDialogOpen}
+        legislationList={selectedLegislationList.map(leg => ({
+          id: leg.id,
+          number: leg.number,
+          title: leg.title,
+          summary: leg.summary,
+          categories: leg.categories,
+        }))}
       />
     </div>
   );
