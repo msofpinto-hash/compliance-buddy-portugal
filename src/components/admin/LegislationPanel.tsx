@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 
 type SortField = "title" | "number" | "publication_date" | "theme" | "category_count";
 type SortOrder = "asc" | "desc";
@@ -678,7 +679,12 @@ export function LegislationPanel() {
 
             {/* Bulk selection bar */}
             {filteredAndSortedLegislation.length > 0 && (
-              <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-3">
+              <div className={cn(
+                "flex flex-wrap items-center gap-3 rounded-lg p-3 border",
+                selectedIds.size > 0 
+                  ? "bg-primary/10 border-primary/30" 
+                  : "bg-muted/50 border-transparent"
+              )}>
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="select-all"
@@ -691,7 +697,7 @@ export function LegislationPanel() {
                       }
                     }}
                   />
-                  <label htmlFor="select-all" className="text-sm cursor-pointer">
+                  <label htmlFor="select-all" className="text-sm cursor-pointer font-medium">
                     Selecionar todos ({filteredAndSortedLegislation.length})
                   </label>
                 </div>
@@ -699,22 +705,23 @@ export function LegislationPanel() {
                 {selectedIds.size > 0 && (
                   <>
                     <div className="h-4 w-px bg-border" />
-                    <span className="text-sm text-muted-foreground">
+                    <Badge variant="secondary" className="text-sm font-medium">
                       {selectedIds.size} selecionado(s)
-                    </span>
+                    </Badge>
+                    <div className="flex-1" />
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={clearSelection}
                     >
-                      Limpar seleção
+                      Limpar
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => setBulkCategoriesDialogOpen(true)}
-                      className="bg-primary"
+                      className="bg-amber-600 hover:bg-amber-700 gap-2"
                     >
-                      <Layers className="h-4 w-4 mr-1" />
+                      <Layers className="h-4 w-4" />
                       Atribuir Categorias ({selectedIds.size})
                     </Button>
                     <Button
