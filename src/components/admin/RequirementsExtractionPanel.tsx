@@ -919,7 +919,7 @@ export function RequirementsExtractionPanel() {
                         <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
                           <span>
                             ⏱️ Decorrido: {Math.floor(elapsedMin)}min | 
-                            Faltam: ~{remaining} diplomas
+                            Total: {dbStats.legislationWithoutRequirements} | Faltam: ~{remaining} diplomas
                           </span>
                           <span className="font-medium text-primary">
                             Tempo estimado: {hours > 0 ? `${hours}h ${mins}min` : `${mins}min`}
