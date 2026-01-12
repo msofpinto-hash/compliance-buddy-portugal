@@ -14,11 +14,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, FileText, Loader2, Calendar, Building2, Tags, FileEdit, Search, CalendarDays, Link2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, Eye, Flag, Globe, AlertTriangle, Pencil, Wrench, Trash2, List, GitBranch } from "lucide-react";
-import { Link } from "react-router-dom";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
-import { format } from "date-fns";
-import { pt } from "date-fns/locale";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
@@ -27,20 +24,21 @@ import { EditLegislationDialog } from "./EditLegislationDialog";
 import { BulkEditLegislationDatesDialog } from "./BulkEditLegislationDatesDialog";
 import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
-import { LegislationTimeline } from "./LegislationTimeline";
-import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 import { LegislationTreeView } from "./LegislationTreeView";
+import { LegislationCard } from "./LegislationCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-type SortField = "title" | "number" | "publication_date" | "theme";
+type SortField = "title" | "number" | "publication_date" | "theme" | "category_count";
 type SortOrder = "asc" | "desc";
 type ViewMode = "list" | "tree";
+type ListDisplayMode = "compact" | "expanded";
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const ITEMS_PER_PAGE_OPTIONS = [25, 50, 100, 200];
 
 export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
@@ -188,6 +186,9 @@ export function LegislationPanel() {
           const themeA = a.categories[0]?.theme_name || "";
           const themeB = b.categories[0]?.theme_name || "";
           comparison = themeA.localeCompare(themeB, 'pt');
+          break;
+        case "category_count":
+          comparison = a.categories.length - b.categories.length;
           break;
       }
 
@@ -616,11 +617,12 @@ export function LegislationPanel() {
             <div className="flex flex-wrap gap-3 items-center">
               <span className="text-sm text-muted-foreground">Ordenar por:</span>
               <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="publication_date">Data de Publicação</SelectItem>
+                  <SelectItem value="category_count">Nº de Categorias</SelectItem>
                   <SelectItem value="title">Título</SelectItem>
                   <SelectItem value="number">Número</SelectItem>
                   <SelectItem value="theme">Tema</SelectItem>
@@ -705,175 +707,20 @@ export function LegislationPanel() {
         </CardHeader>
         <CardContent>
           {paginatedLegislation.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {paginatedLegislation.map((leg) => (
-                <div
+                <LegislationCard
                   key={leg.id}
-                  className={`rounded-lg border p-4 transition-all hover:bg-accent/50 ${
-                    selectedIds.has(leg.id) ? 'ring-2 ring-primary/50 bg-primary/5' : ''
-                  }`}
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex gap-3 flex-1">
-                      {/* Checkbox for selection */}
-                      <div className="pt-1">
-                        <Checkbox
-                          checked={selectedIds.has(leg.id)}
-                          onCheckedChange={() => toggleSelectLegislation(leg.id)}
-                        />
-                      </div>
-                      
-                      <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge 
-                          variant="outline"
-                          className={
-                            leg.origin === 'PT' 
-                              ? 'bg-green-500/10 text-green-700 border-green-300' 
-                              : leg.origin === 'EU'
-                                ? 'bg-blue-500/10 text-blue-700 border-blue-300'
-                                : 'bg-amber-500/10 text-amber-700 border-amber-300'
-                          }
-                        >
-                          {leg.origin === 'PT' ? (
-                            <><Flag className="h-3 w-3 mr-1" />DRE</>
-                          ) : leg.origin === 'EU' ? (
-                            <><Globe className="h-3 w-3 mr-1" />EUR-Lex</>
-                          ) : (
-                            'Sem Origem'
-                          )}
-                        </Badge>
-                        <Link 
-                          to={`/legislacao/${leg.id}`} 
-                          className="font-mono text-sm text-muted-foreground hover:text-primary hover:underline transition-colors"
-                        >
-                          {leg.number}
-                        </Link>
-                      </div>
-                      
-                      {/* Only show title if it's different from number (contains additional info like description) */}
-                      {leg.title !== leg.number && !leg.title.startsWith(leg.number) && (
-                        <Link 
-                          to={`/legislacao/${leg.id}`} 
-                          className="font-semibold hover:text-primary hover:underline transition-colors"
-                        >
-                          {leg.title}
-                        </Link>
-                      )}
-                      
-                      {leg.summary && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {leg.summary}
-                        </p>
-                      )}
-                      
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {leg.entity && (
-                          <span className="flex items-center gap-1">
-                            <Building2 className="h-3 w-3" />
-                            {leg.entity}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Categories with full path */}
-                      {leg.categories.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {leg.categories.map((cat) => (
-                            <Badge 
-                              key={cat.id} 
-                              variant="outline" 
-                              className="text-xs"
-                              title={cat.full_path}
-                            >
-                              {cat.full_path}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Timeline */}
-                      <LegislationTimeline
-                        publicationDate={leg.publication_date}
-                        effectiveDate={leg.effective_date}
-                        revocationDate={(leg as any).revocation_date}
-                      />
-
-                      {/* Relations */}
-                      <LegislationRelationsBadges relations={leg.relations} />
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 lg:flex-col">
-                      <Button
-                        variant={hasProblems(leg) ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => openEditDialog(leg)}
-                        className={hasProblems(leg) ? "bg-red-600 hover:bg-red-700 gap-2" : "gap-2"}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Editar
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openDatesDialog(leg)}
-                        className="gap-2"
-                      >
-                        <CalendarDays className="h-4 w-4" />
-                        Datas
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openCategoriesDialog(leg)}
-                        className="gap-2"
-                      >
-                        <Tags className="h-4 w-4" />
-                        Categorias
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openRequirementsDialog(leg)}
-                        className="gap-2"
-                      >
-                        <FileEdit className="h-4 w-4" />
-                        Requisitos
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openRelationsDialog(leg)}
-                        className="gap-2"
-                      >
-                        <Link2 className="h-4 w-4" />
-                        Relações
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                      >
-                        <Link to={`/legislacao/${leg.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      {leg.document_url && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                        >
-                          <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  leg={leg}
+                  isSelected={selectedIds.has(leg.id)}
+                  hasProblems={hasProblems(leg)}
+                  onToggleSelect={toggleSelectLegislation}
+                  onOpenCategories={openCategoriesDialog}
+                  onOpenRequirements={openRequirementsDialog}
+                  onOpenDates={openDatesDialog}
+                  onOpenRelations={openRelationsDialog}
+                  onOpenEdit={openEditDialog}
+                />
               ))}
 
               {/* Pagination Controls */}
