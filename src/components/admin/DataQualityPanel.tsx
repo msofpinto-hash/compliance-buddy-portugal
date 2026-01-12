@@ -50,6 +50,24 @@ export function DataQualityPanel() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
+  // Query for the latest full-data-fix execution
+  const { data: lastFullFix } = useQuery({
+    queryKey: ["last-full-data-fix"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("*")
+        .eq("sync_type", "full-data-fix")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: autoRefresh ? 5000 : 10000, // Faster refresh when auto-refresh is on
+  });
+
   // Query for active jobs
   const { data: activeJobs } = useQuery({
     queryKey: ["active-sync-jobs"],
@@ -384,8 +402,41 @@ export function DataQualityPanel() {
       'sync-dre': 'Sincronização DRE',
       'sync-eurlex': 'Sincronização EUR-Lex',
       'scheduled-data-quality-fix': 'Correção Automática',
+      'full-data-fix': 'Correção Completa',
     };
     return typeMap[type] || type;
+  };
+
+  // Format relative time
+  const formatRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSecs < 60) return "agora";
+    if (diffMins < 60) return `há ${diffMins}m`;
+    if (diffHours < 24) return `há ${diffHours}h`;
+    return `há ${diffDays}d`;
+  };
+
+  // Get status badge for full-data-fix
+  const getFullFixStatusBadge = (status: string) => {
+    switch (status) {
+      case "running":
+        return <Badge className="bg-blue-500"><Loader2 className="h-3 w-3 mr-1 animate-spin" />A correr</Badge>;
+      case "completed":
+        return <Badge className="bg-green-500"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
+      case "completed_timeout":
+        return <Badge className="bg-amber-500"><Clock className="h-3 w-3 mr-1" />Tempo limite</Badge>;
+      case "error":
+        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Erro</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
   };
 
   // Calculate time elapsed
@@ -403,6 +454,103 @@ export function DataQualityPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Full-Data-Fix Progress Card */}
+      {lastFullFix && (
+        <Card className={`border-2 ${
+          lastFullFix.status === "running" 
+            ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/30" 
+            : lastFullFix.status === "completed"
+            ? "border-green-400 bg-green-50/50 dark:bg-green-950/30"
+            : lastFullFix.status === "error"
+            ? "border-red-400 bg-red-50/50 dark:bg-red-950/30"
+            : "border-amber-400 bg-amber-50/50 dark:bg-amber-950/30"
+        }`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  lastFullFix.status === "running" 
+                    ? "bg-blue-100 dark:bg-blue-900" 
+                    : lastFullFix.status === "completed"
+                    ? "bg-green-100 dark:bg-green-900"
+                    : lastFullFix.status === "error"
+                    ? "bg-red-100 dark:bg-red-900"
+                    : "bg-amber-100 dark:bg-amber-900"
+                }`}>
+                  {lastFullFix.status === "running" ? (
+                    <Loader2 className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                  ) : lastFullFix.status === "completed" ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  ) : lastFullFix.status === "error" ? (
+                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  ) : (
+                    <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  )}
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Correção Completa (Full-Data-Fix)</CardTitle>
+                  <CardDescription className="flex items-center gap-2 mt-1">
+                    <Clock className="h-3 w-3" />
+                    Iniciado {formatRelativeTime(lastFullFix.started_at)}
+                    {lastFullFix.completed_at && (
+                      <span className="text-muted-foreground">
+                        • Duração: {getElapsedTime(lastFullFix.started_at).replace(getElapsedTime(lastFullFix.completed_at), '')}
+                        {(() => {
+                          const start = new Date(lastFullFix.started_at);
+                          const end = new Date(lastFullFix.completed_at);
+                          const seconds = Math.floor((end.getTime() - start.getTime()) / 1000);
+                          if (seconds < 60) return `${seconds}s`;
+                          const minutes = Math.floor(seconds / 60);
+                          if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+                          const hours = Math.floor(minutes / 60);
+                          return `${hours}h ${minutes % 60}m`;
+                        })()}
+                      </span>
+                    )}
+                  </CardDescription>
+                </div>
+              </div>
+              {getFullFixStatusBadge(lastFullFix.status)}
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-3 gap-4 mb-3">
+              <div className="text-center p-3 rounded-lg bg-background/50">
+                <p className="text-2xl font-bold">{lastFullFix.items_processed || 0}</p>
+                <p className="text-xs text-muted-foreground">Processados</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-background/50">
+                <p className="text-2xl font-bold text-green-600">{lastFullFix.items_added || 0}</p>
+                <p className="text-xs text-muted-foreground">Adicionados</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-background/50">
+                <p className="text-2xl font-bold text-blue-600">{lastFullFix.items_updated || 0}</p>
+                <p className="text-xs text-muted-foreground">Atualizados</p>
+              </div>
+            </div>
+            
+            {lastFullFix.status === "running" && (
+              <div className="mb-3">
+                <Progress value={undefined} className="h-2 animate-pulse" />
+                <p className="text-xs text-muted-foreground mt-1 text-center">A processar em segundo plano...</p>
+              </div>
+            )}
+            
+            {lastFullFix.error_message && (
+              <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800 dark:text-red-200">Erro na execução</p>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1 break-all">{lastFullFix.error_message}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Active Jobs Banner */}
       {activeJobs && activeJobs.length > 0 && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-4">
