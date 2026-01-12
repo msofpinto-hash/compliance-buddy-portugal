@@ -856,6 +856,75 @@ export type Database = {
           },
         ]
       }
+      legislation_staging: {
+        Row: {
+          auto_category_method: string | null
+          category: string | null
+          created_at: string
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          fetched_at: string
+          id: string
+          number: string
+          publication_date: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scraped_data: Json | null
+          source: string
+          status: string
+          suggested_categories: string[] | null
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          auto_category_method?: string | null
+          category?: string | null
+          created_at?: string
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          fetched_at?: string
+          id?: string
+          number: string
+          publication_date?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scraped_data?: Json | null
+          source: string
+          status?: string
+          suggested_categories?: string[] | null
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          auto_category_method?: string | null
+          category?: string | null
+          created_at?: string
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          fetched_at?: string
+          id?: string
+          number?: string
+          publication_date?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scraped_data?: Json | null
+          source?: string
+          status?: string
+          suggested_categories?: string[] | null
+          summary?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       login_attempts: {
         Row: {
           attempted_at: string
