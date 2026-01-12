@@ -134,6 +134,72 @@ const getThemeConfig = (themeName: string) => {
   };
 };
 
+// Helper to detect if title is redundant with number (e.g., "Decreto-Lei n.º 152/2017" appears in both)
+const isTitleRedundant = (number: string, title: string): boolean => {
+  if (!title || !number) return false;
+  
+  // Normalize both strings for comparison
+  const normalizeForCompare = (s: string) => 
+    s.toLowerCase()
+      .replace(/[.,\-–—]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  
+  const normalizedNumber = normalizeForCompare(number);
+  const normalizedTitle = normalizeForCompare(title);
+  
+  // Check if title starts with the number (very common pattern)
+  if (normalizedTitle.startsWith(normalizedNumber.split(' de ')[0])) {
+    return true;
+  }
+  
+  // Extract the core identifier (e.g., "152/2017" from "Decreto-Lei n.º 152/2017")
+  const numberMatch = number.match(/\d+\/\d+/);
+  const titleMatch = title.match(/\d+\/\d+/);
+  
+  if (numberMatch && titleMatch && numberMatch[0] === titleMatch[0]) {
+    // Both have the same number like "152/2017", check if title adds value
+    // If title is just "Type n.º X/Y - short description" it might be redundant
+    const titleWithoutNumber = title.replace(/^[^-–—]+[-–—]\s*/, '').trim();
+    if (titleWithoutNumber.length < 30) {
+      // Very short additional info, likely not valuable enough to show separately
+      return true;
+    }
+  }
+  
+  return false;
+};
+
+// Helper to detect if summary is redundant with title or number
+const isSummaryRedundant = (number: string, title: string, summary: string): boolean => {
+  if (!summary) return true;
+  
+  const normalizeForCompare = (s: string) => 
+    s.toLowerCase()
+      .replace(/[.,\-–—]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  
+  const normalizedSummary = normalizeForCompare(summary);
+  const normalizedTitle = normalizeForCompare(title || '');
+  const normalizedNumber = normalizeForCompare(number || '');
+  
+  // If summary is very short, it's likely generic
+  if (normalizedSummary.length < 20) return true;
+  
+  // If summary is essentially the same as title
+  if (normalizedSummary === normalizedTitle) return true;
+  
+  // If summary starts with the same text as title (first 40 chars)
+  if (normalizedTitle && normalizedSummary.startsWith(normalizedTitle.substring(0, 40))) return true;
+  
+  // If summary contains the number and is short, it's likely generic
+  const numberCore = number?.match(/\d+\/\d+/)?.[0];
+  if (numberCore && normalizedSummary.includes(numberCore) && normalizedSummary.length < 60) return true;
+  
+  return false;
+};
+
 interface LegislationTreeViewProps {
   legislation: LegislationWithCategories[];
   onSelectLegislation?: (leg: LegislationWithCategories) => void;
@@ -743,12 +809,15 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         {/* Number + Title */}
                         <Link to={`/legislacao/${leg.id}`} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
                           <p className={`font-semibold text-sm ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
-                          <p className={`text-sm line-clamp-2 ${isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'}`}>{leg.title}</p>
+                          {/* Only show title if it's different from number and not a generic repetition */}
+                          {leg.title && !isTitleRedundant(leg.number, leg.title) && (
+                            <p className={`text-sm line-clamp-2 ${isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'}`}>{leg.title}</p>
+                          )}
                         </Link>
 
-                        {/* Summary + Date */}
+                        {/* Summary + Date - only show if not redundant with title */}
                         <div className="flex items-end justify-between mt-2">
-                          {(leg as any).summary && (
+                          {(leg as any).summary && !isSummaryRedundant(leg.number, leg.title, (leg as any).summary) && (
                             <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">{(leg as any).summary}</p>
                           )}
                           {leg.publication_date && (
