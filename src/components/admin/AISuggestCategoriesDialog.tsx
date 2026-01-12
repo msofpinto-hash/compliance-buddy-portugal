@@ -222,17 +222,33 @@ export function AISuggestCategoriesDialog({
             {/* Existing Categories Section */}
             {existingCategories.length > 0 && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h4 className="text-sm font-medium flex items-center gap-2">
                     Categorias Atuais
                     <Badge variant="secondary">{existingCategories.length}</Badge>
                   </h4>
-                  {selectedToRemove.size > 0 && (
-                    <Badge variant="destructive" className="gap-1">
-                      <Trash2 className="h-3 w-3" />
-                      {selectedToRemove.size} para remover
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {selectedToRemove.size > 0 && (
+                      <Badge variant="destructive" className="gap-1">
+                        <Trash2 className="h-3 w-3" />
+                        {selectedToRemove.size} para remover
+                      </Badge>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        if (selectedToRemove.size === existingCategories.length) {
+                          setSelectedToRemove(new Set());
+                        } else {
+                          setSelectedToRemove(new Set(existingCategories.map(c => c.id)));
+                        }
+                      }}
+                    >
+                      {selectedToRemove.size === existingCategories.length ? "Desmarcar todas" : "Selecionar todas"}
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   {existingCategories.map((cat) => (
@@ -319,16 +335,32 @@ export function AISuggestCategoriesDialog({
 
               {suggestions.length > 0 && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <p className="text-xs text-muted-foreground">
                       Selecione as categorias para adicionar
                     </p>
-                    {selectedToAdd.size > 0 && (
-                      <Badge className="bg-green-100 text-green-700 gap-1">
-                        <Check className="h-3 w-3" />
-                        {selectedToAdd.size} para adicionar
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {selectedToAdd.size > 0 && (
+                        <Badge className="bg-green-100 text-green-700 gap-1">
+                          <Check className="h-3 w-3" />
+                          {selectedToAdd.size} para adicionar
+                        </Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          if (selectedToAdd.size === suggestions.length) {
+                            setSelectedToAdd(new Set());
+                          } else {
+                            setSelectedToAdd(new Set(suggestions.map(s => s.id)));
+                          }
+                        }}
+                      >
+                        {selectedToAdd.size === suggestions.length ? "Desmarcar todas" : "Selecionar todas"}
+                      </Button>
+                    </div>
                   </div>
                   {suggestions.map((cat, index) => (
                     <div
