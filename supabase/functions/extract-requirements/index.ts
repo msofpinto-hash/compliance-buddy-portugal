@@ -242,7 +242,29 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
 
         // Insert requirements if not dry run
         if (!dryRun && requirements.length > 0) {
-          const toInsert = requirements.map(req => ({
+          // Check for existing requirements to avoid duplicates
+          const { data: existingReqsForLeg } = await supabase
+            .from('legal_requirements')
+            .select('article, requirement_text')
+            .eq('legislation_id', leg.id);
+
+          const existingSet = new Set(
+            (existingReqsForLeg || []).map(r => `${r.article}::${r.requirement_text.substring(0, 100)}`)
+          );
+
+          // Filter out duplicates
+          const newRequirements = requirements.filter(req => {
+            const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
+            return !existingSet.has(key);
+          });
+
+          if (newRequirements.length === 0) {
+            console.log(`All ${requirements.length} requirements already exist for ${leg.number}, skipping`);
+            results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements: [], error: 'Requisitos já existem' });
+            continue;
+          }
+
+          const toInsert = newRequirements.map(req => ({
             legislation_id: leg.id,
             article: req.article,
             requirement_text: req.requirement_text,
@@ -254,11 +276,12 @@ Retorna APENAS um array JSON válido, sem explicações. Exemplo:
 
           if (insertError) {
             console.error(`Insert error for ${leg.number}:`, insertError);
-            results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements, error: insertError.message });
+            results.push({ legislationId: leg.id, legislationNumber: leg.number, requirements: newRequirements, error: insertError.message });
             continue;
           }
           
-          console.log(`Inserted ${requirements.length} requirements for ${leg.number}`);
+          console.log(`Inserted ${newRequirements.length} new requirements for ${leg.number} (${requirements.length - newRequirements.length} duplicates skipped)`);
+          requirements = newRequirements; // Update for accurate count
         }
 
         totalRequirements += requirements.length;
