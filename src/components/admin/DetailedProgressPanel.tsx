@@ -129,7 +129,7 @@ export const DetailedProgressPanel = forwardRef<HTMLDivElement, DetailedProgress
         }
       };
     },
-    refetchInterval: runningJob ? 10000 : 30000,
+    refetchInterval: runningJob ? 5000 : 30000, // Faster refresh when job is running
   });
 
   // Refresh handler

@@ -21,6 +21,22 @@ export function DataQualityPanel() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Fetch comprehensive data quality statistics
+  // Check for running jobs to enable auto-refresh
+  const { data: runningJob } = useQuery({
+    queryKey: ["running-job-for-quality"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sync_logs")
+        .select("id, status")
+        .eq("status", "running")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    refetchInterval: 5000,
+  });
+
   const { data: qualityStats, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["data-quality-stats"],
     queryFn: async () => {
@@ -88,6 +104,7 @@ export function DataQualityPanel() {
         euRequirements: euReqsCount || 0,
       };
     },
+    refetchInterval: runningJob ? 10000 : false, // Auto-refresh every 10s when job is running
   });
 
   const calculateQualityScore = () => {
