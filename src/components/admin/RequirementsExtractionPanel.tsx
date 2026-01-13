@@ -358,21 +358,15 @@ export function RequirementsExtractionPanel() {
   const { data: dbStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
     queryKey: ["requirements-stats", originFilter],
     queryFn: async () => {
-      // Build origin filter condition
-      let originCondition = "";
-      if (originFilter === "PT") {
-        originCondition = "origin.eq.PT,origin.eq.dre,origin.is.null";
-      } else if (originFilter === "EU") {
-        originCondition = "origin.eq.EU,origin.eq.eurlex";
-      }
-
-      // Get total legislation count with proper count
+      // Get legislation count based on origin filter
       let legislationCountQuery = supabase
         .from("legislation")
         .select("id", { count: "exact", head: true });
       
-      if (originCondition) {
-        legislationCountQuery = legislationCountQuery.or(originCondition);
+      if (originFilter === "PT") {
+        legislationCountQuery = legislationCountQuery.eq("origin", "PT");
+      } else if (originFilter === "EU") {
+        legislationCountQuery = legislationCountQuery.eq("origin", "EU");
       }
       
       const { count: totalLegislation } = await legislationCountQuery;
@@ -388,8 +382,10 @@ export function RequirementsExtractionPanel() {
           .select("id")
           .range(page * pageSize, (page + 1) * pageSize - 1);
         
-        if (originCondition) {
-          query = query.or(originCondition);
+        if (originFilter === "PT") {
+          query = query.eq("origin", "PT");
+        } else if (originFilter === "EU") {
+          query = query.eq("origin", "EU");
         }
         
         const { data } = await query;
