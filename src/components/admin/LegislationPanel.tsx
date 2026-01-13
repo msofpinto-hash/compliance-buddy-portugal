@@ -82,6 +82,7 @@ export function LegislationPanel() {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFixingIncompletes, setIsFixingIncompletes] = useState(false);
+  const [isFixingInvalidDates, setIsFixingInvalidDates] = useState(false);
 
   // Extract unique themes from legislation categories
   const availableThemes = useMemo(() => {
@@ -575,6 +576,124 @@ export function LegislationPanel() {
     }
   };
 
+  // Count diplomas with invalid dates
+  const invalidDatesCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter((leg) => {
+      const problems = getProblems(leg);
+      return problems.includes("invalid_dates");
+    }).length;
+  }, [legislation]);
+
+  // Handle fix invalid dates
+  const handleFixInvalidDates = async () => {
+    setIsFixingInvalidDates(true);
+    try {
+      // Get all legislation with invalid dates
+      const currentYear = new Date().getFullYear();
+      
+      // Query diplomas with invalid dates
+      const { data: invalidLegislation, error: queryError } = await supabase
+        .from("legislation")
+        .select("id, number, publication_date, effective_date")
+        .or(`publication_date.gte.${currentYear + 2}-01-01,publication_date.lte.1899-12-31,effective_date.gte.${currentYear + 2}-01-01,effective_date.lte.1899-12-31`);
+
+      if (queryError) throw queryError;
+
+      if (!invalidLegislation || invalidLegislation.length === 0) {
+        toast({
+          title: "Sem datas inválidas",
+          description: "Não foram encontrados diplomas com datas inválidas.",
+        });
+        return;
+      }
+
+      let fixedCount = 0;
+      const errors: string[] = [];
+
+      for (const leg of invalidLegislation) {
+        try {
+          // Try to extract year from number field (e.g., "2024/2963" -> 2024, "(UE) 2024/123" -> 2024)
+          const yearMatch = leg.number?.match(/(?:^|\s|\/|\()(\d{4})(?:\/|\s|$)/);
+          let inferredYear: number | null = null;
+          
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (year >= 1900 && year <= currentYear + 1) {
+              inferredYear = year;
+            }
+          }
+
+          // Prepare updates
+          const updates: { publication_date?: string | null; effective_date?: string | null } = {};
+          
+          // Check publication_date
+          if (leg.publication_date) {
+            const pubYear = new Date(leg.publication_date).getFullYear();
+            if (pubYear > currentYear + 1 || pubYear < 1900) {
+              if (inferredYear) {
+                // Set to Jan 1 of the inferred year
+                updates.publication_date = `${inferredYear}-01-01`;
+              } else {
+                updates.publication_date = null;
+              }
+            }
+          }
+
+          // Check effective_date
+          if (leg.effective_date) {
+            const effYear = new Date(leg.effective_date).getFullYear();
+            if (effYear > currentYear + 1 || effYear < 1900) {
+              if (inferredYear) {
+                updates.effective_date = `${inferredYear}-01-01`;
+              } else {
+                updates.effective_date = null;
+              }
+            }
+          }
+
+          // Apply updates if needed
+          if (Object.keys(updates).length > 0) {
+            const { error: updateError } = await supabase
+              .from("legislation")
+              .update(updates)
+              .eq("id", leg.id);
+
+            if (updateError) {
+              errors.push(`${leg.number}: ${updateError.message}`);
+            } else {
+              fixedCount++;
+            }
+          }
+        } catch (e) {
+          errors.push(`${leg.number}: ${e instanceof Error ? e.message : "Erro desconhecido"}`);
+        }
+      }
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+
+      toast({
+        title: "Correção concluída",
+        description: `${fixedCount} diploma(s) corrigido(s)${errors.length > 0 ? `. ${errors.length} erro(s).` : "."}`,
+        variant: errors.length > 0 ? "destructive" : "default",
+      });
+
+      if (errors.length > 0) {
+        console.error("Fix invalid dates errors:", errors);
+      }
+    } catch (error) {
+      console.error("Fix invalid dates error:", error);
+      toast({
+        title: "Erro ao corrigir datas",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingInvalidDates(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -800,6 +919,22 @@ export function LegislationPanel() {
                   )}
                   {isFixIncompletesRunning ? "Correção em curso" : "Corrigir Requisitos Incompletos"}
                 </Button>
+                {invalidDatesCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFixInvalidDates}
+                    disabled={isFixingInvalidDates}
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
+                  >
+                    {isFixingInvalidDates ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CalendarDays className="h-4 w-4" />
+                    )}
+                    Corrigir Datas ({invalidDatesCount})
+                  </Button>
+                )}
                 {problemsCount > 0 && (
                   <Button
                     variant="outline"
