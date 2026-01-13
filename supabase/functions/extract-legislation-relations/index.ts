@@ -521,9 +521,36 @@ function normalizeNumber(num: string): string {
 // Determine origin from legislation number
 function determineOrigin(number: string): string {
   const lowerNum = number.toLowerCase();
-  if (lowerNum.includes('diretiva') || lowerNum.includes('regulamento') && lowerNum.includes('/ue')) {
-    return 'EU';
+  
+  // EU patterns - check for European legislation indicators
+  const euPatterns = [
+    /diretiva/i,
+    /directiva/i,  // Old spelling
+    /regulamento.*\(ue\)/i,
+    /regulamento.*\(ce\)/i,
+    /regulamento.*\(cee\)/i,
+    /decis[ãa]o.*\(ue\)/i,
+    /decis[ãa]o.*\(ce\)/i,
+    /decis[ãa]o.*\/cee/i,
+    /decis[ãa]o.*\/ce$/i,
+    /\/ue$/i,
+    /\/ce$/i,
+    /\/cee$/i,
+    /\/eec$/i,
+    /\(ue\)/i,
+    /\(ce\)/i,
+    /\(cee\)/i,
+    /\(pesc\)/i,
+    /unece/i,
+    /euratom/i,
+  ];
+  
+  for (const pattern of euPatterns) {
+    if (pattern.test(lowerNum)) {
+      return 'EU';
+    }
   }
+  
   return 'PT';
 }
 
