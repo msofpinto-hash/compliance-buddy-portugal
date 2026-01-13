@@ -445,7 +445,8 @@ Deno.serve(async (req) => {
       includeEU = true, 
       fixDates = true, 
       jobId,
-      mode = 'incomplete' // 'incomplete' | 'missing_dates' | 'generic_titles'
+      mode = 'incomplete', // 'incomplete' | 'missing_dates' | 'generic_titles'
+      extractRequirements = false, // Extract legal requirements after fixing metadata
     } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -771,13 +772,54 @@ Deno.serve(async (req) => {
     console.log(`\n=== COMPLETE ===`);
     console.log(`Processed: ${results.length}, Updated: ${totalUpdated}, URLs found: ${totalUrlsFound}, Metadata extracted: ${totalMetadataExtracted}`);
     
+    // Trigger requirements extraction for successfully processed legislation
+    let requirementsExtractionStarted = false;
+    const successfulIds = results.filter(r => r.success).map(r => r.id);
+    
+    if (extractRequirements && successfulIds.length > 0 && !dryRun) {
+      console.log(`\n=== Starting requirements extraction for ${successfulIds.length} legislation ===`);
+      
+      try {
+        // Call the extract-requirements-background function
+        const extractionResponse = await fetch(
+          `${supabaseUrl}/functions/v1/extract-requirements-background`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              batchSize: 10,
+              maxBatches: Math.ceil(successfulIds.length / 10),
+              useUrl: true,
+              legislationIds: successfulIds, // Only process the fixed legislation
+            }),
+          }
+        );
+        
+        if (extractionResponse.ok) {
+          requirementsExtractionStarted = true;
+          console.log('Requirements extraction job started');
+        } else {
+          console.error('Failed to start requirements extraction:', await extractionResponse.text());
+        }
+      } catch (extractionError) {
+        console.error('Error starting requirements extraction:', extractionError);
+      }
+    }
+    
     // Mark sync_log as completed
     if (syncLogId) {
+      const completionMessage = requirementsExtractionStarted 
+        ? `Extração de requisitos iniciada para ${successfulIds.length} diplomas`
+        : (failed > 0 ? `${failed} erro(s)` : null);
+      
       await supabase.from('sync_logs').update({ 
         status: 'completed',
         items_processed: results.length,
         items_updated: totalUpdated,
-        error_message: failed > 0 ? `${failed} erro(s)` : null,
+        error_message: completionMessage,
         completed_at: new Date().toISOString() 
       }).eq('id', syncLogId);
     }
@@ -792,6 +834,7 @@ Deno.serve(async (req) => {
         totalUpdated,
         totalUrlsFound,
         totalMetadataExtracted,
+        requirementsExtractionStarted,
         results,
         syncLogId
       }),
