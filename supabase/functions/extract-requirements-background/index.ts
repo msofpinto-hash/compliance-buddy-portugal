@@ -191,43 +191,42 @@ async function runBackgroundExtraction(
         break;
       }
 
-      console.log(`📦 Batch ${batchesCompleted + 1}: processing ${legislationToProcess.length} items`);
+      console.log(`📦 Batch ${batchesCompleted + 1}: processing ${legislationToProcess.length} items in parallel`);
 
-      // Process this batch
-      for (const leg of legislationToProcess) {
-        try {
-          let textContent = '';
-          let usedUrl = false;
-          
-          // Try to scrape URL if enabled and available
-          if (useUrl && firecrawlApiKey && leg.document_url) {
-            const scraped = await scrapeUrl(leg.document_url, firecrawlApiKey);
+      // Process in parallel chunks of 5 for much faster throughput
+      const PARALLEL_CHUNK_SIZE = 5;
+      
+      for (let i = 0; i < legislationToProcess.length; i += PARALLEL_CHUNK_SIZE) {
+        const chunk = legislationToProcess.slice(i, i + PARALLEL_CHUNK_SIZE);
+        
+        const results = await Promise.allSettled(chunk.map(async (leg: { id: string; number: string; title: string; summary: string | null; document_url: string | null; origin: string | null }) => {
+          try {
+            let textContent = '';
+            let usedUrl = false;
             
-            if (scraped && scraped.markdown && !isErrorPage(scraped.markdown)) {
-              textContent = scraped.markdown;
-              usedUrl = true;
-              urlScrapedCount++;
-              console.log(`📄 ${leg.number}: Using scraped content (${textContent.length} chars)`);
-            } else {
-              console.log(`⚠️ ${leg.number}: Scrape failed or error page, falling back to summary`);
+            // Try to scrape URL if enabled and available
+            if (useUrl && firecrawlApiKey && leg.document_url) {
+              const scraped = await scrapeUrl(leg.document_url, firecrawlApiKey);
+              
+              if (scraped && scraped.markdown && !isErrorPage(scraped.markdown)) {
+                textContent = scraped.markdown;
+                usedUrl = true;
+                console.log(`📄 ${leg.number}: Using scraped content (${textContent.length} chars)`);
+              } else {
+                console.log(`⚠️ ${leg.number}: Scrape failed or error page, falling back to summary`);
+              }
             }
-          }
-          
-          // Fallback to summary-based extraction
-          if (!textContent) {
-            summaryFallbackCount++;
-          }
-          
-          // Build prompt based on available content
-          let prompt: string;
-          let useAdvancedModel = false;
-          
-          if (textContent) {
-            // Full text extraction - more comprehensive
-            const truncatedText = textContent.length > 15000 ? textContent.substring(0, 15000) + '...' : textContent;
-            useAdvancedModel = true;
             
-            prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS - obrigações, deveres, proibições e condições que as entidades devem cumprir.
+            // Build prompt based on available content
+            let prompt: string;
+            let useAdvancedModel = false;
+            
+            if (textContent) {
+              // Full text extraction - more comprehensive
+              const truncatedText = textContent.length > 15000 ? textContent.substring(0, 15000) + '...' : textContent;
+              useAdvancedModel = true;
+              
+              prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS - obrigações, deveres, proibições e condições que as entidades devem cumprir.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
@@ -249,12 +248,11 @@ INSTRUÇÕES:
 
 Retorna APENAS um array JSON válido. Exemplo:
 [{"article": "Art. 5º", "requirement_text": "As instalações industriais devem dispor de sistema de tratamento de efluentes", "notes": "Aplicável a instalações com capacidade superior a 50m³/dia"}]`;
-          } else {
-            // Summary-based extraction - USE ADVANCED MODEL to compensate for lack of full text
-            // This is the key improvement: even without full text, we use the better model and a more detailed prompt
-            useAdvancedModel = true;
-            
-            prompt = `És um especialista em legislação portuguesa. Com base no título e sumário deste diploma, identifica e infere os REQUISITOS LEGAIS mais prováveis.
+            } else {
+              // Summary-based extraction - USE ADVANCED MODEL to compensate for lack of full text
+              useAdvancedModel = true;
+              
+              prompt = `És um especialista em legislação portuguesa. Com base no título e sumário deste diploma, identifica e infere os REQUISITOS LEGAIS mais prováveis.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
@@ -277,125 +275,143 @@ Sê específico e evita requisitos demasiado genéricos.
 
 Retorna APENAS um array JSON válido. Exemplo:
 [{"article": "Art. 5º", "requirement_text": "As entidades devem registar-se no sistema eletrónico no prazo de 90 dias", "notes": "Regime transitório para entidades existentes"}]`;
-          }
-
-          const response = await fetch(AI_ENDPOINT, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${lovableApiKey}`,
-            },
-            body: JSON.stringify({
-              // Always use the advanced model now - even for summary-based extraction
-              model: useAdvancedModel ? 'google/gemini-2.5-flash' : 'google/gemini-2.5-flash-lite',
-              messages: [
-                { role: 'system', content: 'És um especialista em legislação portuguesa e europeia. Extrai requisitos legais de forma precisa e detalhada. Quando não tens o texto completo, infere requisitos prováveis com base no tipo de diploma e tema. Responde APENAS com JSON válido, sem markdown.' },
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.3,
-              max_tokens: 4000, // Always use higher token limit for better extraction
-            }),
-          });
-
-          if (!response.ok) {
-            console.error(`AI API error for ${leg.number}:`, response.status);
-            
-            if (response.status === 429) {
-              await new Promise(resolve => setTimeout(resolve, 10000));
-            } else if (response.status === 402) {
-              console.error('Credits exhausted, stopping');
-              throw new Error('Credits exhausted');
             }
-            continue;
-          }
 
-          const aiData = await response.json();
-          const content = aiData.choices?.[0]?.message?.content || '';
-          
-          let requirements: Requirement[] = [];
-          try {
-            let jsonContent = content.trim();
-            if (jsonContent.startsWith('```json')) {
-              jsonContent = jsonContent.replace(/^```json\s*\n?/, '').replace(/\n?\s*```$/, '');
-            } else if (jsonContent.startsWith('```')) {
-              jsonContent = jsonContent.replace(/^```\s*\n?/, '').replace(/\n?\s*```$/, '');
-            }
-            
-            const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
-            if (arrayMatch) {
-              jsonContent = arrayMatch[0];
-            }
-            
-            requirements = JSON.parse(jsonContent);
-            
-            if (!Array.isArray(requirements)) {
-              requirements = [];
-            }
-            
-            requirements = requirements
-              .filter(r => r && typeof r === 'object' && r.requirement_text)
-              .map(r => ({
-                article: cleanArticle(r.article, leg.number),
-                requirement_text: String(r.requirement_text).substring(0, 500),
-                notes: r.notes ? String(r.notes).substring(0, 300) : undefined,
-              }))
-              .slice(0, 20);
-              
-          } catch (parseError) {
-            console.error(`Parse error for ${leg.number}:`, parseError);
-            continue;
-          }
-
-          if (requirements.length > 0) {
-            // Check for existing requirements to avoid duplicates
-            const { data: existingReqsForLeg } = await supabase
-              .from('legal_requirements')
-              .select('article, requirement_text')
-              .eq('legislation_id', leg.id);
-
-            const existingSet = new Set(
-              (existingReqsForLeg || []).map((r: { article: string; requirement_text: string }) => `${r.article}::${r.requirement_text.substring(0, 100)}`)
-            );
-
-            // Filter out duplicates
-            const newRequirements = requirements.filter(req => {
-              const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
-              return !existingSet.has(key);
+            const response = await fetch(AI_ENDPOINT, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${lovableApiKey}`,
+              },
+              body: JSON.stringify({
+                model: useAdvancedModel ? 'google/gemini-2.5-flash' : 'google/gemini-2.5-flash-lite',
+                messages: [
+                  { role: 'system', content: 'És um especialista em legislação portuguesa e europeia. Extrai requisitos legais de forma precisa e detalhada. Quando não tens o texto completo, infere requisitos prováveis com base no tipo de diploma e tema. Responde APENAS com JSON válido, sem markdown.' },
+                  { role: 'user', content: prompt }
+                ],
+                temperature: 0.3,
+                max_tokens: 4000,
+              }),
             });
 
-            if (newRequirements.length === 0) {
-              console.log(`All requirements already exist for ${leg.number}, skipping`);
-            } else {
-              const toInsert = newRequirements.map(req => ({
-                legislation_id: leg.id,
-                article: req.article,
-                requirement_text: req.requirement_text,
-                notes: req.notes || null,
-              }));
+            if (!response.ok) {
+              console.error(`AI API error for ${leg.number}:`, response.status);
+              
+              if (response.status === 429) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              } else if (response.status === 402) {
+                console.error('Credits exhausted, stopping');
+                throw new Error('Credits exhausted');
+              }
+              return { processed: false, usedUrl: false };
+            }
 
-              const { error: insertError } = await supabase
+            const aiData = await response.json();
+            const content = aiData.choices?.[0]?.message?.content || '';
+            
+            let requirements: Requirement[] = [];
+            try {
+              let jsonContent = content.trim();
+              if (jsonContent.startsWith('```json')) {
+                jsonContent = jsonContent.replace(/^```json\s*\n?/, '').replace(/\n?\s*```$/, '');
+              } else if (jsonContent.startsWith('```')) {
+                jsonContent = jsonContent.replace(/^```\s*\n?/, '').replace(/\n?\s*```$/, '');
+              }
+              
+              const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
+              if (arrayMatch) {
+                jsonContent = arrayMatch[0];
+              }
+              
+              requirements = JSON.parse(jsonContent);
+              
+              if (!Array.isArray(requirements)) {
+                requirements = [];
+              }
+              
+              requirements = requirements
+                .filter(r => r && typeof r === 'object' && r.requirement_text)
+                .map(r => ({
+                  article: cleanArticle(r.article, leg.number),
+                  requirement_text: String(r.requirement_text).substring(0, 500),
+                  notes: r.notes ? String(r.notes).substring(0, 300) : undefined,
+                }))
+                .slice(0, 20);
+                
+            } catch (parseError) {
+              console.error(`Parse error for ${leg.number}:`, parseError);
+              return { processed: true, usedUrl, requirementsAdded: 0 };
+            }
+
+            let requirementsAdded = 0;
+            if (requirements.length > 0) {
+              // Check for existing requirements to avoid duplicates
+              const { data: existingReqsForLeg } = await supabase
                 .from('legal_requirements')
-                .insert(toInsert);
+                .select('article, requirement_text')
+                .eq('legislation_id', leg.id);
 
-              if (!insertError) {
-                totalRequirements += newRequirements.length;
-                console.log(`✅ ${leg.number}: Inserted ${newRequirements.length} requirements (URL: ${usedUrl})`);
+              const existingSet = new Set(
+                (existingReqsForLeg || []).map((r: { article: string; requirement_text: string }) => `${r.article}::${r.requirement_text.substring(0, 100)}`)
+              );
+
+              // Filter out duplicates
+              const newRequirements = requirements.filter(req => {
+                const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
+                return !existingSet.has(key);
+              });
+
+              if (newRequirements.length > 0) {
+                const toInsert = newRequirements.map(req => ({
+                  legislation_id: leg.id,
+                  article: req.article,
+                  requirement_text: req.requirement_text,
+                  notes: req.notes || null,
+                }));
+
+                const { error: insertError } = await supabase
+                  .from('legal_requirements')
+                  .insert(toInsert);
+
+                if (!insertError) {
+                  requirementsAdded = newRequirements.length;
+                  console.log(`✅ ${leg.number}: Inserted ${newRequirements.length} requirements (URL: ${usedUrl})`);
+                }
               }
             }
+
+            return { processed: true, usedUrl, requirementsAdded };
+
+          } catch (error) {
+            console.error(`Error processing ${leg.number}:`, error);
+            if ((error as Error).message === 'Credits exhausted') {
+              throw error;
+            }
+            return { processed: false, usedUrl: false };
           }
+        }));
 
-          totalProcessed++;
-          
-          // Delay based on whether we're scraping URLs (more expensive)
-          const delay = useUrl && firecrawlApiKey ? 1000 : 300;
-          await new Promise(resolve => setTimeout(resolve, delay));
-
-        } catch (error) {
-          console.error(`Error processing ${leg.number}:`, error);
-          if ((error as Error).message === 'Credits exhausted') {
-            throw error;
+        // Aggregate results from parallel processing
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.processed) {
+            totalProcessed++;
+            totalRequirements += result.value.requirementsAdded || 0;
+            if (result.value.usedUrl) {
+              urlScrapedCount++;
+            } else {
+              summaryFallbackCount++;
+            }
           }
         }
+        
+        // Check if any request was rate limited (429)
+        const hasRateLimitError = results.some(
+          r => r.status === 'rejected' && String(r.reason).includes('429')
+        );
+        
+        // Reduced delay - 200ms between parallel chunks, 2s if rate limited
+        const chunkDelay = hasRateLimitError ? 2000 : 200;
+        await new Promise(resolve => setTimeout(resolve, chunkDelay));
       }
 
       batchesCompleted++;
