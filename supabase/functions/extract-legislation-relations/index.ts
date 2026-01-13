@@ -492,14 +492,37 @@ async function processRelationsInBackground(
         totalRelationsCreated += relationsCreated;
       }
 
+      const relationsMatchedCount = relationDetails.filter(r => r.matched).length;
+      
       results.push({ 
         legislationId: leg.id, 
         legislationNumber: leg.number, 
         relationsFound: extractedRelations.length,
-        relationsMatched: relationDetails.filter(r => r.matched).length,
+        relationsMatched: relationsMatchedCount,
         relationsCreated,
         relations: relationDetails
       });
+
+      // CRITICAL: Mark this legislation as processed in the tracking table
+      // This ensures we don't reprocess this legislation in future runs
+      if (!dryRun) {
+        const { error: trackError } = await supabase
+          .from('legislation_relations_processed')
+          .upsert({
+            legislation_id: leg.id,
+            relations_found: extractedRelations.length,
+            relations_matched: relationsMatchedCount,
+            processed_at: new Date().toISOString(),
+          }, {
+            onConflict: 'legislation_id'
+          });
+        
+        if (trackError) {
+          console.error(`Failed to track processed legislation ${leg.number}:`, trackError);
+        } else {
+          console.log(`✓ Marked ${leg.number} as processed in tracking table`);
+        }
+      }
 
       // Delay between requests
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -515,6 +538,21 @@ async function processRelationsInBackground(
         relations: [],
         error: error instanceof Error ? error.message : 'Erro desconhecido' 
       });
+      
+      // Even on error, mark as processed to avoid infinite retries
+      // (can be manually reset if needed)
+      if (!dryRun) {
+        await supabase
+          .from('legislation_relations_processed')
+          .upsert({
+            legislation_id: leg.id,
+            relations_found: 0,
+            relations_matched: 0,
+            processed_at: new Date().toISOString(),
+          }, {
+            onConflict: 'legislation_id'
+          });
+      }
     }
   }
 
@@ -583,11 +621,15 @@ Deno.serve(async (req) => {
       existingRelations?.map(r => `${r.source_legislation_id}-${r.target_legislation_id}-${r.relation_type}`) || []
     );
 
-    // Get legislation IDs that already have outgoing relations (already processed)
+    // Get legislation that has already been processed (from the tracking table)
+    const { data: processedLegislation } = await supabase
+      .from('legislation_relations_processed')
+      .select('legislation_id');
+    
     const processedLegislationIds = new Set(
-      existingRelations?.map(r => r.source_legislation_id) || []
+      processedLegislation?.map(r => r.legislation_id) || []
     );
-    console.log(`Found ${processedLegislationIds.size} legislation already with relations (will skip)`);
+    console.log(`Found ${processedLegislationIds.size} legislation already processed (from tracking table)`);
 
     // Get legislation to process
     let legislationToProcess: any[] = [];
@@ -833,14 +875,36 @@ Deno.serve(async (req) => {
           totalRelationsCreated += relationsCreated;
         }
 
+        const relationsMatchedCount = relationDetails.filter(r => r.matched).length;
+        
         results.push({ 
           legislationId: leg.id, 
           legislationNumber: leg.number, 
           relationsFound: extractedRelations.length,
-          relationsMatched: relationDetails.filter(r => r.matched).length,
+          relationsMatched: relationsMatchedCount,
           relationsCreated,
           relations: relationDetails
         });
+
+        // CRITICAL: Mark this legislation as processed in the tracking table
+        if (!dryRun) {
+          const { error: trackError } = await supabase
+            .from('legislation_relations_processed')
+            .upsert({
+              legislation_id: leg.id,
+              relations_found: extractedRelations.length,
+              relations_matched: relationsMatchedCount,
+              processed_at: new Date().toISOString(),
+            }, {
+              onConflict: 'legislation_id'
+            });
+          
+          if (trackError) {
+            console.error(`Failed to track processed legislation ${leg.number}:`, trackError);
+          } else {
+            console.log(`✓ Marked ${leg.number} as processed`);
+          }
+        }
 
         // Delay between requests
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -856,6 +920,20 @@ Deno.serve(async (req) => {
           relations: [],
           error: error instanceof Error ? error.message : 'Erro desconhecido' 
         });
+        
+        // Even on error, mark as processed to avoid infinite retries
+        if (!dryRun) {
+          await supabase
+            .from('legislation_relations_processed')
+            .upsert({
+              legislation_id: leg.id,
+              relations_found: 0,
+              relations_matched: 0,
+              processed_at: new Date().toISOString(),
+            }, {
+              onConflict: 'legislation_id'
+            });
+        }
       }
     }
 
