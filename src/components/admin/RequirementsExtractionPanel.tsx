@@ -34,6 +34,7 @@ import {
 import { exportSimpleExcel } from "@/lib/excelUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { DetailedProgressPanel } from "./DetailedProgressPanel";
 
 interface SpeedDataPoint {
   time: string;
@@ -897,6 +898,9 @@ export function RequirementsExtractionPanel() {
           </CardHeader>
         </Card>
       </div>
+
+      {/* Detailed Progress Panel */}
+      <DetailedProgressPanel runningJob={runningJob} />
 
       {/* Progress bar */}
       {dbStats && dbStats.totalLegislation > 0 && (
