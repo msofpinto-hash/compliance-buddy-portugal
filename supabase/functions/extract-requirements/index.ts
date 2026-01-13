@@ -180,18 +180,31 @@ Deno.serve(async (req) => {
       console.log(`Extracting requirements from: ${leg.number}`);
       
       try {
-        const prompt = `Analisa o seguinte diploma legal português e extrai os requisitos legais mais importantes.
+        const prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e respetivos PONTOS/ALÍNEAS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-Extrai entre 3 a 8 requisitos legais principais. Para cada requisito, indica:
-- article: número do artigo (ex: "Art. 5º", "Anexo I", "Art. 12º, n.º 2")
-- requirement_text: descrição clara e concisa do requisito ou obrigação legal (máx 200 caracteres)
+INSTRUÇÕES OBRIGATÓRIAS:
+1. Identifica cada ARTIGO do diploma que contém obrigações legais
+2. Para cada artigo, extrai os PONTOS (n.º 1, n.º 2...) ou ALÍNEAS (a), b)...) que contenham requisitos específicos
+3. O campo "article" DEVE incluir a referência completa: "Art. 5.º, n.º 2" ou "Art. 8.º, n.º 1, al. a)"
+4. Cada ponto/alínea com uma obrigação distinta = um requisito separado
 
-Retorna APENAS um array JSON válido, sem explicações. Exemplo:
-[{"article": "Art. 5º", "requirement_text": "As instalações devem dispor de sistemas de tratamento"}]`;
+FORMATO do campo "article":
+- "Art. 3.º" - artigo genérico
+- "Art. 5.º, n.º 1" - ponto específico
+- "Art. 5.º, n.º 2, al. a)" - alínea específica  
+- "Art. 12.º, n.º 3 a 5" - intervalo de pontos
+- "Anexo I, ponto 2.1" - referência a anexo
+
+Extrai entre 5 a 15 requisitos. Para cada requisito:
+- article: referência EXATA do artigo/ponto/alínea (ver formato acima)
+- requirement_text: obrigação legal concreta e específica (máx 300 caracteres)
+
+Retorna APENAS um array JSON válido:
+[{"article": "Art. 5.º, n.º 1", "requirement_text": "O empregador deve assegurar formação adequada aos trabalhadores"}]`;
 
         const response = await fetch(AI_ENDPOINT, {
           method: 'POST',

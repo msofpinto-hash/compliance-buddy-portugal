@@ -226,7 +226,7 @@ async function runBackgroundExtraction(
               const truncatedText = textContent.length > 15000 ? textContent.substring(0, 15000) + '...' : textContent;
               useAdvancedModel = true;
               
-              prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS - obrigações, deveres, proibições e condições que as entidades devem cumprir.
+              prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e respetivos PONTOS/ALÍNEAS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
@@ -235,46 +235,60 @@ ${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
 TEXTO COMPLETO DO DIPLOMA:
 ${truncatedText}
 
-INSTRUÇÕES:
-1. Identifica os artigos que contêm obrigações legais concretas
-2. Extrai apenas requisitos relevantes para compliance (não extrair definições, âmbito de aplicação genérico, disposições transitórias)
-3. Para cada requisito, indica:
-   - article: referência do artigo (ex: "Art. 5º", "Art. 12º, n.º 2", "Anexo I, ponto 3")
-   - requirement_text: descrição clara do requisito/obrigação (máx 300 caracteres)
-   - notes: contexto adicional ou condições de aplicação (opcional, máx 200 caracteres)
+INSTRUÇÕES OBRIGATÓRIAS:
+1. Identifica cada ARTIGO que contém obrigações legais concretas
+2. Para cada artigo, extrai SEPARADAMENTE cada PONTO (n.º 1, n.º 2...) ou ALÍNEA (a), b)...) com obrigações distintas
+3. NÃO extrair definições, âmbito de aplicação genérico ou disposições transitórias
+4. O campo "article" DEVE incluir a referência COMPLETA e EXATA
 
-4. Extrai entre 5 e 15 requisitos principais
-5. Prioriza requisitos com prazos, valores limite, obrigações de registo, formação, licenciamento
+FORMATO OBRIGATÓRIO do campo "article":
+- "Art. 3.º" - apenas quando o artigo inteiro é uma única obrigação
+- "Art. 5.º, n.º 1" - ponto específico de um artigo
+- "Art. 5.º, n.º 2, al. a)" - alínea específica dentro de um ponto
+- "Art. 12.º, n.º 3 a 5" - intervalo de pontos relacionados
+- "Anexo I, ponto 2.1" - referência a anexo
 
-Retorna APENAS um array JSON válido. Exemplo:
-[{"article": "Art. 5º", "requirement_text": "As instalações industriais devem dispor de sistema de tratamento de efluentes", "notes": "Aplicável a instalações com capacidade superior a 50m³/dia"}]`;
+Para cada requisito, indica:
+- article: referência EXATA (ver formato acima) - NUNCA usar "Geral" se existir referência
+- requirement_text: obrigação legal ESPECÍFICA e CONCRETA (máx 300 caracteres)
+- notes: prazo, valor limite, condição de aplicação ou exceção (opcional, máx 200 caracteres)
+
+Extrai entre 8 e 20 requisitos, priorizando obrigações com prazos, valores limite, registo, formação, licenciamento.
+
+Retorna APENAS um array JSON válido:
+[{"article": "Art. 5.º, n.º 1", "requirement_text": "O empregador deve assegurar formação adequada aos trabalhadores", "notes": "Mínimo 35 horas anuais"}]`;
             } else {
               // Summary-based extraction - USE ADVANCED MODEL to compensate for lack of full text
               useAdvancedModel = true;
               
-              prompt = `És um especialista em legislação portuguesa. Com base no título e sumário deste diploma, identifica e infere os REQUISITOS LEGAIS mais prováveis.
+              prompt = `És um especialista em legislação portuguesa. Com base no título e sumário deste diploma, identifica e infere os REQUISITOS LEGAIS estruturados por ARTIGO e PONTOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 ${leg.document_url ? `URL: ${leg.document_url}` : ''}
 
-INSTRUÇÕES IMPORTANTES:
-1. Analisa cuidadosamente o título e sumário para inferir que tipo de obrigações este diploma provavelmente contém
-2. Com base no tipo de diploma (Decreto-Lei, Portaria, etc.) e tema, extrai requisitos típicos e específicos
-3. Para Decretos-Lei: frequentemente estabelecem regimes jurídicos completos - inclui requisitos de licenciamento, registo, prazos, sanções
-4. Usa o contexto do sumário para ser o mais específico possível
+INSTRUÇÕES OBRIGATÓRIAS:
+1. Analisa o tipo de diploma e tema para inferir a estrutura provável de artigos
+2. Decretos-Lei tipicamente têm: Art. 1.º (Objeto), Art. 2.º (Âmbito), Art. 3.º+ (Obrigações), Anexos
+3. Portarias tipicamente têm estrutura mais curta mas com pontos específicos
+4. Infere artigos prováveis com base no conteúdo do sumário
+
+FORMATO OBRIGATÓRIO do campo "article":
+- "Art. 3.º, n.º 1" - ponto específico inferido
+- "Art. 5.º, n.º 2, al. a)" - alínea específica
+- "Anexo I, ponto 2" - referência a anexo
+- "Art. X" - usar APENAS se impossível determinar número exato
 
 Para cada requisito, indica:
-- article: referência provável do artigo (ex: "Art. 5º", "Anexo I") ou "Geral" se não for possível determinar
-- requirement_text: descrição clara e específica do requisito/obrigação (máx 300 caracteres)
-- notes: contexto ou condições de aplicação inferidas (opcional, máx 200 caracteres)
+- article: referência mais específica possível (evitar "Geral")
+- requirement_text: obrigação legal ESPECÍFICA (máx 300 caracteres)
+- notes: prazo, valor limite ou condição (opcional, máx 200 caracteres)
 
-OBJETIVO: Extrair entre 5 e 10 requisitos legais relevantes, mesmo que alguns sejam inferidos do contexto.
-Sê específico e evita requisitos demasiado genéricos.
+Extrair entre 5 e 12 requisitos, priorizando obrigações concretas.
 
-Retorna APENAS um array JSON válido. Exemplo:
-[{"article": "Art. 5º", "requirement_text": "As entidades devem registar-se no sistema eletrónico no prazo de 90 dias", "notes": "Regime transitório para entidades existentes"}]`;
+Retorna APENAS um array JSON válido:
+[{"article": "Art. 5.º, n.º 1", "requirement_text": "As entidades devem registar-se no sistema eletrónico", "notes": "Prazo de 90 dias"}]`;
             }
 
             const response = await fetch(AI_ENDPOINT, {
