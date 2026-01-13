@@ -50,7 +50,9 @@ export function DataQualityPanel() {
         totalRequirements,
         ptLegislation,
         euLegislation,
-        legislationWithReqsCount,
+        legislationWithReqs,
+        ptLegislationWithReqs,
+        euLegislationWithReqs,
       ] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true }),
         supabase.from("legislation")
@@ -67,17 +69,22 @@ export function DataQualityPanel() {
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
           .or("origin.eq.EU,origin.eq.eurlex"),
-        supabase.from("legal_requirements")
-          .select("legislation_id")
-          .limit(15000),
+        // Count legislation WITH requirements (inner join)
+        supabase.from("legislation")
+          .select("id, legal_requirements!inner(id)", { count: "exact", head: true }),
+        // Count PT legislation with requirements
+        supabase.from("legislation")
+          .select("id, legal_requirements!inner(id)", { count: "exact", head: true })
+          .or("origin.eq.PT,origin.eq.dre"),
+        // Count EU legislation with requirements
+        supabase.from("legislation")
+          .select("id, legal_requirements!inner(id)", { count: "exact", head: true })
+          .or("origin.eq.EU,origin.eq.eurlex"),
       ]);
 
       const total = totalLegislation.count || 0;
-      
-      const uniqueLegislationWithReqs = new Set(
-        (legislationWithReqsCount.data || []).map((r: any) => r.legislation_id)
-      );
-      const withoutReqsCount = total - uniqueLegislationWithReqs.size;
+      const withReqsCount = legislationWithReqs.count || 0;
+      const withoutReqsCount = total - withReqsCount;
 
       // Get requirements count by origin
       const { count: ptReqsCount } = await supabase
@@ -102,6 +109,8 @@ export function DataQualityPanel() {
         euLegislation: euLegislation.count || 0,
         ptRequirements: ptReqsCount || 0,
         euRequirements: euReqsCount || 0,
+        ptWithRequirements: ptLegislationWithReqs.count || 0,
+        euWithRequirements: euLegislationWithReqs.count || 0,
       };
     },
     refetchInterval: runningJob ? 10000 : false, // Auto-refresh every 10s when job is running
