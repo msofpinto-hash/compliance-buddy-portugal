@@ -14,16 +14,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles, Ban, RefreshCcw, FileQuestion } from "lucide-react";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, Sparkles, Ban, FileQuestion, Layers } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
+import { useBulkFixes } from "@/hooks/useBulkFixes";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
 import { EditLegislationDatesDialog } from "./EditLegislationDatesDialog";
 import { EditLegislationDialog } from "./EditLegislationDialog";
 import { BulkEditLegislationDatesDialog } from "./BulkEditLegislationDatesDialog";
-import { BulkFixMetadataDialog } from "./BulkFixMetadataDialog";
 import { ManageRelationsDialog } from "./ManageRelationsDialog";
 import { LegislationTreeView } from "./LegislationTreeView";
 import { LegislationCard } from "./LegislationCard";
@@ -31,19 +31,16 @@ import { AISuggestCategoriesDialog } from "./AISuggestCategoriesDialog";
 import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
 import { AnimatedStatCard } from "./AnimatedStatCard";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
-import { CompleteAutoImportedDialog } from "./CompleteAutoImportedDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 type SortField = "title" | "number" | "publication_date" | "theme" | "category_count";
 type SortOrder = "asc" | "desc";
 type ViewMode = "list" | "tree";
-type ListDisplayMode = "compact" | "expanded";
 
 const ITEMS_PER_PAGE_OPTIONS = [25, 50, 100, 200];
 
@@ -57,6 +54,9 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const queryClient = useQueryClient();
   const { data: fixIncompletesJob } = useFixIncompletesJob();
   const isFixIncompletesRunning = fixIncompletesJob?.status === "running";
+  
+  // Bulk fixes hook
+  const bulkFixes = useBulkFixes(legislation);
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,16 +82,12 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [datesDialogOpen, setDatesDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
-  const [bulkFixDialogOpen, setBulkFixDialogOpen] = useState(false);
   const [aiSuggestDialogOpen, setAiSuggestDialogOpen] = useState(false);
   const [bulkAiSuggestDialogOpen, setBulkAiSuggestDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [completeImportsDialogOpen, setCompleteImportsDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFixingIncompletes, setIsFixingIncompletes] = useState(false);
-  const [isFixingInvalidDates, setIsFixingInvalidDates] = useState(false);
-  const [isFixingOrigin, setIsFixingOrigin] = useState(false);
 
   // Extract unique themes from legislation categories
   const availableThemes = useMemo(() => {
@@ -642,7 +638,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     }
   };
 
-  // Count diplomas with invalid dates
+  // Count diplomas with invalid dates (kept for display)
   const invalidDatesCount = useMemo(() => {
     if (!legislation) return 0;
     return legislation.filter((leg) => {
@@ -651,197 +647,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     }).length;
   }, [legislation]);
 
-  // Handle fix invalid dates
-  const handleFixInvalidDates = async () => {
-    setIsFixingInvalidDates(true);
-    try {
-      // Get all legislation with invalid dates
-      const currentYear = new Date().getFullYear();
-      
-      // Query diplomas with invalid dates
-      const { data: invalidLegislation, error: queryError } = await supabase
-        .from("legislation")
-        .select("id, number, publication_date, effective_date")
-        .or(`publication_date.gte.${currentYear + 2}-01-01,publication_date.lte.1899-12-31,effective_date.gte.${currentYear + 2}-01-01,effective_date.lte.1899-12-31`);
-
-      if (queryError) throw queryError;
-
-      if (!invalidLegislation || invalidLegislation.length === 0) {
-        toast({
-          title: "Sem datas inválidas",
-          description: "Não foram encontrados diplomas com datas inválidas.",
-        });
-        return;
-      }
-
-      let fixedCount = 0;
-      const errors: string[] = [];
-
-      for (const leg of invalidLegislation) {
-        try {
-          // Try to extract year from number field (e.g., "2024/2963" -> 2024, "(UE) 2024/123" -> 2024)
-          const yearMatch = leg.number?.match(/(?:^|\s|\/|\()(\d{4})(?:\/|\s|$)/);
-          let inferredYear: number | null = null;
-          
-          if (yearMatch) {
-            const year = parseInt(yearMatch[1], 10);
-            if (year >= 1900 && year <= currentYear + 1) {
-              inferredYear = year;
-            }
-          }
-
-          // Prepare updates
-          const updates: { publication_date?: string | null; effective_date?: string | null } = {};
-          
-          // Check publication_date
-          if (leg.publication_date) {
-            const pubYear = new Date(leg.publication_date).getFullYear();
-            if (pubYear > currentYear + 1 || pubYear < 1900) {
-              if (inferredYear) {
-                // Set to Jan 1 of the inferred year
-                updates.publication_date = `${inferredYear}-01-01`;
-              } else {
-                updates.publication_date = null;
-              }
-            }
-          }
-
-          // Check effective_date
-          if (leg.effective_date) {
-            const effYear = new Date(leg.effective_date).getFullYear();
-            if (effYear > currentYear + 1 || effYear < 1900) {
-              if (inferredYear) {
-                updates.effective_date = `${inferredYear}-01-01`;
-              } else {
-                updates.effective_date = null;
-              }
-            }
-          }
-
-          // Apply updates if needed
-          if (Object.keys(updates).length > 0) {
-            const { error: updateError } = await supabase
-              .from("legislation")
-              .update(updates)
-              .eq("id", leg.id);
-
-            if (updateError) {
-              errors.push(`${leg.number}: ${updateError.message}`);
-            } else {
-              fixedCount++;
-            }
-          }
-        } catch (e) {
-          errors.push(`${leg.number}: ${e instanceof Error ? e.message : "Erro desconhecido"}`);
-        }
-      }
-
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
-
-      toast({
-        title: "Correção concluída",
-        description: `${fixedCount} diploma(s) corrigido(s)${errors.length > 0 ? `. ${errors.length} erro(s).` : "."}`,
-        variant: errors.length > 0 ? "destructive" : "default",
-      });
-
-      if (errors.length > 0) {
-        console.error("Fix invalid dates errors:", errors);
-      }
-    } catch (error) {
-      console.error("Fix invalid dates error:", error);
-      toast({
-        title: "Erro ao corrigir datas",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    } finally {
-      setIsFixingInvalidDates(false);
-    }
-  };
-
-  // Handler for bulk fixing origin
-  const handleBulkFixOrigin = async () => {
-    if (!legislation) return;
-    
-    setIsFixingOrigin(true);
-    
-    try {
-      // Find all items with missing/invalid origin
-      const itemsToFix = legislation.filter(leg => 
-        !leg.origin || (leg.origin !== "PT" && leg.origin !== "EU")
-      );
-      
-      if (itemsToFix.length === 0) {
-        toast({ title: "Nenhum diploma para corrigir" });
-        return;
-      }
-      
-      let fixedCount = 0;
-      const errors: string[] = [];
-      
-      for (const item of itemsToFix) {
-        // Infer origin from number pattern or external_id
-        let inferredOrigin: string | null = null;
-        
-        // Check if it's EU legislation
-        const euPatterns = [
-          /^(Regulamento|Directiva|Diretiva|Decisão|Recomendação)/i,
-          /\(UE\)/i,
-          /\(CE\)/i,
-          /CELEX/i,
-        ];
-        
-        const isEU = euPatterns.some(p => p.test(item.title) || p.test(item.number));
-        
-        if (isEU) {
-          inferredOrigin = "EU";
-        } else {
-          // Portuguese patterns
-          const ptPatterns = [
-            /^(Decreto-Lei|Portaria|Lei|Despacho|Resolução|Aviso|Declaração)/i,
-            /\/\d{2,4}$/,  // Ends with /YY or /YYYY
-          ];
-          
-          const isPT = ptPatterns.some(p => p.test(item.title) || p.test(item.number));
-          if (isPT) {
-            inferredOrigin = "PT";
-          }
-        }
-        
-        if (inferredOrigin) {
-          const { error } = await supabase
-            .from("legislation")
-            .update({ origin: inferredOrigin })
-            .eq("id", item.id);
-          
-          if (error) {
-            errors.push(`${item.number}: ${error.message}`);
-          } else {
-            fixedCount++;
-          }
-        }
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
-      
-      toast({
-        title: "Correção de origem concluída",
-        description: `${fixedCount} diploma(s) corrigido(s)${errors.length > 0 ? `. ${errors.length} erro(s).` : "."}`,
-        variant: errors.length > 0 ? "destructive" : "default",
-      });
-      
-    } catch (error) {
-      console.error("Fix origin error:", error);
-      toast({
-        title: "Erro ao corrigir origem",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    } finally {
-      setIsFixingOrigin(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -1223,27 +1028,28 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
 
                 <div className="flex-1" />
 
-                {/* Contextual correction buttons */}
+                {/* Contextual correction buttons - automatic batch fixes */}
                 {filterProblemType === "generic_title" && problemTypeCounts.generic_title > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCompleteImportsDialogOpen(true)}
+                    onClick={() => bulkFixes.fixGenericTitles()}
+                    disabled={bulkFixes.isFixingGenericTitles}
                     className="bg-white border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
                   >
-                    <FileQuestion className="h-4 w-4" />
-                    Reimportar Metadados ({problemTypeCounts.generic_title})
+                    {bulkFixes.isFixingGenericTitles ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileQuestion className="h-4 w-4" />}
+                    Corrigir Títulos ({problemTypeCounts.generic_title})
                   </Button>
                 )}
                 {filterProblemType === "missing_origin" && problemTypeCounts.missing_origin > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleBulkFixOrigin}
-                    disabled={isFixingOrigin}
+                    onClick={() => bulkFixes.fixMissingOrigin()}
+                    disabled={bulkFixes.isFixingOrigin}
                     className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
                   >
-                    {isFixingOrigin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+                    {bulkFixes.isFixingOrigin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
                     Corrigir Origem ({problemTypeCounts.missing_origin})
                   </Button>
                 )}
@@ -1251,34 +1057,41 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setBulkDatesDialogOpen(true)}
+                    onClick={() => bulkFixes.fixMissingDates()}
+                    disabled={bulkFixes.isFixingMissingDates}
                     className="bg-white border-purple-300 text-purple-700 hover:bg-purple-50 gap-2"
                   >
-                    <CalendarDays className="h-4 w-4" />
-                    Editar Datas ({problemTypeCounts.missing_dates})
+                    {bulkFixes.isFixingMissingDates ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
+                    Corrigir Datas ({problemTypeCounts.missing_dates})
                   </Button>
                 )}
                 {filterProblemType === "invalid_dates" && problemTypeCounts.invalid_dates > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleFixInvalidDates}
-                    disabled={isFixingInvalidDates}
+                    onClick={() => bulkFixes.fixInvalidDates()}
+                    disabled={bulkFixes.isFixingInvalidDates}
                     className="bg-white border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
                   >
-                    {isFixingInvalidDates ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
+                    {bulkFixes.isFixingInvalidDates ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
                     Corrigir Datas Inválidas ({problemTypeCounts.invalid_dates})
                   </Button>
                 )}
-                {filterProblemType === "all" && (
+                {filterProblemType === "all" && problemsCount > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setBulkFixDialogOpen(true)}
+                    onClick={() => {
+                      // Execute all fixes sequentially
+                      bulkFixes.fixGenericTitles();
+                      setTimeout(() => bulkFixes.fixMissingOrigin(), 500);
+                      setTimeout(() => bulkFixes.fixInvalidDates(), 1000);
+                    }}
+                    disabled={bulkFixes.isFixing}
                     className="bg-white border-red-300 text-red-700 hover:bg-red-50 gap-2"
                   >
-                    <Wrench className="h-4 w-4" />
-                    Corrigir Metadados
+                    {bulkFixes.isFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+                    Corrigir Tudo
                   </Button>
                 )}
               </div>
@@ -1570,11 +1383,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           }
         }}
       />
-      <BulkFixMetadataDialog
-        open={bulkFixDialogOpen}
-        onOpenChange={setBulkFixDialogOpen}
-        problemsCount={problemsCount}
-      />
 
       {/* Bulk Delete Confirmation Dialog */}
       <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
@@ -1653,12 +1461,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           summary: leg.summary,
           categories: leg.categories,
         }))}
-      />
-
-      {/* Complete Auto-Imported Dialog */}
-      <CompleteAutoImportedDialog
-        open={completeImportsDialogOpen}
-        onOpenChange={setCompleteImportsDialogOpen}
       />
     </div>
   );
