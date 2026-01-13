@@ -46,6 +46,7 @@ export function DataQualityPanel() {
         totalLegislation,
         missingSummary,
         missingUrl,
+        missingUrlExcludingNoDigital,
         noCategories,
         totalRequirements,
         ptLegislation,
@@ -61,6 +62,11 @@ export function DataQualityPanel() {
         supabase.from("legislation")
           .select("id", { count: "exact", head: true })
           .or("document_url.is.null,document_url.eq."),
+        // Exclude no_digital_version from missing URL count
+        supabase.from("legislation")
+          .select("id", { count: "exact", head: true })
+          .or("document_url.is.null,document_url.eq.")
+          .or("no_digital_version.is.null,no_digital_version.eq.false"),
         supabase.rpc("get_legislation_without_categories_count"),
         supabase.from("legal_requirements").select("id", { count: "exact", head: true }),
         supabase.from("legislation")
@@ -100,8 +106,8 @@ export function DataQualityPanel() {
       return {
         total,
         missingSummary: missingSummary.count || 0,
-        missingUrl: missingUrl.count || 0,
-        withUrl: total - (missingUrl.count || 0),
+        missingUrl: missingUrlExcludingNoDigital.count || 0, // Use filtered count
+        withUrl: total - (missingUrlExcludingNoDigital.count || 0),
         noCategories: typeof noCategories.data === 'number' ? noCategories.data : 0,
         noRequirements: withoutReqsCount,
         totalRequirements: totalRequirements.count || 0,
@@ -110,7 +116,7 @@ export function DataQualityPanel() {
         ptRequirements: ptReqsCount || 0,
         euRequirements: euReqsCount || 0,
         ptWithRequirements: ptLegislationWithReqs.count || 0,
-        euWithRequirements: euLegislationWithReqs.count || 0,
+        euWithRequirements: euLegislationWithReqs?.count || 0,
       };
     },
     refetchInterval: runningJob ? 10000 : false, // Auto-refresh every 10s when job is running
