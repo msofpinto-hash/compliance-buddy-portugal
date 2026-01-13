@@ -696,6 +696,7 @@ export type Database = {
           entity: string | null
           external_id: string | null
           id: string
+          no_digital_version: boolean | null
           number: string
           origin: string | null
           publication_date: string | null
@@ -714,6 +715,7 @@ export type Database = {
           entity?: string | null
           external_id?: string | null
           id?: string
+          no_digital_version?: boolean | null
           number: string
           origin?: string | null
           publication_date?: string | null
@@ -732,6 +734,7 @@ export type Database = {
           entity?: string | null
           external_id?: string | null
           id?: string
+          no_digital_version?: boolean | null
           number?: string
           origin?: string | null
           publication_date?: string | null
