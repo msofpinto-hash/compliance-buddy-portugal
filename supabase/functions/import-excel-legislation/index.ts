@@ -17,6 +17,27 @@ interface ExcelRow {
   condicao: string;
 }
 
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const currentYear = new Date().getFullYear();
+    
+    // Valid year range: 1900 to current year + 1
+    if (year >= 1900 && year <= currentYear + 1) {
+      return dateStr;
+    }
+    
+    console.warn(`Invalid date year ${year} detected in "${dateStr}", setting date to null`);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // Parse date from diploma string like "Lei n.º 1/2005, de 12 de agosto"
 function parseDateFromDiploma(diploma: string): string | null {
   const months: { [key: string]: string } = {
@@ -38,7 +59,8 @@ function parseDateFromDiploma(diploma: string): string | null {
     }
     
     if (month && year) {
-      return `${year}-${month}-${day}`;
+      const result = `${year}-${month}-${day}`;
+      return sanitizeDate(result);
     }
   }
   return null;

@@ -124,15 +124,39 @@ const months: Record<string, string> = {
   setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
 };
 
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const currentYear = new Date().getFullYear();
+    
+    // Valid year range: 1900 to current year + 1
+    if (year >= 1900 && year <= currentYear + 1) {
+      return dateStr;
+    }
+    
+    console.warn(`Invalid date year ${year} detected in "${dateStr}", setting date to null`);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function parseDate(dateStr: string): string | null {
   // Try YYYY-MM-DD format
   const isoMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return isoMatch[0];
+  if (isoMatch) {
+    return sanitizeDate(isoMatch[0]);
+  }
   
   // Try DD/MM/YYYY or DD-MM-YYYY
   const slashMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
   if (slashMatch) {
-    return `${slashMatch[3]}-${slashMatch[2].padStart(2, '0')}-${slashMatch[1].padStart(2, '0')}`;
+    const result = `${slashMatch[3]}-${slashMatch[2].padStart(2, '0')}-${slashMatch[1].padStart(2, '0')}`;
+    return sanitizeDate(result);
   }
   
   // Try "DD de Mês de YYYY"
@@ -140,7 +164,8 @@ function parseDate(dateStr: string): string | null {
   if (ptMatch) {
     const month = months[ptMatch[2].toLowerCase()];
     if (month) {
-      return `${ptMatch[3]}-${month}-${ptMatch[1].padStart(2, '0')}`;
+      const result = `${ptMatch[3]}-${month}-${ptMatch[1].padStart(2, '0')}`;
+      return sanitizeDate(result);
     }
   }
   
