@@ -18,6 +18,42 @@ interface EURLexDocument {
   documentUrl: string;
 }
 
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(dateStr: string | null | undefined, numberField?: string): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const currentYear = new Date().getFullYear();
+    
+    // Valid year range: 1900 to current year + 1
+    if (year >= 1900 && year <= currentYear + 1) {
+      return dateStr;
+    }
+    
+    console.warn(`Invalid date year ${year} detected in "${dateStr}", attempting to infer from number field`);
+    
+    // Try to extract correct year from the number field (e.g., "(UE) 2024/2963" -> 2024)
+    if (numberField) {
+      const yearMatch = numberField.match(/(?:^|\s|\/|\()(\d{4})(?:\/|\s|$)/);
+      if (yearMatch) {
+        const inferredYear = parseInt(yearMatch[1], 10);
+        if (inferredYear >= 1900 && inferredYear <= currentYear + 1) {
+          console.log(`Inferred year ${inferredYear} from number "${numberField}"`);
+          return `${inferredYear}-01-01`;
+        }
+      }
+    }
+    
+    // Cannot infer valid year, return null
+    console.warn(`Could not infer valid year, setting date to null`);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // SPARQL query to fetch recent EU legislation
 function buildSparqlQuery(fromDate: string, limit: number = 50): string {
   return `
@@ -229,7 +265,7 @@ serve(async (req) => {
             title: doc.title,
             summary: doc.summary,
             entity: 'União Europeia',
-            publication_date: doc.publicationDate || null,
+            publication_date: sanitizeDate(doc.publicationDate, doc.celex),
             document_url: doc.documentUrl,
             category: doc.documentType,
             updated_at: new Date().toISOString()
@@ -255,7 +291,7 @@ serve(async (req) => {
             title: doc.title,
             summary: doc.summary,
             entity: 'União Europeia',
-            publication_date: doc.publicationDate || null,
+            publication_date: sanitizeDate(doc.publicationDate, doc.celex),
             document_url: doc.documentUrl,
             category: doc.documentType,
             origin: 'EU'
