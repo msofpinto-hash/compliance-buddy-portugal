@@ -7,26 +7,28 @@ const corsHeaders = {
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<void>) => void };
 
-async function monitorAndChain(
+type ChainStep = 'PT' | 'EU' | 'RELATIONS';
+
+async function monitorAndChainFull(
   supabase: any,
   currentJobId: string,
-  nextOrigin: string,
+  steps: ChainStep[],
+  currentStepIndex: number,
   batchSize: number,
   parallelBatches: number
 ) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   
-  console.log(`Monitoring job ${currentJobId} for completion...`);
+  console.log(`[Chain] Monitoring job ${currentJobId} (step ${currentStepIndex + 1}/${steps.length}: ${steps[currentStepIndex]})...`);
   
-  // Poll every 30 seconds for up to 4 hours
-  const maxAttempts = 480; // 4 hours at 30s intervals
+  // Poll every 30 seconds for up to 6 hours
+  const maxAttempts = 720;
   let attempts = 0;
   
   while (attempts < maxAttempts) {
     attempts++;
     
-    // Check job status
     const { data: job, error } = await supabase
       .from('sync_logs')
       .select('status, items_processed, items_added')
@@ -34,50 +36,111 @@ async function monitorAndChain(
       .single();
     
     if (error) {
-      console.error('Error checking job status:', error);
+      console.error('[Chain] Error checking job status:', error);
       break;
     }
     
     if (job.status === 'completed' || job.status === 'completed_timeout' || job.status === 'failed') {
-      console.log(`Job ${currentJobId} finished with status: ${job.status}`);
-      console.log(`Processed: ${job.items_processed}, Added: ${job.items_added}`);
+      console.log(`[Chain] Job ${currentJobId} finished with status: ${job.status}`);
+      console.log(`[Chain] Processed: ${job.items_processed}, Added: ${job.items_added}`);
       
-      // Start the next extraction
-      console.log(`Starting ${nextOrigin} extraction...`);
-      
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            origin: nextOrigin,
-            batchSize: batchSize,
-            parallelBatches: parallelBatches,
-            useUrl: true,
-            background: true
-          }),
+      // Move to next step
+      const nextStepIndex = currentStepIndex + 1;
+      if (nextStepIndex >= steps.length) {
+        console.log('[Chain] ✓ All steps completed!');
+        
+        // Create a completion log entry
+        await supabase.from('sync_logs').insert({
+          sync_type: 'chain-extraction-complete',
+          status: 'completed',
+          items_processed: steps.length,
+          items_added: 0,
+          completed_at: new Date().toISOString(),
         });
         
+        break;
+      }
+      
+      const nextStep = steps[nextStepIndex];
+      console.log(`[Chain] Starting next step: ${nextStep}`);
+      
+      try {
+        let response: Response;
+        let newJobId: string | null = null;
+        
+        if (nextStep === 'RELATIONS') {
+          // Start relations extraction
+          response = await fetch(`${supabaseUrl}/functions/v1/extract-legislation-relations`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              limit: 500,
+              dryRun: false,
+              autoImport: true,
+              background: true,
+            }),
+          });
+        } else {
+          // Start requirements extraction (PT or EU)
+          response = await fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              origin: nextStep,
+              batchSize: batchSize,
+              maxBatches: 100,
+              useUrl: true,
+              background: true,
+            }),
+          });
+        }
+        
         const result = await response.json();
-        console.log(`${nextOrigin} extraction started:`, result);
+        console.log(`[Chain] ${nextStep} extraction started:`, result);
+        
+        if (result.success) {
+          // Find the new job ID
+          const { data: newJobs } = await supabase
+            .from('sync_logs')
+            .select('id')
+            .eq('status', 'running')
+            .order('started_at', { ascending: false })
+            .limit(1);
+          
+          if (newJobs && newJobs.length > 0 && newJobs[0].id) {
+            const newJobIdValue: string = newJobs[0].id;
+            console.log(`[Chain] New job ID: ${newJobIdValue}`);
+            
+            // Wait a bit then continue monitoring
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            // Recursively monitor the next job
+            await monitorAndChainFull(supabase, newJobIdValue, steps, nextStepIndex, batchSize, parallelBatches);
+          }
+        }
       } catch (err) {
-        console.error(`Error starting ${nextOrigin} extraction:`, err);
+        console.error(`[Chain] Error starting ${nextStep}:`, err);
       }
       
       break;
     }
     
-    console.log(`Job still running (attempt ${attempts}): ${job.items_processed} processed, ${job.items_added} added`);
+    if (attempts % 10 === 0) {
+      console.log(`[Chain] Job still running (${Math.round(attempts * 0.5)}min): ${job.items_processed} processed, ${job.items_added} added`);
+    }
     
     // Wait 30 seconds before next check
     await new Promise(resolve => setTimeout(resolve, 30000));
   }
   
   if (attempts >= maxAttempts) {
-    console.log('Max monitoring time reached (4 hours). Stopping monitor.');
+    console.log('[Chain] Max monitoring time reached (6 hours). Stopping monitor.');
   }
 }
 
@@ -87,13 +150,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { currentJobId, nextOrigin = 'EU', batchSize = 5, parallelBatches = 3 } = await req.json();
+    const { 
+      currentJobId, 
+      steps = ['PT', 'EU', 'RELATIONS'],
+      currentStepIndex = 0,
+      nextOrigin, // Legacy support
+      batchSize = 5, 
+      parallelBatches = 3 
+    } = await req.json();
     
     if (!currentJobId) {
       return new Response(
         JSON.stringify({ success: false, error: 'currentJobId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
+    // Legacy support: convert nextOrigin to steps
+    let finalSteps = steps;
+    if (nextOrigin && !steps.includes('RELATIONS')) {
+      finalSteps = nextOrigin === 'EU' ? ['EU', 'RELATIONS'] : ['RELATIONS'];
     }
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -122,14 +198,14 @@ Deno.serve(async (req) => {
     }
     
     // Start background monitoring
-    EdgeRuntime.waitUntil(monitorAndChain(supabase, currentJobId, nextOrigin, batchSize, parallelBatches));
+    EdgeRuntime.waitUntil(monitorAndChainFull(supabase, currentJobId, finalSteps, currentStepIndex, batchSize, parallelBatches));
     
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Monitoring job ${currentJobId}. Will start ${nextOrigin} extraction when complete.`,
+        message: `Monitoring job ${currentJobId}. Chain: ${finalSteps.join(' → ')}`,
         currentJobId,
-        nextOrigin,
+        steps: finalSteps,
         batchSize,
         parallelBatches
       }),
