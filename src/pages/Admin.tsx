@@ -1,34 +1,31 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, FileText, Building2, Users, Brain, ClipboardCheck, ListTodo, Database, FolderOpen, Eye, ShieldCheck, Clock } from "lucide-react";
+import { RefreshCw, Palette, Settings, Building2, Users, ClipboardCheck, ListTodo, FolderOpen, Eye, ShieldCheck, BookOpen } from "lucide-react";
 import { SyncPanel } from "@/components/admin/SyncPanel";
 import { ThemesPanel } from "@/components/admin/ThemesPanel";
-import { LegislationPanel } from "@/components/admin/LegislationPanel";
+import { BibliotecaPanel } from "@/components/admin/BibliotecaPanel";
 import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
-import { RequirementsExtractionPanel } from "@/components/admin/RequirementsExtractionPanel";
 import { AuditsPanel } from "@/components/admin/AuditsPanel";
 import { ActionPlansPanel } from "@/components/admin/ActionPlansPanel";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
-import { DataQualityPanel } from "@/components/admin/DataQualityPanel";
 import { EvidenceTemplatesPanel } from "@/components/admin/EvidenceTemplatesPanel";
 import { EvidenceReviewPanel } from "@/components/admin/EvidenceReviewPanel";
 import { ComplianceRequestsPanel } from "@/components/admin/ComplianceRequestsPanel";
-import { CronJobsMonitorPanel } from "@/components/admin/CronJobsMonitorPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useBackgroundJobNotifications } from "@/hooks/useBackgroundJobNotifications";
 
-const validTabs = ["quality", "cron", "legislation", "requirements", "audits", "actions", "evidence", "review", "compliance", "clients", "users", "sync", "themes"];
+const validTabs = ["biblioteca", "audits", "actions", "evidence", "review", "compliance", "clients", "users", "sync", "themes"];
 
 const Admin = () => {
   const { user, signOut } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(
-    tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : "quality"
+    tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : "biblioteca"
   );
 
   // Enable background job notifications
@@ -78,21 +75,9 @@ const Admin = () => {
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <div className="relative z-10">
             <TabsList className="flex h-auto flex-wrap gap-1 bg-muted p-1 w-full max-w-7xl">
-              <TabsTrigger value="quality" className="gap-2 flex-shrink-0">
-                <Database className="h-4 w-4" />
-                <span className="hidden sm:inline">Qualidade</span>
-              </TabsTrigger>
-              <TabsTrigger value="cron" className="gap-2 flex-shrink-0">
-                <Clock className="h-4 w-4" />
-                <span className="hidden sm:inline">Cron Jobs</span>
-              </TabsTrigger>
-              <TabsTrigger value="legislation" className="gap-2 flex-shrink-0">
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Legislação</span>
-              </TabsTrigger>
-              <TabsTrigger value="requirements" className="gap-2 flex-shrink-0">
-                <Brain className="h-4 w-4" />
-                <span className="hidden sm:inline">Requisitos</span>
+              <TabsTrigger value="biblioteca" className="gap-2 flex-shrink-0">
+                <BookOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">Biblioteca</span>
               </TabsTrigger>
               <TabsTrigger value="audits" className="gap-2 flex-shrink-0">
                 <ClipboardCheck className="h-4 w-4" />
@@ -133,20 +118,8 @@ const Admin = () => {
             </TabsList>
           </div>
 
-          <TabsContent value="quality">
-            <DataQualityPanel />
-          </TabsContent>
-
-          <TabsContent value="cron">
-            <CronJobsMonitorPanel />
-          </TabsContent>
-
-          <TabsContent value="legislation">
-            <LegislationPanel />
-          </TabsContent>
-
-          <TabsContent value="requirements">
-            <RequirementsExtractionPanel />
+          <TabsContent value="biblioteca">
+            <BibliotecaPanel />
           </TabsContent>
 
           <TabsContent value="audits">
