@@ -28,6 +28,7 @@ import { LegislationTreeView } from "./LegislationTreeView";
 import { LegislationCard } from "./LegislationCard";
 import { AISuggestCategoriesDialog } from "./AISuggestCategoriesDialog";
 import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
+import { AnimatedStatCard } from "./AnimatedStatCard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
@@ -493,8 +494,9 @@ export function LegislationPanel() {
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-        <Card 
-          className="cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]"
+        <AnimatedStatCard
+          label="Total de Legislação"
+          value={legislation?.length || 0}
           onClick={() => {
             setFilterOrigin("all");
             setFilterNoCategory(false);
@@ -504,17 +506,13 @@ export function LegislationPanel() {
             setFilterCategory("all");
             setCurrentPage(1);
           }}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription>Total de Legislação</CardDescription>
-            <CardTitle className="text-3xl">{legislation?.length || 0}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
-            filterOrigin === "PT" && "ring-2 ring-green-500"
-          )}
+        />
+        <AnimatedStatCard
+          label="DRE (Portugal)"
+          value={dreCount}
+          titleClassName="text-green-600"
+          isActive={filterOrigin === "PT"}
+          activeRingColor="ring-green-500"
           onClick={() => {
             setFilterOrigin(filterOrigin === "PT" ? "all" : "PT");
             setFilterNoCategory(false);
@@ -522,17 +520,13 @@ export function LegislationPanel() {
             setFilterRevoked(false);
             setCurrentPage(1);
           }}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription>DRE (Portugal)</CardDescription>
-            <CardTitle className="text-3xl text-green-600">{dreCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
-            filterOrigin === "EU" && "ring-2 ring-blue-500"
-          )}
+        />
+        <AnimatedStatCard
+          label="EUR-Lex (UE)"
+          value={eurlexCount}
+          titleClassName="text-blue-600"
+          isActive={filterOrigin === "EU"}
+          activeRingColor="ring-blue-500"
           onClick={() => {
             setFilterOrigin(filterOrigin === "EU" ? "all" : "EU");
             setFilterNoCategory(false);
@@ -540,19 +534,13 @@ export function LegislationPanel() {
             setFilterRevoked(false);
             setCurrentPage(1);
           }}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription>EUR-Lex (UE)</CardDescription>
-            <CardTitle className="text-3xl text-blue-600">{eurlexCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
-            filterOrigin !== "all" && filterOrigin !== "PT" && filterOrigin !== "EU" && "ring-2 ring-primary"
-          )}
+        />
+        <AnimatedStatCard
+          label="Outros"
+          value={otherCount}
+          isActive={filterOrigin === "other"}
+          activeRingColor="ring-primary"
           onClick={() => {
-            // Toggle to show items without origin or with unknown origin
             if (filterOrigin === "all") {
               setFilterOrigin("other");
             } else {
@@ -563,66 +551,40 @@ export function LegislationPanel() {
             setFilterRevoked(false);
             setCurrentPage(1);
           }}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription>Outros</CardDescription>
-            <CardTitle className="text-3xl">{otherCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
-            noCategoryCount > 0 ? "border-amber-300 bg-amber-50/50" : "",
-            filterNoCategory && "ring-2 ring-amber-500"
-          )}
+        />
+        <AnimatedStatCard
+          label="Sem Categoria"
+          value={noCategoryCount}
+          icon={noCategoryCount > 0 ? AlertCircle : undefined}
+          iconClassName="text-amber-600"
+          titleClassName={noCategoryCount > 0 ? "text-amber-600" : ""}
+          className={noCategoryCount > 0 ? "border-amber-300 bg-amber-50/50" : ""}
+          isActive={filterNoCategory}
+          activeRingColor="ring-amber-500"
           onClick={() => toggleNoCategoryFilter()}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
-              {noCategoryCount > 0 && <AlertCircle className="h-3 w-3 text-amber-600" />}
-              Sem Categoria
-            </CardDescription>
-            <CardTitle className={`text-3xl ${noCategoryCount > 0 ? "text-amber-600" : ""}`}>
-              {noCategoryCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
-            problemsCount > 0 ? "border-red-300 bg-red-50/50" : "",
-            filterProblems && "ring-2 ring-red-500"
-          )}
+        />
+        <AnimatedStatCard
+          label="Com Problemas"
+          value={problemsCount}
+          icon={problemsCount > 0 ? AlertTriangle : undefined}
+          iconClassName="text-red-600"
+          titleClassName={problemsCount > 0 ? "text-red-600" : ""}
+          className={problemsCount > 0 ? "border-red-300 bg-red-50/50" : ""}
+          isActive={filterProblems}
+          activeRingColor="ring-red-500"
           onClick={() => toggleProblemsFilter()}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
-              {problemsCount > 0 && <AlertTriangle className="h-3 w-3 text-red-600" />}
-              Com Problemas
-            </CardDescription>
-            <CardTitle className={`text-3xl ${problemsCount > 0 ? "text-red-600" : ""}`}>
-              {problemsCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
-            revokedCount > 0 ? "border-slate-400 bg-slate-50/50" : "",
-            filterRevoked && "ring-2 ring-slate-500"
-          )}
+        />
+        <AnimatedStatCard
+          label="Revogados"
+          value={revokedCount}
+          icon={revokedCount > 0 ? Ban : undefined}
+          iconClassName="text-slate-600"
+          titleClassName={revokedCount > 0 ? "text-slate-600" : ""}
+          className={revokedCount > 0 ? "border-slate-400 bg-slate-50/50" : ""}
+          isActive={filterRevoked}
+          activeRingColor="ring-slate-500"
           onClick={() => toggleRevokedFilter()}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
-              {revokedCount > 0 && <Ban className="h-3 w-3 text-slate-600" />}
-              Revogados
-            </CardDescription>
-            <CardTitle className={`text-3xl ${revokedCount > 0 ? "text-slate-600" : ""}`}>
-              {revokedCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
+        />
       </div>
 
       {/* Tree View */}
