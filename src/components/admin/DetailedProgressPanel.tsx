@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -33,7 +33,8 @@ interface DetailedProgressPanelProps {
   } | null;
 }
 
-export function DetailedProgressPanel({ runningJob }: DetailedProgressPanelProps) {
+export const DetailedProgressPanel = forwardRef<HTMLDivElement, DetailedProgressPanelProps>(
+  function DetailedProgressPanel({ runningJob }, ref) {
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   // Query for PT/EU breakdown
@@ -210,7 +211,7 @@ export function DetailedProgressPanel({ runningJob }: DetailedProgressPanelProps
   }
 
   return (
-    <Card className={`border-2 ${runningJob ? "border-green-500/50 bg-gradient-to-br from-green-50/50 to-blue-50/30" : "border-muted"}`}>
+    <Card ref={ref} className={`border-2 ${runningJob ? "border-green-500/50 bg-gradient-to-br from-green-50/50 to-blue-50/30" : "border-muted"}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -416,4 +417,6 @@ export function DetailedProgressPanel({ runningJob }: DetailedProgressPanelProps
       </CardContent>
     </Card>
   );
-}
+});
+
+DetailedProgressPanel.displayName = "DetailedProgressPanel";
