@@ -79,6 +79,319 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<string |
   }
 }
 
+// Search DRE for a legislation URL using Firecrawl
+async function searchDREUrl(number: string, firecrawlApiKey: string): Promise<string | null> {
+  try {
+    const parts = extractLegislationParts(number);
+    let searchQuery: string;
+    
+    if (parts) {
+      searchQuery = `site:diariodarepublica.pt/dr/detalhe ${parts.type} ${parts.num}/${parts.year}`;
+    } else {
+      const cleanNumber = number.split(',')[0].trim();
+      searchQuery = `site:diariodarepublica.pt/dr/detalhe "${cleanNumber}"`;
+    }
+    
+    console.log(`Searching DRE: ${searchQuery}`);
+    
+    const response = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: searchQuery,
+        limit: 5,
+      }),
+    });
+    
+    if (!response.ok) {
+      console.log(`Search failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const results = data.data || [];
+    
+    for (const result of results) {
+      const url = result.url || '';
+      if (url.includes('/dr/detalhe/') && url.includes('diariodarepublica.pt')) {
+        console.log(`Found DRE URL: ${url}`);
+        return url;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`DRE search error: ${error}`);
+    return null;
+  }
+}
+
+// Extract type and number for DRE URL construction
+function extractLegislationParts(number: string): { type: string; num: string; year: string } | null {
+  const cleanNumber = number.trim();
+  
+  const patterns = [
+    /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Aviso)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+    /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})/i,
+  ];
+  
+  // Also try short year patterns
+  const shortYearPatterns = [
+    /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2})(?!\d)/i,
+    /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2})(?!\d)/i,
+    /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2})(?!\d)/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = cleanNumber.match(pattern);
+    if (match) {
+      return {
+        type: match[1].toLowerCase().replace(/\s+/g, '-'),
+        num: match[2],
+        year: match[3]
+      };
+    }
+  }
+  
+  for (const pattern of shortYearPatterns) {
+    const match = cleanNumber.match(pattern);
+    if (match) {
+      const shortYear = parseInt(match[3]);
+      const fullYear = shortYear > 50 ? `19${match[3]}` : `20${match[3]}`;
+      return {
+        type: match[1].toLowerCase().replace(/\s+/g, '-'),
+        num: match[2],
+        year: fullYear
+      };
+    }
+  }
+  
+  return null;
+}
+
+// Extract metadata from DRE page content
+function extractMetadataFromDRE(markdown: string): { title?: string; summary?: string; entity?: string; publicationDate?: string; effectiveDate?: string } {
+  const update: { title?: string; summary?: string; entity?: string; publicationDate?: string; effectiveDate?: string } = {};
+  
+  const cleanMarkdown = markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/\n+/g, '\n');
+  
+  // Extract entity/emissor
+  const entityMatch = cleanMarkdown.match(/Emissor[:\s]+([^\n]+)/i);
+  if (entityMatch) {
+    const entity = entityMatch[1].trim();
+    if (entity && !entity.includes('http') && entity.length < 200) {
+      update.entity = entity;
+    }
+  }
+  
+  // Extract summary
+  const summaryMatch = cleanMarkdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n(?:Texto|Data|Publicação|Série|$))/i);
+  if (summaryMatch) {
+    const summary = summaryMatch[1].trim();
+    if (summary && summary.length > 10 && !summary.includes('Lamentamos')) {
+      update.summary = summary.substring(0, 2000);
+    }
+  }
+  
+  // Extract publication date
+  const pubDatePatterns = [
+    /Data de Publicação[:\s]+(\d{4}-\d{2}-\d{2})/i,
+    /Publicação[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+    /(\d{1,2})\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/i,
+  ];
+  
+  for (const pattern of pubDatePatterns) {
+    const match = cleanMarkdown.match(pattern);
+    if (match) {
+      try {
+        if (match[0].includes('-') && match[0].match(/\d{4}-\d{2}-\d{2}/)) {
+          update.publicationDate = match[1];
+          break;
+        } else if (match[2] && !isNaN(parseInt(match[2]))) {
+          update.publicationDate = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+          break;
+        } else if (match[2]) {
+          const monthMap: Record<string, string> = {
+            'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+            'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+            'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+          };
+          if (monthMap[match[2].toLowerCase()]) {
+            update.publicationDate = `${match[3]}-${monthMap[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+            break;
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+  
+  return update;
+}
+
+// Build EUR-Lex URL from legislation number
+function buildEurLexUrl(number: string): string | null {
+  // Extract CELEX from typical EU formats
+  
+  // Regulamento (UE) n.º YYYY/NNNN or Regulamento (UE) YYYY/NNNN
+  const regMatch = number.match(/Regulamento.*?(\d{4})\/(\d+)/i);
+  if (regMatch) {
+    const celex = `3${regMatch[1]}R${regMatch[2].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Diretiva YYYY/NN/XX or Diretiva (UE) YYYY/NNNN
+  const dirMatch = number.match(/Diretiva.*?(\d{4})\/(\d+)/i);
+  if (dirMatch) {
+    const celex = `3${dirMatch[1]}L${dirMatch[2].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Decisão YYYY/NNN
+  const decMatch = number.match(/Decis[ãa]o.*?(\d{4})\/(\d+)/i);
+  if (decMatch) {
+    const celex = `3${decMatch[1]}D${decMatch[2].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Old format: Diretiva NN/NNN/EEC or NN/NNN/CE
+  const oldDirMatch = number.match(/Diretiva\s+(\d{2})\/(\d+)/i);
+  if (oldDirMatch) {
+    const shortYear = parseInt(oldDirMatch[1]);
+    const fullYear = shortYear > 50 ? `19${oldDirMatch[1]}` : `20${oldDirMatch[1]}`;
+    const celex = `3${fullYear}L${oldDirMatch[2].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Old format: Regulamento (CEE) n.º NNNN/YY
+  const oldRegMatch = number.match(/Regulamento.*?(\d+)\/(\d{2})(?!\d)/i);
+  if (oldRegMatch) {
+    const shortYear = parseInt(oldRegMatch[2]);
+    const fullYear = shortYear > 50 ? `19${oldRegMatch[2]}` : `20${oldRegMatch[2]}`;
+    const celex = `3${fullYear}R${oldRegMatch[1].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  return null;
+}
+
+// Extract metadata from EUR-Lex page content
+function extractMetadataFromEurLex(markdown: string): { title?: string; summary?: string; entity?: string; publicationDate?: string } {
+  const update: { title?: string; summary?: string; entity?: string; publicationDate?: string } = {};
+  
+  const skipPatterns = [
+    /eur-lex/i,
+    /cookies/i,
+    /europa\.eu/i,
+    /official.*website/i,
+    /languages/i,
+    /navigation/i,
+    /menu/i,
+    /search/i,
+    /home/i,
+    /^\s*pt\s*$/i,
+    /login/i,
+    /^\d+$/,
+    /accept/i,
+  ];
+  
+  // Extract title
+  const lines = markdown.split('\n').filter((l: string) => l.trim().length > 20);
+  
+  for (const line of lines) {
+    const cleanLine = line.replace(/[#*[\]]/g, '').trim();
+    if (cleanLine.match(/^(Regulamento|Diretiva|Decisão|Retificação)/i) && 
+        cleanLine.length > 50 && cleanLine.length < 800) {
+      update.title = cleanLine.substring(0, 500);
+      break;
+    }
+  }
+  
+  if (!update.title) {
+    for (const line of lines.slice(0, 15)) {
+      const cleanLine = line.replace(/[#*[\]]/g, '').trim();
+      const isSkip = skipPatterns.some(p => p.test(cleanLine));
+      
+      if (!isSkip && cleanLine.length > 40 && cleanLine.length < 500) {
+        update.title = cleanLine;
+        break;
+      }
+    }
+  }
+  
+  // Extract summary
+  const summaryMatch = markdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n#|$)/i);
+  if (summaryMatch) {
+    update.summary = summaryMatch[1].replace(/[*#]/g, '').trim().substring(0, 2000);
+  } else {
+    const descMatch = markdown.match(/(?:objeto|objectivo|presente regulamento|presente diretiva|presente decisão)[^.]*\./i);
+    if (descMatch) {
+      update.summary = descMatch[0].trim();
+    }
+  }
+  
+  // Extract publication date
+  const datePatterns = [
+    /Data de publicação[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+    /Publicado em[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+    /JO [LCS] \d+.*?,\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/,
+    /(\d{1,2})\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/i,
+  ];
+  
+  for (const pattern of datePatterns) {
+    const match = markdown.match(pattern);
+    if (match) {
+      if (match[2] && !isNaN(parseInt(match[2]))) {
+        const day = match[1].padStart(2, '0');
+        const month = match[2].padStart(2, '0');
+        const year = match[3];
+        if (parseInt(year) >= 1950 && parseInt(year) <= 2030) {
+          update.publicationDate = `${year}-${month}-${day}`;
+          break;
+        }
+      } else if (match[2]) {
+        const monthMap: Record<string, string> = {
+          'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+          'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+          'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+        };
+        if (monthMap[match[2].toLowerCase()]) {
+          const year = match[3];
+          if (parseInt(year) >= 1950 && parseInt(year) <= 2030) {
+            update.publicationDate = `${year}-${monthMap[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  // Extract entity
+  const entityMatch = markdown.match(/(?:Autor|Emissor|Instituição)[:\s]+([^\n]+)/i);
+  if (entityMatch) {
+    update.entity = entityMatch[1].replace(/[*#]/g, '').trim().substring(0, 200);
+  }
+  
+  return update;
+}
+
 // Extract relations using AI
 async function extractRelationsWithAI(
   legislation: { number: string; title: string; summary: string },
@@ -243,26 +556,90 @@ function sanitizeDate(year: number | null): string | null {
   return null;
 }
 
-// Create missing legislation in database
+// Create missing legislation in database with full metadata scraping
 async function createMissingLegislation(
   supabase: any,
   targetNumber: string,
+  firecrawlApiKey: string,
   notes?: string
 ): Promise<{ id: string; number: string } | null> {
   try {
     const origin = determineOrigin(targetNumber);
     const year = extractYear(targetNumber);
     
-    // Create minimal legislation record with sanitized date
+    console.log(`Creating legislation: ${targetNumber} (origin: ${origin})`);
+    
+    // Initialize with basic data
+    let title = targetNumber;
+    let summary = notes || `Diploma referenciado - a aguardar importação completa`;
+    let entity: string | undefined;
+    let documentUrl: string | undefined;
+    let publicationDate = sanitizeDate(year);
+    let effectiveDate: string | null = null;
+    
+    // Try to fetch full metadata based on origin
+    if (origin === 'PT') {
+      // Search for DRE URL
+      const dreUrl = await searchDREUrl(targetNumber, firecrawlApiKey);
+      
+      if (dreUrl) {
+        documentUrl = dreUrl;
+        console.log(`Found DRE URL for ${targetNumber}: ${dreUrl}`);
+        
+        // Scrape metadata from DRE
+        const content = await scrapeUrl(dreUrl, firecrawlApiKey);
+        if (content && content.length > 100) {
+          const metadata = extractMetadataFromDRE(content);
+          
+          if (metadata.entity) entity = metadata.entity;
+          if (metadata.summary) summary = metadata.summary;
+          if (metadata.publicationDate) publicationDate = metadata.publicationDate;
+          if (metadata.effectiveDate) effectiveDate = metadata.effectiveDate;
+          
+          console.log(`Extracted DRE metadata for ${targetNumber}: entity=${metadata.entity}, summary=${metadata.summary?.substring(0, 50)}...`);
+        }
+      }
+    } else {
+      // EU legislation - build EUR-Lex URL
+      const eurLexUrl = buildEurLexUrl(targetNumber);
+      
+      if (eurLexUrl) {
+        documentUrl = eurLexUrl;
+        console.log(`Built EUR-Lex URL for ${targetNumber}: ${eurLexUrl}`);
+        
+        // Scrape metadata from EUR-Lex
+        const content = await scrapeUrl(eurLexUrl, firecrawlApiKey);
+        if (content && content.length > 100) {
+          const metadata = extractMetadataFromEurLex(content);
+          
+          if (metadata.title && metadata.title.length > targetNumber.length) {
+            title = metadata.title;
+          }
+          if (metadata.entity) entity = metadata.entity;
+          if (metadata.summary) summary = metadata.summary;
+          if (metadata.publicationDate) publicationDate = metadata.publicationDate;
+          
+          console.log(`Extracted EUR-Lex metadata for ${targetNumber}: title=${title.substring(0, 50)}...`);
+        }
+      }
+    }
+    
+    // Create legislation record with enriched data
+    const insertData: Record<string, any> = {
+      number: targetNumber,
+      title,
+      origin,
+      summary,
+    };
+    
+    if (documentUrl) insertData.document_url = documentUrl;
+    if (entity) insertData.entity = entity;
+    if (publicationDate) insertData.publication_date = publicationDate;
+    if (effectiveDate) insertData.effective_date = effectiveDate;
+    
     const { data, error } = await supabase
       .from('legislation')
-      .insert({
-        number: targetNumber,
-        title: targetNumber, // Use number as title initially
-        origin,
-        publication_date: sanitizeDate(year),
-        summary: notes || `Diploma referenciado - a aguardar importação completa`,
-      })
+      .insert(insertData)
       .select('id, number')
       .single();
     
@@ -271,7 +648,7 @@ async function createMissingLegislation(
       return null;
     }
     
-    console.log(`✓ Created missing legislation: ${targetNumber} (id: ${data.id})`);
+    console.log(`✓ Created legislation: ${targetNumber} (id: ${data.id}) with ${documentUrl ? 'URL' : 'no URL'}`);
     return { id: data.id, number: data.number };
   } catch (error) {
     console.error(`Error creating legislation "${targetNumber}":`, error);
@@ -407,7 +784,7 @@ async function processRelationsInBackground(
         
         let wasCreated = false;
         if (!match && autoImport && !dryRun) {
-          const created = await createMissingLegislation(supabase, rel.target_number, rel.notes);
+          const created = await createMissingLegislation(supabase, rel.target_number, firecrawlApiKey, rel.notes);
           if (created) {
             match = created;
             wasCreated = true;
@@ -816,7 +1193,7 @@ Deno.serve(async (req) => {
           // If no match and autoImport is enabled, create the missing legislation
           let wasCreated = false;
           if (!match && autoImport && !dryRun) {
-            const created = await createMissingLegislation(supabase, rel.target_number, rel.notes);
+            const created = await createMissingLegislation(supabase, rel.target_number, firecrawlApiKey, rel.notes);
             if (created) {
               match = created;
               wasCreated = true;
