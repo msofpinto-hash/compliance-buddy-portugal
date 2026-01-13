@@ -117,12 +117,57 @@ export function LegislationPanel() {
       .sort((a, b) => a.path.localeCompare(b.path, 'pt'));
   }, [legislation, filterTheme]);
 
-  // Helper to check if legislation has problems
-  const hasProblems = (leg: LegislationWithCategories) => {
-    const hasGenericTitle = leg.title.startsWith("Documento ") || leg.title.length < 10;
-    const hasMissingOrigin = !leg.origin || (leg.origin !== "PT" && leg.origin !== "EU");
-    const hasMissingDates = !leg.publication_date || !leg.effective_date;
-    return hasGenericTitle || hasMissingOrigin || hasMissingDates;
+  // Helper to check if a date is invalid (future year > current + 1)
+  const isInvalidDate = (dateStr: string | null | undefined): boolean => {
+    if (!dateStr) return false;
+    try {
+      const year = new Date(dateStr).getFullYear();
+      const currentYear = new Date().getFullYear();
+      return year > currentYear + 1 || year < 1900;
+    } catch {
+      return false;
+    }
+  };
+
+  // Problem types for transparency
+  type ProblemType = "generic_title" | "missing_origin" | "missing_dates" | "invalid_dates";
+
+  // Helper to get all problems for a legislation item
+  const getProblems = (leg: LegislationWithCategories): ProblemType[] => {
+    const problems: ProblemType[] = [];
+    
+    // Generic or too short title
+    if (leg.title.startsWith("Documento ") || leg.title.length < 10) {
+      problems.push("generic_title");
+    }
+    
+    // Missing or invalid origin
+    if (!leg.origin || (leg.origin !== "PT" && leg.origin !== "EU")) {
+      problems.push("missing_origin");
+    }
+    
+    // Missing publication or effective date
+    if (!leg.publication_date || !leg.effective_date) {
+      problems.push("missing_dates");
+    }
+    
+    // Invalid dates (year > current + 1 or < 1900)
+    if (isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date)) {
+      problems.push("invalid_dates");
+    }
+    
+    return problems;
+  };
+
+  // Helper to check if legislation has problems (for filtering)
+  const hasProblems = (leg: LegislationWithCategories) => getProblems(leg).length > 0;
+
+  // Problem labels for display
+  const problemLabels: Record<ProblemType, string> = {
+    generic_title: "Título genérico",
+    missing_origin: "Origem em falta",
+    missing_dates: "Datas em falta",
+    invalid_dates: "Datas inválidas",
   };
 
   // Count items with problems
@@ -694,6 +739,17 @@ export function LegislationPanel() {
           isActive={filterProblems}
           activeRingColor="ring-red-500"
           onClick={() => toggleProblemsFilter()}
+          tooltip={
+            <div className="text-xs">
+              <p className="font-medium mb-1">Problemas detetados:</p>
+              <ul className="space-y-0.5">
+                <li>• <strong>Título genérico</strong> – Título começa com "Documento" ou tem menos de 10 caracteres</li>
+                <li>• <strong>Origem em falta</strong> – Campo origem não é "PT" nem "EU"</li>
+                <li>• <strong>Datas em falta</strong> – Data de publicação ou vigência não preenchida</li>
+                <li>• <strong>Datas inválidas</strong> – Ano fora do intervalo 1900-{new Date().getFullYear() + 1}</li>
+              </ul>
+            </div>
+          }
         />
         <AnimatedStatCard
           label="Revogados"
@@ -989,6 +1045,7 @@ export function LegislationPanel() {
                   leg={leg}
                   isSelected={selectedIds.has(leg.id)}
                   hasProblems={hasProblems(leg)}
+                  problemTypes={getProblems(leg)}
                   onToggleSelect={toggleSelectLegislation}
                   onOpenCategories={openCategoriesDialog}
                   onOpenRequirements={openRequirementsDialog}

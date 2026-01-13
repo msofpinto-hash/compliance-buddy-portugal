@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   ExternalLink, 
   FileEdit, 
@@ -13,7 +14,8 @@ import {
   Building2,
   Pencil,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LegislationTimeline } from "./LegislationTimeline";
@@ -21,10 +23,22 @@ import { LegislationRelationsBadges } from "./LegislationRelationsBadges";
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
 import { cn } from "@/lib/utils";
 
+// Problem types - should match LegislationPanel definition
+type ProblemType = "generic_title" | "missing_origin" | "missing_dates" | "invalid_dates";
+
+// Problem labels for display
+const problemLabels: Record<ProblemType, string> = {
+  generic_title: "Título genérico",
+  missing_origin: "Origem em falta",
+  missing_dates: "Datas em falta",
+  invalid_dates: "Datas inválidas",
+};
+
 interface LegislationCardProps {
   leg: LegislationWithCategories;
   isSelected: boolean;
   hasProblems: boolean;
+  problemTypes?: ProblemType[];
   onToggleSelect: (id: string) => void;
   onOpenCategories: (leg: LegislationWithCategories) => void;
   onOpenRequirements: (leg: LegislationWithCategories) => void;
@@ -38,6 +52,7 @@ export function LegislationCard({
   leg,
   isSelected,
   hasProblems,
+  problemTypes = [],
   onToggleSelect,
   onOpenCategories,
   onOpenRequirements,
@@ -150,6 +165,31 @@ export function LegislationCard({
                 <AlertCircle className="h-3 w-3 mr-1" />
                 Sem categoria atribuída
               </Badge>
+            )}
+            
+            {/* Problem indicators */}
+            {problemTypes.length > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs bg-red-100 text-red-800 border-red-300 gap-1"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      {problemTypes.length} problema{problemTypes.length > 1 ? 's' : ''}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="font-medium mb-1">Problemas detetados:</p>
+                    <ul className="text-xs space-y-0.5">
+                      {problemTypes.map((p) => (
+                        <li key={p}>• {problemLabels[p]}</li>
+                      ))}
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
 
