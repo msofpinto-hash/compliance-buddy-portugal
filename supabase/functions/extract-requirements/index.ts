@@ -191,29 +191,29 @@ Deno.serve(async (req) => {
         let prompt: string;
         
         if (isEU) {
-          prompt = `Analisa o seguinte diploma EUROPEU e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e PARÁGRAFOS/PONTOS.
+          prompt = `Analisa o seguinte diploma EUROPEU e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e NÚMEROS/ALÍNEAS. Responde SEMPRE em PORTUGUÊS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
 INSTRUÇÕES OBRIGATÓRIAS PARA LEGISLAÇÃO EUROPEIA:
-1. Identifica cada ARTIGO (Article) com obrigações legais
-2. Extrai SEPARADAMENTE cada PARÁGRAFO (1, 2...) ou PONTO ((a), (b)...)
+1. Identifica cada ARTIGO com obrigações legais
+2. Extrai SEPARADAMENTE cada NÚMERO (n.º 1, n.º 2...) ou ALÍNEA (a), b)...)
 3. NÃO extrair definições, considerandos ou disposições transitórias
 
 FORMATO OBRIGATÓRIO do campo "article" (UE):
-- "Article 3" - artigo genérico
-- "Article 5(1)" - parágrafo específico
-- "Article 5(2)(a)" - ponto específico
-- "Annex I, point 2" - referência a anexo
+- "Artigo 3.º" - artigo genérico
+- "Artigo 5.º, n.º 1" - número específico
+- "Artigo 5.º, n.º 2, al. a)" - alínea específica
+- "Anexo I, ponto 2" - referência a anexo
 
-Extrai entre 5 a 15 requisitos. Para cada:
+Extrai entre 5 a 15 requisitos. Para cada, EM PORTUGUÊS:
 - article: referência EXATA no formato europeu (nunca "Geral")
-- requirement_text: obrigação legal clara (máx 300 caracteres)
+- requirement_text: obrigação legal clara em PORTUGUÊS (máx 300 caracteres)
 
 Retorna APENAS um array JSON válido:
-[{"article": "Article 5(1)", "requirement_text": "Member States shall ensure operators maintain accurate records"}]`;
+[{"article": "Artigo 5.º, n.º 1", "requirement_text": "Os Estados-Membros devem assegurar que os operadores mantêm registos precisos"}]`;
         } else {
           prompt = `Analisa o seguinte diploma legal PORTUGUÊS e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e PONTOS/ALÍNEAS.
 
@@ -249,7 +249,7 @@ Retorna APENAS um array JSON válido:
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
             messages: [
-              { role: 'system', content: isEU ? 'You are an expert in European Union legislation. Extract legal requirements precisely. Respond ONLY with valid JSON, no markdown.' : 'És um especialista em legislação portuguesa. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
+              { role: 'system', content: 'És um especialista em legislação portuguesa e europeia. Extrai requisitos legais de forma precisa. Responde SEMPRE em PORTUGUÊS e APENAS com JSON válido, sem markdown.' },
               { role: 'user', content: prompt }
             ],
             temperature: 0.2,
