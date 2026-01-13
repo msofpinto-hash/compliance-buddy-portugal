@@ -194,9 +194,10 @@ async function runBackgroundExtraction(
         .select('id, number, title, summary, document_url, origin')
         .order('publication_date', { ascending: false });
       
-      if (origin === 'PT') {
+      const originUpper = origin?.toUpperCase();
+      if (originUpper === 'PT') {
         query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
-      } else if (origin === 'EU') {
+      } else if (originUpper === 'EU') {
         query = query.or('origin.eq.EU,origin.eq.eurlex');
       }
       
