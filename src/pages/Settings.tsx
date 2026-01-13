@@ -21,7 +21,8 @@ import {
   Building2,
   Calendar,
   Trash2,
-  KeyRound
+  KeyRound,
+  ShieldCheck
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,9 +31,10 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { TwoFactorSetup } from "@/components/auth/TwoFactorSetup";
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, isAdmin, check2FAStatus, has2FAEnabled } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState("");
@@ -41,6 +43,14 @@ export default function Settings() {
   const [deadlineAlerts, setDeadlineAlerts] = useState(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+
+  // Check 2FA status on mount
+  useEffect(() => {
+    if (user) {
+      check2FAStatus().then(enabled => setIs2FAEnabled(enabled));
+    }
+  }, [user, check2FAStatus]);
 
   // Fetch user profile
   const { data: profile, isLoading } = useQuery({
@@ -448,6 +458,28 @@ export default function Settings() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* 2FA Setup - Available for all users, highlighted for admins */}
+              <TwoFactorSetup 
+                isEnabled={is2FAEnabled} 
+                onStatusChange={async () => {
+                  const enabled = await check2FAStatus();
+                  setIs2FAEnabled(enabled);
+                }}
+              />
+              
+              {isAdmin && !is2FAEnabled && (
+                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck className="h-4 w-4 text-amber-600 mt-0.5" />
+                    <div className="text-sm text-amber-800">
+                      <p className="font-medium">Recomendado para administradores</p>
+                      <p className="text-xs mt-0.5">Ative a autenticação de dois fatores para maior segurança da sua conta de administrador.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="font-medium">Alterar Password</Label>

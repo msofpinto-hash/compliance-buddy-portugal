@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Scale, AlertCircle, Clock, CheckCircle2, ArrowLeft, Mail, Check, X, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
+import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
 
 interface LoginCheckResult {
   allowed: boolean;
@@ -33,20 +34,32 @@ const Auth = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [loginBlocked, setLoginBlocked] = useState<LoginCheckResult | null>(null);
-  const { signIn, signUp, signOut, user, isAdmin, isApproved, isPendingApproval, isLoading: authLoading } = useAuth();
+  const { 
+    signIn, 
+    signUp, 
+    signOut, 
+    user, 
+    isAdmin, 
+    isApproved, 
+    isPendingApproval, 
+    isLoading: authLoading,
+    mfaChallenge,
+    completeMFAChallenge,
+    cancelMFAChallenge
+  } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect authenticated and approved users based on their role
+  // Redirect authenticated and approved users based on their role (only if no MFA pending)
   useEffect(() => {
-    if (!authLoading && user && isApproved) {
+    if (!authLoading && user && isApproved && !mfaChallenge) {
       if (isAdmin) {
         navigate("/admin");
       } else {
         navigate("/dashboard");
       }
     }
-  }, [authLoading, user, isAdmin, isApproved, navigate]);
+  }, [authLoading, user, isAdmin, isApproved, mfaChallenge, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +238,31 @@ const Auth = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show MFA verification if challenge is pending
+  if (mfaChallenge) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <TwoFactorVerify
+          factorId={mfaChallenge.factorId}
+          onSuccess={() => {
+            completeMFAChallenge();
+            toast({
+              title: "Login efetuado",
+              description: "Verificação 2FA concluída com sucesso.",
+            });
+          }}
+          onCancel={async () => {
+            await cancelMFAChallenge();
+            toast({
+              title: "Login cancelado",
+              description: "Verificação 2FA cancelada.",
+            });
+          }}
+        />
       </div>
     );
   }
