@@ -228,6 +228,21 @@ function extractYear(number: string): number | null {
   return null;
 }
 
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(year: number | null): string | null {
+  if (year === null) return null;
+  
+  const currentYear = new Date().getFullYear();
+  
+  // Valid year range: 1900 to current year + 1
+  if (year >= 1900 && year <= currentYear + 1) {
+    return `${year}-01-01`;
+  }
+  
+  console.warn(`Invalid year ${year} detected, setting date to null`);
+  return null;
+}
+
 // Create missing legislation in database
 async function createMissingLegislation(
   supabase: any,
@@ -238,14 +253,14 @@ async function createMissingLegislation(
     const origin = determineOrigin(targetNumber);
     const year = extractYear(targetNumber);
     
-    // Create minimal legislation record
+    // Create minimal legislation record with sanitized date
     const { data, error } = await supabase
       .from('legislation')
       .insert({
         number: targetNumber,
         title: targetNumber, // Use number as title initially
         origin,
-        publication_date: year ? `${year}-01-01` : null,
+        publication_date: sanitizeDate(year),
         summary: notes || `Diploma referenciado - a aguardar importação completa`,
       })
       .select('id, number')
