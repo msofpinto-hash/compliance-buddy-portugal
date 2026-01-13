@@ -792,7 +792,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               </div>
             </CardHeader>
             <CardContent className="p-2">
-              <ScrollArea className="max-h-[calc(100vh-300px)]">
+              <ScrollArea className="h-[calc(100vh-300px)]">
                 <div className="space-y-0.5 pr-2">
                   {categoryTree.map(node => renderCategoryNode(node))}
                 </div>
@@ -919,7 +919,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           </CardHeader>
           <CardContent className="p-2">
             {displayedLegislation.length > 0 ? (
-              <ScrollArea className="max-h-[calc(100vh-300px)]">
+              <ScrollArea className="h-[calc(100vh-300px)]">
                 <div className="space-y-2 pr-2">
                   {displayedLegislation.map(leg => {
                     const requirementsCount = (leg as any).legal_requirements?.length || 0;
