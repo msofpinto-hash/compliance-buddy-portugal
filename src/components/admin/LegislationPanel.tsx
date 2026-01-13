@@ -1072,83 +1072,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleFixIncompleteRequirements}
-                  disabled={isFixingIncompletes || isFixIncompletesRunning}
-                  className="gap-2"
-                >
-                  {isFixingIncompletes || isFixIncompletesRunning ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCcw className="h-4 w-4" />
-                  )}
-                  {isFixIncompletesRunning ? "Correção em curso" : "Corrigir Requisitos Incompletos"}
-                </Button>
-                {invalidDatesCount > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleFixInvalidDates}
-                    disabled={isFixingInvalidDates}
-                    className="border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
-                  >
-                    {isFixingInvalidDates ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CalendarDays className="h-4 w-4" />
-                    )}
-                    Corrigir Datas ({invalidDatesCount})
-                  </Button>
-                )}
-                {genericTitleCount > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCompleteImportsDialogOpen(true)}
-                    className="border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
-                  >
-                    <FileQuestion className="h-4 w-4" />
-                    Completar Importações ({genericTitleCount})
-                  </Button>
-                )}
-                {problemsCount > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBulkFixDialogOpen(true)}
-                    className="border-red-300 text-red-700 hover:bg-red-50 gap-2"
-                  >
-                    <Wrench className="h-4 w-4" />
-                    Corrigir Metadados
-                  </Button>
-                )}
-                {/* Contextual bulk fix for filtered problem type */}
-                {filterProblems && filterProblemType === "missing_origin" && problemTypeCounts.missing_origin > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkFixOrigin}
-                    disabled={isFixingOrigin}
-                    className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
-                  >
-                    {isFixingOrigin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
-                    Corrigir Origem ({problemTypeCounts.missing_origin})
-                  </Button>
-                )}
-                {filterProblems && filterProblemType === "missing_dates" && problemTypeCounts.missing_dates > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBulkDatesDialogOpen(true)}
-                    className="border-purple-300 text-purple-700 hover:bg-purple-50 gap-2"
-                  >
-                    <CalendarDays className="h-4 w-4" />
-                    Corrigir Datas em Falta ({problemTypeCounts.missing_dates})
-                  </Button>
-                )}
-                <div className="relative w-full sm:w-60">
+                <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Pesquisar legislação..."
@@ -1160,8 +1084,8 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
               </div>
             </div>
             
-            {/* Sorting and Filtering Controls */}
-            <div className="flex flex-wrap gap-3 items-center">
+            {/* Filtering Controls - Row 1: Quick filters */}
+            <div className="flex flex-wrap gap-2 items-center">
               <DateRangeFilter
                 startDate={filterStartDate}
                 endDate={filterEndDate}
@@ -1177,7 +1101,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
               />
 
               {/* Origin Filter */}
-              <div className="flex items-center gap-1 border rounded-md p-0.5">
+              <div className="flex items-center gap-0.5 border rounded-md p-0.5 bg-muted/50">
                 <Button
                   variant={filterOrigin === "all" ? "default" : "ghost"}
                   size="sm"
@@ -1204,93 +1128,161 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                 </Button>
               </div>
 
-              <Button
-                variant={filterNoCategory ? "default" : "outline"}
-                size="sm"
-                onClick={toggleNoCategoryFilter}
-                className={filterNoCategory ? "bg-amber-600 hover:bg-amber-700" : "border-amber-300 text-amber-700 hover:bg-amber-50"}
-              >
-                <AlertCircle className="h-4 w-4 mr-1" />
-                Sem Categoria ({noCategoryCount})
-              </Button>
-
-              {/* Problem Type Filter with Dropdown */}
-              <div className="flex items-center gap-1">
+              {/* Status filters group */}
+              <div className="flex items-center gap-1 border rounded-md p-0.5 bg-muted/50">
                 <Button
-                  variant={filterProblems ? "default" : "outline"}
+                  variant={filterNoCategory ? "default" : "ghost"}
+                  size="sm"
+                  onClick={toggleNoCategoryFilter}
+                  className={cn(
+                    "h-7 px-2 text-xs gap-1",
+                    filterNoCategory && "bg-amber-600 hover:bg-amber-700 text-white"
+                  )}
+                >
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Sem Cat. ({noCategoryCount})
+                </Button>
+                <Button
+                  variant={filterProblems ? "default" : "ghost"}
                   size="sm"
                   onClick={toggleProblemsFilter}
-                  className={filterProblems ? "bg-red-600 hover:bg-red-700" : "border-red-300 text-red-700 hover:bg-red-50"}
+                  className={cn(
+                    "h-7 px-2 text-xs gap-1",
+                    filterProblems && "bg-red-600 hover:bg-red-700 text-white"
+                  )}
                 >
-                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  <AlertTriangle className="h-3.5 w-3.5" />
                   Problemas ({problemsCount})
                 </Button>
-                {filterProblems && (
-                  <Select value={filterProblemType} onValueChange={(v) => { setFilterProblemType(v); setCurrentPage(1); }}>
-                    <SelectTrigger className="w-40 h-8 text-xs border-red-300">
-                      <SelectValue placeholder="Tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos ({problemsCount})</SelectItem>
-                      <SelectItem value="generic_title">
-                        Título genérico ({problemTypeCounts.generic_title})
-                      </SelectItem>
-                      <SelectItem value="missing_origin">
-                        Origem em falta ({problemTypeCounts.missing_origin})
-                      </SelectItem>
-                      <SelectItem value="missing_dates">
-                        Datas em falta ({problemTypeCounts.missing_dates})
-                      </SelectItem>
-                      <SelectItem value="invalid_dates">
-                        Datas inválidas ({problemTypeCounts.invalid_dates})
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+                <Button
+                  variant={filterRevoked ? "default" : "ghost"}
+                  size="sm"
+                  onClick={toggleRevokedFilter}
+                  className={cn(
+                    "h-7 px-2 text-xs gap-1",
+                    filterRevoked && "bg-gray-700 hover:bg-gray-800 text-white"
+                  )}
+                >
+                  <Ban className="h-3.5 w-3.5" />
+                  Revogados ({revokedCount})
+                </Button>
               </div>
 
-              <Button
-                variant={filterRevoked ? "default" : "outline"}
-                size="sm"
-                onClick={toggleRevokedFilter}
-                className={filterRevoked ? "bg-gray-700 hover:bg-gray-800" : "border-gray-400 text-gray-700 hover:bg-gray-100"}
-              >
-                <Ban className="h-4 w-4 mr-1" />
-                Revogados ({revokedCount})
-              </Button>
+              {/* Theme & Category selectors */}
+              <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory || filterProblems || filterRevoked}>
+                <SelectTrigger className="w-36 h-8 text-xs">
+                  <SelectValue placeholder="Tema" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os temas</SelectItem>
+                  {availableThemes.map(theme => (
+                    <SelectItem key={theme} value={theme}>{theme}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Tema:</span>
-                <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory || filterProblems || filterRevoked}>
-                  <SelectTrigger className="w-44">
-                    <SelectValue placeholder="Todos os temas" />
+              <Select value={filterCategory} onValueChange={handleCategoryChange} disabled={filterNoCategory || filterProblems || filterRevoked}>
+                <SelectTrigger className="w-48 h-8 text-xs">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {availableCategories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id} className="text-xs">
+                      {cat.path}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Problem Type Actions Bar - Only shows when filtering by problems */}
+            {filterProblems && (
+              <div className="flex flex-wrap gap-2 items-center p-3 bg-red-50 border border-red-200 rounded-lg">
+                <span className="text-sm font-medium text-red-800 mr-2">Tipo de problema:</span>
+                <Select value={filterProblemType} onValueChange={(v) => { setFilterProblemType(v); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-44 h-8 text-xs bg-white border-red-300">
+                    <SelectValue placeholder="Tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os temas</SelectItem>
-                    {availableThemes.map(theme => (
-                      <SelectItem key={theme} value={theme}>{theme}</SelectItem>
-                    ))}
+                    <SelectItem value="all">Todos ({problemsCount})</SelectItem>
+                    <SelectItem value="generic_title">
+                      Título genérico ({problemTypeCounts.generic_title})
+                    </SelectItem>
+                    <SelectItem value="missing_origin">
+                      Origem em falta ({problemTypeCounts.missing_origin})
+                    </SelectItem>
+                    <SelectItem value="missing_dates">
+                      Datas em falta ({problemTypeCounts.missing_dates})
+                    </SelectItem>
+                    <SelectItem value="invalid_dates">
+                      Datas inválidas ({problemTypeCounts.invalid_dates})
+                    </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Categoria:</span>
-                <Select value={filterCategory} onValueChange={handleCategoryChange} disabled={filterNoCategory || filterProblems || filterRevoked}>
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Todas as categorias" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-80">
-                    <SelectItem value="all">Todas as categorias</SelectItem>
-                    {availableCategories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id} className="text-xs">
-                        {cat.path}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex-1" />
+
+                {/* Contextual correction buttons */}
+                {filterProblemType === "generic_title" && problemTypeCounts.generic_title > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCompleteImportsDialogOpen(true)}
+                    className="bg-white border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
+                  >
+                    <FileQuestion className="h-4 w-4" />
+                    Reimportar Metadados ({problemTypeCounts.generic_title})
+                  </Button>
+                )}
+                {filterProblemType === "missing_origin" && problemTypeCounts.missing_origin > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkFixOrigin}
+                    disabled={isFixingOrigin}
+                    className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                  >
+                    {isFixingOrigin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+                    Corrigir Origem ({problemTypeCounts.missing_origin})
+                  </Button>
+                )}
+                {filterProblemType === "missing_dates" && problemTypeCounts.missing_dates > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkDatesDialogOpen(true)}
+                    className="bg-white border-purple-300 text-purple-700 hover:bg-purple-50 gap-2"
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                    Editar Datas ({problemTypeCounts.missing_dates})
+                  </Button>
+                )}
+                {filterProblemType === "invalid_dates" && problemTypeCounts.invalid_dates > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFixInvalidDates}
+                    disabled={isFixingInvalidDates}
+                    className="bg-white border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
+                  >
+                    {isFixingInvalidDates ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
+                    Corrigir Datas Inválidas ({problemTypeCounts.invalid_dates})
+                  </Button>
+                )}
+                {filterProblemType === "all" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkFixDialogOpen(true)}
+                    className="bg-white border-red-300 text-red-700 hover:bg-red-50 gap-2"
+                  >
+                    <Wrench className="h-4 w-4" />
+                    Corrigir Metadados
+                  </Button>
+                )}
               </div>
-            </div>
+            )}
 
             <div className="flex flex-wrap gap-3 items-center">
               <span className="text-sm text-muted-foreground">Ordenar por:</span>
