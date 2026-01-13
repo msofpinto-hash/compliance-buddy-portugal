@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,8 @@ import {
   Flag,
   FileText,
   Calendar,
-  Building2
+  Building2,
+  Globe
 } from "lucide-react";
 
 interface LegislationUpdate {
@@ -43,6 +44,15 @@ interface ProcessResult {
   error?: string;
 }
 
+interface SyncLogProgress {
+  id: string;
+  status: string;
+  items_processed: number;
+  items_added: number; // total items
+  items_updated: number;
+  error_message: string | null;
+}
+
 interface CompleteAutoImportedDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,8 +62,10 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [limit, setLimit] = useState(5);
-  const [dryRun, setDryRun] = useState(true);
+  const [limit, setLimit] = useState(10);
+  const [dryRun, setDryRun] = useState(false);
+  const [includePT, setIncludePT] = useState(true);
+  const [includeEU, setIncludeEU] = useState(true);
   const [results, setResults] = useState<ProcessResult[] | null>(null);
   const [stats, setStats] = useState<{
     processed: number;
@@ -63,27 +75,77 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
     totalUrlsFound: number;
     totalMetadataExtracted: number;
   } | null>(null);
-  const [progress, setProgress] = useState(0);
+  
+  // Real-time progress tracking
+  const [syncLogId, setSyncLogId] = useState<string | null>(null);
+  const [liveProgress, setLiveProgress] = useState<SyncLogProgress | null>(null);
+  const [currentItem, setCurrentItem] = useState<string | null>(null);
+
+  // Subscribe to sync_log updates for real-time progress
+  useEffect(() => {
+    if (!syncLogId || !isProcessing) return;
+
+    const channel = supabase
+      .channel(`sync-progress-${syncLogId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sync_logs',
+          filter: `id=eq.${syncLogId}`,
+        },
+        (payload) => {
+          const newData = payload.new as SyncLogProgress;
+          setLiveProgress(newData);
+          
+          // Extract current item from error_message (used as progress message)
+          if (newData.error_message?.startsWith('Processando:')) {
+            setCurrentItem(newData.error_message.replace('Processando: ', ''));
+          } else if (newData.error_message?.startsWith('Erro:')) {
+            setCurrentItem(newData.error_message);
+          }
+          
+          // Check if completed
+          if (newData.status === 'completed') {
+            setIsProcessing(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [syncLogId, isProcessing]);
 
   const handleComplete = async () => {
     setIsProcessing(true);
     setResults(null);
     setStats(null);
-    setProgress(0);
+    setLiveProgress(null);
+    setCurrentItem(null);
+    setSyncLogId(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("complete-auto-imported-legislation", {
         body: { 
           limit, 
           dryRun,
-          includePT: true,
-          includeEU: false // EU requires different handling
+          includePT,
+          includeEU,
+          fixDates: true,
         },
       });
 
       if (error) throw error;
 
       if (data.success) {
+        // Store syncLogId for real-time tracking (if not dry run)
+        if (data.syncLogId && !dryRun) {
+          setSyncLogId(data.syncLogId);
+        }
+        
         setResults(data.results);
         setStats({
           processed: data.processed,
@@ -93,7 +155,6 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
           totalUrlsFound: data.totalUrlsFound,
           totalMetadataExtracted: data.totalMetadataExtracted,
         });
-        setProgress(100);
 
         toast({
           title: dryRun ? "Simulação concluída" : "Diplomas completados",
@@ -163,6 +224,11 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
     return items;
   };
 
+  // Calculate progress percentage
+  const progressPercent = liveProgress && liveProgress.items_added > 0
+    ? Math.round((liveProgress.items_processed / liveProgress.items_added) * 100)
+    : (stats ? 100 : 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -172,7 +238,7 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
             Completar Diplomas Auto-Importados
           </DialogTitle>
           <DialogDescription>
-            Completa dados de diplomas criados automaticamente durante a extração de relações, buscando URL e metadados no DRE.
+            Completa dados de diplomas criados automaticamente durante a extração de relações, buscando URL e metadados no DRE/EUR-Lex.
           </DialogDescription>
         </DialogHeader>
 
@@ -185,12 +251,40 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
                 id="limit"
                 type="number"
                 min={1}
-                max={20}
+                max={50}
                 value={limit}
                 onChange={(e) => setLimit(Number(e.target.value))}
                 className="w-24"
                 disabled={isProcessing}
               />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="include-pt"
+                  checked={includePT}
+                  onCheckedChange={setIncludePT}
+                  disabled={isProcessing}
+                />
+                <Label htmlFor="include-pt" className="cursor-pointer flex items-center gap-1">
+                  <Flag className="h-3 w-3 text-green-600" />
+                  PT
+                </Label>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="include-eu"
+                  checked={includeEU}
+                  onCheckedChange={setIncludeEU}
+                  disabled={isProcessing}
+                />
+                <Label htmlFor="include-eu" className="cursor-pointer flex items-center gap-1">
+                  <Globe className="h-3 w-3 text-blue-600" />
+                  EU
+                </Label>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -201,13 +295,13 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
                 disabled={isProcessing}
               />
               <Label htmlFor="dry-run" className="cursor-pointer">
-                Modo simulação
+                Simulação
               </Label>
             </div>
 
             <Button
               onClick={handleComplete}
-              disabled={isProcessing}
+              disabled={isProcessing || (!includePT && !includeEU)}
               className="gap-2"
             >
               {isProcessing ? (
@@ -223,32 +317,58 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
           <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
             <Flag className="h-4 w-4 flex-shrink-0" />
             <span>
-              Esta função procura diplomas com dados incompletos (sem URL, sumário com "Diploma referenciado", ou título igual ao número) e busca os dados no DRE.
+              Esta função procura diplomas com dados incompletos (sem URL, sumário com "Diploma referenciado", ou título igual ao número) e busca os dados no DRE/EUR-Lex.
             </span>
           </div>
 
-          {!dryRun && (
+          {!dryRun && !isProcessing && !results && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
               <Download className="h-4 w-4 flex-shrink-0" />
               <span>
-                Os diplomas serão atualizados na base de dados com os dados encontrados no DRE.
+                Os diplomas serão atualizados na base de dados com os dados encontrados.
               </span>
             </div>
           )}
 
-          {/* Progress bar */}
+          {/* Real-time Progress */}
           {isProcessing && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">A processar diplomas...</span>
-                <span className="text-muted-foreground">{Math.round(progress)}%</span>
+            <div className="space-y-3 p-4 rounded-lg bg-muted/50 border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="font-medium">A processar diplomas...</span>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {liveProgress ? `${liveProgress.items_processed}/${liveProgress.items_added}` : 'Iniciando...'}
+                </span>
               </div>
-              <Progress value={progress} className="h-2" />
+              
+              <Progress value={progressPercent} className="h-2" />
+              
+              {currentItem && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <FileText className="h-3 w-3" />
+                  <span className="truncate">{currentItem}</span>
+                </div>
+              )}
+              
+              {liveProgress && (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Processados:</span>{' '}
+                    <span className="font-medium">{liveProgress.items_processed}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Atualizados:</span>{' '}
+                    <span className="font-medium text-green-600">{liveProgress.items_updated}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Stats */}
-          {stats && (
+          {stats && !isProcessing && (
             <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-muted/50">
               <div className="text-center">
                 <p className="text-2xl font-bold">{stats.processed}</p>
@@ -266,7 +386,7 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
           )}
 
           {/* Results */}
-          {results && results.length > 0 && (
+          {results && results.length > 0 && !isProcessing && (
             <ScrollArea className="flex-1 rounded border">
               <div className="p-4 space-y-3">
                 {results.map((result, index) => {
@@ -290,13 +410,13 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
                         </div>
                         <div className="flex items-center gap-2">
                           {result.error ? (
-                            <Badge variant="destructive">{result.error}</Badge>
+                            <Badge variant="destructive" className="text-xs">{result.error}</Badge>
                           ) : updateItems && updateItems.length > 0 ? (
-                            <Badge className="bg-green-100 text-green-800">
-                              {updateItems.length} campos atualizados
+                            <Badge className="bg-green-100 text-green-800 text-xs">
+                              {updateItems.length} campos
                             </Badge>
                           ) : (
-                            <Badge variant="outline">Sem alterações</Badge>
+                            <Badge variant="outline" className="text-xs">Sem alterações</Badge>
                           )}
                         </div>
                       </div>
@@ -310,7 +430,7 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
                             >
                               {item.icon}
                               <span className="font-medium">{item.label}:</span>
-                              <span className="text-foreground">{item.value}</span>
+                              <span className="text-foreground truncate">{item.value}</span>
                             </div>
                           ))}
                         </div>
@@ -322,7 +442,7 @@ export function CompleteAutoImportedDialog({ open, onOpenChange }: CompleteAutoI
             </ScrollArea>
           )}
 
-          {results && results.length === 0 && (
+          {results && results.length === 0 && !isProcessing && (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
               <p>Não há diplomas incompletos para processar!</p>

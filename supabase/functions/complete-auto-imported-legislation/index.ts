@@ -438,7 +438,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 10, dryRun = false, includePT = true, includeEU = true, fixDates = true } = await req.json().catch(() => ({}));
+    const { limit = 10, dryRun = false, includePT = true, includeEU = true, fixDates = true, jobId } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -453,6 +453,44 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
+    // Create sync_log entry for progress tracking
+    let syncLogId: string | null = null;
+    if (!dryRun) {
+      const { data: syncLog, error: syncLogError } = await supabase
+        .from('sync_logs')
+        .insert({
+          sync_type: 'complete_auto_imported',
+          status: 'running',
+          items_processed: 0,
+          items_added: 0,
+          items_updated: 0,
+        })
+        .select('id')
+        .single();
+      
+      if (!syncLogError && syncLog) {
+        syncLogId = syncLog.id;
+        console.log(`Created sync_log entry: ${syncLogId}`);
+      }
+    }
+
+    // Helper to update progress in sync_logs
+    const updateProgress = async (processed: number, updated: number, message?: string) => {
+      if (!syncLogId) return;
+      try {
+        await supabase
+          .from('sync_logs')
+          .update({
+            items_processed: processed,
+            items_updated: updated,
+            error_message: message || null,
+          })
+          .eq('id', syncLogId);
+      } catch (e) {
+        console.error('Failed to update progress:', e);
+      }
+    };
+    
     // Find auto-imported legislation (incomplete data)
     // These have: title = number, summary contains "Diploma referenciado", or no document_url
     const { data: legislation, error: fetchError } = await supabase
@@ -463,12 +501,25 @@ Deno.serve(async (req) => {
       .limit(limit * 3); // Fetch more to account for filtering
     
     if (fetchError) {
+      if (syncLogId) {
+        await supabase.from('sync_logs').update({ 
+          status: 'error', 
+          error_message: fetchError.message,
+          completed_at: new Date().toISOString() 
+        }).eq('id', syncLogId);
+      }
       throw fetchError;
     }
     
     if (!legislation || legislation.length === 0) {
+      if (syncLogId) {
+        await supabase.from('sync_logs').update({ 
+          status: 'completed', 
+          completed_at: new Date().toISOString() 
+        }).eq('id', syncLogId);
+      }
       return new Response(
-        JSON.stringify({ success: true, message: 'Não há diplomas incompletos para processar', processed: 0, results: [] }),
+        JSON.stringify({ success: true, message: 'Não há diplomas incompletos para processar', processed: 0, results: [], syncLogId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -494,9 +545,22 @@ Deno.serve(async (req) => {
     
     console.log(`Found ${toProcess.length} incomplete legislation to complete`);
     
+    // Update sync_log with total items
+    if (syncLogId) {
+      await supabase.from('sync_logs').update({ 
+        items_added: toProcess.length // Using items_added to store total count
+      }).eq('id', syncLogId);
+    }
+    
     if (toProcess.length === 0) {
+      if (syncLogId) {
+        await supabase.from('sync_logs').update({ 
+          status: 'completed', 
+          completed_at: new Date().toISOString() 
+        }).eq('id', syncLogId);
+      }
       return new Response(
-        JSON.stringify({ success: true, message: 'Não há diplomas incompletos para processar', processed: 0, results: [] }),
+        JSON.stringify({ success: true, message: 'Não há diplomas incompletos para processar', processed: 0, results: [], syncLogId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -653,6 +717,9 @@ Deno.serve(async (req) => {
           updates: hasUpdates ? updates : undefined
         });
         
+        // Update progress after each item
+        await updateProgress(results.length, totalUpdated, `Processando: ${leg.number}`);
+        
       } catch (error) {
         console.error(`Error processing ${leg.number}:`, error);
         results.push({
@@ -661,6 +728,9 @@ Deno.serve(async (req) => {
           success: false,
           error: error instanceof Error ? error.message : String(error)
         });
+        
+        // Update progress even on error
+        await updateProgress(results.length, totalUpdated, `Erro: ${leg.number}`);
       }
     }
     
@@ -669,6 +739,17 @@ Deno.serve(async (req) => {
     
     console.log(`\n=== COMPLETE ===`);
     console.log(`Processed: ${results.length}, Updated: ${totalUpdated}, URLs found: ${totalUrlsFound}, Metadata extracted: ${totalMetadataExtracted}`);
+    
+    // Mark sync_log as completed
+    if (syncLogId) {
+      await supabase.from('sync_logs').update({ 
+        status: 'completed',
+        items_processed: results.length,
+        items_updated: totalUpdated,
+        error_message: failed > 0 ? `${failed} erro(s)` : null,
+        completed_at: new Date().toISOString() 
+      }).eq('id', syncLogId);
+    }
     
     return new Response(
       JSON.stringify({
@@ -680,7 +761,8 @@ Deno.serve(async (req) => {
         totalUpdated,
         totalUrlsFound,
         totalMetadataExtracted,
-        results
+        results,
+        syncLogId
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

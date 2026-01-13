@@ -31,6 +31,7 @@ import { AISuggestCategoriesDialog } from "./AISuggestCategoriesDialog";
 import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
 import { AnimatedStatCard } from "./AnimatedStatCard";
 import { FixIncompletesProgressBanner } from "./FixIncompletesProgressBanner";
+import { CompleteAutoImportedDialog } from "./CompleteAutoImportedDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,10 +82,10 @@ export function LegislationPanel() {
   const [bulkAiSuggestDialogOpen, setBulkAiSuggestDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [completeImportsDialogOpen, setCompleteImportsDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFixingIncompletes, setIsFixingIncompletes] = useState(false);
   const [isFixingInvalidDates, setIsFixingInvalidDates] = useState(false);
-  const [isCompletingImports, setIsCompletingImports] = useState(false);
 
   // Extract unique themes from legislation categories
   const availableThemes = useMemo(() => {
@@ -737,52 +738,6 @@ export function LegislationPanel() {
     }
   };
 
-  // Handle complete auto-imported legislation
-  const handleCompleteAutoImported = async () => {
-    if (genericTitleCount === 0) {
-      toast({
-        title: "Nenhum diploma pendente",
-        description: "Não há diplomas com importação pendente para completar.",
-      });
-      return;
-    }
-
-    setIsCompletingImports(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("complete-auto-imported-legislation", {
-        body: { 
-          limit: Math.min(genericTitleCount, 20), // Process up to 20 at a time
-          includePT: true,
-          includeEU: true,
-          fixDates: true,
-        },
-      });
-
-      if (error) throw error;
-
-      const successCount = data?.results?.filter((r: any) => r.success).length || 0;
-      const failCount = data?.results?.filter((r: any) => !r.success).length || 0;
-
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
-
-      toast({
-        title: "Importação em massa concluída",
-        description: `${successCount} diploma(s) completado(s)${failCount > 0 ? `, ${failCount} erro(s)` : ""}.`,
-        variant: failCount > 0 && successCount === 0 ? "destructive" : "default",
-      });
-    } catch (error) {
-      console.error("Complete auto-imported error:", error);
-      toast({
-        title: "Erro ao completar importações",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCompletingImports(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -1046,15 +1001,10 @@ export function LegislationPanel() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleCompleteAutoImported}
-                    disabled={isCompletingImports}
+                    onClick={() => setCompleteImportsDialogOpen(true)}
                     className="border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
                   >
-                    {isCompletingImports ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileQuestion className="h-4 w-4" />
-                    )}
+                    <FileQuestion className="h-4 w-4" />
                     Completar Importações ({genericTitleCount})
                   </Button>
                 )}
@@ -1557,6 +1507,12 @@ export function LegislationPanel() {
           summary: leg.summary,
           categories: leg.categories,
         }))}
+      />
+
+      {/* Complete Auto-Imported Dialog */}
+      <CompleteAutoImportedDialog
+        open={completeImportsDialogOpen}
+        onOpenChange={setCompleteImportsDialogOpen}
       />
     </div>
   );
