@@ -54,6 +54,7 @@ export function DataQualityPanel() {
         legislationWithReqs,
         ptLegislationWithReqs,
         euLegislationWithReqs,
+        noDigitalVersion,
       ] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true }),
         supabase.from("legislation")
@@ -86,6 +87,10 @@ export function DataQualityPanel() {
         supabase.from("legislation")
           .select("id, legal_requirements!inner(id)", { count: "exact", head: true })
           .or("origin.eq.EU,origin.eq.eurlex"),
+        // Count legislation marked as no digital version available
+        supabase.from("legislation")
+          .select("id", { count: "exact", head: true })
+          .eq("no_digital_version", true),
       ]);
 
       const total = totalLegislation.count || 0;
@@ -117,6 +122,7 @@ export function DataQualityPanel() {
         euRequirements: euReqsCount || 0,
         ptWithRequirements: ptLegislationWithReqs.count || 0,
         euWithRequirements: euLegislationWithReqs?.count || 0,
+        noDigitalVersion: noDigitalVersion.count || 0,
       };
     },
     refetchInterval: runningJob ? 10000 : false, // Auto-refresh every 10s when job is running
@@ -271,6 +277,27 @@ export function DataQualityPanel() {
           inverted
         />
       </div>
+
+      {/* No Digital Version Notice */}
+      {(qualityStats?.noDigitalVersion || 0) > 0 && (
+        <Card className="border-muted bg-muted/20">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-muted">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-sm font-medium">
+                  {qualityStats?.noDigitalVersion} diplomas sem versão digital disponível
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Legislação antiga sem versão digitalizada online (ex: Decretos do Estado Novo). Excluídos do contador de problemas.
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Origin Distribution */}
       <Card>
