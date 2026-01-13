@@ -358,22 +358,45 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   };
 
   const displayedLegislation = useMemo(() => {
-    if (!selectedCategoryId || !categoryTree.length) return [];
+    // If a category is selected, show legislation for that category and its children
+    if (selectedCategoryId && categoryTree.length) {
+      const findNode = (nodes: CategoryNode[], id: string): CategoryNode | null => {
+        for (const node of nodes) {
+          if (node.category.id === id) return node;
+          const found = findNode(node.children, id);
+          if (found) return found;
+        }
+        return null;
+      };
+      
+      const node = findNode(categoryTree, selectedCategoryId);
+      if (!node) return [];
+      
+      return getAllLegislationForCategory(node);
+    }
     
-    const findNode = (nodes: CategoryNode[], id: string): CategoryNode | null => {
-      for (const node of nodes) {
-        if (node.category.id === id) return node;
-        const found = findNode(node.children, id);
-        if (found) return found;
-      }
-      return null;
-    };
+    // If only a theme is selected (no specific category), show ALL legislation for that theme
+    if (selectedThemeId && selectedTheme) {
+      // Get all category IDs for this theme
+      const themeCategoryIds = new Set(selectedTheme.categories.map(cat => cat.id));
+      
+      // Return all legislation that belongs to any category in this theme
+      const themeLegislation: LegislationWithCategories[] = [];
+      const seen = new Set<string>();
+      
+      filteredLegislation.forEach(leg => {
+        if (seen.has(leg.id)) return;
+        if (leg.categories.some(cat => themeCategoryIds.has(cat.id))) {
+          seen.add(leg.id);
+          themeLegislation.push(leg);
+        }
+      });
+      
+      return themeLegislation;
+    }
     
-    const node = findNode(categoryTree, selectedCategoryId);
-    if (!node) return [];
-    
-    return getAllLegislationForCategory(node);
-  }, [selectedCategoryId, categoryTree]);
+    return [];
+  }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -702,13 +725,13 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               <CardTitle className="text-sm flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Legislação
-                {selectedCategoryId && displayedLegislation.length > 0 && (
+                {displayedLegislation.length > 0 && (
                   <Badge variant="outline" className={themeConfig ? `${themeConfig.bg} ${themeConfig.text}` : ''}>
                     {displayedLegislation.length}
                   </Badge>
                 )}
               </CardTitle>
-              {applicabilityMap && selectedCategoryId && displayedLegislation.length > 0 && (() => {
+              {applicabilityMap && displayedLegislation.length > 0 && (() => {
                 const pendingCount = displayedLegislation.filter(
                   leg => !applicabilityMap[leg.id] || applicabilityMap[leg.id] === "nao_avaliado"
                 ).length;
@@ -732,11 +755,13 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             <CardDescription className="text-xs">
               {selectedCategoryId 
                 ? "Diplomas na categoria selecionada"
-                : selectedThemeId 
-                  ? "Selecione uma categoria à esquerda"
-                  : hideThemesColumn
-                    ? "Selecione um tema no filtro acima"
-                    : "Selecione um tema para começar"
+                : selectedThemeId && displayedLegislation.length > 0
+                  ? `Todos os diplomas do tema ${selectedTheme?.name || ''}`
+                  : selectedThemeId 
+                    ? "Selecione uma categoria à esquerda"
+                    : hideThemesColumn
+                      ? "Selecione um tema no filtro acima"
+                      : "Selecione um tema para começar"
               }
             </CardDescription>
           </CardHeader>
