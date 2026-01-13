@@ -47,7 +47,11 @@ type ListDisplayMode = "compact" | "expanded";
 
 const ITEMS_PER_PAGE_OPTIONS = [25, 50, 100, 200];
 
-export function LegislationPanel() {
+interface LegislationPanelProps {
+  hideBanner?: boolean;
+}
+
+export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -813,7 +817,7 @@ export function LegislationPanel() {
       </div>
 
       {/* Progress Banner for All Active Jobs */}
-      <ActiveJobsBanner />
+      {!hideBanner && <ActiveJobsBanner />}
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
