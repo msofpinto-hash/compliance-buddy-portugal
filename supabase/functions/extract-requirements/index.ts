@@ -180,31 +180,65 @@ Deno.serve(async (req) => {
       console.log(`Extracting requirements from: ${leg.number}`);
       
       try {
-        const prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e respetivos PONTOS/ALÍNEAS.
+        // Detect if EU legislation
+        const isEU = leg.origin === 'EU' || leg.origin === 'eurlex' || 
+                     leg.number?.toLowerCase().includes('regulamento') ||
+                     leg.number?.toLowerCase().includes('diretiva') ||
+                     leg.number?.toLowerCase().includes('decisão') ||
+                     leg.number?.toLowerCase().includes('regulation') ||
+                     leg.number?.toLowerCase().includes('directive');
+        
+        let prompt: string;
+        
+        if (isEU) {
+          prompt = `Analisa o seguinte diploma EUROPEU e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e PARÁGRAFOS/PONTOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Identifica cada ARTIGO do diploma que contém obrigações legais
-2. Para cada artigo, extrai os PONTOS (n.º 1, n.º 2...) ou ALÍNEAS (a), b)...) que contenham requisitos específicos
-3. O campo "article" DEVE incluir a referência completa: "Art. 5.º, n.º 2" ou "Art. 8.º, n.º 1, al. a)"
-4. Cada ponto/alínea com uma obrigação distinta = um requisito separado
+INSTRUÇÕES OBRIGATÓRIAS PARA LEGISLAÇÃO EUROPEIA:
+1. Identifica cada ARTIGO (Article) com obrigações legais
+2. Extrai SEPARADAMENTE cada PARÁGRAFO (1, 2...) ou PONTO ((a), (b)...)
+3. NÃO extrair definições, considerandos ou disposições transitórias
 
-FORMATO do campo "article":
-- "Art. 3.º" - artigo genérico
-- "Art. 5.º, n.º 1" - ponto específico
-- "Art. 5.º, n.º 2, al. a)" - alínea específica  
-- "Art. 12.º, n.º 3 a 5" - intervalo de pontos
-- "Anexo I, ponto 2.1" - referência a anexo
+FORMATO OBRIGATÓRIO do campo "article" (UE):
+- "Article 3" - artigo genérico
+- "Article 5(1)" - parágrafo específico
+- "Article 5(2)(a)" - ponto específico
+- "Annex I, point 2" - referência a anexo
 
-Extrai entre 5 a 15 requisitos. Para cada requisito:
-- article: referência EXATA do artigo/ponto/alínea (ver formato acima)
-- requirement_text: obrigação legal concreta e específica (máx 300 caracteres)
+Extrai entre 5 a 15 requisitos. Para cada:
+- article: referência EXATA no formato europeu (nunca "Geral")
+- requirement_text: obrigação legal clara (máx 300 caracteres)
 
 Retorna APENAS um array JSON válido:
-[{"article": "Art. 5.º, n.º 1", "requirement_text": "O empregador deve assegurar formação adequada aos trabalhadores"}]`;
+[{"article": "Article 5(1)", "requirement_text": "Member States shall ensure operators maintain accurate records"}]`;
+        } else {
+          prompt = `Analisa o seguinte diploma legal PORTUGUÊS e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e PONTOS/ALÍNEAS.
+
+DIPLOMA: ${leg.number}
+TÍTULO: ${leg.title}
+SUMÁRIO: ${leg.summary || 'Não disponível'}
+
+INSTRUÇÕES OBRIGATÓRIAS PARA LEGISLAÇÃO PORTUGUESA:
+1. Identifica cada ARTIGO com obrigações legais
+2. Extrai SEPARADAMENTE cada PONTO (n.º 1, n.º 2...) ou ALÍNEA (a), b)...)
+3. NÃO extrair definições ou disposições transitórias
+
+FORMATO OBRIGATÓRIO do campo "article" (PT):
+- "Art. 3.º" - artigo genérico
+- "Art. 5.º, n.º 1" - ponto específico
+- "Art. 5.º, n.º 2, al. a)" - alínea específica
+- "Anexo I, ponto 2" - referência a anexo
+
+Extrai entre 5 a 15 requisitos. Para cada:
+- article: referência EXATA (nunca "Geral")
+- requirement_text: obrigação legal clara (máx 300 caracteres)
+
+Retorna APENAS um array JSON válido:
+[{"article": "Art. 5.º, n.º 1", "requirement_text": "O empregador deve assegurar formação aos trabalhadores"}]`;
+        }
 
         const response = await fetch(AI_ENDPOINT, {
           method: 'POST',
@@ -213,13 +247,13 @@ Retorna APENAS um array JSON válido:
             'Authorization': `Bearer ${lovableApiKey}`,
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
+            model: 'google/gemini-2.5-flash',
             messages: [
-              { role: 'system', content: 'És um especialista em legislação portuguesa. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
+              { role: 'system', content: isEU ? 'You are an expert in European Union legislation. Extract legal requirements precisely. Respond ONLY with valid JSON, no markdown.' : 'És um especialista em legislação portuguesa. Extrai requisitos legais de forma precisa. Responde APENAS com JSON válido, sem markdown.' },
               { role: 'user', content: prompt }
             ],
             temperature: 0.2,
-            max_tokens: 1500,
+            max_tokens: 2000,
           }),
         });
 
