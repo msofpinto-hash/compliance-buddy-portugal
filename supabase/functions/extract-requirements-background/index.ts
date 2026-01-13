@@ -162,12 +162,31 @@ async function runBackgroundExtraction(
 
   try {
     while (batchesCompleted < maxBatches) {
-      // Get legislation without requirements
-      const { data: existingReqs } = await supabase
-        .from('legal_requirements')
-        .select('legislation_id');
+      // Get ALL legislation IDs with requirements (paginated to avoid 1000 row limit)
+      const idsWithReqs = new Set<string>();
+      let page = 0;
+      const pageSize = 1000;
       
-      const idsWithReqs = new Set(existingReqs?.map((r: any) => r.legislation_id) || []);
+      while (true) {
+        const { data: existingReqs, error: reqsError } = await supabase
+          .from('legal_requirements')
+          .select('legislation_id')
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        
+        if (reqsError) {
+          console.error('Error fetching requirements:', reqsError);
+          break;
+        }
+        
+        if (!existingReqs || existingReqs.length === 0) break;
+        
+        existingReqs.forEach((r: any) => idsWithReqs.add(r.legislation_id));
+        
+        if (existingReqs.length < pageSize) break;
+        page++;
+      }
+      
+      console.log(`📊 Found ${idsWithReqs.size} legislation IDs with existing requirements`);
       
       // Build query with optional origin filter
       let query = supabase
@@ -185,6 +204,8 @@ async function runBackgroundExtraction(
       
       const legislationWithoutReqs = allLegislation?.filter((l: any) => !idsWithReqs.has(l.id)) || [];
       const legislationToProcess = legislationWithoutReqs.slice(0, batchSize);
+      
+      console.log(`📋 ${origin || 'ALL'}: ${allLegislation?.length || 0} total, ${legislationWithoutReqs.length} without reqs, processing ${legislationToProcess.length}`);
 
       if (legislationToProcess.length === 0) {
         console.log('All legislation processed, stopping background extraction');
