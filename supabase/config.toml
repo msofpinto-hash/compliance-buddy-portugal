@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.auto-restart-extraction]
 verify_jwt = false
+
+[functions.fix-incomplete-requirements]
+verify_jwt = false
