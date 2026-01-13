@@ -47,6 +47,7 @@ export function LegislationCard({
   onOpenAISuggestions,
 }: LegislationCardProps) {
   const hasCategories = leg.categories.length > 0;
+  const isRevoked = !!leg.revocation_date;
 
   return (
     <div
@@ -54,7 +55,8 @@ export function LegislationCard({
         "rounded-lg border p-4 transition-all hover:shadow-md",
         isSelected && "ring-2 ring-primary bg-primary/5",
         !hasCategories && "border-amber-300 bg-amber-50/50",
-        hasProblems && hasCategories && "border-red-300/50"
+        hasProblems && hasCategories && "border-red-300/50",
+        isRevoked && "bg-gray-100/80 border-gray-300"
       )}
     >
       <div className="flex gap-4">
@@ -91,10 +93,18 @@ export function LegislationCard({
             </Badge>
             <Link 
               to={`/legislacao/${leg.id}`} 
-              className="font-mono text-sm font-medium text-foreground hover:text-primary hover:underline"
+              className={cn(
+                "font-mono text-sm font-medium hover:text-primary hover:underline",
+                isRevoked ? "text-muted-foreground line-through" : "text-foreground"
+              )}
             >
               {leg.number}
             </Link>
+            {isRevoked && (
+              <Badge variant="outline" className="text-xs bg-gray-800 text-white border-gray-700">
+                Revogado {leg.revocation_date && `em ${new Date(leg.revocation_date).toLocaleDateString('pt-PT')}`}
+              </Badge>
+            )}
             {leg.entity && (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Building2 className="h-3 w-3" />
@@ -105,7 +115,10 @@ export function LegislationCard({
 
           {/* Title (if different from number) */}
           {leg.title !== leg.number && !leg.title.startsWith(leg.number) && (
-            <p className="font-medium text-sm">
+            <p className={cn(
+              "font-medium text-sm",
+              isRevoked && "line-through text-muted-foreground"
+            )}>
               {leg.title}
             </p>
           )}

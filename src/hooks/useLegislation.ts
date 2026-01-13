@@ -11,6 +11,7 @@ export interface Legislation {
   origin: string | null;
   publication_date: string | null;
   effective_date: string | null;
+  revocation_date: string | null;
   document_url: string | null;
   source: string | null;
   external_id: string | null;
