@@ -232,6 +232,45 @@ export function LegislationPanel() {
     return legislation.filter(leg => !!(leg as any).revocation_date).length;
   }, [legislation]);
 
+  // Period comparison calculations (last 30 days vs previous 30 days)
+  const periodStats = useMemo(() => {
+    if (!legislation) return {
+      current: { total: 0, dre: 0, eurlex: 0, other: 0, noCategory: 0, problems: 0, revoked: 0 },
+      previous: { total: 0, dre: 0, eurlex: 0, other: 0, noCategory: 0, problems: 0, revoked: 0 },
+    };
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const currentPeriod = legislation.filter(leg => {
+      if (!leg.created_at) return false;
+      const createdAt = new Date(leg.created_at);
+      return createdAt >= thirtyDaysAgo && createdAt <= now;
+    });
+
+    const previousPeriod = legislation.filter(leg => {
+      if (!leg.created_at) return false;
+      const createdAt = new Date(leg.created_at);
+      return createdAt >= sixtyDaysAgo && createdAt < thirtyDaysAgo;
+    });
+
+    const countStats = (items: typeof legislation) => ({
+      total: items.length,
+      dre: items.filter(l => l.origin === 'PT').length,
+      eurlex: items.filter(l => l.origin === 'EU').length,
+      other: items.filter(l => !l.origin || (l.origin !== 'PT' && l.origin !== 'EU')).length,
+      noCategory: items.filter(l => l.categories.length === 0).length,
+      problems: items.filter(hasProblems).length,
+      revoked: items.filter(l => !!(l as any).revocation_date).length,
+    });
+
+    return {
+      current: countStats(currentPeriod),
+      previous: countStats(previousPeriod),
+    };
+  }, [legislation]);
+
   // Pagination calculations
   const totalItems = filteredAndSortedLegislation.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -497,6 +536,7 @@ export function LegislationPanel() {
         <AnimatedStatCard
           label="Total de Legislação"
           value={legislation?.length || 0}
+          previousValue={periodStats.previous.total > 0 ? (legislation?.length || 0) - periodStats.current.total + periodStats.previous.total : undefined}
           onClick={() => {
             setFilterOrigin("all");
             setFilterNoCategory(false);
@@ -510,6 +550,7 @@ export function LegislationPanel() {
         <AnimatedStatCard
           label="DRE (Portugal)"
           value={dreCount}
+          previousValue={periodStats.previous.dre > 0 ? dreCount - periodStats.current.dre + periodStats.previous.dre : undefined}
           titleClassName="text-green-600"
           isActive={filterOrigin === "PT"}
           activeRingColor="ring-green-500"
@@ -524,6 +565,7 @@ export function LegislationPanel() {
         <AnimatedStatCard
           label="EUR-Lex (UE)"
           value={eurlexCount}
+          previousValue={periodStats.previous.eurlex > 0 ? eurlexCount - periodStats.current.eurlex + periodStats.previous.eurlex : undefined}
           titleClassName="text-blue-600"
           isActive={filterOrigin === "EU"}
           activeRingColor="ring-blue-500"
@@ -538,6 +580,7 @@ export function LegislationPanel() {
         <AnimatedStatCard
           label="Outros"
           value={otherCount}
+          previousValue={periodStats.previous.other > 0 ? otherCount - periodStats.current.other + periodStats.previous.other : undefined}
           isActive={filterOrigin === "other"}
           activeRingColor="ring-primary"
           onClick={() => {
@@ -555,6 +598,7 @@ export function LegislationPanel() {
         <AnimatedStatCard
           label="Sem Categoria"
           value={noCategoryCount}
+          previousValue={periodStats.previous.noCategory > 0 ? noCategoryCount - periodStats.current.noCategory + periodStats.previous.noCategory : undefined}
           icon={noCategoryCount > 0 ? AlertCircle : undefined}
           iconClassName="text-amber-600"
           titleClassName={noCategoryCount > 0 ? "text-amber-600" : ""}
@@ -566,6 +610,7 @@ export function LegislationPanel() {
         <AnimatedStatCard
           label="Com Problemas"
           value={problemsCount}
+          previousValue={periodStats.previous.problems > 0 ? problemsCount - periodStats.current.problems + periodStats.previous.problems : undefined}
           icon={problemsCount > 0 ? AlertTriangle : undefined}
           iconClassName="text-red-600"
           titleClassName={problemsCount > 0 ? "text-red-600" : ""}
@@ -577,6 +622,7 @@ export function LegislationPanel() {
         <AnimatedStatCard
           label="Revogados"
           value={revokedCount}
+          previousValue={periodStats.previous.revoked > 0 ? revokedCount - periodStats.current.revoked + periodStats.previous.revoked : undefined}
           icon={revokedCount > 0 ? Ban : undefined}
           iconClassName="text-slate-600"
           titleClassName={revokedCount > 0 ? "text-slate-600" : ""}
