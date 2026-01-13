@@ -16,6 +16,15 @@ interface ExtractedRelation {
   notes?: string;
 }
 
+// Map of relation types to their inverse types
+const INVERSE_RELATION_MAP: Record<string, string> = {
+  'revogado': 'revogado_por',
+  'revogacao_parcial': 'revogado_parcialmente_por',
+  'alteracao': 'alterado_por',
+  'transposicao': 'transposto_por',
+  'regulamentacao': 'regulamentado_por',
+};
+
 interface RelationResult {
   legislationId: string;
   legislationNumber: string;
@@ -419,6 +428,7 @@ async function processRelationsInBackground(
 
       let relationsCreated = 0;
       if (!dryRun && toInsert.length > 0) {
+        // Insert direct relations
         const { error: insertError } = await supabase
           .from('legislation_relations')
           .insert(toInsert);
@@ -428,8 +438,40 @@ async function processRelationsInBackground(
         } else {
           relationsCreated = toInsert.length;
           totalRelationsCreated += relationsCreated;
-          console.log(`✓ Created ${relationsCreated} relations for ${leg.number}`);
+          console.log(`✓ Created ${relationsCreated} direct relations for ${leg.number}`);
           
+          // Create inverse relations
+          const inverseRelations: typeof toInsert = [];
+          for (const rel of toInsert) {
+            const inverseType = INVERSE_RELATION_MAP[rel.relation_type];
+            if (inverseType) {
+              const inverseKey = `${rel.target_legislation_id}-${rel.source_legislation_id}-${inverseType}`;
+              if (!existingRelationSet.has(inverseKey)) {
+                inverseRelations.push({
+                  source_legislation_id: rel.target_legislation_id,
+                  target_legislation_id: rel.source_legislation_id,
+                  relation_type: inverseType,
+                  notes: rel.notes ? `(inverso) ${rel.notes}` : '(relação inversa automática)',
+                });
+                existingRelationSet.add(inverseKey);
+              }
+            }
+          }
+          
+          if (inverseRelations.length > 0) {
+            const { error: inverseError } = await supabase
+              .from('legislation_relations')
+              .insert(inverseRelations);
+            
+            if (!inverseError) {
+              totalRelationsCreated += inverseRelations.length;
+              console.log(`✓ Created ${inverseRelations.length} inverse relations`);
+            } else {
+              console.error('Inverse relations insert error:', inverseError);
+            }
+          }
+          
+          // Update revocation dates for revoked legislation
           const revokedRelations = toInsert.filter(r => r.relation_type === 'revogado' || r.relation_type === 'revogacao_parcial');
           for (const revokedRel of revokedRelations) {
             const { error: updateError } = await supabase

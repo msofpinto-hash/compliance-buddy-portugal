@@ -6,11 +6,18 @@ interface LegislationRelationsBadgesProps {
 }
 
 const RELATION_STYLES: Record<string, { label: string; className: string }> = {
-  revogado: { label: "Revogado", className: "bg-gray-800 text-white hover:bg-gray-700" },
+  // Direct relations
+  revogado: { label: "Revoga", className: "bg-gray-800 text-white hover:bg-gray-700" },
   revogacao_parcial: { label: "Rev. Parcial", className: "bg-gray-500 text-white hover:bg-gray-400" },
-  alteracao: { label: "Alteração", className: "bg-white border-2 border-gray-400 text-gray-700 hover:bg-gray-50" },
-  transposicao: { label: "Transposição", className: "bg-blue-600 text-white hover:bg-blue-500" },
-  regulamentacao: { label: "Regulamentação", className: "bg-purple-600 text-white hover:bg-purple-500" },
+  alteracao: { label: "Altera", className: "bg-amber-600 text-white hover:bg-amber-500" },
+  transposicao: { label: "Transpõe", className: "bg-blue-600 text-white hover:bg-blue-500" },
+  regulamentacao: { label: "Regulamenta", className: "bg-purple-600 text-white hover:bg-purple-500" },
+  // Inverse relations
+  revogado_por: { label: "Revogado por", className: "bg-red-700 text-white hover:bg-red-600" },
+  revogado_parcialmente_por: { label: "Rev. Parc. por", className: "bg-red-500 text-white hover:bg-red-400" },
+  alterado_por: { label: "Alterado por", className: "bg-orange-500 text-white hover:bg-orange-400" },
+  transposto_por: { label: "Transposto por", className: "bg-cyan-600 text-white hover:bg-cyan-500" },
+  regulamentado_por: { label: "Regulam. por", className: "bg-violet-600 text-white hover:bg-violet-500" },
 };
 
 export function LegislationRelationsBadges({ relations }: LegislationRelationsBadgesProps) {
