@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, FileEdit, ExternalLink, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, FileEdit, ExternalLink, Trash2, FileX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -55,6 +56,7 @@ export function EditLegislationDialog({
   const [publicationDate, setPublicationDate] = useState("");
   const [effectiveDate, setEffectiveDate] = useState("");
   const [revocationDate, setRevocationDate] = useState("");
+  const [noDigitalVersion, setNoDigitalVersion] = useState(false);
 
   useEffect(() => {
     if (legislation) {
@@ -67,6 +69,7 @@ export function EditLegislationDialog({
       setPublicationDate(legislation.publication_date || "");
       setEffectiveDate(legislation.effective_date || "");
       setRevocationDate((legislation as any).revocation_date || "");
+      setNoDigitalVersion((legislation as any).no_digital_version || false);
     }
   }, [legislation]);
 
@@ -92,6 +95,7 @@ export function EditLegislationDialog({
           publication_date: publicationDate || null,
           effective_date: effectiveDate || null,
           revocation_date: revocationDate || null,
+          no_digital_version: noDigitalVersion,
         })
         .eq("id", legislation.id);
 
@@ -305,6 +309,26 @@ export function EditLegislationDialog({
                   Gerar URL EUR-Lex automaticamente
                 </Button>
               )}
+            </div>
+
+            {/* No Digital Version Toggle */}
+            <div className="flex items-center justify-between rounded-lg border p-4 bg-amber-500/5 border-amber-200">
+              <div className="flex items-center gap-3">
+                <FileX className="h-5 w-5 text-amber-600" />
+                <div>
+                  <Label htmlFor="noDigitalVersion" className="font-medium cursor-pointer">
+                    Sem versão digital disponível
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Marcar se este diploma não tem versão digitalizada online (ex: legislação antiga)
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="noDigitalVersion"
+                checked={noDigitalVersion}
+                onCheckedChange={setNoDigitalVersion}
+              />
             </div>
             
             <div className="rounded-lg border p-4 bg-muted/50">
