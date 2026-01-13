@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles, Ban } from "lucide-react";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles, Ban, RefreshCcw } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
@@ -76,6 +76,7 @@ export function LegislationPanel() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isFixingIncompletes, setIsFixingIncompletes] = useState(false);
 
   // Extract unique themes from legislation categories
   const availableThemes = useMemo(() => {
@@ -457,6 +458,31 @@ export function LegislationPanel() {
     }
   };
 
+  const handleFixIncompleteRequirements = async () => {
+    setIsFixingIncompletes(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fix-incomplete-requirements', {
+        body: { batchSize: 5, maxBatches: 200, minRatio: 0.3 }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Correção iniciada",
+        description: "A correção de diplomas incompletos foi iniciada em segundo plano. Pode acompanhar o progresso no painel de sincronização.",
+      });
+    } catch (error) {
+      console.error("Fix incompletes error:", error);
+      toast({
+        title: "Erro ao iniciar correção",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingIncompletes(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -653,7 +679,21 @@ export function LegislationPanel() {
                   Gerencie categorias e requisitos legais ({filteredAndSortedLegislation.length} resultados)
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFixIncompleteRequirements}
+                  disabled={isFixingIncompletes}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                >
+                  {isFixingIncompletes ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="h-4 w-4" />
+                  )}
+                  Corrigir Requisitos Incompletos
+                </Button>
                 {problemsCount > 0 && (
                   <Button
                     variant="outline"
@@ -662,7 +702,7 @@ export function LegislationPanel() {
                     className="border-red-300 text-red-700 hover:bg-red-50 gap-2"
                   >
                     <Wrench className="h-4 w-4" />
-                    Corrigir em Massa
+                    Corrigir Metadados
                   </Button>
                 )}
                 <div className="relative w-full sm:w-60">
