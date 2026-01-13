@@ -41,8 +41,12 @@ import {
   Briefcase,
   Calendar,
   GitBranch,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   type LucideIcon
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
@@ -259,6 +263,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
+  const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   
   // Use external search term if provided (from Biblioteca), otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
@@ -358,6 +364,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   };
 
   const displayedLegislation = useMemo(() => {
+    let result: LegislationWithCategories[] = [];
+    
     // If a category is selected, show legislation for that category and its children
     if (selectedCategoryId && categoryTree.length) {
       const findNode = (nodes: CategoryNode[], id: string): CategoryNode | null => {
@@ -370,13 +378,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       };
       
       const node = findNode(categoryTree, selectedCategoryId);
-      if (!node) return [];
-      
-      return getAllLegislationForCategory(node);
+      if (node) {
+        result = getAllLegislationForCategory(node);
+      }
     }
-    
     // If only a theme is selected (no specific category), show ALL legislation for that theme
-    if (selectedThemeId && selectedTheme) {
+    else if (selectedThemeId && selectedTheme) {
       // Get all category IDs for this theme
       const themeCategoryIds = new Set(selectedTheme.categories.map(cat => cat.id));
       
@@ -392,11 +399,46 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         }
       });
       
-      return themeLegislation;
+      result = themeLegislation;
     }
     
-    return [];
-  }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation]);
+    // Apply sorting
+    if (result.length > 0) {
+      result = [...result].sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortBy) {
+          case "date":
+            const dateA = a.publication_date ? new Date(a.publication_date).getTime() : 0;
+            const dateB = b.publication_date ? new Date(b.publication_date).getTime() : 0;
+            comparison = dateA - dateB;
+            break;
+          case "title":
+            comparison = (a.title || "").localeCompare(b.title || "", "pt");
+            break;
+          case "number":
+            // Extract year and number for proper sorting (e.g., "152/2024" -> sort by year then number)
+            const extractParts = (num: string) => {
+              const match = num?.match(/(\d+)\/(\d+)/);
+              if (match) {
+                return { num: parseInt(match[1]), year: parseInt(match[2]) };
+              }
+              return { num: 0, year: 0 };
+            };
+            const partsA = extractParts(a.number || "");
+            const partsB = extractParts(b.number || "");
+            comparison = partsA.year !== partsB.year 
+              ? partsA.year - partsB.year 
+              : partsA.num - partsB.num;
+            break;
+        }
+        
+        return sortOrder === "asc" ? comparison : -comparison;
+      });
+    }
+    
+    return result;
+  }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation, sortBy, sortOrder]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -721,7 +763,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         {/* Legislation list */}
         <Card className="flex-1 min-w-0">
           <CardHeader className="py-3 px-4 border-b">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Legislação
@@ -731,6 +773,37 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                   </Badge>
                 )}
               </CardTitle>
+              
+              {/* Sort controls */}
+              {displayedLegislation.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number")}>
+                    <SelectTrigger className="h-7 text-xs w-[130px]">
+                      <ArrowUpDown className="h-3 w-3 mr-1" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Data publicação</SelectItem>
+                      <SelectItem value="title">Título</SelectItem>
+                      <SelectItem value="number">Número</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+                    title={sortOrder === "asc" ? "Ordem crescente" : "Ordem decrescente"}
+                  >
+                    {sortOrder === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              )}
+              
               {applicabilityMap && displayedLegislation.length > 0 && (() => {
                 const pendingCount = displayedLegislation.filter(
                   leg => !applicabilityMap[leg.id] || applicabilityMap[leg.id] === "nao_avaliado"
