@@ -16,6 +16,27 @@ interface ParsedLegislation {
   categoryPath: string;
 }
 
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const currentYear = new Date().getFullYear();
+    
+    // Valid year range: 1900 to current year + 1
+    if (year >= 1900 && year <= currentYear + 1) {
+      return dateStr;
+    }
+    
+    console.warn(`Invalid date year ${year} detected in "${dateStr}", setting date to null`);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // Parse date from diploma number like "Portaria n.º 481/2025/1 de 31 de dezembro"
 function parseDateFromDiploma(diploma: string): string | null {
   const months: Record<string, string> = {
@@ -34,7 +55,8 @@ function parseDateFromDiploma(diploma: string): string | null {
     // Try to extract year from the diploma number
     const yearMatch = diploma.match(/\/(\d{4})/);
     if (yearMatch && month) {
-      return `${yearMatch[1]}-${month}-${day}`;
+      const result = `${yearMatch[1]}-${month}-${day}`;
+      return sanitizeDate(result);
     }
   }
   return null;
