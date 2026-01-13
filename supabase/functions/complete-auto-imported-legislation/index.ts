@@ -438,7 +438,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 10, dryRun = false, includePT = true, includeEU = true, fixDates = true, jobId } = await req.json().catch(() => ({}));
+    const { 
+      limit = 10, 
+      dryRun = false, 
+      includePT = true, 
+      includeEU = true, 
+      fixDates = true, 
+      jobId,
+      mode = 'incomplete' // 'incomplete' | 'missing_dates' | 'generic_titles'
+    } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -459,7 +467,7 @@ Deno.serve(async (req) => {
       const { data: syncLog, error: syncLogError } = await supabase
         .from('sync_logs')
         .insert({
-          sync_type: 'complete_auto_imported',
+          sync_type: mode === 'missing_dates' ? 'fix_missing_dates' : 'complete_auto_imported',
           status: 'running',
           items_processed: 0,
           items_added: 0,
@@ -491,12 +499,23 @@ Deno.serve(async (req) => {
       }
     };
     
-    // Find auto-imported legislation (incomplete data)
-    // These have: title = number, summary contains "Diploma referenciado", or no document_url
-    const { data: legislation, error: fetchError } = await supabase
+    // Build query based on mode
+    let query = supabase
       .from('legislation')
-      .select('id, number, title, summary, entity, document_url, publication_date, origin')
-      .or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null')
+      .select('id, number, title, summary, entity, document_url, publication_date, effective_date, origin');
+    
+    if (mode === 'missing_dates') {
+      // Find legislation with missing publication_date or effective_date
+      query = query.or('publication_date.is.null,effective_date.is.null');
+    } else if (mode === 'generic_titles') {
+      // Find legislation with generic titles
+      query = query.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
+    } else {
+      // Default: incomplete data (no URL, no summary, or placeholder summary)
+      query = query.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
+    }
+    
+    const { data: legislation, error: fetchError } = await query
       .order('created_at', { ascending: false })
       .limit(limit * 3); // Fetch more to account for filtering
     
@@ -524,15 +543,27 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Filter based on origin preferences and check if truly incomplete
+    // Filter based on origin preferences and mode-specific checks
     const toProcess = legislation
       .filter(leg => {
-        // Check if really incomplete
-        const isIncomplete = !leg.document_url || 
-                            (leg.summary && leg.summary.includes('Diploma referenciado')) ||
-                            !leg.summary ||
-                            leg.title === leg.number;
-        if (!isIncomplete) return false;
+        // Mode-specific checks
+        if (mode === 'missing_dates') {
+          // Only include if actually missing dates
+          if (leg.publication_date && leg.effective_date) return false;
+        } else if (mode === 'generic_titles') {
+          // Only include if has generic title
+          const hasGenericTitle = leg.title?.toLowerCase().includes('diploma referenciado') ||
+                                  leg.title?.toLowerCase().includes('documento ') ||
+                                  (leg.title && leg.title.length < 10);
+          if (!hasGenericTitle) return false;
+        } else {
+          // Default: check if really incomplete
+          const isIncomplete = !leg.document_url || 
+                              (leg.summary && leg.summary.includes('Diploma referenciado')) ||
+                              !leg.summary ||
+                              leg.title === leg.number;
+          if (!isIncomplete) return false;
+        }
         
         // Check origin filter
         const isEU = isEULegislation(leg.number);
