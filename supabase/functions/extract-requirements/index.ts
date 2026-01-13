@@ -191,53 +191,47 @@ Deno.serve(async (req) => {
         let prompt: string;
         
         if (isEU) {
-          prompt = `Analisa o seguinte diploma EUROPEU e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e NÚMEROS/ALÍNEAS. Responde SEMPRE em PORTUGUÊS.
+          prompt = `Analisa o seguinte diploma EUROPEU e extrai o TEXTO COMPLETO de cada ARTIGO com obrigações legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES OBRIGATÓRIAS PARA LEGISLAÇÃO EUROPEIA:
-1. Identifica cada ARTIGO com obrigações legais
-2. Extrai SEPARADAMENTE cada NÚMERO (n.º 1, n.º 2...) ou ALÍNEA (a), b)...)
-3. NÃO extrair definições, considerandos ou disposições transitórias
+INSTRUÇÕES:
+1. Identifica cada ARTIGO que contém obrigações legais
+2. Para cada artigo, infere o TEXTO COMPLETO (incluindo todos os números e alíneas)
+3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
+4. NÃO extrair definições ou considerandos
 
-FORMATO OBRIGATÓRIO do campo "article" (UE):
-- "Artigo 3.º" - artigo genérico
-- "Artigo 5.º, n.º 1" - número específico
-- "Artigo 5.º, n.º 2, al. a)" - alínea específica
-- "Anexo I, ponto 2" - referência a anexo
+FORMATO:
+- article: apenas a referência do artigo (ex: "Artigo 5.º", "Anexo I")
+- requirement_text: TEXTO COMPLETO do artigo em PORTUGUÊS (máx 1000 caracteres)
 
-Extrai entre 5 a 15 requisitos. Para cada, EM PORTUGUÊS:
-- article: referência EXATA no formato europeu (nunca "Geral")
-- requirement_text: obrigação legal clara em PORTUGUÊS (máx 300 caracteres)
+Extrai entre 3 a 10 artigos relevantes.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Artigo 5.º, n.º 1", "requirement_text": "Os Estados-Membros devem assegurar que os operadores mantêm registos precisos"}]`;
+[{"article": "Artigo 5.º", "requirement_text": "1 - Os Estados-Membros devem assegurar que os operadores... 2 - Para efeitos do número anterior..."}]`;
         } else {
-          prompt = `Analisa o seguinte diploma legal PORTUGUÊS e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e PONTOS/ALÍNEAS.
+          prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai o TEXTO COMPLETO de cada ARTIGO com obrigações legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES OBRIGATÓRIAS PARA LEGISLAÇÃO PORTUGUESA:
-1. Identifica cada ARTIGO com obrigações legais
-2. Extrai SEPARADAMENTE cada PONTO (n.º 1, n.º 2...) ou ALÍNEA (a), b)...)
-3. NÃO extrair definições ou disposições transitórias
+INSTRUÇÕES:
+1. Identifica cada ARTIGO que contém obrigações legais
+2. Para cada artigo, infere o TEXTO COMPLETO (incluindo todos os números e alíneas)
+3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
+4. NÃO extrair definições ou disposições transitórias
 
-FORMATO OBRIGATÓRIO do campo "article" (PT):
-- "Art. 3.º" - artigo genérico
-- "Art. 5.º, n.º 1" - ponto específico
-- "Art. 5.º, n.º 2, al. a)" - alínea específica
-- "Anexo I, ponto 2" - referência a anexo
+FORMATO:
+- article: apenas a referência do artigo (ex: "Art. 5.º", "Anexo I")
+- requirement_text: TEXTO COMPLETO do artigo em PORTUGUÊS (máx 1000 caracteres)
 
-Extrai entre 5 a 15 requisitos. Para cada:
-- article: referência EXATA (nunca "Geral")
-- requirement_text: obrigação legal clara (máx 300 caracteres)
+Extrai entre 3 a 10 artigos relevantes.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Art. 5.º, n.º 1", "requirement_text": "O empregador deve assegurar formação aos trabalhadores"}]`;
+[{"article": "Art. 5.º", "requirement_text": "1 - O empregador deve assegurar formação... 2 - A formação referida... 3 - Os trabalhadores têm direito a..."}]`;
         }
 
         const response = await fetch(AI_ENDPOINT, {
@@ -319,9 +313,9 @@ Retorna APENAS um array JSON válido:
             .filter(r => r && typeof r === 'object' && r.requirement_text)
             .map(r => ({
               article: cleanArticle(r.article, leg.number),
-              requirement_text: String(r.requirement_text).substring(0, 500),
+              requirement_text: String(r.requirement_text).substring(0, 3000), // Increased for full article text
             }))
-            .slice(0, 10); // Max 10 requirements per legislation
+            .slice(0, 15); // Max 15 articles per legislation
             
         } catch (parseError) {
           console.error(`Parse error for ${leg.number}:`, parseError, 'Content:', content.substring(0, 200));

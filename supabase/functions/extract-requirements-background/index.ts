@@ -231,8 +231,8 @@ async function runBackgroundExtraction(
               useAdvancedModel = true;
               
               if (isEU) {
-                // EU LEGISLATION FORMAT - textos em PORTUGUÊS
-                prompt = `Analisa o seguinte diploma EUROPEU e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e respetivos PARÁGRAFOS/PONTOS.
+                // EU LEGISLATION - texto COMPLETO por artigo
+                prompt = `Analisa o seguinte diploma EUROPEU e extrai o TEXTO COMPLETO de cada ARTIGO que contém obrigações legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
@@ -241,126 +241,100 @@ ${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
 TEXTO COMPLETO DO DIPLOMA:
 ${truncatedText}
 
-INSTRUÇÕES OBRIGATÓRIAS PARA LEGISLAÇÃO EUROPEIA:
-1. Identifica cada ARTIGO (Artigo) que contém obrigações legais concretas
-2. Para cada artigo, extrai SEPARADAMENTE cada NÚMERO (n.º 1, n.º 2...) ou ALÍNEA (a), b)...) com obrigações distintas
-3. NÃO extrair definições, âmbito de aplicação genérico, considerandos ou disposições transitórias
-4. O campo "article" DEVE usar o FORMATO EUROPEU em português
-
-FORMATO OBRIGATÓRIO do campo "article" (legislação UE):
-- "Artigo 3.º" - apenas quando o artigo inteiro é uma única obrigação
-- "Artigo 5.º, n.º 1" - número específico de um artigo
-- "Artigo 5.º, n.º 2, al. a)" - alínea específica dentro de um número
-- "Artigo 12.º, n.º 3 a 5" - intervalo de números relacionados
-- "Anexo I, ponto 2.1" - referência a anexo
-
-Para cada requisito, indica EM PORTUGUÊS:
-- article: referência EXATA no formato europeu - NUNCA usar "Geral" se existir referência
-- requirement_text: obrigação legal ESPECÍFICA e CONCRETA em PORTUGUÊS (máx 300 caracteres)
-- notes: prazo, valor limite, condição de aplicação ou exceção em PORTUGUÊS (opcional, máx 200 caracteres)
-
-Extrai entre 8 e 20 requisitos, priorizando obrigações com prazos, valores limite, registo, formação, licenciamento.
-
-Retorna APENAS um array JSON válido:
-[{"article": "Artigo 5.º, n.º 1", "requirement_text": "Os Estados-Membros devem assegurar que os operadores se registam no sistema eletrónico", "notes": "No prazo de 90 dias após a entrada em vigor"}]`;
-              } else {
-                // PT LEGISLATION FORMAT
-                prompt = `Analisa o seguinte diploma legal PORTUGUÊS e extrai os REQUISITOS LEGAIS estruturados por ARTIGO e respetivos PONTOS/ALÍNEAS.
-
-DIPLOMA: ${leg.number}
-TÍTULO: ${leg.title}
-${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
-
-TEXTO COMPLETO DO DIPLOMA:
-${truncatedText}
-
-INSTRUÇÕES OBRIGATÓRIAS PARA LEGISLAÇÃO PORTUGUESA:
+INSTRUÇÕES OBRIGATÓRIAS:
 1. Identifica cada ARTIGO que contém obrigações legais concretas
-2. Para cada artigo, extrai SEPARADAMENTE cada PONTO (n.º 1, n.º 2...) ou ALÍNEA (a), b)...) com obrigações distintas
-3. NÃO extrair definições, âmbito de aplicação genérico ou disposições transitórias
-4. O campo "article" DEVE incluir a referência COMPLETA e EXATA
+2. Copia o TEXTO INTEGRAL do artigo (incluindo todos os números e alíneas)
+3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
+4. NÃO extrair definições, considerandos ou disposições transitórias
 
-FORMATO OBRIGATÓRIO do campo "article" (legislação PT):
-- "Art. 3.º" - apenas quando o artigo inteiro é uma única obrigação
-- "Art. 5.º, n.º 1" - ponto específico de um artigo
-- "Art. 5.º, n.º 2, al. a)" - alínea específica dentro de um ponto
-- "Art. 12.º, n.º 3 a 5" - intervalo de pontos relacionados
-- "Anexo I, ponto 2.1" - referência a anexo
+FORMATO:
+- article: apenas a referência do artigo (ex: "Artigo 5.º", "Artigo 12.º", "Anexo I")
+- requirement_text: o TEXTO COMPLETO do artigo, incluindo todos os números e alíneas (máx 2000 caracteres)
+- notes: contexto adicional se necessário (opcional)
 
-Para cada requisito, indica:
-- article: referência EXATA (ver formato acima) - NUNCA usar "Geral" se existir referência
-- requirement_text: obrigação legal ESPECÍFICA e CONCRETA (máx 300 caracteres)
-- notes: prazo, valor limite, condição de aplicação ou exceção (opcional, máx 200 caracteres)
-
-Extrai entre 8 e 20 requisitos, priorizando obrigações com prazos, valores limite, registo, formação, licenciamento.
+Extrai entre 5 e 15 artigos relevantes.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Art. 5.º, n.º 1", "requirement_text": "O empregador deve assegurar formação adequada aos trabalhadores", "notes": "Mínimo 35 horas anuais"}]`;
+[{"article": "Artigo 5.º", "requirement_text": "1 - Os Estados-Membros devem assegurar que os operadores... 2 - Para efeitos do número anterior... 3 - O registo referido...", "notes": "Obrigações de registo"}]`;
+              } else {
+                // PT LEGISLATION - texto COMPLETO por artigo
+                prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai o TEXTO COMPLETO de cada ARTIGO que contém obrigações legais.
+
+DIPLOMA: ${leg.number}
+TÍTULO: ${leg.title}
+${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
+
+TEXTO COMPLETO DO DIPLOMA:
+${truncatedText}
+
+INSTRUÇÕES OBRIGATÓRIAS:
+1. Identifica cada ARTIGO que contém obrigações legais concretas
+2. Copia o TEXTO INTEGRAL do artigo (incluindo todos os números e alíneas)
+3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
+4. NÃO extrair definições, âmbito de aplicação ou disposições transitórias
+
+FORMATO:
+- article: apenas a referência do artigo (ex: "Art. 5.º", "Art. 12.º", "Anexo I")
+- requirement_text: o TEXTO COMPLETO do artigo, incluindo todos os números e alíneas (máx 2000 caracteres)
+- notes: contexto adicional se necessário (opcional)
+
+Extrai entre 5 e 15 artigos relevantes.
+
+Retorna APENAS um array JSON válido:
+[{"article": "Art. 5.º", "requirement_text": "1 - O empregador deve assegurar formação adequada... 2 - A formação referida no número anterior... 3 - Os trabalhadores têm direito a...", "notes": "Formação profissional"}]`;
               }
             } else {
               // Summary-based extraction - USE ADVANCED MODEL to compensate for lack of full text
               useAdvancedModel = true;
               
               if (isEU) {
-                // EU SUMMARY-BASED - textos em PORTUGUÊS
-                prompt = `És um especialista em legislação EUROPEIA. Com base no título e sumário deste diploma, identifica e infere os REQUISITOS LEGAIS estruturados por ARTIGO e NÚMEROS.
+                // EU SUMMARY-BASED - texto COMPLETO por artigo
+                prompt = `És um especialista em legislação EUROPEIA. Com base no título e sumário deste diploma, infere os ARTIGOS principais e o seu conteúdo provável.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 ${leg.document_url ? `URL: ${leg.document_url}` : ''}
 
-INSTRUÇÕES OBRIGATÓRIAS:
+INSTRUÇÕES:
 1. Analisa o tipo de diploma europeu (Regulamento, Diretiva, Decisão) e tema
-2. Regulamentos são diretamente aplicáveis - extrair obrigações concretas
-3. Diretivas requerem transposição - extrair objetivos e requisitos mínimos
-4. Infere artigos prováveis com base no conteúdo do sumário
+2. Infere os artigos principais que provavelmente existem neste diploma
+3. Para cada artigo, escreve o conteúdo provável das obrigações (texto completo inferido)
+4. NÃO fragmentar por números - cada artigo = um requisito com texto completo
 
-FORMATO OBRIGATÓRIO do campo "article" (legislação UE):
-- "Artigo 3.º, n.º 1" - número específico inferido
-- "Artigo 5.º, n.º 2, al. a)" - alínea específica
-- "Anexo I, ponto 2" - referência a anexo
-- "Artigo X" - usar APENAS se impossível determinar número exato
+FORMATO:
+- article: apenas a referência do artigo (ex: "Artigo 5.º", "Anexo I")
+- requirement_text: texto completo provável do artigo em PORTUGUÊS (máx 1000 caracteres)
+- notes: contexto adicional (opcional)
 
-Para cada requisito, indica EM PORTUGUÊS:
-- article: referência mais específica possível no formato europeu (evitar "Geral")
-- requirement_text: obrigação legal ESPECÍFICA em PORTUGUÊS (máx 300 caracteres)
-- notes: prazo, valor limite ou condição em PORTUGUÊS (opcional, máx 200 caracteres)
-
-Extrair entre 5 e 12 requisitos, priorizando obrigações concretas.
+Extrai entre 3 e 8 artigos relevantes.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Artigo 5.º, n.º 1", "requirement_text": "Os operadores devem manter registos de todas as transações", "notes": "Período de retenção: 5 anos"}]`;
+[{"article": "Artigo 5.º", "requirement_text": "1 - Os Estados-Membros devem assegurar... 2 - Para efeitos do número anterior...", "notes": "Obrigações de registo"}]`;
               } else {
-                // PT SUMMARY-BASED
-                prompt = `És um especialista em legislação PORTUGUESA. Com base no título e sumário deste diploma, identifica e infere os REQUISITOS LEGAIS estruturados por ARTIGO e PONTOS.
+                // PT SUMMARY-BASED - texto COMPLETO por artigo
+                prompt = `És um especialista em legislação PORTUGUESA. Com base no título e sumário deste diploma, infere os ARTIGOS principais e o seu conteúdo provável.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 ${leg.document_url ? `URL: ${leg.document_url}` : ''}
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Analisa o tipo de diploma e tema para inferir a estrutura provável de artigos
-2. Decretos-Lei tipicamente têm: Art. 1.º (Objeto), Art. 2.º (Âmbito), Art. 3.º+ (Obrigações), Anexos
-3. Portarias tipicamente têm estrutura mais curta mas com pontos específicos
-4. Infere artigos prováveis com base no conteúdo do sumário
+INSTRUÇÕES:
+1. Analisa o tipo de diploma (Decreto-Lei, Portaria, Despacho) e tema
+2. Infere os artigos principais que provavelmente existem neste diploma
+3. Para cada artigo, escreve o conteúdo provável das obrigações (texto completo inferido)
+4. NÃO fragmentar por números - cada artigo = um requisito com texto completo
 
-FORMATO OBRIGATÓRIO do campo "article" (legislação PT):
-- "Art. 3.º, n.º 1" - ponto específico inferido
-- "Art. 5.º, n.º 2, al. a)" - alínea específica
-- "Anexo I, ponto 2" - referência a anexo
-- "Art. X" - usar APENAS se impossível determinar número exato
+FORMATO:
+- article: apenas a referência do artigo (ex: "Art. 5.º", "Anexo I")
+- requirement_text: texto completo provável do artigo em PORTUGUÊS (máx 1000 caracteres)
+- notes: contexto adicional (opcional)
 
-Para cada requisito, indica:
-- article: referência mais específica possível (evitar "Geral")
-- requirement_text: obrigação legal ESPECÍFICA (máx 300 caracteres)
-- notes: prazo, valor limite ou condição (opcional, máx 200 caracteres)
-
-Extrair entre 5 e 12 requisitos, priorizando obrigações concretas.
+Extrai entre 3 e 8 artigos relevantes.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Art. 5.º, n.º 1", "requirement_text": "As entidades devem registar-se no sistema eletrónico", "notes": "Prazo de 90 dias"}]`;
+[{"article": "Art. 5.º", "requirement_text": "1 - O empregador deve assegurar... 2 - A formação referida... 3 - Os trabalhadores têm direito a...", "notes": "Formação profissional"}]`;
               }
             }
 
@@ -420,10 +394,10 @@ Retorna APENAS um array JSON válido:
                 .filter(r => r && typeof r === 'object' && r.requirement_text)
                 .map(r => ({
                   article: cleanArticle(r.article, leg.number),
-                  requirement_text: String(r.requirement_text).substring(0, 500),
-                  notes: r.notes ? String(r.notes).substring(0, 300) : undefined,
+                  requirement_text: String(r.requirement_text).substring(0, 3000), // Increased for full article text
+                  notes: r.notes ? String(r.notes).substring(0, 500) : undefined,
                 }))
-                .slice(0, 20);
+                .slice(0, 15); // Max 15 articles per legislation
                 
             } catch (parseError) {
               console.error(`Parse error for ${leg.number}:`, parseError);
