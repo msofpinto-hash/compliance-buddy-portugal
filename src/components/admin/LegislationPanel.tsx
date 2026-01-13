@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles, Ban, RefreshCcw } from "lucide-react";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles, Ban, RefreshCcw, FileQuestion } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
@@ -62,6 +62,7 @@ export function LegislationPanel() {
   const [filterNoCategory, setFilterNoCategory] = useState<boolean>(false);
   const [filterProblems, setFilterProblems] = useState<boolean>(false);
   const [filterRevoked, setFilterRevoked] = useState<boolean>(false);
+  const [filterGenericTitle, setFilterGenericTitle] = useState<boolean>(false);
   const [filterOrigin, setFilterOrigin] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
@@ -133,21 +134,26 @@ export function LegislationPanel() {
   // Problem types for transparency
   type ProblemType = "generic_title" | "missing_origin" | "missing_dates" | "invalid_dates";
 
+  // Generic title patterns (auto-imported placeholders)
+  const genericTitlePatterns = [
+    "Documento ",
+    "Diploma referenciado",
+    "a aguardar importação",
+  ];
+
+  // Helper to check if a title is generic
+  const isGenericTitle = (title: string): boolean => {
+    return genericTitlePatterns.some(pattern => 
+      title.toLowerCase().includes(pattern.toLowerCase())
+    ) || title.length < 10;
+  };
+
   // Helper to get all problems for a legislation item
   const getProblems = (leg: LegislationWithCategories): ProblemType[] => {
     const problems: ProblemType[] = [];
     
     // Generic or too short title (includes auto-imported placeholders)
-    const genericTitlePatterns = [
-      "Documento ",
-      "Diploma referenciado",
-      "a aguardar importação",
-    ];
-    const hasGenericTitle = genericTitlePatterns.some(pattern => 
-      leg.title.toLowerCase().includes(pattern.toLowerCase())
-    ) || leg.title.length < 10;
-    
-    if (hasGenericTitle) {
+    if (isGenericTitle(leg.title)) {
       problems.push("generic_title");
     }
     
@@ -186,6 +192,12 @@ export function LegislationPanel() {
     return legislation.filter(hasProblems).length;
   }, [legislation]);
 
+  // Count items with generic titles
+  const genericTitleCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(leg => isGenericTitle(leg.title)).length;
+  }, [legislation]);
+
   // Filter and sort legislation
   const filteredAndSortedLegislation = useMemo(() => {
     if (!legislation) return [];
@@ -214,6 +226,11 @@ export function LegislationPanel() {
     // Filter by "problems"
     if (filterProblems) {
       result = result.filter(hasProblems);
+    }
+
+    // Filter by "generic title" (pending import)
+    if (filterGenericTitle) {
+      result = result.filter(leg => isGenericTitle(leg.title));
     }
 
     // Filter by "revoked"
@@ -279,7 +296,7 @@ export function LegislationPanel() {
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterRevoked, filterOrigin, filterStartDate, filterEndDate, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterGenericTitle, filterRevoked, filterOrigin, filterStartDate, filterEndDate, sortField, sortOrder]);
 
   // Count items without category
   const noCategoryCount = useMemo(() => {
@@ -296,8 +313,8 @@ export function LegislationPanel() {
   // Period comparison calculations (last 30 days vs previous 30 days)
   const periodStats = useMemo(() => {
     if (!legislation) return {
-      current: { total: 0, dre: 0, eurlex: 0, other: 0, noCategory: 0, problems: 0, revoked: 0 },
-      previous: { total: 0, dre: 0, eurlex: 0, other: 0, noCategory: 0, problems: 0, revoked: 0 },
+      current: { total: 0, dre: 0, eurlex: 0, other: 0, noCategory: 0, problems: 0, revoked: 0, genericTitle: 0 },
+      previous: { total: 0, dre: 0, eurlex: 0, other: 0, noCategory: 0, problems: 0, revoked: 0, genericTitle: 0 },
     };
 
     const now = new Date();
@@ -324,6 +341,7 @@ export function LegislationPanel() {
       noCategory: items.filter(l => l.categories.length === 0).length,
       problems: items.filter(hasProblems).length,
       revoked: items.filter(l => !!(l as any).revocation_date).length,
+      genericTitle: items.filter(l => isGenericTitle(l.title)).length,
     });
 
     return {
@@ -365,6 +383,7 @@ export function LegislationPanel() {
       setFilterCategory("all");
       setFilterProblems(false);
       setFilterRevoked(false);
+      setFilterGenericTitle(false);
     }
     setCurrentPage(1);
   };
@@ -376,6 +395,7 @@ export function LegislationPanel() {
       setFilterCategory("all");
       setFilterNoCategory(false);
       setFilterRevoked(false);
+      setFilterGenericTitle(false);
     }
     setCurrentPage(1);
   };
@@ -387,6 +407,19 @@ export function LegislationPanel() {
       setFilterCategory("all");
       setFilterNoCategory(false);
       setFilterProblems(false);
+      setFilterGenericTitle(false);
+    }
+    setCurrentPage(1);
+  };
+
+  const toggleGenericTitleFilter = () => {
+    setFilterGenericTitle(prev => !prev);
+    if (!filterGenericTitle) {
+      setFilterTheme("all");
+      setFilterCategory("all");
+      setFilterNoCategory(false);
+      setFilterProblems(false);
+      setFilterRevoked(false);
     }
     setCurrentPage(1);
   };
@@ -781,7 +814,7 @@ export function LegislationPanel() {
       <FixIncompletesProgressBanner />
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
         <AnimatedStatCard
           label="Total de Legislação"
           value={legislation?.length || 0}
@@ -876,6 +909,24 @@ export function LegislationPanel() {
                 <li>• <strong>Datas em falta</strong> – Data de publicação ou vigência não preenchida</li>
                 <li>• <strong>Datas inválidas</strong> – Ano fora do intervalo 1900-{new Date().getFullYear() + 1}</li>
               </ul>
+            </div>
+          }
+        />
+        <AnimatedStatCard
+          label="Importação Pendente"
+          value={genericTitleCount}
+          previousValue={periodStats.previous.genericTitle > 0 ? genericTitleCount - periodStats.current.genericTitle + periodStats.previous.genericTitle : undefined}
+          icon={genericTitleCount > 0 ? FileQuestion : undefined}
+          iconClassName="text-orange-600"
+          titleClassName={genericTitleCount > 0 ? "text-orange-600" : ""}
+          className={genericTitleCount > 0 ? "border-orange-300 bg-orange-50/50" : ""}
+          isActive={filterGenericTitle}
+          activeRingColor="ring-orange-500"
+          onClick={() => toggleGenericTitleFilter()}
+          tooltip={
+            <div className="text-xs">
+              <p className="font-medium mb-1">Diplomas com importação pendente:</p>
+              <p>Títulos genéricos como "Diploma referenciado - a aguardar importação completa" que precisam de ser completados.</p>
             </div>
           }
         />
