@@ -52,21 +52,21 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
     try {
       const { data, error } = await supabase.functions.invoke("complete-auto-imported-legislation", {
         body: { 
-          limit: itemsToFix.length,
+          limit: Math.min(itemsToFix.length, 100),
           dryRun: false,
           includePT: true,
           includeEU: true,
           fixDates: true,
+          mode: 'generic_titles',
         },
       });
 
       if (error) throw error;
 
-      const result: BulkFixResult = {
+      const result = {
         total: data.processed || itemsToFix.length,
         fixed: data.totalUpdated || 0,
         failed: data.failed || 0,
-        errors: [],
       };
 
       queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
@@ -75,8 +75,7 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
 
       toast({
         title: "Correção de títulos iniciada",
-        description: `${result.fixed} diplomas actualizados. Processo a decorrer em segundo plano.`,
-        variant: result.failed > 0 ? "destructive" : "default",
+        description: `Reimportação em curso para ${result.total} diplomas. Acompanhe o progresso no banner.`,
       });
     } catch (error) {
       console.error("Fix generic titles error:", error);
@@ -187,14 +186,15 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
     setIsFixingMissingDates(true);
     
     try {
-      // Use the complete-auto-imported function to reimport metadata
+      // Use the complete-auto-imported function with missing_dates mode
       const { data, error } = await supabase.functions.invoke("complete-auto-imported-legislation", {
         body: { 
-          limit: Math.min(itemsToFix.length, 50),
+          limit: Math.min(itemsToFix.length, 100),
           dryRun: false,
           includePT: true,
           includeEU: true,
           fixDates: true,
+          mode: 'missing_dates',
         },
       });
 
@@ -205,7 +205,7 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
 
       toast({
         title: "Correção de datas iniciada",
-        description: `Reimportação em curso para ${data.processed || itemsToFix.length} diplomas.`,
+        description: `Reimportação de metadados em curso para ${data.processed || itemsToFix.length} diplomas. Acompanhe o progresso no banner.`,
       });
     } catch (error) {
       console.error("Fix missing dates error:", error);
