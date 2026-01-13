@@ -191,47 +191,47 @@ Deno.serve(async (req) => {
         let prompt: string;
         
         if (isEU) {
-          prompt = `Analisa o seguinte diploma EUROPEU e extrai o TEXTO COMPLETO de cada ARTIGO com obrigações legais.
+          prompt = `Analisa o seguinte diploma EUROPEU e extrai APENAS os ARTIGOS e ANEXOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES:
-1. Identifica cada ARTIGO que contém obrigações legais
-2. Para cada artigo, infere o TEXTO COMPLETO (incluindo todos os números e alíneas)
-3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
-4. NÃO extrair definições ou considerandos
+INSTRUÇÕES CRÍTICAS:
+1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, considerandos, vistos)
+2. Começa a extrair APENAS a partir do "Artigo 1.º"
+3. Para cada ARTIGO, infere o texto completo das obrigações
+4. Se existirem ANEXOS, extrai também
 
 FORMATO:
-- article: apenas a referência do artigo (ex: "Artigo 5.º", "Anexo I")
-- requirement_text: TEXTO COMPLETO do artigo em PORTUGUÊS (máx 1000 caracteres)
+- article: "Artigo 1.º", "Artigo 2.º", "Anexo I", etc.
+- requirement_text: TEXTO do artigo em PORTUGUÊS (máx 1000 caracteres)
 
-Extrai entre 3 a 10 artigos relevantes.
+Extrai entre 3 a 10 artigos/anexos.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Artigo 5.º", "requirement_text": "1 - Os Estados-Membros devem assegurar que os operadores... 2 - Para efeitos do número anterior..."}]`;
+[{"article": "Artigo 1.º", "requirement_text": "O presente regulamento estabelece as regras para..."}]`;
         } else {
-          prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai o TEXTO COMPLETO de cada ARTIGO com obrigações legais.
+          prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai APENAS os ARTIGOS e ANEXOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES:
-1. Identifica cada ARTIGO que contém obrigações legais
-2. Para cada artigo, infere o TEXTO COMPLETO (incluindo todos os números e alíneas)
-3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
-4. NÃO extrair definições ou disposições transitórias
+INSTRUÇÕES CRÍTICAS:
+1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, vistos, considerandos)
+2. Começa a extrair APENAS a partir do "Art. 1.º"
+3. Para cada ARTIGO, infere o texto completo das obrigações
+4. Se existirem ANEXOS, extrai também
 
 FORMATO:
-- article: apenas a referência do artigo (ex: "Art. 5.º", "Anexo I")
-- requirement_text: TEXTO COMPLETO do artigo em PORTUGUÊS (máx 1000 caracteres)
+- article: "Art. 1.º", "Art. 2.º", "Anexo I", etc.
+- requirement_text: TEXTO do artigo em PORTUGUÊS (máx 1000 caracteres)
 
-Extrai entre 3 a 10 artigos relevantes.
+Extrai entre 3 a 10 artigos/anexos.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Art. 5.º", "requirement_text": "1 - O empregador deve assegurar formação... 2 - A formação referida... 3 - Os trabalhadores têm direito a..."}]`;
+[{"article": "Art. 1.º", "requirement_text": "O presente decreto-lei estabelece as regras para..."}]`;
         }
 
         const response = await fetch(AI_ENDPOINT, {

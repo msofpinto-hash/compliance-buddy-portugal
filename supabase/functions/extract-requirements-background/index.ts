@@ -231,8 +231,8 @@ async function runBackgroundExtraction(
               useAdvancedModel = true;
               
               if (isEU) {
-                // EU LEGISLATION - texto COMPLETO por artigo
-                prompt = `Analisa o seguinte diploma EUROPEU e extrai o TEXTO COMPLETO de cada ARTIGO que contém obrigações legais.
+                // EU LEGISLATION - só artigos e anexos
+                prompt = `Analisa o seguinte diploma EUROPEU e extrai APENAS os ARTIGOS e ANEXOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
@@ -241,24 +241,23 @@ ${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
 TEXTO COMPLETO DO DIPLOMA:
 ${truncatedText}
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Identifica cada ARTIGO que contém obrigações legais concretas
-2. Copia o TEXTO INTEGRAL do artigo (incluindo todos os números e alíneas)
-3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
-4. NÃO extrair definições, considerandos ou disposições transitórias
+INSTRUÇÕES CRÍTICAS:
+1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, considerandos, vistos, etc.)
+2. Começa a extrair APENAS a partir do "Artigo 1.º" ou equivalente
+3. Para cada ARTIGO encontrado, copia o texto INTEGRAL (incluindo todos os números e alíneas)
+4. Se existirem ANEXOS, extrai também o seu conteúdo principal
+5. NÃO incluir texto introdutório, considerandos ou justificações
 
 FORMATO:
-- article: apenas a referência do artigo (ex: "Artigo 5.º", "Artigo 12.º", "Anexo I")
-- requirement_text: o TEXTO COMPLETO do artigo, incluindo todos os números e alíneas (máx 2000 caracteres)
-- notes: contexto adicional se necessário (opcional)
-
-Extrai entre 5 e 15 artigos relevantes.
+- article: "Artigo 1.º", "Artigo 2.º", "Anexo I", "Anexo II", etc.
+- requirement_text: TEXTO INTEGRAL do artigo/anexo em PORTUGUÊS (máx 2000 caracteres)
+- notes: contexto breve se necessário (opcional)
 
 Retorna APENAS um array JSON válido:
-[{"article": "Artigo 5.º", "requirement_text": "1 - Os Estados-Membros devem assegurar que os operadores... 2 - Para efeitos do número anterior... 3 - O registo referido...", "notes": "Obrigações de registo"}]`;
+[{"article": "Artigo 1.º", "requirement_text": "1 - O presente regulamento estabelece... 2 - Para efeitos do disposto...", "notes": "Objeto e âmbito"}]`;
               } else {
-                // PT LEGISLATION - texto COMPLETO por artigo
-                prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai o TEXTO COMPLETO de cada ARTIGO que contém obrigações legais.
+                // PT LEGISLATION - só artigos e anexos
+                prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai APENAS os ARTIGOS e ANEXOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
@@ -267,74 +266,73 @@ ${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
 TEXTO COMPLETO DO DIPLOMA:
 ${truncatedText}
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Identifica cada ARTIGO que contém obrigações legais concretas
-2. Copia o TEXTO INTEGRAL do artigo (incluindo todos os números e alíneas)
-3. NÃO fragmentar - cada artigo = um único requisito com todo o seu conteúdo
-4. NÃO extrair definições, âmbito de aplicação ou disposições transitórias
+INSTRUÇÕES CRÍTICAS:
+1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, vistos, considerandos, etc.)
+2. Começa a extrair APENAS a partir do "Artigo 1.º" ou equivalente
+3. Para cada ARTIGO encontrado, copia o texto INTEGRAL (incluindo todos os números e alíneas)
+4. Se existirem ANEXOS, extrai também o seu conteúdo principal
+5. NÃO incluir texto introdutório ou justificações
 
 FORMATO:
-- article: apenas a referência do artigo (ex: "Art. 5.º", "Art. 12.º", "Anexo I")
-- requirement_text: o TEXTO COMPLETO do artigo, incluindo todos os números e alíneas (máx 2000 caracteres)
-- notes: contexto adicional se necessário (opcional)
-
-Extrai entre 5 e 15 artigos relevantes.
+- article: "Art. 1.º", "Art. 2.º", "Anexo I", "Anexo II", etc.
+- requirement_text: TEXTO INTEGRAL do artigo/anexo (máx 2000 caracteres)
+- notes: contexto breve se necessário (opcional)
 
 Retorna APENAS um array JSON válido:
-[{"article": "Art. 5.º", "requirement_text": "1 - O empregador deve assegurar formação adequada... 2 - A formação referida no número anterior... 3 - Os trabalhadores têm direito a...", "notes": "Formação profissional"}]`;
+[{"article": "Art. 1.º", "requirement_text": "1 - O presente decreto-lei estabelece... 2 - Para efeitos do disposto...", "notes": "Objeto"}]`;
               }
             } else {
               // Summary-based extraction - USE ADVANCED MODEL to compensate for lack of full text
               useAdvancedModel = true;
               
               if (isEU) {
-                // EU SUMMARY-BASED - texto COMPLETO por artigo
-                prompt = `És um especialista em legislação EUROPEIA. Com base no título e sumário deste diploma, infere os ARTIGOS principais e o seu conteúdo provável.
+                // EU SUMMARY-BASED - só artigos e anexos inferidos
+                prompt = `És um especialista em legislação EUROPEIA. Com base no título e sumário deste diploma, infere os ARTIGOS (a partir do Artigo 1.º) e ANEXOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 ${leg.document_url ? `URL: ${leg.document_url}` : ''}
 
-INSTRUÇÕES:
-1. Analisa o tipo de diploma europeu (Regulamento, Diretiva, Decisão) e tema
-2. Infere os artigos principais que provavelmente existem neste diploma
-3. Para cada artigo, escreve o conteúdo provável das obrigações (texto completo inferido)
-4. NÃO fragmentar por números - cada artigo = um requisito com texto completo
+INSTRUÇÕES CRÍTICAS:
+1. NÃO incluir preâmbulo, considerandos ou texto introdutório
+2. Infere APENAS os artigos que provavelmente existem (Artigo 1.º, Artigo 2.º, etc.)
+3. Se o diploma tiver anexos, inclui-os também
+4. Para cada artigo, escreve o conteúdo provável das obrigações
 
 FORMATO:
-- article: apenas a referência do artigo (ex: "Artigo 5.º", "Anexo I")
-- requirement_text: texto completo provável do artigo em PORTUGUÊS (máx 1000 caracteres)
-- notes: contexto adicional (opcional)
+- article: "Artigo 1.º", "Artigo 2.º", "Anexo I", etc.
+- requirement_text: texto provável do artigo em PORTUGUÊS (máx 1000 caracteres)
+- notes: contexto breve (opcional)
 
-Extrai entre 3 e 8 artigos relevantes.
+Extrai entre 3 e 8 artigos/anexos.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Artigo 5.º", "requirement_text": "1 - Os Estados-Membros devem assegurar... 2 - Para efeitos do número anterior...", "notes": "Obrigações de registo"}]`;
+[{"article": "Artigo 1.º", "requirement_text": "O presente regulamento estabelece...", "notes": "Objeto"}]`;
               } else {
-                // PT SUMMARY-BASED - texto COMPLETO por artigo
-                prompt = `És um especialista em legislação PORTUGUESA. Com base no título e sumário deste diploma, infere os ARTIGOS principais e o seu conteúdo provável.
+                // PT SUMMARY-BASED - só artigos e anexos inferidos
+                prompt = `És um especialista em legislação PORTUGUESA. Com base no título e sumário deste diploma, infere os ARTIGOS (a partir do Art. 1.º) e ANEXOS.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 ${leg.document_url ? `URL: ${leg.document_url}` : ''}
 
-INSTRUÇÕES:
-1. Analisa o tipo de diploma (Decreto-Lei, Portaria, Despacho) e tema
-2. Infere os artigos principais que provavelmente existem neste diploma
-3. Para cada artigo, escreve o conteúdo provável das obrigações (texto completo inferido)
-4. NÃO fragmentar por números - cada artigo = um requisito com texto completo
+INSTRUÇÕES CRÍTICAS:
+1. NÃO incluir preâmbulo, vistos, considerandos ou texto introdutório
+2. Infere APENAS os artigos que provavelmente existem (Art. 1.º, Art. 2.º, etc.)
+3. Se o diploma tiver anexos, inclui-os também
+4. Para cada artigo, escreve o conteúdo provável das obrigações
 
 FORMATO:
-- article: apenas a referência do artigo (ex: "Art. 5.º", "Anexo I")
-- requirement_text: texto completo provável do artigo em PORTUGUÊS (máx 1000 caracteres)
-- notes: contexto adicional (opcional)
+- article: "Art. 1.º", "Art. 2.º", "Anexo I", etc.
+- requirement_text: texto provável do artigo em PORTUGUÊS (máx 1000 caracteres)
+- notes: contexto breve (opcional)
 
-Extrai entre 3 e 8 artigos relevantes.
+Extrai entre 3 e 8 artigos/anexos.
 
 Retorna APENAS um array JSON válido:
-[{"article": "Art. 5.º", "requirement_text": "1 - O empregador deve assegurar... 2 - A formação referida... 3 - Os trabalhadores têm direito a...", "notes": "Formação profissional"}]`;
+[{"article": "Art. 1.º", "requirement_text": "O presente decreto-lei estabelece...", "notes": "Objeto"}]`;
               }
             }
 
