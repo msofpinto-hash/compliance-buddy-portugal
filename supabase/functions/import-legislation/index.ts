@@ -20,6 +20,25 @@ interface LegislationRow {
   observacao: string;
 }
 
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(yearStr: string | null): string | null {
+  if (!yearStr) return null;
+  
+  const yearMatch = yearStr.match(/\d{4}/);
+  if (!yearMatch) return null;
+  
+  const year = parseInt(yearMatch[0], 10);
+  const currentYear = new Date().getFullYear();
+  
+  // Valid year range: 1900 to current year + 1
+  if (year >= 1900 && year <= currentYear + 1) {
+    return `${year}-01-01`;
+  }
+  
+  console.warn(`Invalid year ${year} detected in "${yearStr}", setting date to null`);
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -178,14 +197,8 @@ serve(async (req) => {
         continue;
       }
 
-      // Parse year from anoVigor
-      let effectiveYear: string | null = null;
-      if (info.anoVigor) {
-        const yearMatch = info.anoVigor.match(/\d{4}/);
-        if (yearMatch) {
-          effectiveYear = `${yearMatch[0]}-01-01`;
-        }
-      }
+      // Parse year from anoVigor with validation
+      const effectiveYear = sanitizeDate(info.anoVigor);
 
       // Determine origin based on diploma text
       let origin = 'Nacional';
