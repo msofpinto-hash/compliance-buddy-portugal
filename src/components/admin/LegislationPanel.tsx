@@ -137,8 +137,17 @@ export function LegislationPanel() {
   const getProblems = (leg: LegislationWithCategories): ProblemType[] => {
     const problems: ProblemType[] = [];
     
-    // Generic or too short title
-    if (leg.title.startsWith("Documento ") || leg.title.length < 10) {
+    // Generic or too short title (includes auto-imported placeholders)
+    const genericTitlePatterns = [
+      "Documento ",
+      "Diploma referenciado",
+      "a aguardar importação",
+    ];
+    const hasGenericTitle = genericTitlePatterns.some(pattern => 
+      leg.title.toLowerCase().includes(pattern.toLowerCase())
+    ) || leg.title.length < 10;
+    
+    if (hasGenericTitle) {
       problems.push("generic_title");
     }
     
