@@ -59,6 +59,27 @@ async function scrapeWithFirecrawl(url: string, apiKey: string): Promise<any> {
   throw lastError || new Error('Failed to scrape after retries');
 }
 
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const currentYear = new Date().getFullYear();
+    
+    // Valid year range: 1900 to current year + 1
+    if (year >= 1900 && year <= currentYear + 1) {
+      return dateStr;
+    }
+    
+    console.warn(`Invalid date year ${year} detected in "${dateStr}", setting date to null`);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function extractMetadataFromDRE(markdown: string, currentNumber: string): LegislationUpdate {
   const update: LegislationUpdate = {};
   
@@ -150,7 +171,11 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
             continue;
           }
         }
-        update.effective_date = dateStr;
+        // Validate the date before assigning
+        const sanitized = sanitizeDate(dateStr);
+        if (sanitized) {
+          update.effective_date = sanitized;
+        }
         break;
       } catch {
         continue;
