@@ -66,6 +66,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterNoCategory, setFilterNoCategory] = useState<boolean>(false);
   const [filterProblems, setFilterProblems] = useState<boolean>(false);
+  const [filterProblemType, setFilterProblemType] = useState<string>("all"); // "all" | specific problem type
   const [filterRevoked, setFilterRevoked] = useState<boolean>(false);
   const [filterGenericTitle, setFilterGenericTitle] = useState<boolean>(false);
   const [filterOrigin, setFilterOrigin] = useState<string>("all");
@@ -90,6 +91,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFixingIncompletes, setIsFixingIncompletes] = useState(false);
   const [isFixingInvalidDates, setIsFixingInvalidDates] = useState(false);
+  const [isFixingOrigin, setIsFixingOrigin] = useState(false);
 
   // Extract unique themes from legislation categories
   const availableThemes = useMemo(() => {
@@ -198,6 +200,18 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     return legislation.filter(hasProblems).length;
   }, [legislation]);
 
+  // Count items by problem type
+  const problemTypeCounts = useMemo(() => {
+    if (!legislation) return { generic_title: 0, missing_origin: 0, missing_dates: 0, invalid_dates: 0 };
+    
+    const counts = { generic_title: 0, missing_origin: 0, missing_dates: 0, invalid_dates: 0 };
+    legislation.forEach(leg => {
+      const problems = getProblems(leg);
+      problems.forEach(p => counts[p]++);
+    });
+    return counts;
+  }, [legislation]);
+
   // Count items with generic titles
   const genericTitleCount = useMemo(() => {
     if (!legislation) return 0;
@@ -229,9 +243,13 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       });
     }
 
-    // Filter by "problems"
+    // Filter by "problems" (with optional specific type)
     if (filterProblems) {
-      result = result.filter(hasProblems);
+      if (filterProblemType === "all") {
+        result = result.filter(hasProblems);
+      } else {
+        result = result.filter(leg => getProblems(leg).includes(filterProblemType as any));
+      }
     }
 
     // Filter by "generic title" (pending import)
@@ -742,6 +760,89 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     }
   };
 
+  // Handler for bulk fixing origin
+  const handleBulkFixOrigin = async () => {
+    if (!legislation) return;
+    
+    setIsFixingOrigin(true);
+    
+    try {
+      // Find all items with missing/invalid origin
+      const itemsToFix = legislation.filter(leg => 
+        !leg.origin || (leg.origin !== "PT" && leg.origin !== "EU")
+      );
+      
+      if (itemsToFix.length === 0) {
+        toast({ title: "Nenhum diploma para corrigir" });
+        return;
+      }
+      
+      let fixedCount = 0;
+      const errors: string[] = [];
+      
+      for (const item of itemsToFix) {
+        // Infer origin from number pattern or external_id
+        let inferredOrigin: string | null = null;
+        
+        // Check if it's EU legislation
+        const euPatterns = [
+          /^(Regulamento|Directiva|Diretiva|Decisão|Recomendação)/i,
+          /\(UE\)/i,
+          /\(CE\)/i,
+          /CELEX/i,
+        ];
+        
+        const isEU = euPatterns.some(p => p.test(item.title) || p.test(item.number));
+        
+        if (isEU) {
+          inferredOrigin = "EU";
+        } else {
+          // Portuguese patterns
+          const ptPatterns = [
+            /^(Decreto-Lei|Portaria|Lei|Despacho|Resolução|Aviso|Declaração)/i,
+            /\/\d{2,4}$/,  // Ends with /YY or /YYYY
+          ];
+          
+          const isPT = ptPatterns.some(p => p.test(item.title) || p.test(item.number));
+          if (isPT) {
+            inferredOrigin = "PT";
+          }
+        }
+        
+        if (inferredOrigin) {
+          const { error } = await supabase
+            .from("legislation")
+            .update({ origin: inferredOrigin })
+            .eq("id", item.id);
+          
+          if (error) {
+            errors.push(`${item.number}: ${error.message}`);
+          } else {
+            fixedCount++;
+          }
+        }
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+      
+      toast({
+        title: "Correção de origem concluída",
+        description: `${fixedCount} diploma(s) corrigido(s)${errors.length > 0 ? `. ${errors.length} erro(s).` : "."}`,
+        variant: errors.length > 0 ? "destructive" : "default",
+      });
+      
+    } catch (error) {
+      console.error("Fix origin error:", error);
+      toast({
+        title: "Erro ao corrigir origem",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingOrigin(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -1023,6 +1124,30 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                     Corrigir Metadados
                   </Button>
                 )}
+                {/* Contextual bulk fix for filtered problem type */}
+                {filterProblems && filterProblemType === "missing_origin" && problemTypeCounts.missing_origin > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkFixOrigin}
+                    disabled={isFixingOrigin}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                  >
+                    {isFixingOrigin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+                    Corrigir Origem ({problemTypeCounts.missing_origin})
+                  </Button>
+                )}
+                {filterProblems && filterProblemType === "missing_dates" && problemTypeCounts.missing_dates > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkDatesDialogOpen(true)}
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50 gap-2"
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                    Corrigir Datas em Falta ({problemTypeCounts.missing_dates})
+                  </Button>
+                )}
                 <div className="relative w-full sm:w-60">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -1089,15 +1214,40 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                 Sem Categoria ({noCategoryCount})
               </Button>
 
-              <Button
-                variant={filterProblems ? "default" : "outline"}
-                size="sm"
-                onClick={toggleProblemsFilter}
-                className={filterProblems ? "bg-red-600 hover:bg-red-700" : "border-red-300 text-red-700 hover:bg-red-50"}
-              >
-                <AlertTriangle className="h-4 w-4 mr-1" />
-                Com Problemas ({problemsCount})
-              </Button>
+              {/* Problem Type Filter with Dropdown */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={filterProblems ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleProblemsFilter}
+                  className={filterProblems ? "bg-red-600 hover:bg-red-700" : "border-red-300 text-red-700 hover:bg-red-50"}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  Problemas ({problemsCount})
+                </Button>
+                {filterProblems && (
+                  <Select value={filterProblemType} onValueChange={(v) => { setFilterProblemType(v); setCurrentPage(1); }}>
+                    <SelectTrigger className="w-40 h-8 text-xs border-red-300">
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos ({problemsCount})</SelectItem>
+                      <SelectItem value="generic_title">
+                        Título genérico ({problemTypeCounts.generic_title})
+                      </SelectItem>
+                      <SelectItem value="missing_origin">
+                        Origem em falta ({problemTypeCounts.missing_origin})
+                      </SelectItem>
+                      <SelectItem value="missing_dates">
+                        Datas em falta ({problemTypeCounts.missing_dates})
+                      </SelectItem>
+                      <SelectItem value="invalid_dates">
+                        Datas inválidas ({problemTypeCounts.invalid_dates})
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
 
               <Button
                 variant={filterRevoked ? "default" : "outline"}
