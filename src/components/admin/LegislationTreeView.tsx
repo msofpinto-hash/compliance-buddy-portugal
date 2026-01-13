@@ -44,6 +44,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Download,
   type LucideIcon
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -53,6 +54,8 @@ import { type LegislationWithCategories } from "@/hooks/useLegislation";
 import { getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { exportSimpleExcel, ColumnConfig } from "@/lib/excelUtils";
+import { toast } from "sonner";
 import emptySearchImage from "@/assets/empty-search.png";
 import treeCategoriesImage from "@/assets/tree-categories.png";
 
@@ -452,6 +455,64 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     });
   };
 
+  const handleExportExcel = async () => {
+    if (displayedLegislation.length === 0) return;
+    
+    try {
+      const columns: ColumnConfig[] = [
+        { header: "Número", key: "number", width: 25 },
+        { header: "Título", key: "title", width: 50 },
+        { header: "Sumário", key: "summary", width: 60 },
+        { header: "Origem", key: "origin", width: 10 },
+        { header: "Data Publicação", key: "publication_date", width: 15 },
+        { header: "Data Vigência", key: "effective_date", width: 15 },
+        { header: "Data Revogação", key: "revocation_date", width: 15 },
+        { header: "Entidade", key: "entity", width: 20 },
+        { header: "Categorias", key: "categories", width: 40 },
+        { header: "URL Documento", key: "document_url", width: 50 },
+      ];
+
+      const data = displayedLegislation.map(leg => ({
+        number: leg.number || "",
+        title: leg.title || "",
+        summary: leg.summary || "",
+        origin: leg.origin === "PT" ? "DRE (PT)" : "EUR-Lex (EU)",
+        publication_date: leg.publication_date 
+          ? format(new Date(leg.publication_date), "dd/MM/yyyy") 
+          : "",
+        effective_date: (leg as any).effective_date 
+          ? format(new Date((leg as any).effective_date), "dd/MM/yyyy") 
+          : "",
+        revocation_date: (leg as any).revocation_date 
+          ? format(new Date((leg as any).revocation_date), "dd/MM/yyyy") 
+          : "",
+        entity: leg.entity || "",
+        categories: leg.categories.map(c => c.full_path || c.name).join("; "),
+        document_url: leg.document_url || "",
+      }));
+
+      const themeName = selectedTheme?.name || "Legislacao";
+      const categoryName = selectedCategoryId 
+        ? selectedTheme?.categories.find(c => c.id === selectedCategoryId)?.name || ""
+        : "";
+      const fileName = categoryName 
+        ? `Legislacao_${themeName}_${categoryName}_${format(new Date(), "yyyy-MM-dd")}.xlsx`
+        : `Legislacao_${themeName}_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+
+      await exportSimpleExcel(
+        data,
+        columns,
+        "Legislação",
+        fileName.replace(/[/\\?%*:|"<>]/g, "_")
+      );
+      
+      toast.success(`${displayedLegislation.length} diplomas exportados com sucesso!`);
+    } catch (error) {
+      console.error("Error exporting:", error);
+      toast.error("Erro ao exportar legislação");
+    }
+  };
+
   const renderCategoryNode = (node: CategoryNode, level: number = 0) => {
     const hasChildren = node.children.length > 0;
     const isExpanded = expandedCategories.has(node.category.id);
@@ -774,7 +835,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 )}
               </CardTitle>
               
-              {/* Sort controls */}
+              {/* Sort and Export controls */}
               {displayedLegislation.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number")}>
@@ -801,6 +862,24 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                       <ArrowDown className="h-3.5 w-3.5" />
                     )}
                   </Button>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={handleExportExcel}
+                          title="Exportar para Excel"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">Exportar {displayedLegislation.length} diploma{displayedLegislation.length !== 1 ? 's' : ''} para Excel</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
               
