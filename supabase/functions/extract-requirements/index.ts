@@ -191,40 +191,42 @@ Deno.serve(async (req) => {
         let prompt: string;
         
         if (isEU) {
-          prompt = `Analisa o seguinte diploma EUROPEU e extrai os requisitos legais.
+          prompt = `Analisa o seguinte diploma EUROPEU e extrai TODOS os requisitos legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES:
-1. SE O DIPLOMA TEM ARTIGOS: extrai a partir do "Artigo 1.º", incluindo Anexos
+INSTRUÇÕES CRÍTICAS:
+1. SE O DIPLOMA TEM ARTIGOS: extrai TODOS os artigos a partir do "Artigo 1.º", incluindo Anexos
 2. SE NÃO TEM ARTIGOS (Comunicações, Avisos, Pareceres): extrai o texto corrido do corpo
+3. NÃO LIMITES o número de artigos - extrai TODOS os que conseguires inferir
 
 FORMATO:
 - article: "Artigo 1.º", "Artigo 2.º", "Anexo I" OU "Corpo", "Parte 1", etc.
-- requirement_text: TEXTO em PORTUGUÊS (máx 1000 caracteres)
+- requirement_text: TEXTO em PORTUGUÊS (máx 1500 caracteres por artigo)
 
-Extrai entre 3 a 10 blocos.
+Extrai o máximo de artigos possível.
 
 Retorna APENAS um array JSON válido:
 [{"article": "Artigo 1.º", "requirement_text": "O presente regulamento estabelece as regras para..."}]`;
         } else {
-          prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai os requisitos legais.
+          prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai TODOS os requisitos legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES:
-1. SE O DIPLOMA TEM ARTIGOS: extrai a partir do "Art. 1.º", incluindo Anexos
+INSTRUÇÕES CRÍTICAS:
+1. SE O DIPLOMA TEM ARTIGOS: extrai TODOS os artigos a partir do "Art. 1.º", incluindo Anexos
 2. SE NÃO TEM ARTIGOS (Despachos, Avisos, Pareceres, Anúncios): extrai o texto corrido do corpo
+3. NÃO LIMITES o número de artigos - extrai TODOS os que conseguires inferir
 
 FORMATO:
 - article: "Art. 1.º", "Art. 2.º", "Anexo I" OU "Corpo", "Parte 1", etc.
-- requirement_text: TEXTO em PORTUGUÊS (máx 1000 caracteres)
+- requirement_text: TEXTO em PORTUGUÊS (máx 1500 caracteres por artigo)
 
-Extrai entre 3 a 10 blocos.
+Extrai o máximo de artigos possível.
 
 Retorna APENAS um array JSON válido:
 [{"article": "Art. 1.º", "requirement_text": "O presente decreto-lei estabelece as regras para..."}]`;
@@ -243,7 +245,7 @@ Retorna APENAS um array JSON válido:
               { role: 'user', content: prompt }
             ],
             temperature: 0.2,
-            max_tokens: 2000,
+            max_tokens: 6000,
           }),
         });
 
@@ -309,9 +311,9 @@ Retorna APENAS um array JSON válido:
             .filter(r => r && typeof r === 'object' && r.requirement_text)
             .map(r => ({
               article: cleanArticle(r.article, leg.number),
-              requirement_text: String(r.requirement_text).substring(0, 3000), // Increased for full article text
-            }))
-            .slice(0, 15); // Max 15 articles per legislation
+              requirement_text: String(r.requirement_text).substring(0, 3500),
+            }));
+            // No limit - extract all articles
             
         } catch (parseError) {
           console.error(`Parse error for ${leg.number}:`, parseError, 'Content:', content.substring(0, 200));
