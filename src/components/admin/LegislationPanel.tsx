@@ -29,6 +29,7 @@ import { LegislationCard } from "./LegislationCard";
 import { AISuggestCategoriesDialog } from "./AISuggestCategoriesDialog";
 import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
 import { AnimatedStatCard } from "./AnimatedStatCard";
+import { FixIncompletesProgressBanner } from "./FixIncompletesProgressBanner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
@@ -556,6 +557,9 @@ export function LegislationPanel() {
           </Button>
         </div>
       </div>
+
+      {/* Progress Banner for Fix Incompletes Job */}
+      <FixIncompletesProgressBanner />
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
