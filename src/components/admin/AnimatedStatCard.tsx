@@ -1,7 +1,9 @@
 import { Card, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCountAnimation } from "@/hooks/useCountAnimation";
 import { cn } from "@/lib/utils";
-import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown, Minus, HelpCircle } from "lucide-react";
+import { ReactNode } from "react";
 
 interface AnimatedStatCardProps {
   label: string;
@@ -14,6 +16,7 @@ interface AnimatedStatCardProps {
   isActive?: boolean;
   activeRingColor?: string;
   onClick?: () => void;
+  tooltip?: ReactNode;
 }
 
 export function AnimatedStatCard({
@@ -27,6 +30,7 @@ export function AnimatedStatCard({
   isActive,
   activeRingColor = "ring-primary",
   onClick,
+  tooltip,
 }: AnimatedStatCardProps) {
   const animatedValue = useCountAnimation(value);
 
@@ -42,7 +46,7 @@ export function AnimatedStatCard({
   const isNegative = percentChange < 0;
   const isNeutral = percentChange === 0;
 
-  return (
+  const cardContent = (
     <Card
       className={cn(
         "cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
@@ -55,6 +59,7 @@ export function AnimatedStatCard({
         <CardDescription className="flex items-center gap-1">
           {Icon && <Icon className={cn("h-3 w-3", iconClassName)} />}
           {label}
+          {tooltip && <HelpCircle className="h-3 w-3 text-muted-foreground/50" />}
         </CardDescription>
         <div className="flex items-end gap-2">
           <CardTitle className={cn("text-3xl tabular-nums", titleClassName)}>
@@ -79,5 +84,20 @@ export function AnimatedStatCard({
         </div>
       </CardHeader>
     </Card>
+  );
+
+  if (!tooltip) {
+    return cardContent;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>{cardContent}</TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
