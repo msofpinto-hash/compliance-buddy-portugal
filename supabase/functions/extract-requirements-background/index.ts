@@ -127,18 +127,22 @@ async function runBackgroundExtraction(
     origin?: string;
     useUrl?: boolean;
     firecrawlApiKey?: string;
+    legislationIds?: string[]; // Optional: specific IDs to process
   }
 ) {
-  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey } = options;
+  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey, legislationIds } = options;
   
-  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}`);
+  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}`);
   
+  const isTargetedExtraction = legislationIds && legislationIds.length > 0;
   // Create a sync log entry to track progress
-  const originLabel = origin === 'PT' ? 'PT' : origin === 'EU' ? 'EU' : 'Todos';
+  const originLabel = isTargetedExtraction 
+    ? `Pós-correção: ${legislationIds.length} diplomas`
+    : (origin === 'PT' ? 'PT' : origin === 'EU' ? 'EU' : 'Todos');
   const { data: logEntry, error: logError } = await supabase
     .from('sync_logs')
     .insert({
-      sync_type: 'background-requirements-extraction',
+      sync_type: isTargetedExtraction ? 'post-fix-requirements-extraction' : 'background-requirements-extraction',
       status: 'running',
       created_by: userId,
       items_processed: 0,
@@ -188,25 +192,47 @@ async function runBackgroundExtraction(
       
       console.log(`📊 Found ${idsWithReqs.size} legislation IDs with existing requirements`);
       
-      // Build query with optional origin filter
-      let query = supabase
-        .from('legislation')
-        .select('id, number, title, summary, document_url, origin')
-        .order('publication_date', { ascending: false });
+      let legislationWithoutReqs: any[];
       
-      const originUpper = origin?.toUpperCase();
-      if (originUpper === 'PT') {
-        query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
-      } else if (originUpper === 'EU') {
-        query = query.or('origin.eq.EU,origin.eq.eurlex');
+      // If we have specific IDs, use them; otherwise query all legislation
+      if (isTargetedExtraction) {
+        // Process specific legislation IDs (from post-fix extraction)
+        const idsToProcess = legislationIds.filter(id => !idsWithReqs.has(id));
+        
+        if (idsToProcess.length === 0) {
+          console.log('All specified legislation already has requirements');
+          break;
+        }
+        
+        // Fetch the specific legislation
+        const { data: specificLegislation } = await supabase
+          .from('legislation')
+          .select('id, number, title, summary, document_url, origin')
+          .in('id', idsToProcess.slice(0, batchSize));
+        
+        legislationWithoutReqs = specificLegislation || [];
+        console.log(`📋 Targeted: ${legislationIds.length} specified, ${idsToProcess.length} without reqs, fetched ${legislationWithoutReqs.length}`);
+      } else {
+        // Build query with optional origin filter
+        let query = supabase
+          .from('legislation')
+          .select('id, number, title, summary, document_url, origin')
+          .order('publication_date', { ascending: false });
+        
+        const originUpper = origin?.toUpperCase();
+        if (originUpper === 'PT') {
+          query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+        } else if (originUpper === 'EU') {
+          query = query.or('origin.eq.EU,origin.eq.eurlex');
+        }
+        
+        const { data: allLegislation } = await query;
+        
+        legislationWithoutReqs = allLegislation?.filter((l: any) => !idsWithReqs.has(l.id)) || [];
+        console.log(`📋 ${origin || 'ALL'}: ${allLegislation?.length || 0} total, ${legislationWithoutReqs.length} without reqs`);
       }
       
-      const { data: allLegislation } = await query;
-      
-      const legislationWithoutReqs = allLegislation?.filter((l: any) => !idsWithReqs.has(l.id)) || [];
       const legislationToProcess = legislationWithoutReqs.slice(0, batchSize);
-      
-      console.log(`📋 ${origin || 'ALL'}: ${allLegislation?.length || 0} total, ${legislationWithoutReqs.length} without reqs, processing ${legislationToProcess.length}`);
 
       if (legislationToProcess.length === 0) {
         console.log('All legislation processed, stopping background extraction');
@@ -776,7 +802,7 @@ Deno.serve(async (req) => {
       console.log('🔐 Internal service role call - bypassing user auth');
     }
 
-    const { batchSize = 50, maxBatches = 20, origin, useUrl = false } = await req.json();
+    const { batchSize = 50, maxBatches = 20, origin, useUrl = false, legislationIds } = await req.json();
 
     // Validate useUrl - needs Firecrawl API key
     if (useUrl && !firecrawlApiKey) {
@@ -789,22 +815,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check concurrency - prevent multiple simultaneous runs
-    const { canProceed, runningJob } = await checkConcurrency(supabase, SYNC_TYPE);
-    if (!canProceed) {
-      console.log(`⚠️ Job já em execução desde ${runningJob?.started_at}`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Extração já em curso. Aguarde a conclusão ou verifique o painel de monitorização.",
-          runningJobId: runningJob?.id,
-          runningJobStartedAt: runningJob?.started_at,
-        }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // For targeted extractions (post-fix), skip concurrency check
+    const isTargetedExtraction = legislationIds && legislationIds.length > 0;
+    
+    if (!isTargetedExtraction) {
+      // Check concurrency - prevent multiple simultaneous runs
+      const { canProceed, runningJob } = await checkConcurrency(supabase, SYNC_TYPE);
+      if (!canProceed) {
+        console.log(`⚠️ Job já em execução desde ${runningJob?.started_at}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Extração já em curso. Aguarde a conclusão ou verifique o painel de monitorização.",
+            runningJobId: runningJob?.id,
+            runningJobStartedAt: runningJob?.started_at,
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
-    console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}`);
+    console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}, targetedIds=${legislationIds?.length || 0}`);
 
     // Start background task using Deno's EdgeRuntime
     // Use null for system calls since created_by expects UUID or null
@@ -817,6 +848,7 @@ Deno.serve(async (req) => {
         origin,
         useUrl,
         firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
+        legislationIds,
       })
     ) || runBackgroundExtraction(supabase, lovableApiKey, createdBy, { 
       batchSize, 
@@ -824,17 +856,23 @@ Deno.serve(async (req) => {
       origin,
       useUrl,
       firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
+      legislationIds,
     });
 
     // Return immediately
+    const message = isTargetedExtraction
+      ? `Extração de requisitos iniciada para ${legislationIds.length} diplomas corrigidos.`
+      : (useUrl 
+        ? 'Extração com scraping de URLs iniciada em segundo plano.' 
+        : 'Extração em segundo plano iniciada. Pode fechar esta janela.');
+    
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: useUrl 
-          ? 'Extração com scraping de URLs iniciada em segundo plano.' 
-          : 'Extração em segundo plano iniciada. Pode fechar esta janela.',
-        trackingType: 'background-requirements-extraction',
+        message,
+        trackingType: isTargetedExtraction ? 'post-fix-requirements-extraction' : 'background-requirements-extraction',
         useUrl,
+        targetedCount: legislationIds?.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

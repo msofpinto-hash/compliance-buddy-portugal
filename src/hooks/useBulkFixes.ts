@@ -13,7 +13,7 @@ interface BulkFixResult {
   errors: string[];
 }
 
-export function useBulkFixes(legislation: LegislationWithCategories[] | undefined) {
+export function useBulkFixes(legislation: LegislationWithCategories[] | undefined, extractRequirementsAfterFix = true) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -58,6 +58,7 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
           includeEU: true,
           fixDates: true,
           mode: 'generic_titles',
+          extractRequirements: extractRequirementsAfterFix,
         },
       });
 
@@ -72,10 +73,15 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
       queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
       queryClient.invalidateQueries({ queryKey: ["data-quality-stats"] });
       queryClient.invalidateQueries({ queryKey: ["sync-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
+
+      const reqMessage = data.requirementsExtractionStarted 
+        ? " Extração de requisitos iniciada automaticamente."
+        : "";
 
       toast({
         title: "Correção de títulos iniciada",
-        description: `Reimportação em curso para ${result.total} diplomas. Acompanhe o progresso no banner.`,
+        description: `Reimportação em curso para ${result.total} diplomas.${reqMessage}`,
       });
     } catch (error) {
       console.error("Fix generic titles error:", error);
@@ -195,6 +201,7 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
           includeEU: true,
           fixDates: true,
           mode: 'missing_dates',
+          extractRequirements: extractRequirementsAfterFix,
         },
       });
 
@@ -202,10 +209,15 @@ export function useBulkFixes(legislation: LegislationWithCategories[] | undefine
 
       queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
       queryClient.invalidateQueries({ queryKey: ["sync-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
+
+      const reqMessage = data.requirementsExtractionStarted 
+        ? " Extração de requisitos iniciada automaticamente."
+        : "";
 
       toast({
         title: "Correção de datas iniciada",
-        description: `Reimportação de metadados em curso para ${data.processed || itemsToFix.length} diplomas. Acompanhe o progresso no banner.`,
+        description: `Reimportação de metadados em curso para ${data.processed || itemsToFix.length} diplomas.${reqMessage}`,
       });
     } catch (error) {
       console.error("Fix missing dates error:", error);
