@@ -1,6 +1,16 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session, AuthError, Factor } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+
+interface MFAChallenge {
+  factorId: string;
+}
+
+interface SignInResult {
+  error: Error | null;
+  mfaRequired?: boolean;
+  factorId?: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -9,9 +19,14 @@ interface AuthContextType {
   isApproved: boolean;
   isPendingApproval: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  mfaChallenge: MFAChallenge | null;
+  has2FAEnabled: boolean;
+  signIn: (email: string, password: string) => Promise<SignInResult>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  completeMFAChallenge: () => void;
+  cancelMFAChallenge: () => Promise<void>;
+  check2FAStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [mfaChallenge, setMfaChallenge] = useState<MFAChallenge | null>(null);
+  const [has2FAEnabled, setHas2FAEnabled] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -102,12 +119,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+  const signIn = async (email: string, password: string): Promise<SignInResult> => {
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error: error as Error | null };
+
+    if (error) {
+      return { error: error as Error };
+    }
+
+    // Check if MFA is required
+    if (data.session) {
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const verifiedFactors = factorsData?.totp.filter(f => f.status === 'verified') || [];
+      
+      if (verifiedFactors.length > 0) {
+        // MFA is enabled - require verification
+        const factor = verifiedFactors[0];
+        setMfaChallenge({ factorId: factor.id });
+        return { error: null, mfaRequired: true, factorId: factor.id };
+      }
+    }
+
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
@@ -138,6 +173,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setIsAdmin(false);
     setIsApproved(false);
+    setMfaChallenge(null);
+    setHas2FAEnabled(false);
+  };
+
+  const completeMFAChallenge = () => {
+    setMfaChallenge(null);
+  };
+
+  const cancelMFAChallenge = async () => {
+    setMfaChallenge(null);
+    await supabase.auth.signOut();
+  };
+
+  const check2FAStatus = async (): Promise<boolean> => {
+    try {
+      const { data: factorsData, error } = await supabase.auth.mfa.listFactors();
+      if (error) {
+        console.error("Error checking 2FA status:", error);
+        return false;
+      }
+      
+      const verifiedFactors = factorsData?.totp.filter(f => f.status === 'verified') || [];
+      const enabled = verifiedFactors.length > 0;
+      setHas2FAEnabled(enabled);
+      return enabled;
+    } catch (err) {
+      console.error("Error checking 2FA status:", err);
+      return false;
+    }
   };
 
   // Computed property: user is pending if logged in but not approved (and not admin)
@@ -152,9 +216,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isApproved,
         isPendingApproval,
         isLoading,
+        mfaChallenge,
+        has2FAEnabled,
         signIn,
         signUp,
         signOut,
+        completeMFAChallenge,
+        cancelMFAChallenge,
+        check2FAStatus,
       }}
     >
       {children}
