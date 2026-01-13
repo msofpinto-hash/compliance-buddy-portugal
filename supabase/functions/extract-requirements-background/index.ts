@@ -617,34 +617,44 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized - invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const userId = claimsData.claims.sub;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Check if this is an internal call with service role key
+    const isServiceRoleCall = token === supabaseServiceKey;
+    let userId: string | null = null;
+    
+    if (!isServiceRoleCall) {
+      // Validate user JWT token
+      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
 
-    // Only admins can extract requirements
-    const { data: adminRole } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
+      const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized - invalid token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-    if (!adminRole) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Forbidden - admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      userId = claimsData.claims.sub as string;
+
+      // Only admins can extract requirements
+      const { data: adminRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (!adminRole) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Forbidden - admin access required' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      console.log('🔐 Internal service role call - bypassing user auth');
     }
 
     const { batchSize = 50, maxBatches = 20, origin, useUrl = false } = await req.json();
@@ -678,16 +688,17 @@ Deno.serve(async (req) => {
     console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}`);
 
     // Start background task using Deno's EdgeRuntime
+    const createdBy = userId || 'system';
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
     (globalThis as any).EdgeRuntime?.waitUntil?.(
-      runBackgroundExtraction(supabase, lovableApiKey, userId, { 
+      runBackgroundExtraction(supabase, lovableApiKey, createdBy, { 
         batchSize, 
         maxBatches, 
         origin,
         useUrl,
         firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
       })
-    ) || runBackgroundExtraction(supabase, lovableApiKey, userId, { 
+    ) || runBackgroundExtraction(supabase, lovableApiKey, createdBy, { 
       batchSize, 
       maxBatches, 
       origin,
