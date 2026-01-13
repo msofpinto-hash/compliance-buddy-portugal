@@ -246,9 +246,41 @@ function extractMetadataFromDRE(markdown: string): { title?: string; summary?: s
   return update;
 }
 
-// Build EUR-Lex URL from legislation number
+// Build EUR-Lex URL from legislation number - ALWAYS generates URL for EU legislation
 function buildEurLexUrl(number: string): string | null {
-  // Extract CELEX from typical EU formats
+  // If already a CELEX number (starts with 3 and has specific format)
+  const celexDirect = number.match(/^3(\d{4})([RLDB])(\d{4})$/i);
+  if (celexDirect) {
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${number}`;
+  }
+  
+  // Format: (EC) No XXX/YYYY or (EU) YYYY/XXXX - Regulations
+  const ecNoMatch = number.match(/\(E[CU]\)\s*No?\s*(\d+)\/(\d{4})/i);
+  if (ecNoMatch) {
+    const celex = `3${ecNoMatch[2]}R${ecNoMatch[1].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Format: (EU) YYYY/XXXX - Regulations
+  const euYearFirst = number.match(/\(EU\)\s*(\d{4})\/(\d+)/i);
+  if (euYearFirst) {
+    const celex = `3${euYearFirst[1]}R${euYearFirst[2].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Format: YYYY/XXX/EC or YYYY/XXX/JHA - Decisions
+  const decisionYearFirst = number.match(/(\d{4})\/(\d+)\/(EC|JHA|EU)/i);
+  if (decisionYearFirst) {
+    const celex = `3${decisionYearFirst[1]}D${decisionYearFirst[2].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Format: Directive YYYY/NN/EC - English format
+  const directiveEnglish = number.match(/Directive\s+(\d{4})\/(\d+)/i);
+  if (directiveEnglish) {
+    const celex = `3${directiveEnglish[1]}L${directiveEnglish[2].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
   
   // Regulamento (UE) n.º YYYY/NNNN or Regulamento (UE) YYYY/NNNN
   const regMatch = number.match(/Regulamento.*?(\d{4})\/(\d+)/i);
@@ -286,6 +318,24 @@ function buildEurLexUrl(number: string): string | null {
     const shortYear = parseInt(oldRegMatch[2]);
     const fullYear = shortYear > 50 ? `19${oldRegMatch[2]}` : `20${oldRegMatch[2]}`;
     const celex = `3${fullYear}R${oldRegMatch[1].padStart(4, '0')}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+  }
+  
+  // Last resort: try to extract any YYYY and NNNN pattern and build as Regulation
+  const genericMatch = number.match(/(\d{4})\/(\d+)/);
+  if (genericMatch) {
+    // If contains indicator for Decision
+    if (/JHA|PESC|decision|decisão/i.test(number)) {
+      const celex = `3${genericMatch[1]}D${genericMatch[2].padStart(4, '0')}`;
+      return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+    }
+    // If contains indicator for Directive
+    if (/directive|diretiva|directiva/i.test(number)) {
+      const celex = `3${genericMatch[1]}L${genericMatch[2].padStart(4, '0')}`;
+      return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+    }
+    // Default to Regulation for EU formats
+    const celex = `3${genericMatch[1]}R${genericMatch[2].padStart(4, '0')}`;
     return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
   }
   
