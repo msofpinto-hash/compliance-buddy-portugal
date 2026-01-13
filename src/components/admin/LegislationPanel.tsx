@@ -488,7 +488,7 @@ export function LegislationPanel() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-6">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total de Legislação</CardDescription>
@@ -532,6 +532,17 @@ export function LegislationPanel() {
             </CardDescription>
             <CardTitle className={`text-3xl ${problemsCount > 0 ? "text-red-600" : ""}`}>
               {problemsCount}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className={revokedCount > 0 ? "border-slate-400 bg-slate-50/50" : ""}>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1">
+              {revokedCount > 0 && <Ban className="h-3 w-3 text-slate-600" />}
+              Revogados
+            </CardDescription>
+            <CardTitle className={`text-3xl ${revokedCount > 0 ? "text-slate-600" : ""}`}>
+              {revokedCount}
             </CardTitle>
           </CardHeader>
         </Card>
