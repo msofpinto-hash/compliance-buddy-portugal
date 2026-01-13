@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.reimport-eurlex-dates]
 verify_jwt = false
+
+[functions.chain-extraction-jobs]
+verify_jwt = false
+
+[functions.auto-restart-extraction]
+verify_jwt = false
