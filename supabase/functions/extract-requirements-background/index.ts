@@ -249,77 +249,195 @@ async function runBackgroundExtraction(
             
             if (textContent) {
               // Full text extraction - more comprehensive
-              const truncatedText = textContent.length > 15000 ? textContent.substring(0, 15000) + '...' : textContent;
+              // For very large documents, we need to process in chunks
+              const MAX_CHUNK_SIZE = 25000;
+              const textChunks: string[] = [];
+              
+              if (textContent.length > MAX_CHUNK_SIZE) {
+                // Split by article markers to keep articles together
+                const articleMarker = /(?=(?:Artigo|Art\.)\s+\d+)/gi;
+                const parts = textContent.split(articleMarker).filter(p => p.trim());
+                
+                let currentChunk = '';
+                for (const part of parts) {
+                  if ((currentChunk + part).length > MAX_CHUNK_SIZE && currentChunk.length > 0) {
+                    textChunks.push(currentChunk);
+                    currentChunk = part;
+                  } else {
+                    currentChunk += part;
+                  }
+                }
+                if (currentChunk.trim()) {
+                  textChunks.push(currentChunk);
+                }
+                console.log(`📚 ${leg.number}: Large document split into ${textChunks.length} chunks`);
+              } else {
+                textChunks.push(textContent);
+              }
+              
               useAdvancedModel = true;
               
-              if (isEU) {
-                // EU LEGISLATION - artigos, anexos OU texto corrido
-                prompt = `Analisa o seguinte diploma EUROPEU e extrai os requisitos legais.
+              // Process all chunks and collect all requirements
+              const allChunkRequirements: Requirement[] = [];
+              
+              for (let chunkIndex = 0; chunkIndex < textChunks.length; chunkIndex++) {
+                const truncatedText = textChunks[chunkIndex];
+                const chunkInfo = textChunks.length > 1 ? ` (parte ${chunkIndex + 1}/${textChunks.length})` : '';
+                
+                if (isEU) {
+                  // EU LEGISLATION - artigos, anexos OU texto corrido
+                  prompt = `Analisa o seguinte diploma EUROPEU${chunkInfo} e extrai TODOS os requisitos legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
-${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
+${leg.summary && chunkIndex === 0 ? `SUMÁRIO: ${leg.summary}` : ''}
 
-TEXTO COMPLETO DO DIPLOMA:
+TEXTO DO DIPLOMA${chunkInfo}:
 ${truncatedText}
 
 INSTRUÇÕES CRÍTICAS:
-1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, considerandos, vistos, etc.)
-
-2. SE O DIPLOMA TEM ARTIGOS (Artigo 1.º, Artigo 2.º, etc.):
-   - Começa a extrair APENAS a partir do "Artigo 1.º" ou equivalente
-   - Para cada ARTIGO encontrado, copia o texto INTEGRAL (incluindo todos os números e alíneas)
-   - Se existirem ANEXOS, extrai também o seu conteúdo principal
-   - article: "Artigo 1.º", "Artigo 2.º", "Anexo I", "Anexo II", etc.
-
-3. SE O DIPLOMA NÃO TEM ARTIGOS (ex: Comunicações, Avisos, Pareceres, Resoluções simples):
-   - Ignora o sumário/introdução
-   - Copia o TEXTO CORRIDO integral do corpo do diploma
-   - Divide em partes lógicas se o texto for muito longo
-   - article: "Corpo", "Parte 1", "Parte 2", "Anexo", etc.
+1. IGNORA preâmbulos, considerandos, vistos - começa nos Artigos
+2. Extrai CADA ARTIGO encontrado no texto com o seu texto INTEGRAL
+3. Extrai também ANEXOS se existirem
+4. NÃO LIMITES o número de artigos - extrai TODOS os que encontrares
 
 FORMATO:
-- article: identificador do bloco de texto
-- requirement_text: TEXTO INTEGRAL em PORTUGUÊS (máx 2000 caracteres)
+- article: "Artigo 1.º", "Artigo 2.º", "Anexo I", etc.
+- requirement_text: TEXTO INTEGRAL em PORTUGUÊS (máx 2500 caracteres por artigo)
 - notes: contexto breve se necessário (opcional)
 
-Retorna APENAS um array JSON válido:
-[{"article": "Artigo 1.º", "requirement_text": "1 - O presente regulamento estabelece... 2 - Para efeitos do disposto...", "notes": "Objeto e âmbito"}]`;
-              } else {
-                // PT LEGISLATION - artigos, anexos OU texto corrido
-                prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai os requisitos legais.
+Retorna APENAS um array JSON válido com TODOS os artigos:
+[{"article": "Artigo 1.º", "requirement_text": "1 - O presente regulamento estabelece...", "notes": "Objeto"}]`;
+                } else {
+                  // PT LEGISLATION - artigos, anexos OU texto corrido
+                  prompt = `Analisa o seguinte diploma PORTUGUÊS${chunkInfo} e extrai TODOS os requisitos legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
-${leg.summary ? `SUMÁRIO: ${leg.summary}` : ''}
+${leg.summary && chunkIndex === 0 ? `SUMÁRIO: ${leg.summary}` : ''}
 
-TEXTO COMPLETO DO DIPLOMA:
+TEXTO DO DIPLOMA${chunkInfo}:
 ${truncatedText}
 
 INSTRUÇÕES CRÍTICAS:
-1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, vistos, considerandos, etc.)
-
-2. SE O DIPLOMA TEM ARTIGOS (Art. 1.º, Art. 2.º, Artigo 1.º, etc.):
-   - Começa a extrair APENAS a partir do primeiro artigo
-   - Para cada ARTIGO encontrado, copia o texto INTEGRAL (incluindo todos os números e alíneas)
-   - Se existirem ANEXOS, extrai também o seu conteúdo principal
-   - article: "Art. 1.º", "Art. 2.º", "Anexo I", "Anexo II", etc.
-
-3. SE O DIPLOMA NÃO TEM ARTIGOS (ex: Despachos, Avisos, Pareceres, Anúncios, Declarações):
-   - Ignora o sumário/introdução
-   - Copia o TEXTO CORRIDO integral do corpo do diploma
-   - Divide em partes lógicas se o texto for muito longo
-   - article: "Corpo", "Parte 1", "Parte 2", "Anexo", etc.
+1. IGNORA preâmbulos, vistos, considerandos - começa nos Artigos
+2. Extrai CADA ARTIGO encontrado no texto com o seu texto INTEGRAL
+3. Extrai também ANEXOS se existirem
+4. NÃO LIMITES o número de artigos - extrai TODOS os que encontrares
 
 FORMATO:
-- article: identificador do bloco de texto
-- requirement_text: TEXTO INTEGRAL do artigo ou bloco (máx 2000 caracteres)
+- article: "Art. 1.º", "Art. 2.º", "Anexo I", etc.
+- requirement_text: TEXTO INTEGRAL do artigo (máx 2500 caracteres por artigo)
 - notes: contexto breve se necessário (opcional)
 
-Retorna APENAS um array JSON válido:
-[{"article": "Art. 1.º", "requirement_text": "1 - O presente decreto-lei estabelece... 2 - Para efeitos do disposto...", "notes": "Objeto"}]`;
+Retorna APENAS um array JSON válido com TODOS os artigos:
+[{"article": "Art. 1.º", "requirement_text": "1 - O presente decreto-lei estabelece...", "notes": "Objeto"}]`;
+                }
+                
+                // Make AI call for this chunk
+                const chunkResponse = await fetch(AI_ENDPOINT, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${lovableApiKey}`,
+                  },
+                  body: JSON.stringify({
+                    model: 'google/gemini-2.5-flash',
+                    messages: [
+                      { role: 'system', content: 'És um especialista em legislação. Extrai TODOS os artigos/requisitos legais do texto. NÃO LIMITES o número de artigos - extrai tudo. Responde APENAS com JSON válido.' },
+                      { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.2,
+                    max_tokens: 8000,
+                  }),
+                });
+                
+                if (!chunkResponse.ok) {
+                  console.error(`AI error for ${leg.number} chunk ${chunkIndex}:`, chunkResponse.status);
+                  continue;
+                }
+                
+                const chunkAiData = await chunkResponse.json();
+                const chunkContent = chunkAiData.choices?.[0]?.message?.content || '';
+                
+                try {
+                  let jsonContent = chunkContent.trim();
+                  if (jsonContent.startsWith('```json')) {
+                    jsonContent = jsonContent.replace(/^```json\s*\n?/, '').replace(/\n?\s*```$/, '');
+                  } else if (jsonContent.startsWith('```')) {
+                    jsonContent = jsonContent.replace(/^```\s*\n?/, '').replace(/\n?\s*```$/, '');
+                  }
+                  
+                  const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
+                  if (arrayMatch) {
+                    jsonContent = arrayMatch[0];
+                  }
+                  
+                  const chunkReqs = JSON.parse(jsonContent);
+                  if (Array.isArray(chunkReqs)) {
+                    const cleanedReqs = chunkReqs
+                      .filter((r: any) => r && typeof r === 'object' && r.requirement_text)
+                      .map((r: any) => ({
+                        article: cleanArticle(r.article, leg.number),
+                        requirement_text: String(r.requirement_text).substring(0, 3500),
+                        notes: r.notes ? String(r.notes).substring(0, 500) : undefined,
+                      }));
+                    allChunkRequirements.push(...cleanedReqs);
+                    console.log(`📄 ${leg.number} chunk ${chunkIndex + 1}: extracted ${cleanedReqs.length} requirements`);
+                  }
+                } catch (parseError) {
+                  console.error(`Parse error for ${leg.number} chunk ${chunkIndex}:`, parseError);
+                }
+                
+                // Small delay between chunks to avoid rate limiting
+                if (textChunks.length > 1) {
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                }
               }
-            } else {
+              
+              // Use collected requirements from all chunks
+              if (allChunkRequirements.length > 0) {
+                console.log(`📊 ${leg.number}: Total ${allChunkRequirements.length} requirements from ${textChunks.length} chunks`);
+                
+                // Skip the normal AI call since we already processed
+                // Insert requirements directly
+                const { data: existingReqsForLeg } = await supabase
+                  .from('legal_requirements')
+                  .select('article, requirement_text')
+                  .eq('legislation_id', leg.id);
+
+                const existingSet = new Set(
+                  (existingReqsForLeg || []).map((r: { article: string; requirement_text: string }) => `${r.article}::${r.requirement_text.substring(0, 100)}`)
+                );
+
+                const newRequirements = allChunkRequirements.filter(req => {
+                  const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
+                  return !existingSet.has(key);
+                });
+
+                if (newRequirements.length > 0) {
+                  const toInsert = newRequirements.map(req => ({
+                    legislation_id: leg.id,
+                    article: req.article,
+                    requirement_text: req.requirement_text,
+                    notes: req.notes || null,
+                  }));
+
+                  const { error: insertError } = await supabase
+                    .from('legal_requirements')
+                    .insert(toInsert);
+
+                  if (!insertError) {
+                    console.log(`✅ ${leg.number}: Inserted ${newRequirements.length} requirements (from ${textChunks.length} chunks)`);
+                    return { processed: true, usedUrl: true, requirementsAdded: newRequirements.length };
+                  }
+                }
+                return { processed: true, usedUrl: true, requirementsAdded: 0 };
+              }
+            }
+            
+            // Summary-based extraction - fallback when no URL content available
+            {
               // Summary-based extraction - USE ADVANCED MODEL to compensate for lack of full text
               useAdvancedModel = true;
               
@@ -436,10 +554,10 @@ Retorna APENAS um array JSON válido:
                 .filter(r => r && typeof r === 'object' && r.requirement_text)
                 .map(r => ({
                   article: cleanArticle(r.article, leg.number),
-                  requirement_text: String(r.requirement_text).substring(0, 3000), // Increased for full article text
+                  requirement_text: String(r.requirement_text).substring(0, 3500),
                   notes: r.notes ? String(r.notes).substring(0, 500) : undefined,
-                }))
-                .slice(0, 15); // Max 15 articles per legislation
+                }));
+                // No limit - extract all articles
                 
             } catch (parseError) {
               console.error(`Parse error for ${leg.number}:`, parseError);
