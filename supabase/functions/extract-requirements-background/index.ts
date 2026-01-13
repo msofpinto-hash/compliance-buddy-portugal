@@ -120,7 +120,7 @@ function isErrorPage(content: string): boolean {
 async function runBackgroundExtraction(
   supabase: any,
   lovableApiKey: string,
-  userId: string,
+  userId: string | null,
   options: { 
     batchSize: number; 
     maxBatches: number; 
@@ -688,7 +688,8 @@ Deno.serve(async (req) => {
     console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}`);
 
     // Start background task using Deno's EdgeRuntime
-    const createdBy = userId || 'system';
+    // Use null for system calls since created_by expects UUID or null
+    const createdBy = userId || null;
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
     (globalThis as any).EdgeRuntime?.waitUntil?.(
       runBackgroundExtraction(supabase, lovableApiKey, createdBy, { 
