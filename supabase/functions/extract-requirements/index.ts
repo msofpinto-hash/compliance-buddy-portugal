@@ -191,44 +191,40 @@ Deno.serve(async (req) => {
         let prompt: string;
         
         if (isEU) {
-          prompt = `Analisa o seguinte diploma EUROPEU e extrai APENAS os ARTIGOS e ANEXOS.
+          prompt = `Analisa o seguinte diploma EUROPEU e extrai os requisitos legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES CRÍTICAS:
-1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, considerandos, vistos)
-2. Começa a extrair APENAS a partir do "Artigo 1.º"
-3. Para cada ARTIGO, infere o texto completo das obrigações
-4. Se existirem ANEXOS, extrai também
+INSTRUÇÕES:
+1. SE O DIPLOMA TEM ARTIGOS: extrai a partir do "Artigo 1.º", incluindo Anexos
+2. SE NÃO TEM ARTIGOS (Comunicações, Avisos, Pareceres): extrai o texto corrido do corpo
 
 FORMATO:
-- article: "Artigo 1.º", "Artigo 2.º", "Anexo I", etc.
-- requirement_text: TEXTO do artigo em PORTUGUÊS (máx 1000 caracteres)
+- article: "Artigo 1.º", "Artigo 2.º", "Anexo I" OU "Corpo", "Parte 1", etc.
+- requirement_text: TEXTO em PORTUGUÊS (máx 1000 caracteres)
 
-Extrai entre 3 a 10 artigos/anexos.
+Extrai entre 3 a 10 blocos.
 
 Retorna APENAS um array JSON válido:
 [{"article": "Artigo 1.º", "requirement_text": "O presente regulamento estabelece as regras para..."}]`;
         } else {
-          prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai APENAS os ARTIGOS e ANEXOS.
+          prompt = `Analisa o seguinte diploma PORTUGUÊS e extrai os requisitos legais.
 
 DIPLOMA: ${leg.number}
 TÍTULO: ${leg.title}
 SUMÁRIO: ${leg.summary || 'Não disponível'}
 
-INSTRUÇÕES CRÍTICAS:
-1. IGNORA TODO O TEXTO antes do primeiro "Artigo" (preâmbulo, vistos, considerandos)
-2. Começa a extrair APENAS a partir do "Art. 1.º"
-3. Para cada ARTIGO, infere o texto completo das obrigações
-4. Se existirem ANEXOS, extrai também
+INSTRUÇÕES:
+1. SE O DIPLOMA TEM ARTIGOS: extrai a partir do "Art. 1.º", incluindo Anexos
+2. SE NÃO TEM ARTIGOS (Despachos, Avisos, Pareceres, Anúncios): extrai o texto corrido do corpo
 
 FORMATO:
-- article: "Art. 1.º", "Art. 2.º", "Anexo I", etc.
-- requirement_text: TEXTO do artigo em PORTUGUÊS (máx 1000 caracteres)
+- article: "Art. 1.º", "Art. 2.º", "Anexo I" OU "Corpo", "Parte 1", etc.
+- requirement_text: TEXTO em PORTUGUÊS (máx 1000 caracteres)
 
-Extrai entre 3 a 10 artigos/anexos.
+Extrai entre 3 a 10 blocos.
 
 Retorna APENAS um array JSON válido:
 [{"article": "Art. 1.º", "requirement_text": "O presente decreto-lei estabelece as regras para..."}]`;
