@@ -45,6 +45,9 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   type LucideIcon
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -268,6 +271,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
   const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<50 | 100>(50);
   
   // Use external search term if provided (from Biblioteca), otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
@@ -275,6 +280,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   
   const selectedThemeId = externalThemeId !== undefined ? externalThemeId : internalSelectedThemeId;
   const hideThemesColumn = externalThemeId !== undefined;
+
+  // Reset page when filters change
+  const resetPage = () => setCurrentPage(1);
 
   const filteredLegislation = useMemo(() => {
     return legislation.filter(leg => {
@@ -443,6 +451,19 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     return result;
   }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation, sortBy, sortOrder]);
 
+  // Pagination
+  const totalPages = Math.ceil(displayedLegislation.length / pageSize);
+  const paginatedLegislation = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return displayedLegislation.slice(startIndex, startIndex + pageSize);
+  }, [displayedLegislation, currentPage, pageSize]);
+
+  // Reset page when category or theme changes
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    setCurrentPage(1);
+  };
+
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
@@ -531,7 +552,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           } ${isMainCategory && !isSelected ? 'bg-muted/50' : ''}`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => {
-            setSelectedCategoryId(node.category.id);
+            handleCategorySelect(node.category.id);
             if (hasChildren) {
               toggleCategory(node.category.id);
             }
@@ -917,11 +938,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               }
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-2">
+          <CardContent className="p-2 flex flex-col">
             {displayedLegislation.length > 0 ? (
-              <ScrollArea className="h-[calc(100vh-300px)]">
+              <>
+              <ScrollArea className="h-[calc(100vh-380px)]">
                 <div className="space-y-2 pr-2">
-                  {displayedLegislation.map(leg => {
+                  {paginatedLegislation.map(leg => {
                     const requirementsCount = (leg as any).legal_requirements?.length || 0;
                     const applicabilityType = applicabilityMap?.[leg.id];
                     const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
@@ -1135,6 +1157,80 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                   })}
                 </div>
               </ScrollArea>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-3 mt-2 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Por página:</span>
+                    <Select 
+                      value={pageSize.toString()} 
+                      onValueChange={(v) => { 
+                        setPageSize(parseInt(v) as 50 | 100); 
+                        setCurrentPage(1); 
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-16 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground mr-2">
+                      {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, displayedLegislation.length)} de {displayedLegislation.length}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      title="Primeira página"
+                    >
+                      <ChevronsLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      title="Página anterior"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="text-xs font-medium px-2">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      title="Próxima página"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      title="Última página"
+                    >
+                      <ChevronsRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              </>
             ) : (
               <div className="py-12 text-center text-muted-foreground">
                 <img 
