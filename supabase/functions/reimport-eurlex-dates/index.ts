@@ -161,7 +161,28 @@ function extractDatesFromMarkdown(markdown: string): LegislationDates {
   return dates;
 }
 
-// Format date to YYYY-MM-DD
+// Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
+function sanitizeDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    const [yearStr] = dateStr.split('-');
+    const year = parseInt(yearStr, 10);
+    const currentYear = new Date().getFullYear();
+    
+    // Valid year range: 1900 to current year + 1
+    if (year >= 1900 && year <= currentYear + 1) {
+      return dateStr;
+    }
+    
+    console.warn(`Invalid date year ${year} detected in "${dateStr}", setting date to null`);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Format date to YYYY-MM-DD with validation
 function formatDate(day: string, monthOrName: string, year: string): string | null {
   try {
     const d = parseInt(day);
@@ -181,10 +202,14 @@ function formatDate(day: string, monthOrName: string, year: string): string | nu
     }
     
     const y = parseInt(year);
+    const currentYear = new Date().getFullYear();
     
-    if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
+    // Updated validation: 1900 to current year + 1
+    if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= currentYear + 1) {
       return `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
     }
+    
+    console.warn(`Invalid date detected: ${day}/${monthOrName}/${year}`);
   } catch (e) {
     console.error('Error formatting date:', e);
   }
@@ -220,14 +245,25 @@ async function processLegislationBatch(
       if (dates && (dates.publication_date || dates.effective_date || dates.revocation_date)) {
         const updateData: any = {};
         
+        // Apply sanitizeDate to all dates before updating
         if (dates.publication_date) {
-          updateData.publication_date = dates.publication_date;
+          const sanitized = sanitizeDate(dates.publication_date);
+          if (sanitized) updateData.publication_date = sanitized;
         }
         if (dates.effective_date) {
-          updateData.effective_date = dates.effective_date;
+          const sanitized = sanitizeDate(dates.effective_date);
+          if (sanitized) updateData.effective_date = sanitized;
         }
         if (dates.revocation_date) {
-          updateData.revocation_date = dates.revocation_date;
+          const sanitized = sanitizeDate(dates.revocation_date);
+          if (sanitized) updateData.revocation_date = sanitized;
+        }
+        
+        // Only update if we have valid dates
+        if (Object.keys(updateData).length === 0) {
+          console.log(`No valid dates found for ${leg.number} after sanitization`);
+          processed++;
+          continue;
         }
         
         const { error } = await supabase
