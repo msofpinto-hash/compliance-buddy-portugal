@@ -1,61 +1,31 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Progress } from "@/components/ui/progress";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, XCircle, Clock, Zap } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
+import { CheckCircle2, Clock, Loader2, XCircle, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 
-interface SyncLog {
-  id: string;
-  sync_type: string;
-  status: string;
-  started_at: string;
-  completed_at: string | null;
-  items_processed: number | null;
-  items_added: number | null;
-  items_updated: number | null;
-  error_message: string | null;
-}
-
 export function FixIncompletesProgressBanner() {
+  const { data: activeJob } = useFixIncompletesJob();
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Query for the latest fix-incomplete-requirements job
-  const { data: activeJob, isLoading } = useQuery({
-    queryKey: ["fix-incompletes-job"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sync_logs")
-        .select("*")
-        .eq("sync_type", "fix-incomplete-requirements")
-        .order("started_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as SyncLog | null;
-    },
-    refetchInterval: (query) => {
-      // Poll every 3 seconds if job is running
-      const job = query.state.data;
-      return job?.status === "running" ? 3000 : false;
-    },
-  });
+  const isRunning = activeJob?.status === "running";
+  const isCompleted = activeJob?.status === "completed";
+  const isError = activeJob?.status === "error";
 
   // Update elapsed time counter
   useEffect(() => {
-    if (activeJob?.status === "running" && activeJob.started_at) {
+    if (isRunning && activeJob?.started_at) {
       setStartTime(new Date(activeJob.started_at));
     } else {
       setStartTime(null);
     }
-  }, [activeJob?.status, activeJob?.started_at]);
+  }, [isRunning, activeJob?.started_at]);
 
   useEffect(() => {
-    if (!startTime || activeJob?.status !== "running") {
+    if (!startTime || !isRunning) {
       setElapsedSeconds(0);
       return;
     }
@@ -65,16 +35,10 @@ export function FixIncompletesProgressBanner() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [startTime, activeJob?.status]);
+  }, [startTime, isRunning]);
 
-  // Don't show anything if no job exists or still loading
-  if (isLoading || !activeJob) {
-    return null;
-  }
-
-  const isRunning = activeJob.status === "running";
-  const isCompleted = activeJob.status === "completed";
-  const isError = activeJob.status === "error";
+  // Don't show anything if no job exists
+  if (!activeJob) return null;
 
   // Only show for recent jobs (last 5 minutes if not running)
   if (!isRunning) {
@@ -91,37 +55,37 @@ export function FixIncompletesProgressBanner() {
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   };
 
-  // Calculate speed (items per minute)
-  const speed = elapsedSeconds > 0 && activeJob.items_processed
-    ? Math.round((activeJob.items_processed / elapsedSeconds) * 60 * 10) / 10
-    : 0;
+  const speed = useMemo(() => {
+    if (!isRunning || elapsedSeconds <= 0) return 0;
+    const processed = activeJob.items_processed ?? 0;
+    return processed > 0 ? Math.round((processed / elapsedSeconds) * 60 * 10) / 10 : 0;
+  }, [activeJob.items_processed, elapsedSeconds, isRunning]);
 
   return (
-    <div
-      className={`rounded-lg border p-4 mb-4 ${
-        isRunning
-          ? "bg-blue-50 border-blue-200"
-          : isCompleted
-          ? "bg-green-50 border-green-200"
-          : "bg-red-50 border-red-200"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className="mb-4 rounded-lg border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
           {isRunning ? (
-            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+            <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary" />
           ) : isCompleted ? (
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <CheckCircle2 className="mt-0.5 h-5 w-5 text-foreground" />
           ) : (
-            <XCircle className="h-5 w-5 text-red-600" />
+            <XCircle className="mt-0.5 h-5 w-5 text-destructive" />
           )}
+
           <div>
-            <p className={`font-medium ${isRunning ? "text-blue-900" : isCompleted ? "text-green-900" : "text-red-900"}`}>
-              Correção de Requisitos Incompletos
-              {isRunning && " em progresso..."}
-              {isCompleted && " concluída"}
-              {isError && " com erro"}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium text-foreground">
+                Correção de Requisitos Incompletos
+                {isRunning && " em progresso"}
+                {isCompleted && " concluída"}
+                {isError && " com erro"}
+              </p>
+              {isRunning && <Badge variant="secondary">Em curso</Badge>}
+              {isCompleted && <Badge variant="outline">Concluído</Badge>}
+              {isError && <Badge variant="destructive">Erro</Badge>}
+            </div>
+
             <p className="text-sm text-muted-foreground">
               Iniciado: {format(new Date(activeJob.started_at), "HH:mm:ss", { locale: pt })}
               {activeJob.completed_at && (
@@ -131,46 +95,41 @@ export function FixIncompletesProgressBanner() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* Stats */}
-          <div className="flex items-center gap-3 text-sm">
-            {activeJob.items_processed !== null && (
-              <Badge variant="secondary" className="gap-1">
-                <Zap className="h-3 w-3" />
-                {activeJob.items_processed} processados
-              </Badge>
-            )}
-            {activeJob.items_updated !== null && activeJob.items_updated > 0 && (
-              <Badge variant="secondary" className="bg-green-100 text-green-800 gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                {activeJob.items_updated} corrigidos
-              </Badge>
-            )}
-            {isRunning && elapsedSeconds > 0 && (
-              <Badge variant="outline" className="gap-1">
-                <Clock className="h-3 w-3" />
-                {formatDuration(elapsedSeconds)}
-              </Badge>
-            )}
-            {isRunning && speed > 0 && (
-              <Badge variant="outline" className="gap-1 text-blue-700">
-                {speed} itens/min
-              </Badge>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {activeJob.items_processed !== null && (
+            <Badge variant="secondary" className="gap-1">
+              <Zap className="h-3 w-3" />
+              {activeJob.items_processed} processados
+            </Badge>
+          )}
+
+          {activeJob.items_updated !== null && activeJob.items_updated > 0 && (
+            <Badge variant="default" className="gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              {activeJob.items_updated} corrigidos
+            </Badge>
+          )}
+
+          {isRunning && elapsedSeconds > 0 && (
+            <Badge variant="outline" className="gap-1">
+              <Clock className="h-3 w-3" />
+              {formatDuration(elapsedSeconds)}
+            </Badge>
+          )}
+
+          {isRunning && speed > 0 && <Badge variant="outline">{speed} itens/min</Badge>}
         </div>
       </div>
 
-      {/* Progress bar for running jobs */}
-      {isRunning && activeJob.items_processed !== null && (
+      {isRunning && (
         <div className="mt-3">
-          <Progress value={undefined} className="h-2 animate-pulse" />
+          {/* Indeterminate bar (full bar + pulse) just to show activity */}
+          <Progress value={100} className="h-2" />
         </div>
       )}
 
-      {/* Error message */}
       {isError && activeJob.error_message && (
-        <p className="mt-2 text-sm text-red-700">{activeJob.error_message}</p>
+        <p className="mt-2 text-sm text-destructive">{activeJob.error_message}</p>
       )}
     </div>
   );

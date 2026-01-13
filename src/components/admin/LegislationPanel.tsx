@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles, Ban, RefreshCcw } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
+import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
 import { ManageRequirementsDialog } from "./ManageRequirementsDialog";
@@ -34,7 +35,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,9 @@ export function LegislationPanel() {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: fixIncompletesJob } = useFixIncompletesJob();
+  const isFixIncompletesRunning = fixIncompletesJob?.status === "running";
+
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("publication_date");
@@ -460,18 +464,60 @@ export function LegislationPanel() {
   };
 
   const handleFixIncompleteRequirements = async () => {
-    setIsFixingIncompletes(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('fix-incomplete-requirements', {
-        body: { batchSize: 5, maxBatches: 200, minRatio: 0.3 }
+    if (isFixIncompletesRunning) {
+      toast({
+        title: "Correção já em curso",
+        description: "Já existe um job a correr. Veja o indicador de progresso acima.",
       });
-      
-      if (error) throw error;
-      
+      return;
+    }
+
+    setIsFixingIncompletes(true);
+
+    try {
+      const { error } = await supabase.functions.invoke("fix-incomplete-requirements", {
+        body: { batchSize: 5, maxBatches: 200, minRatio: 0.3 },
+      });
+
+      if (error) {
+        const anyErr = error as any;
+        const status = anyErr?.context?.status ?? anyErr?.status;
+
+        // When a job is already running, treat as informational (not an error).
+        if (status === 409) {
+          let runningJobId: string | undefined;
+          try {
+            const ctx = anyErr?.context;
+            if (ctx && typeof ctx.clone === "function") {
+              const body = await ctx.clone().json();
+              runningJobId = body?.runningJobId;
+            }
+          } catch {
+            // ignore parse errors
+          }
+
+          toast({
+            title: "Correção já em curso",
+            description: runningJobId
+              ? `Job ${runningJobId.slice(0, 8)}… em execução. Veja o progresso acima.`
+              : "Já existe um job a correr. Veja o indicador de progresso acima.",
+          });
+
+          // Force-refresh the banner state.
+          queryClient.invalidateQueries({ queryKey: ["fix-incompletes-job"] });
+          return;
+        }
+
+        throw error;
+      }
+
       toast({
         title: "Correção iniciada",
-        description: "A correção de diplomas incompletos foi iniciada em segundo plano. Pode acompanhar o progresso no painel de sincronização.",
+        description:
+          "A correção de diplomas incompletos foi iniciada em segundo plano. Pode acompanhar o progresso no indicador acima.",
       });
+
+      queryClient.invalidateQueries({ queryKey: ["fix-incompletes-job"] });
     } catch (error) {
       console.error("Fix incompletes error:", error);
       toast({
@@ -688,15 +734,15 @@ export function LegislationPanel() {
                   variant="outline"
                   size="sm"
                   onClick={handleFixIncompleteRequirements}
-                  disabled={isFixingIncompletes}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                  disabled={isFixingIncompletes || isFixIncompletesRunning}
+                  className="gap-2"
                 >
-                  {isFixingIncompletes ? (
+                  {isFixingIncompletes || isFixIncompletesRunning ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <RefreshCcw className="h-4 w-4" />
                   )}
-                  Corrigir Requisitos Incompletos
+                  {isFixIncompletesRunning ? "Correção em curso" : "Corrigir Requisitos Incompletos"}
                 </Button>
                 {problemsCount > 0 && (
                   <Button
