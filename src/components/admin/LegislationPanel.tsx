@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles } from "lucide-react";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Layers, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, LayoutGrid, LayoutList, Sparkles, Ban } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
 import { BulkAssignCategoriesDialog } from "./BulkAssignCategoriesDialog";
@@ -55,6 +55,7 @@ export function LegislationPanel() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterNoCategory, setFilterNoCategory] = useState<boolean>(false);
   const [filterProblems, setFilterProblems] = useState<boolean>(false);
+  const [filterRevoked, setFilterRevoked] = useState<boolean>(false);
   const [filterOrigin, setFilterOrigin] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
@@ -153,6 +154,11 @@ export function LegislationPanel() {
       result = result.filter(hasProblems);
     }
 
+    // Filter by "revoked"
+    if (filterRevoked) {
+      result = result.filter(leg => !!(leg as any).revocation_date);
+    }
+
     // Filter by origin
     if (filterOrigin !== "all") {
       result = result.filter(leg => leg.origin === filterOrigin);
@@ -163,15 +169,15 @@ export function LegislationPanel() {
       result = result.filter(leg => leg.categories.length === 0);
     }
 
-    // Then filter by theme (only if not filtering by "no category")
-    if (!filterNoCategory && !filterProblems && filterTheme !== "all") {
+    // Then filter by theme (only if not filtering by special filters)
+    if (!filterNoCategory && !filterProblems && !filterRevoked && filterTheme !== "all") {
       result = result.filter(leg =>
         leg.categories.some(cat => cat.theme_name === filterTheme)
       );
     }
 
-    // Then filter by specific category (only if not filtering by "no category")
-    if (!filterNoCategory && !filterProblems && filterCategory !== "all") {
+    // Then filter by specific category (only if not filtering by special filters)
+    if (!filterNoCategory && !filterProblems && !filterRevoked && filterCategory !== "all") {
       result = result.filter(leg =>
         leg.categories.some(cat => cat.id === filterCategory)
       );
@@ -207,12 +213,18 @@ export function LegislationPanel() {
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterOrigin, filterStartDate, filterEndDate, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterRevoked, filterOrigin, filterStartDate, filterEndDate, sortField, sortOrder]);
 
   // Count items without category
   const noCategoryCount = useMemo(() => {
     if (!legislation) return 0;
     return legislation.filter(leg => leg.categories.length === 0).length;
+  }, [legislation]);
+
+  // Count revoked items
+  const revokedCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(leg => !!(leg as any).revocation_date).length;
   }, [legislation]);
 
   // Pagination calculations
@@ -247,6 +259,7 @@ export function LegislationPanel() {
       setFilterTheme("all");
       setFilterCategory("all");
       setFilterProblems(false);
+      setFilterRevoked(false);
     }
     setCurrentPage(1);
   };
@@ -257,6 +270,18 @@ export function LegislationPanel() {
       setFilterTheme("all");
       setFilterCategory("all");
       setFilterNoCategory(false);
+      setFilterRevoked(false);
+    }
+    setCurrentPage(1);
+  };
+
+  const toggleRevokedFilter = () => {
+    setFilterRevoked(prev => !prev);
+    if (!filterRevoked) {
+      setFilterTheme("all");
+      setFilterCategory("all");
+      setFilterNoCategory(false);
+      setFilterProblems(false);
     }
     setCurrentPage(1);
   };
@@ -620,9 +645,19 @@ export function LegislationPanel() {
                 Com Problemas ({problemsCount})
               </Button>
 
+              <Button
+                variant={filterRevoked ? "default" : "outline"}
+                size="sm"
+                onClick={toggleRevokedFilter}
+                className={filterRevoked ? "bg-gray-700 hover:bg-gray-800" : "border-gray-400 text-gray-700 hover:bg-gray-100"}
+              >
+                <Ban className="h-4 w-4 mr-1" />
+                Revogados ({revokedCount})
+              </Button>
+
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Tema:</span>
-                <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory || filterProblems}>
+                <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory || filterProblems || filterRevoked}>
                   <SelectTrigger className="w-44">
                     <SelectValue placeholder="Todos os temas" />
                   </SelectTrigger>
@@ -637,7 +672,7 @@ export function LegislationPanel() {
 
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Categoria:</span>
-                <Select value={filterCategory} onValueChange={handleCategoryChange} disabled={filterNoCategory || filterProblems}>
+                <Select value={filterCategory} onValueChange={handleCategoryChange} disabled={filterNoCategory || filterProblems || filterRevoked}>
                   <SelectTrigger className="w-64">
                     <SelectValue placeholder="Todas as categorias" />
                   </SelectTrigger>
