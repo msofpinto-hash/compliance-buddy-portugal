@@ -442,12 +442,40 @@ function extractMetadataFromEurLex(markdown: string): { title?: string; summary?
   return update;
 }
 
-// Extract relations using AI
+// Extract relations - uses DRE panel scraping for PT, AI for EU
 async function extractRelationsWithAI(
-  legislation: { number: string; title: string; summary: string },
+  legislation: { number: string; title: string; summary: string; origin?: string },
   fullText: string,
   lovableApiKey: string
 ): Promise<ExtractedRelation[]> {
+  // For Portuguese legislation, use direct DRE panel extraction
+  const isPT = !legislation.origin || legislation.origin === 'PT' || 
+               determineOrigin(legislation.number) === 'PT';
+  
+  if (isPT) {
+    console.log(`[PT EXTRACTION] Using DRE panel parsing for: ${legislation.number}`);
+    
+    // First try to extract from the scraped DRE content (Análise Jurídica panel)
+    const dreRelations = extractRelationsFromDREContent(fullText);
+    
+    if (dreRelations.length > 0) {
+      console.log(`[PT EXTRACTION] Found ${dreRelations.length} relations from DRE panel for ${legislation.number}`);
+      return dreRelations;
+    }
+    
+    // Fallback to regex if DRE panel extraction found nothing
+    console.log(`[PT EXTRACTION] No DRE panel relations, falling back to regex for ${legislation.number}`);
+    const regexRelations = extractRelationsWithRegex(legislation, fullText);
+    
+    if (regexRelations.length > 0) {
+      return regexRelations;
+    }
+    
+    // If still nothing, try AI as last resort
+    console.log(`[PT EXTRACTION] No regex relations, trying AI for ${legislation.number}`);
+  }
+  
+  // For EU legislation or as fallback, use AI extraction
   try {
     console.log(`Extracting relations with AI for: ${legislation.number}`);
     
@@ -557,6 +585,194 @@ Se não encontrares relações, retorna um array vazio: []`;
     // Fallback to regex extraction on any error
     return extractRelationsWithRegex(legislation, fullText);
   }
+}
+
+// ============================================================================
+// EXTRACT RELATIONS FROM DRE "ANÁLISE JURÍDICA" PANEL
+// This function scrapes the left sidebar of DRE pages containing:
+// - Direito da União Europeia (transposições)
+// - Regulamentação
+// - Modificações
+// - Retificações
+// - Alterações
+// - Revoga/Revogado por
+// ============================================================================
+function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
+  const relations: ExtractedRelation[] = [];
+  
+  // Normalize the markdown content
+  const content = markdown
+    .replace(/\r\n/g, '\n')
+    .replace(/\*\*/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // Convert links to plain text
+  
+  // Pattern to match legislation numbers in various formats
+  const legislationNumPattern = /(?:Decreto-Lei|Lei|Portaria|Despacho|Resolução|Decreto|Regulamento|Diretiva|Aviso|Declaração de Retificação)\s+(?:n\.?º?\s*)?(\d+[-\/A-Za-z]*\/\d{2,4})/gi;
+  const euNumPattern = /(?:Diretiva|Regulamento|Decisão)\s*(?:\(UE\)|\(CE\)|\(CEE\))?\s*(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/UE|\/CE)?|\d+\/\d{4}(?:\/UE|\/CE)?)/gi;
+  
+  // Split content into sections to identify relation type
+  const sections = content.split(/\n(?=[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][a-záàâãéèêíìîóòôõúùûç\s]+)/);
+  
+  // Helper to extract legislation numbers from a text section
+  const extractNumbers = (text: string): string[] => {
+    const numbers: string[] = [];
+    
+    // Extract Portuguese legislation
+    let match;
+    const ptPattern = /((?:Decreto-Lei|Lei|Portaria|Despacho|Resolução|Decreto|Aviso|Declaração de Retificação)\s+n\.?º?\s*\d+[-\/A-Za-z]*\/\d{2,4})/gi;
+    while ((match = ptPattern.exec(text)) !== null) {
+      if (!numbers.includes(match[1])) {
+        numbers.push(match[1]);
+      }
+    }
+    
+    // Extract EU legislation
+    const euPattern = /((?:Diretiva|Regulamento|Decisão)\s*(?:\(UE\)|\(CE\)|\(CEE\))?\s*(?:n\.?º?\s*)?\d{4}\/\d+(?:\/UE|\/CE)?)/gi;
+    while ((match = euPattern.exec(text)) !== null) {
+      if (!numbers.includes(match[1])) {
+        numbers.push(match[1]);
+      }
+    }
+    
+    // Also capture standalone year/number patterns after section headers
+    const standalonePattern = /(\d{4}\/\d+(?:\/UE|\/CE)?)/gi;
+    while ((match = standalonePattern.exec(text)) !== null) {
+      const num = match[1];
+      // Check if it looks like EU legislation (contains /UE, /CE or has directive context)
+      if (/\/UE|\/CE/i.test(num) || /diretiva|regulamento|decisão/i.test(text.substring(Math.max(0, match.index - 50), match.index))) {
+        const formatted = `Diretiva ${num}`;
+        if (!numbers.includes(formatted) && !numbers.some(n => n.includes(num))) {
+          numbers.push(formatted);
+        }
+      }
+    }
+    
+    return numbers;
+  };
+  
+  // Parse each section
+  for (const section of sections) {
+    const sectionLower = section.toLowerCase();
+    const firstLine = section.split('\n')[0].toLowerCase();
+    
+    // Direito da União Europeia = transposicao
+    if (firstLine.includes('direito da união europeia') || 
+        firstLine.includes('união europeia') ||
+        firstLine.includes('transpõe') ||
+        firstLine.includes('transposição')) {
+      const nums = extractNumbers(section);
+      for (const num of nums) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'transposicao',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Direito da União Europeia'
+          });
+        }
+      }
+    }
+    
+    // Regulamentação = regulamentacao
+    if (firstLine.includes('regulamentação') || firstLine.includes('regulamenta')) {
+      const nums = extractNumbers(section);
+      for (const num of nums) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'regulamentacao',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Regulamentação'
+          });
+        }
+      }
+    }
+    
+    // Modificações / Alterações = alteracao
+    if (firstLine.includes('modificações') || 
+        firstLine.includes('alterações') || 
+        firstLine.includes('altera ')) {
+      const nums = extractNumbers(section);
+      for (const num of nums) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'alteracao',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Modificações/Alterações'
+          });
+        }
+      }
+    }
+    
+    // Retificações = alteracao (treated as modifications)
+    if (firstLine.includes('retificações') || firstLine.includes('retifica')) {
+      const nums = extractNumbers(section);
+      for (const num of nums) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'alteracao',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Retificações'
+          });
+        }
+      }
+    }
+    
+    // Revoga = revogado
+    if ((firstLine.includes('revoga') && !firstLine.includes('revogado por')) ||
+        firstLine.includes('revogação')) {
+      const nums = extractNumbers(section);
+      for (const num of nums) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'revogado',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Revoga'
+          });
+        }
+      }
+    }
+    
+    // Revogado por = We track this for reference but the inverse is created automatically
+    // We still want to know about partial revocations
+    if (firstLine.includes('revogado parcialmente') || 
+        sectionLower.includes('revogação parcial')) {
+      const nums = extractNumbers(section);
+      for (const num of nums) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'revogacao_parcial',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Revogação parcial'
+          });
+        }
+      }
+    }
+  }
+  
+  // Also scan the full content for any missed relations in summary/header
+  const summarySection = content.substring(0, 2000);
+  
+  // Look for transpositions in summary
+  const transposeMatches = summarySection.match(/transpon[do]*\s+(?:a[s]?\s+)?(?:Diretiva[s]?\s+)?(?:\(UE\)\s*)?(\d{4}\/\d+(?:\/UE)?(?:\s*,?\s*\d{4}\/\d+(?:\/UE)?)*)/gi);
+  if (transposeMatches) {
+    for (const match of transposeMatches) {
+      const nums = match.match(/\d{4}\/\d+(?:\/UE)?/gi);
+      if (nums) {
+        for (const num of nums) {
+          const formatted = `Diretiva (UE) ${num}`;
+          if (!relations.some(r => r.target_number.includes(num))) {
+            relations.push({
+              relation_type: 'transposicao',
+              target_number: formatted,
+              notes: 'Extraído do sumário DRE'
+            });
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`[DRE PANEL] Extracted ${relations.length} relations from DRE Análise Jurídica`);
+  return relations;
 }
 
 // Fallback regex-based relation extraction when AI fails
@@ -1001,7 +1217,7 @@ async function processRelationsInBackground(
       }
 
       const extractedRelations = await extractRelationsWithAI(
-        { number: leg.number, title: leg.title, summary: leg.summary || '' },
+        { number: leg.number, title: leg.title, summary: leg.summary || '', origin: leg.origin },
         textContent,
         lovableApiKey
       );
