@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, Zap, Lock, Scale } from "lucide-react";
 import { motion } from "framer-motion";
+import heroBackgroundVideo from "@/assets/hero-background.mp4";
 
 // Animated grid background - Green/Sage tones
 const GridBackground = () => {
@@ -146,6 +147,21 @@ const Index = () => {
       ref={containerRef}
       className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden"
     >
+      {/* Background video layer */}
+      <div className="absolute inset-0 z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+        >
+          <source src={heroBackgroundVideo} type="video/mp4" />
+        </video>
+        {/* Overlay to blend video with grid */}
+        <div className="absolute inset-0 bg-slate-950/60" />
+      </div>
+      
       <GridBackground />
       <TechParticles />
       
