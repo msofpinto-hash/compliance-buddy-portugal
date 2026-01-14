@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, FileSpreadsheet, FileText, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -14,6 +15,7 @@ import {
   exportLegislationToPDF,
   exportRequirementsToPDF,
   exportComplianceReportToPDF,
+  exportExecutiveSummaryToPDF,
   ReportData,
 } from "@/lib/reportExport";
 import { ReportPreviewDialog } from "./ReportPreviewDialog";
@@ -25,11 +27,12 @@ interface ExportReportDialogProps {
   organizationName: string;
 }
 
-type ReportType = "compliance" | "legislation" | "requirements" | "action-plans";
+type ReportType = "compliance" | "executive" | "legislation" | "requirements" | "action-plans";
 type ExportFormat = "excel" | "pdf";
 
-const reportTypes = [
+const reportTypes: { value: ReportType; label: string; description: string; badge?: string }[] = [
   { value: "compliance", label: "Relatório de Conformidade", description: "Resumo completo com diplomas, requisitos e planos de ação" },
+  { value: "executive", label: "Relatório Executivo", description: "Resumo de uma página para apresentações rápidas", badge: "Novo" },
   { value: "legislation", label: "Lista de Legislação", description: "Diplomas aplicáveis à organização" },
   { value: "requirements", label: "Lista de Requisitos", description: "Requisitos legais com estados de conformidade" },
   { value: "action-plans", label: "Planos de Ação", description: "Ações corretivas e seu estado" },
@@ -49,8 +52,7 @@ export function ExportReportDialog({
   const [previewData, setPreviewData] = useState<ReportData | null>(null);
 
   const handlePreview = async () => {
-    if (reportType !== "compliance" || exportFormat !== "pdf") {
-      // Only compliance PDF supports preview, proceed with direct export for others
+    if (!canPreview) {
       handleExport();
       return;
     }
@@ -77,6 +79,7 @@ export function ExportReportDialog({
       if (exportFormat === "excel") {
         switch (reportType) {
           case "compliance":
+          case "executive":
             exportFullReportToExcel(data);
             break;
           case "legislation":
@@ -94,6 +97,9 @@ export function ExportReportDialog({
           case "compliance":
             await exportComplianceReportToPDF(data);
             break;
+          case "executive":
+            await exportExecutiveSummaryToPDF(data);
+            break;
           case "legislation":
             await exportLegislationToPDF(data);
             break;
@@ -101,7 +107,6 @@ export function ExportReportDialog({
             await exportRequirementsToPDF(data);
             break;
           case "action-plans":
-            // Action plans use Excel format as default
             exportActionPlansToExcel(data);
             toast.info("Planos de ação exportados em Excel (formato mais adequado para dados tabulares)");
             break;
@@ -123,7 +128,7 @@ export function ExportReportDialog({
     setPreviewData(null);
   };
 
-  const canPreview = reportType === "compliance" && exportFormat === "pdf";
+  const canPreview = (reportType === "compliance" || reportType === "executive") && exportFormat === "pdf";
 
   return (
     <>
@@ -148,9 +153,14 @@ export function ExportReportDialog({
                 {reportTypes.map((type) => (
                   <div key={type.value} className="flex items-start space-x-3">
                     <RadioGroupItem value={type.value} id={type.value} className="mt-1" />
-                    <div className="grid gap-0.5">
-                      <Label htmlFor={type.value} className="font-medium cursor-pointer">
+                    <div className="grid gap-0.5 flex-1">
+                      <Label htmlFor={type.value} className="font-medium cursor-pointer flex items-center gap-2">
                         {type.label}
+                        {type.badge && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                            {type.badge}
+                          </Badge>
+                        )}
                       </Label>
                       <p className="text-xs text-muted-foreground">{type.description}</p>
                     </div>
@@ -243,6 +253,7 @@ export function ExportReportDialog({
         data={previewData}
         isLoading={isLoadingPreview}
         onBack={handleBackFromPreview}
+        isExecutive={reportType === "executive"}
       />
     </>
   );

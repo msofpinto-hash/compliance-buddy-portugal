@@ -1031,3 +1031,341 @@ export async function exportComplianceReportToPDF(data: ReportData): Promise<voi
   const fileName = `relatorio-conformidade-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
   doc.save(fileName);
 }
+
+// ==================== EXECUTIVE SUMMARY PDF (1 PAGE) ====================
+
+export async function exportExecutiveSummaryToPDF(data: ReportData): Promise<void> {
+  const doc = new jsPDF();
+  const { colors, typography, spacing } = PDF_THEME;
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  
+  // Load logo if available
+  const logoBase64 = data.organization.logoUrl 
+    ? await loadImageAsBase64(data.organization.logoUrl) 
+    : null;
+  
+  // ===== HEADER BAR =====
+  doc.setFillColor(...colors.primary);
+  doc.rect(0, 0, pageWidth, 35, "F");
+  
+  // Gradient effect
+  doc.setFillColor(...colors.secondary);
+  doc.rect(pageWidth - 60, 0, 60, 35, "F");
+  
+  // Logo on header
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', spacing.margin, 5, 25, 25);
+    } catch {}
+  }
+  
+  // Title on header
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Relatório Executivo", logoBase64 ? spacing.margin + 32 : spacing.margin, 18);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Conformidade Legal", logoBase64 ? spacing.margin + 32 : spacing.margin, 27);
+  
+  // Date on right
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+  doc.text(new Date().toLocaleDateString("pt-PT", { 
+    day: "2-digit", 
+    month: "short", 
+    year: "numeric"
+  }), pageWidth - spacing.margin, 20, { align: "right" });
+  
+  // ===== ORGANIZATION INFO =====
+  let currentY = 45;
+  
+  doc.setFontSize(18);
+  doc.setTextColor(...colors.textDark);
+  doc.text(data.organization.name, spacing.margin, currentY);
+  
+  if (data.organization.description) {
+    currentY += 7;
+    doc.setFontSize(9);
+    doc.setTextColor(...colors.textMuted);
+    const desc = data.organization.description.length > 120 
+      ? data.organization.description.substring(0, 117) + "..." 
+      : data.organization.description;
+    doc.text(desc, spacing.margin, currentY);
+  }
+  
+  // ===== MAIN STATS SECTION =====
+  currentY += 12;
+  
+  // Stats container
+  const statsContainerHeight = 50;
+  doc.setFillColor(...colors.bgLight);
+  doc.roundedRect(spacing.margin, currentY, pageWidth - (spacing.margin * 2), statsContainerHeight, 4, 4, "F");
+  
+  // Border accent
+  doc.setDrawColor(...colors.primary);
+  doc.setLineWidth(1.5);
+  doc.line(spacing.margin, currentY, spacing.margin, currentY + statsContainerHeight);
+  
+  const statsY = currentY + 8;
+  
+  // Large compliance rate
+  const rateX = spacing.margin + 12;
+  const rateSize = 36;
+  doc.setFillColor(...colors.bgAccent);
+  doc.circle(rateX + 18, statsY + 17, 20, "F");
+  
+  doc.setFontSize(24);
+  doc.setTextColor(...colors.primary);
+  doc.text(`${data.stats.complianceRate}%`, rateX + 18, statsY + 20, { align: "center" });
+  
+  doc.setFontSize(7);
+  doc.setTextColor(...colors.textMuted);
+  doc.text("Conformidade", rateX + 18, statsY + 28, { align: "center" });
+  
+  // Stats items
+  const statsStartX = rateX + 50;
+  const statWidth = 30;
+  
+  const statsItems = [
+    { label: "Diplomas", value: data.stats.totalLegislation.toString(), color: colors.primary },
+    { label: "Requisitos", value: data.stats.totalRequirements.toString(), color: colors.secondary },
+    { label: "Conforme", value: data.stats.conforme.toString(), color: colors.success },
+    { label: "Não Conforme", value: data.stats.naoConforme.toString(), color: colors.danger },
+    { label: "Em Avaliação", value: data.stats.emCurso.toString(), color: colors.warning },
+  ];
+  
+  statsItems.forEach((stat, index) => {
+    const x = statsStartX + (index * (statWidth + 4));
+    
+    doc.setFontSize(18);
+    doc.setTextColor(...stat.color);
+    doc.text(stat.value, x + statWidth / 2, statsY + 17, { align: "center" });
+    
+    doc.setFontSize(7);
+    doc.setTextColor(...colors.textMuted);
+    doc.text(stat.label, x + statWidth / 2, statsY + 26, { align: "center" });
+  });
+  
+  currentY += statsContainerHeight + 10;
+  
+  // ===== TWO COLUMN LAYOUT =====
+  const colWidth = (pageWidth - (spacing.margin * 2) - 8) / 2;
+  const col1X = spacing.margin;
+  const col2X = spacing.margin + colWidth + 8;
+  
+  // ===== LEFT COLUMN: TOP LEGISLATION =====
+  doc.setFontSize(11);
+  doc.setTextColor(...colors.primary);
+  doc.text("Principais Diplomas", col1X, currentY);
+  
+  doc.setDrawColor(...colors.borderAccent);
+  doc.setLineWidth(0.5);
+  doc.line(col1X, currentY + 2, col1X + 50, currentY + 2);
+  
+  currentY += 8;
+  
+  // Show top 5 legislation
+  const topLegislation = data.legislation.slice(0, 5);
+  topLegislation.forEach((leg, index) => {
+    // Background
+    if (index % 2 === 0) {
+      doc.setFillColor(...colors.bgLight);
+      doc.rect(col1X, currentY - 3, colWidth, 10, "F");
+    }
+    
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.primary);
+    doc.text(leg.number, col1X + 2, currentY + 2);
+    
+    doc.setFontSize(7);
+    doc.setTextColor(...colors.textDark);
+    const title = leg.title.length > 35 ? leg.title.substring(0, 32) + "..." : leg.title;
+    doc.text(title, col1X + 2, currentY + 7);
+    
+    currentY += 10;
+  });
+  
+  if (data.legislation.length > 5) {
+    doc.setFontSize(7);
+    doc.setTextColor(...colors.textLight);
+    doc.text(`+ ${data.legislation.length - 5} diplomas`, col1X + 2, currentY + 2);
+  }
+  
+  // ===== RIGHT COLUMN: ACTION PLANS =====
+  let rightY = currentY - (topLegislation.length * 10) - 8;
+  
+  doc.setFontSize(11);
+  doc.setTextColor(...colors.primary);
+  doc.text("Planos de Ação", col2X, rightY);
+  
+  doc.setDrawColor(...colors.borderAccent);
+  doc.line(col2X, rightY + 2, col2X + 45, rightY + 2);
+  
+  rightY += 8;
+  
+  if (data.actionPlans.length > 0) {
+    // Action plan stats
+    const planStats = {
+      pending: data.actionPlans.filter(p => p.status === "pendente" || p.status === "pending").length,
+      inProgress: data.actionPlans.filter(p => p.status === "em_curso" || p.status === "in_progress").length,
+      completed: data.actionPlans.filter(p => p.status === "concluido" || p.status === "completed").length,
+    };
+    
+    // Summary bar
+    doc.setFillColor(...colors.bgWarm);
+    doc.roundedRect(col2X, rightY - 3, colWidth, 12, 2, 2, "F");
+    
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.textMuted);
+    doc.text(`${data.actionPlans.length} ações`, col2X + 4, rightY + 4);
+    
+    doc.setTextColor(...colors.danger);
+    doc.text(`${planStats.pending} pend.`, col2X + 30, rightY + 4);
+    
+    doc.setTextColor(...colors.warning);
+    doc.text(`${planStats.inProgress} curso`, col2X + 52, rightY + 4);
+    
+    doc.setTextColor(...colors.success);
+    doc.text(`${planStats.completed} concl.`, col2X + 72, rightY + 4);
+    
+    rightY += 14;
+    
+    // Show top 4 action plans
+    const topPlans = data.actionPlans.slice(0, 4);
+    topPlans.forEach((plan, index) => {
+      const statusColor = 
+        plan.status === "concluido" || plan.status === "completed" ? colors.success :
+        plan.status === "em_curso" || plan.status === "in_progress" ? colors.warning :
+        colors.textMuted;
+      
+      // Status indicator
+      doc.setFillColor(...statusColor);
+      doc.circle(col2X + 3, rightY + 2, 2, "F");
+      
+      doc.setFontSize(8);
+      doc.setTextColor(...colors.textDark);
+      const title = plan.title.length > 32 ? plan.title.substring(0, 29) + "..." : plan.title;
+      doc.text(title, col2X + 8, rightY + 3);
+      
+      if (plan.dueDate) {
+        doc.setFontSize(6);
+        doc.setTextColor(...colors.textLight);
+        doc.text(formatDate(plan.dueDate), col2X + 8, rightY + 8);
+      }
+      
+      rightY += 11;
+    });
+    
+    if (data.actionPlans.length > 4) {
+      doc.setFontSize(7);
+      doc.setTextColor(...colors.textLight);
+      doc.text(`+ ${data.actionPlans.length - 4} ações`, col2X + 4, rightY + 2);
+    }
+  } else {
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.textMuted);
+    doc.text("Sem planos de ação ativos", col2X + 2, rightY + 3);
+  }
+  
+  // ===== BOTTOM SECTION: COMPLIANCE BY STATUS =====
+  const bottomY = Math.max(currentY, rightY) + 15;
+  
+  // Compliance breakdown bar
+  doc.setFontSize(11);
+  doc.setTextColor(...colors.primary);
+  doc.text("Distribuição de Conformidade", spacing.margin, bottomY);
+  
+  doc.setDrawColor(...colors.borderAccent);
+  doc.line(spacing.margin, bottomY + 2, spacing.margin + 70, bottomY + 2);
+  
+  const barY = bottomY + 10;
+  const barWidth = pageWidth - (spacing.margin * 2);
+  const barHeight = 16;
+  
+  // Background
+  doc.setFillColor(...colors.bgLight);
+  doc.roundedRect(spacing.margin, barY, barWidth, barHeight, 3, 3, "F");
+  
+  // Calculate widths
+  const total = data.stats.totalRequirements || 1;
+  const conformeWidth = (data.stats.conforme / total) * barWidth;
+  const naoConformeWidth = (data.stats.naoConforme / total) * barWidth;
+  const emCursoWidth = (data.stats.emCurso / total) * barWidth;
+  
+  let barX = spacing.margin;
+  
+  // Conforme bar
+  if (conformeWidth > 0) {
+    doc.setFillColor(...colors.success);
+    doc.roundedRect(barX, barY, conformeWidth, barHeight, 3, 3, "F");
+    
+    if (conformeWidth > 25) {
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${Math.round((data.stats.conforme / total) * 100)}%`, barX + conformeWidth / 2, barY + 10, { align: "center" });
+    }
+    barX += conformeWidth;
+  }
+  
+  // Em Curso bar
+  if (emCursoWidth > 0) {
+    doc.setFillColor(...colors.warning);
+    doc.rect(barX, barY, emCursoWidth, barHeight, "F");
+    
+    if (emCursoWidth > 25) {
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${Math.round((data.stats.emCurso / total) * 100)}%`, barX + emCursoWidth / 2, barY + 10, { align: "center" });
+    }
+    barX += emCursoWidth;
+  }
+  
+  // Não Conforme bar
+  if (naoConformeWidth > 0) {
+    doc.setFillColor(...colors.danger);
+    doc.roundedRect(barX, barY, naoConformeWidth, barHeight, 3, 3, "F");
+    
+    if (naoConformeWidth > 25) {
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${Math.round((data.stats.naoConforme / total) * 100)}%`, barX + naoConformeWidth / 2, barY + 10, { align: "center" });
+    }
+  }
+  
+  // Legend
+  const legendY = barY + barHeight + 8;
+  const legendItems = [
+    { label: "Conforme", color: colors.success, value: data.stats.conforme },
+    { label: "Em Avaliação", color: colors.warning, value: data.stats.emCurso },
+    { label: "Não Conforme", color: colors.danger, value: data.stats.naoConforme },
+  ];
+  
+  let legendX = spacing.margin;
+  legendItems.forEach((item) => {
+    doc.setFillColor(...item.color);
+    doc.circle(legendX + 3, legendY, 3, "F");
+    
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.textDark);
+    doc.text(`${item.label} (${item.value})`, legendX + 8, legendY + 2);
+    
+    legendX += 55;
+  });
+  
+  // ===== FOOTER =====
+  doc.setFillColor(...colors.bgHeader);
+  doc.rect(0, pageHeight - 20, pageWidth, 20, "F");
+  
+  doc.setFontSize(7);
+  doc.setTextColor(...colors.textLight);
+  doc.text("Documento gerado automaticamente pela plataforma ID Compliance", pageWidth / 2, pageHeight - 10, { align: "center" });
+  
+  doc.setTextColor(...colors.textMuted);
+  doc.text(data.organization.name, spacing.margin, pageHeight - 10);
+  doc.text("Página 1 de 1", pageWidth - spacing.margin, pageHeight - 10, { align: "right" });
+  
+  const fileName = `resumo-executivo-${data.organization.name.replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
+  doc.save(fileName);
+}
