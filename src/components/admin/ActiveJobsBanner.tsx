@@ -41,10 +41,13 @@ const SYNC_TYPE_LABELS: Record<string, string> = {
   "suggest-categories": "Sugestão de Categorias",
   "auto-categorize": "Auto-categorização",
   "validate-urls": "Validação de URLs",
+  "validate_urls": "Validação de URLs",
   "fix-metadata": "Correção de Metadados",
   "fix-eurlex-titles": "Correção de Títulos EUR-Lex",
   "fix-generic-titles": "Correção de Títulos Genéricos",
   "import-eurlex-summaries": "Importação de Sumários EUR-Lex",
+  "fix_broken_urls": "Correção de URLs Quebradas",
+  "fix-broken-urls": "Correção de URLs Quebradas",
 };
 
 // Timeout thresholds (in seconds)

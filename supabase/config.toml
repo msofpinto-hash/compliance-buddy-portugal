@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.cleanup-invalid-references]
 verify_jwt = false
+
+[functions.fix-broken-urls]
+verify_jwt = false
