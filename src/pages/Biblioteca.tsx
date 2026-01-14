@@ -525,40 +525,31 @@ export default function Biblioteca() {
                     const rootCategories = selectedTheme.categories.filter(c => !c.parent_id);
 
                     return (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 mb-3">
-                          <ChevronDown className={cn("h-4 w-4", config.color)} />
-                          <span className={cn("text-sm font-semibold", config.color)}>
-                            Categorias de {selectedTheme.name}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {rootCategories.map((category, index) => {
-                            const isSelected = selectedCategoryId === category.id;
-                            const childCategories = selectedTheme.categories.filter(c => c.parent_id === category.id);
-                            
-                            return (
-                              <motion.button
-                                key={category.id}
-                                onClick={() => setSelectedCategoryId(isSelected ? null : category.id)}
-                                className={cn(
-                                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5",
-                                  isSelected 
-                                    ? cn(config.bgLight, config.bgDark, config.color, "shadow-sm border", config.border)
-                                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent"
-                                )}
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.2, delay: 0.03 * index }}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                              >
-                                <Folder className="h-3.5 w-3.5" />
-                                {category.name}
-                              </motion.button>
-                            );
-                          })}
-                        </div>
+                      <div className="flex flex-wrap gap-2">
+                        {rootCategories.map((category, index) => {
+                          const isSelected = selectedCategoryId === category.id;
+                          
+                          return (
+                            <motion.button
+                              key={category.id}
+                              onClick={() => setSelectedCategoryId(isSelected ? null : category.id)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5",
+                                isSelected 
+                                  ? cn(config.bgLight, config.bgDark, config.color, "shadow-sm border", config.border)
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent"
+                              )}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 0.2, delay: 0.03 * index }}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <Folder className="h-3.5 w-3.5" />
+                              {category.name}
+                            </motion.button>
+                          );
+                        })}
                       </div>
                     );
                   })()}
