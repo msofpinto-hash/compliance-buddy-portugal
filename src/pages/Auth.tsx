@@ -25,110 +25,50 @@ interface LoginCheckResult {
   lockout_minutes: number;
 }
 
-// Animated grid background - Green/Sage tones
-const GridBackground = () => {
+// Corporate professional background - Clean and institutional
+const CorporateBackground = () => {
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Base gradient - warm dark with green undertones */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-emerald-950/40 to-slate-950" />
+      {/* Base gradient - light professional tones */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30" />
       
-      {/* Animated grid - sage green */}
+      {/* Subtle grid pattern */}
       <div 
-        className="absolute inset-0 opacity-15"
+        className="absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(132, 169, 140, 0.15) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(132, 169, 140, 0.15) 1px, transparent 1px)
+            linear-gradient(rgba(100, 116, 139, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(100, 116, 139, 0.3) 1px, transparent 1px)
           `,
-          backgroundSize: '50px 50px',
-          animation: 'gridMove 20s linear infinite'
+          backgroundSize: '40px 40px'
         }}
       />
       
-      {/* Glow orbs - sage/olive/mint tones */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-600/15 rounded-full blur-[120px] animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-700/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-lime-600/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
-      
-      {/* Scan line effect */}
-      <div 
-        className="absolute inset-0 opacity-5"
-        style={{
-          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px)'
-        }}
-      />
+      {/* Soft decorative shapes */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-100/40 rounded-full blur-[150px]" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-slate-200/60 rounded-full blur-[120px]" />
     </div>
   );
 };
 
-// Floating particles - sage/mint colors
-const TechParticles = () => {
-  const colors = ['bg-emerald-400', 'bg-teal-400', 'bg-lime-400', 'bg-green-300'];
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(20)].map((_, i) => (
-        <div
-          key={i}
-          className={`absolute w-1 h-1 ${colors[i % colors.length]} rounded-full opacity-40`}
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animation: `floatParticle ${8 + Math.random() * 12}s linear infinite`,
-            animationDelay: `${Math.random() * 5}s`
-          }}
-        />
-      ))}
-    </div>
-  );
-};
+// Removed TechParticles - keeping corporate clean look
 
-// Animated Logo Component
-const AnimatedLogo = () => (
-  <motion.div 
-    className="relative group cursor-pointer"
-    whileHover={{ scale: 1.05 }}
-    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-  >
-    {/* Continuous glow effect behind icon */}
-    <div className="absolute -inset-3 bg-gradient-to-r from-emerald-500/20 via-teal-400/20 to-lime-500/20 rounded-2xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity duration-500 animate-glow-pulse" />
+// Corporate Logo Component - Clean and professional
+const CorporateLogo = () => (
+  <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white border-2 border-slate-200 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all duration-200">
+    {/* Icon container */}
+    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 shadow-sm">
+      <Scale className="h-5 w-5 text-white" />
+    </div>
     
-    {/* Logo container */}
-    <Link to="/" className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/60 border border-emerald-500/30 backdrop-blur-sm group-hover:border-emerald-400/50 transition-all duration-300">
-      {/* Icon with continuous pulse animation */}
-      <div className="relative">
-        {/* Inner glow ring */}
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 blur-md opacity-60 animate-icon-glow" />
-        
-        {/* Icon container */}
-        <motion.div 
-          className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 shadow-lg shadow-emerald-500/40"
-          animate={{ 
-            boxShadow: [
-              '0 0 15px rgba(16, 185, 129, 0.4)',
-              '0 0 25px rgba(16, 185, 129, 0.6)',
-              '0 0 15px rgba(16, 185, 129, 0.4)'
-            ]
-          }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Scale className="h-5 w-5 text-white drop-shadow-lg" />
-        </motion.div>
-      </div>
-      
-      {/* Text */}
-      <div className="flex flex-col items-start">
-        <span className="text-lg font-bold text-white tracking-tight">I&D</span>
-        <span 
-          className="text-xs font-semibold tracking-[0.2em] text-emerald-400"
-          style={{
-            textShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
-          }}
-        >
-          COMPLIANCE
-        </span>
-      </div>
-    </Link>
-  </motion.div>
+    {/* Text */}
+    <div className="flex flex-col items-start">
+      <span className="text-lg font-bold text-slate-800 tracking-tight">I&D</span>
+      <span className="text-xs font-semibold tracking-[0.15em] text-emerald-600">
+        COMPLIANCE
+      </span>
+    </div>
+  </Link>
 );
 
 const Auth = () => {
@@ -344,9 +284,8 @@ const Auth = () => {
   // Loading state component
   const LoadingScreen = () => (
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
-      <GridBackground />
-      <TechParticles />
-      <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+      <CorporateBackground />
+      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
     </div>
   );
 
@@ -359,14 +298,8 @@ const Auth = () => {
   if (mfaChallenge) {
     return (
       <div className="min-h-screen relative flex items-center justify-center overflow-hidden p-4">
-        <GridBackground />
-        <TechParticles />
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="relative z-10"
-        >
+        <CorporateBackground />
+        <div className="relative z-10">
           <TwoFactorVerify
             factorId={mfaChallenge.factorId}
             onSuccess={() => {
@@ -384,7 +317,7 @@ const Auth = () => {
               });
             }}
           />
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -393,55 +326,44 @@ const Auth = () => {
   if (isPendingApproval) {
     return (
       <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden p-4">
-        <GridBackground />
-        <TechParticles />
+        <CorporateBackground />
         
         {/* Logo */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 relative z-10"
-        >
-          <AnimatedLogo />
-        </motion.div>
+        <div className="mb-8 relative z-10">
+          <CorporateLogo />
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative z-10"
-        >
-          <Card className="w-full max-w-md bg-slate-900/80 border-emerald-500/30 backdrop-blur-xl shadow-2xl shadow-emerald-900/20">
+        <div className="relative z-10">
+          <Card className="w-full max-w-md bg-white border-2 border-slate-200 shadow-lg">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/20 border border-amber-500/30">
-                <Clock className="h-7 w-7 text-amber-400" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 border-2 border-amber-300">
+                <Clock className="h-7 w-7 text-amber-600" />
               </div>
-              <CardTitle className="text-white text-xl">Aguarda Aprovação</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardTitle className="text-slate-800 text-xl">Aguarda Aprovação</CardTitle>
+              <CardDescription className="text-slate-600">
                 A sua conta foi criada com sucesso e está a aguardar aprovação por um administrador.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert className="bg-slate-800/50 border-emerald-500/30">
-                <Clock className="h-4 w-4 text-emerald-400" />
-                <AlertDescription className="text-slate-300">
+              <Alert className="bg-emerald-50 border-2 border-emerald-200">
+                <Clock className="h-4 w-4 text-emerald-600" />
+                <AlertDescription className="text-slate-700">
                   Será notificado por email quando a sua conta for aprovada. Entretanto, poderá tentar iniciar sessão novamente mais tarde.
                 </AlertDescription>
               </Alert>
-              <div className="text-center text-sm text-slate-400">
-                Sessão iniciada como: <strong className="text-emerald-400">{user?.email}</strong>
+              <div className="text-center text-sm text-slate-600">
+                Sessão iniciada como: <strong className="text-emerald-700">{user?.email}</strong>
               </div>
               <Button 
                 variant="outline" 
-                className="w-full bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-emerald-500/50" 
+                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-emerald-400" 
                 onClick={handleSignOut}
               >
                 Terminar sessão
               </Button>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -450,52 +372,41 @@ const Auth = () => {
   if (registrationSuccess && !user) {
     return (
       <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden p-4">
-        <GridBackground />
-        <TechParticles />
+        <CorporateBackground />
         
         {/* Logo */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 relative z-10"
-        >
-          <AnimatedLogo />
-        </motion.div>
+        <div className="mb-8 relative z-10">
+          <CorporateLogo />
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative z-10"
-        >
-          <Card className="w-full max-w-md bg-slate-900/80 border-emerald-500/30 backdrop-blur-xl shadow-2xl shadow-emerald-900/20">
+        <div className="relative z-10">
+          <Card className="w-full max-w-md bg-white border-2 border-slate-200 shadow-lg">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 border border-emerald-500/30">
-                <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-300">
+                <CheckCircle2 className="h-7 w-7 text-emerald-600" />
               </div>
-              <CardTitle className="text-white text-xl">Registo Submetido</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardTitle className="text-slate-800 text-xl">Registo Submetido</CardTitle>
+              <CardDescription className="text-slate-600">
                 A sua conta foi criada com sucesso!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert className="bg-slate-800/50 border-emerald-500/30">
-                <Clock className="h-4 w-4 text-emerald-400" />
-                <AlertDescription className="text-slate-300">
+              <Alert className="bg-emerald-50 border-2 border-emerald-200">
+                <Clock className="h-4 w-4 text-emerald-600" />
+                <AlertDescription className="text-slate-700">
                   O seu pedido de acesso será analisado por um administrador. Receberá uma notificação quando a sua conta for aprovada.
                 </AlertDescription>
               </Alert>
               <Button 
                 variant="outline" 
-                className="w-full bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-emerald-500/50" 
+                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-emerald-400" 
                 onClick={() => setRegistrationSuccess(false)}
               >
                 Voltar ao login
               </Button>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -509,32 +420,21 @@ const Auth = () => {
   if (showForgotPassword) {
     return (
       <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden p-4">
-        <GridBackground />
-        <TechParticles />
+        <CorporateBackground />
         
         {/* Logo */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 relative z-10"
-        >
-          <AnimatedLogo />
-        </motion.div>
+        <div className="mb-8 relative z-10">
+          <CorporateLogo />
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative z-10"
-        >
-          <Card className="w-full max-w-md bg-slate-900/80 border-emerald-500/30 backdrop-blur-xl shadow-2xl shadow-emerald-900/20">
+        <div className="relative z-10">
+          <Card className="w-full max-w-md bg-white border-2 border-slate-200 shadow-lg">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 border border-emerald-500/30">
-                <Mail className="h-7 w-7 text-emerald-400" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-300">
+                <Mail className="h-7 w-7 text-emerald-600" />
               </div>
-              <CardTitle className="text-white text-xl">Recuperar Password</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardTitle className="text-slate-800 text-xl">Recuperar Password</CardTitle>
+              <CardDescription className="text-slate-600">
                 {resetEmailSent 
                   ? "Verifique o seu email para redefinir a password"
                   : "Introduza o seu email para receber instruções"
@@ -544,16 +444,16 @@ const Auth = () => {
             <CardContent className="space-y-4">
               {resetEmailSent ? (
                 <>
-                  <Alert className="bg-emerald-500/10 border-emerald-500/30">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    <AlertDescription className="text-emerald-300">
+                  <Alert className="bg-emerald-50 border-2 border-emerald-200">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <AlertDescription className="text-emerald-700">
                       Enviámos um email com instruções para redefinir a sua password. 
                       Por favor, verifique também a pasta de spam.
                     </AlertDescription>
                   </Alert>
                   <Button 
                     variant="outline" 
-                    className="w-full gap-2 bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-emerald-500/50" 
+                    className="w-full gap-2 border-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-emerald-400" 
                     onClick={handleBackToLogin}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -563,14 +463,14 @@ const Auth = () => {
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   {error && (
-                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/30">
+                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reset-email" className="text-slate-300">Email</Label>
+                    <Label htmlFor="reset-email" className="text-slate-700">Email</Label>
                     <Input
                       id="reset-email"
                       type="email"
@@ -579,13 +479,13 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       autoFocus
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
 
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-500/20" 
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-sm" 
                     disabled={isLoading}
                   >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -595,7 +495,7 @@ const Auth = () => {
                   <Button 
                     type="button"
                     variant="ghost" 
-                    className="w-full gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50" 
+                    className="w-full gap-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100" 
                     onClick={handleBackToLogin}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -605,7 +505,7 @@ const Auth = () => {
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -613,50 +513,33 @@ const Auth = () => {
   // Main auth form
   return (
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
-      <GridBackground />
-      <TechParticles />
+      <CorporateBackground />
       
       {/* Two Column Layout */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-8 flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
         
         {/* Left Column - Illustration & Message */}
-        <motion.div
-          initial={{ opacity: 0, x: -40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="flex-1 text-center lg:text-left hidden md:block"
-        >
+        <div className="flex-1 text-center lg:text-left hidden md:block">
           {/* Office Workspace Photo */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="relative mb-6"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-3xl blur-3xl" />
+          <div className="relative mb-6">
             <img 
               src={officeWorkspaceImg} 
               alt="Profissional a trabalhar em compliance" 
-              className="relative w-full max-w-md mx-auto lg:mx-0 rounded-2xl shadow-2xl shadow-emerald-900/30"
+              className="relative w-full max-w-md mx-auto lg:mx-0 rounded-2xl border-2 border-slate-200 shadow-lg"
             />
-          </motion.div>
+          </div>
           
           {/* Text Content */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-            className="space-y-4"
-          >
-            <h2 className="text-3xl lg:text-4xl font-bold text-white leading-tight">
+          <div className="space-y-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 leading-tight">
               O seu{" "}
-              <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 assistente digital
               </span>
               <br />
               de conformidade
             </h2>
-            <p className="text-slate-400 text-lg max-w-md mx-auto lg:mx-0">
+            <p className="text-slate-600 text-lg max-w-md mx-auto lg:mx-0">
               Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
             </p>
             
@@ -666,58 +549,45 @@ const Auth = () => {
                 { icon: CheckCircle2, text: "Monitorização 24/7" },
                 { icon: Scale, text: "Legislação atualizada" },
                 { icon: ShieldAlert, text: "Auditorias rigorosas" },
-              ].map((feature, i) => (
-                <motion.div
+              ].map((feature) => (
+                <div
                   key={feature.text}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.7 + i * 0.1 }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-emerald-500/30 text-sm text-slate-300"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border-2 border-slate-200 text-sm text-slate-700 shadow-sm"
                 >
-                  <feature.icon className="h-4 w-4 text-emerald-400" />
+                  <feature.icon className="h-4 w-4 text-emerald-600" />
                   {feature.text}
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* Right Column - Auth Form */}
-        <motion.div
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="w-full max-w-md"
-        >
+        <div className="w-full max-w-md">
           {/* Logo - Mobile & Desktop */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center mb-6"
-          >
-            <AnimatedLogo />
-          </motion.div>
+          <div className="flex justify-center mb-6">
+            <CorporateLogo />
+          </div>
 
-          <Card className="bg-slate-900/80 border-emerald-500/30 backdrop-blur-xl shadow-2xl shadow-emerald-900/20">
+          <Card className="bg-white border-2 border-slate-200 shadow-lg">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-white text-xl">Área de Cliente</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardTitle className="text-slate-800 text-xl">Área de Cliente</CardTitle>
+              <CardDescription className="text-slate-600">
                 Aceda à sua área de gestão de conformidade legal
               </CardDescription>
             </CardHeader>
             <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-slate-700">
+              <TabsList className="grid w-full grid-cols-2 bg-slate-100 border-2 border-slate-200">
                 <TabsTrigger 
                   value="login" 
-                  className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 text-slate-400"
+                  className="data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm text-slate-600"
                 >
                   Entrar
                 </TabsTrigger>
                 <TabsTrigger 
                   value="register"
-                  className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 text-slate-400"
+                  className="data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm text-slate-600"
                 >
                   Registar
                 </TabsTrigger>
@@ -726,7 +596,7 @@ const Auth = () => {
               <TabsContent value="login">
                 <form onSubmit={handleSignIn} className="space-y-4 mt-4">
                   {loginBlocked && (
-                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/30">
+                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
                       <ShieldAlert className="h-4 w-4" />
                       <AlertDescription>
                         <div className="font-medium">Conta temporariamente bloqueada</div>
@@ -740,14 +610,14 @@ const Auth = () => {
                     </Alert>
                   )}
                   {error && !loginBlocked && (
-                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/30">
+                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-300">Email</Label>
+                    <Label htmlFor="email" className="text-slate-700">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -755,17 +625,17 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="password" className="text-slate-300">Password</Label>
+                      <Label htmlFor="password" className="text-slate-700">Password</Label>
                       <Button
                         type="button"
                         variant="link"
-                        className="h-auto p-0 text-xs text-emerald-400/70 hover:text-emerald-400"
+                        className="h-auto p-0 text-xs text-emerald-600 hover:text-emerald-700"
                         onClick={() => setShowForgotPassword(true)}
                       >
                         Esqueceu a password?
@@ -777,13 +647,13 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
 
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-500/20 group" 
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-sm group" 
                     disabled={isLoading || !!loginBlocked}
                   >
                     {isLoading ? (
@@ -801,14 +671,14 @@ const Auth = () => {
               <TabsContent value="register">
                 <form onSubmit={handleSignUp} className="space-y-4 mt-4">
                   {error && (
-                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/30">
+                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-name" className="text-slate-300">Nome Completo</Label>
+                    <Label htmlFor="reg-name" className="text-slate-700">Nome Completo</Label>
                     <Input
                       id="reg-name"
                       type="text"
@@ -816,12 +686,12 @@ const Auth = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reg-email" className="text-slate-300">Email</Label>
+                    <Label htmlFor="reg-email" className="text-slate-700">Email</Label>
                     <Input
                       id="reg-email"
                       type="email"
@@ -829,12 +699,12 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reg-password" className="text-slate-300">Password</Label>
+                    <Label htmlFor="reg-password" className="text-slate-700">Password</Label>
                     <Input
                       id="reg-password"
                       type="password"
@@ -842,27 +712,27 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
-                      className={`bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 ${
+                      className={`bg-white border-2 text-slate-800 placeholder:text-slate-400 focus:ring-emerald-500/20 ${
                         password.length > 0 
                           ? (isPasswordValid ? "border-emerald-500 focus:border-emerald-500" : "border-amber-500 focus:border-amber-500") 
-                          : "focus:border-emerald-500"
+                          : "border-slate-200 focus:border-emerald-500"
                       }`}
                     />
                     {password.length > 0 && (
                       <div className="mt-2 space-y-1 text-xs">
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.minLength ? "text-emerald-400" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.minLength ? "text-emerald-600" : "text-slate-500"}`}>
                           {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Mínimo 8 caracteres
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasUppercase ? "text-emerald-400" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasUppercase ? "text-emerald-600" : "text-slate-500"}`}>
                           {passwordValidation.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Uma letra maiúscula
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasLowercase ? "text-emerald-400" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasLowercase ? "text-emerald-600" : "text-slate-500"}`}>
                           {passwordValidation.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Uma letra minúscula
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasNumber ? "text-emerald-400" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasNumber ? "text-emerald-600" : "text-slate-500"}`}>
                           {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Um número
                         </div>
@@ -871,7 +741,7 @@ const Auth = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-confirm-password" className="text-slate-300">Confirmar Password</Label>
+                    <Label htmlFor="reg-confirm-password" className="text-slate-700">Confirmar Password</Label>
                     <Input
                       id="reg-confirm-password"
                       type="password"
@@ -879,20 +749,20 @@ const Auth = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       minLength={8}
-                      className={`bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 ${
+                      className={`bg-white border-2 text-slate-800 placeholder:text-slate-400 focus:ring-emerald-500/20 ${
                         confirmPassword.length > 0 
                           ? (password === confirmPassword ? "border-emerald-500 focus:border-emerald-500" : "border-red-500 focus:border-red-500") 
-                          : "focus:border-emerald-500"
+                          : "border-slate-200 focus:border-emerald-500"
                       }`}
                     />
                     {confirmPassword.length > 0 && password !== confirmPassword && (
-                      <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1">
+                      <div className="flex items-center gap-1.5 text-xs text-red-600 mt-1">
                         <X className="h-3 w-3" />
                         As passwords não coincidem
                       </div>
                     )}
                     {confirmPassword.length > 0 && password === confirmPassword && (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1">
+                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 mt-1">
                         <Check className="h-3 w-3" />
                         Passwords coincidem
                       </div>
@@ -901,16 +771,16 @@ const Auth = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white border-0 shadow-lg shadow-emerald-500/20" 
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0 shadow-sm" 
                     disabled={isLoading || !isPasswordValid || password !== confirmPassword}
                   >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Criar conta
                   </Button>
 
-                  <Alert className="bg-slate-800/50 border-slate-700">
-                    <Clock className="h-4 w-4 text-emerald-400" />
-                    <AlertDescription className="text-xs text-slate-400">
+                  <Alert className="bg-slate-50 border-2 border-slate-200">
+                    <Clock className="h-4 w-4 text-emerald-600" />
+                    <AlertDescription className="text-xs text-slate-600">
                       Após criar conta, o seu acesso ficará pendente de aprovação por um administrador.
                     </AlertDescription>
                   </Alert>
@@ -919,14 +789,14 @@ const Auth = () => {
             </Tabs>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
       </div>
 
       {/* Bottom decoration */}
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
       
       {/* Copyright */}
-      <div className="absolute bottom-6 text-slate-600 text-sm">
+      <div className="absolute bottom-6 text-slate-500 text-sm">
         © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
       </div>
     </div>
