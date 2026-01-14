@@ -606,48 +606,59 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     .replace(/\*\*/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // Convert links to plain text
   
-  // Pattern to match legislation numbers in various formats
-  const legislationNumPattern = /(?:Decreto-Lei|Lei|Portaria|Despacho|Resolução|Decreto|Regulamento|Diretiva|Aviso|Declaração de Retificação)\s+(?:n\.?º?\s*)?(\d+[-\/A-Za-z]*\/\d{2,4})/gi;
-  const euNumPattern = /(?:Diretiva|Regulamento|Decisão)\s*(?:\(UE\)|\(CE\)|\(CEE\))?\s*(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/UE|\/CE)?|\d+\/\d{4}(?:\/UE|\/CE)?)/gi;
+  // Helper to check if a legislation number is EU (not PT)
+  const isEULegislation = (num: string): boolean => {
+    const lowerNum = num.toLowerCase();
+    return /diretiva|regulamento\s*\(|decisão\s*\(|\/ue|\/ce|\/cee|\(ue\)|\(ce\)|\(cee\)/i.test(lowerNum);
+  };
+  
+  // Helper to check if a legislation number is PT
+  const isPTLegislation = (num: string): boolean => {
+    const lowerNum = num.toLowerCase();
+    return /decreto-lei|portaria|despacho|resolução|aviso|declaração/i.test(lowerNum) ||
+           (/lei\s+n/i.test(lowerNum) && !isEULegislation(num));
+  };
   
   // Split content into sections to identify relation type
   const sections = content.split(/\n(?=[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][a-záàâãéèêíìîóòôõúùûç\s]+)/);
   
   // Helper to extract legislation numbers from a text section
-  const extractNumbers = (text: string): string[] => {
-    const numbers: string[] = [];
+  const extractNumbers = (text: string): { pt: string[], eu: string[] } => {
+    const ptNumbers: string[] = [];
+    const euNumbers: string[] = [];
     
     // Extract Portuguese legislation
     let match;
     const ptPattern = /((?:Decreto-Lei|Lei|Portaria|Despacho|Resolução|Decreto|Aviso|Declaração de Retificação)\s+n\.?º?\s*\d+[-\/A-Za-z]*\/\d{2,4})/gi;
     while ((match = ptPattern.exec(text)) !== null) {
-      if (!numbers.includes(match[1])) {
-        numbers.push(match[1]);
+      const num = match[1];
+      if (!ptNumbers.includes(num) && !isEULegislation(num)) {
+        ptNumbers.push(num);
       }
     }
     
     // Extract EU legislation
     const euPattern = /((?:Diretiva|Regulamento|Decisão)\s*(?:\(UE\)|\(CE\)|\(CEE\))?\s*(?:n\.?º?\s*)?\d{4}\/\d+(?:\/UE|\/CE)?)/gi;
     while ((match = euPattern.exec(text)) !== null) {
-      if (!numbers.includes(match[1])) {
-        numbers.push(match[1]);
+      if (!euNumbers.includes(match[1])) {
+        euNumbers.push(match[1]);
       }
     }
     
-    // Also capture standalone year/number patterns after section headers
+    // Also capture standalone year/number patterns after section headers (EU context)
     const standalonePattern = /(\d{4}\/\d+(?:\/UE|\/CE)?)/gi;
     while ((match = standalonePattern.exec(text)) !== null) {
       const num = match[1];
       // Check if it looks like EU legislation (contains /UE, /CE or has directive context)
       if (/\/UE|\/CE/i.test(num) || /diretiva|regulamento|decisão/i.test(text.substring(Math.max(0, match.index - 50), match.index))) {
         const formatted = `Diretiva ${num}`;
-        if (!numbers.includes(formatted) && !numbers.some(n => n.includes(num))) {
-          numbers.push(formatted);
+        if (!euNumbers.includes(formatted) && !euNumbers.some(n => n.includes(num))) {
+          euNumbers.push(formatted);
         }
       }
     }
     
-    return numbers;
+    return { pt: ptNumbers, eu: euNumbers };
   };
   
   // Parse each section
@@ -655,13 +666,16 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     const sectionLower = section.toLowerCase();
     const firstLine = section.split('\n')[0].toLowerCase();
     
-    // Direito da União Europeia = transposicao
+    // Direito da União Europeia = transposicao (ONLY for EU legislation!)
+    // PT legislation in this section = regulamentacao
     if (firstLine.includes('direito da união europeia') || 
         firstLine.includes('união europeia') ||
         firstLine.includes('transpõe') ||
         firstLine.includes('transposição')) {
       const nums = extractNumbers(section);
-      for (const num of nums) {
+      
+      // EU diplomas = transposição
+      for (const num of nums.eu) {
         if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
           relations.push({
             relation_type: 'transposicao',
@@ -670,12 +684,23 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
           });
         }
       }
+      
+      // PT diplomas in EU section = regulamentacao (they implement EU law)
+      for (const num of nums.pt) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'regulamentacao',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Direito da União Europeia (diploma PT relacionado)'
+          });
+        }
+      }
     }
     
     // Regulamentação = regulamentacao
     if (firstLine.includes('regulamentação') || firstLine.includes('regulamenta')) {
       const nums = extractNumbers(section);
-      for (const num of nums) {
+      for (const num of [...nums.pt, ...nums.eu]) {
         if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
           relations.push({
             relation_type: 'regulamentacao',
@@ -686,12 +711,12 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
       }
     }
     
-    // Modificações / Alterações = alteracao
+    // Modificações / Alterações = alteracao (ONLY between same origin - PT<->PT or EU<->EU)
     if (firstLine.includes('modificações') || 
         firstLine.includes('alterações') || 
         firstLine.includes('altera ')) {
       const nums = extractNumbers(section);
-      for (const num of nums) {
+      for (const num of [...nums.pt, ...nums.eu]) {
         if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
           relations.push({
             relation_type: 'alteracao',
@@ -705,7 +730,7 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     // Retificações = alteracao (treated as modifications)
     if (firstLine.includes('retificações') || firstLine.includes('retifica')) {
       const nums = extractNumbers(section);
-      for (const num of nums) {
+      for (const num of [...nums.pt, ...nums.eu]) {
         if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
           relations.push({
             relation_type: 'alteracao',
@@ -720,7 +745,7 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     if ((firstLine.includes('revoga') && !firstLine.includes('revogado por')) ||
         firstLine.includes('revogação')) {
       const nums = extractNumbers(section);
-      for (const num of nums) {
+      for (const num of [...nums.pt, ...nums.eu]) {
         if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
           relations.push({
             relation_type: 'revogado',
@@ -736,7 +761,7 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     if (firstLine.includes('revogado parcialmente') || 
         sectionLower.includes('revogação parcial')) {
       const nums = extractNumbers(section);
-      for (const num of nums) {
+      for (const num of [...nums.pt, ...nums.eu]) {
         if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
           relations.push({
             relation_type: 'revogacao_parcial',
@@ -751,7 +776,7 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
   // Also scan the full content for any missed relations in summary/header
   const summarySection = content.substring(0, 2000);
   
-  // Look for transpositions in summary
+  // Look for transpositions in summary - ONLY for EU legislation!
   const transposeMatches = summarySection.match(/transpon[do]*\s+(?:a[s]?\s+)?(?:Diretiva[s]?\s+)?(?:\(UE\)\s*)?(\d{4}\/\d+(?:\/UE)?(?:\s*,?\s*\d{4}\/\d+(?:\/UE)?)*)/gi);
   if (transposeMatches) {
     for (const match of transposeMatches) {
