@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,7 @@ import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDial
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
 import { WelcomeHero } from "@/components/client/WelcomeHero";
 import { ModuleCard } from "@/components/client/ModuleCard";
+import { ClientGridBackground, ClientParticles, ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -546,12 +548,12 @@ export default function Dashboard() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-slate-900/95 backdrop-blur-xl">
       {/* Logo/Org - Clickable to Dashboard */}
       <Link 
         to="/dashboard" 
         onClick={() => setSidebarOpen(false)}
-        className="p-4 border-b border-sidebar-border hover:bg-sidebar-accent/10 transition-colors cursor-pointer"
+        className="p-4 border-b border-emerald-500/20 hover:bg-emerald-500/5 transition-colors cursor-pointer"
       >
         {currentOrg?.logo_url ? (
           <img 
@@ -561,30 +563,28 @@ export default function Dashboard() {
           />
         ) : (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
-              <Scale className="h-5 w-5" />
-            </div>
+            <ClientAnimatedLogo />
             <div className="flex flex-col">
-              <span className="font-bold text-sidebar-foreground leading-tight">I&D</span>
-              <span className="text-xs text-primary leading-tight font-medium">Compliance-ex</span>
+              <span className="font-bold text-white leading-tight">I&D</span>
+              <span className="text-xs text-emerald-400 leading-tight font-medium tracking-wider">COMPLIANCE</span>
             </div>
           </div>
         )}
       </Link>
 
       {/* User Info */}
-      <div className="p-4 border-b border-sidebar-border">
+      <div className="p-4 border-b border-emerald-500/20">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-sm font-medium text-primary">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center">
+            <span className="text-sm font-medium text-emerald-400">
               {user?.email?.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">
+            <p className="text-sm font-medium text-white truncate">
               {user?.email?.split("@")[0]}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-slate-400 truncate">
               {currentOrg?.name || ""}
             </p>
           </div>
@@ -603,16 +603,21 @@ export default function Dashboard() {
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                   isActive 
-                    ? "bg-primary text-primary-foreground" 
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/10"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25" 
+                    : "text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400"
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
                 <span>{item.label}</span>
                 {item.count !== undefined && item.count > 0 && (
-                  <Badge variant="secondary" className="ml-auto text-xs">
+                  <Badge className={cn(
+                    "ml-auto text-xs",
+                    isActive 
+                      ? "bg-white/20 text-white border-0" 
+                      : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                  )}>
                     {item.count}
                   </Badge>
                 )}
@@ -623,11 +628,11 @@ export default function Dashboard() {
 
         {/* Admin link if admin */}
         {isAdmin && (
-          <div className="px-3 mt-4 pt-4 border-t border-sidebar-border">
+          <div className="px-3 mt-4 pt-4 border-t border-emerald-500/20">
             <Link
               to="/admin"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all duration-200"
             >
               <Settings className="h-5 w-5 shrink-0" />
               <span>Administração</span>
@@ -637,25 +642,25 @@ export default function Dashboard() {
       </ScrollArea>
 
       {/* Footer - Help, Settings & Logout */}
-      <div className="p-4 border-t border-sidebar-border mt-auto space-y-1">
+      <div className="p-4 border-t border-emerald-500/20 mt-auto space-y-1">
         <Link
           to="/settings"
           onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-colors w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all duration-200 w-full"
         >
           <User className="h-4 w-4" />
           <span>Definições</span>
         </Link>
         <a
           href="mailto:suporte@legalcompliance.pt"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-colors w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all duration-200 w-full"
         >
           <HelpCircle className="h-4 w-4" />
           <span>Ajuda</span>
         </a>
         <LogoutConfirmDialog 
           onConfirm={signOut} 
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/10 px-3" 
+          className="w-full justify-start gap-3 text-slate-400 hover:bg-red-500/10 hover:text-red-400 px-3" 
           variant="ghost"
         />
       </div>
@@ -663,36 +668,40 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-slate-950 flex relative overflow-hidden">
+      {/* Background effects */}
+      <ClientGridBackground />
+      <ClientParticles />
+      
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-sidebar border-r border-sidebar-border">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-emerald-500/20">
         <SidebarContent />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 bg-sidebar">
+        <SheetContent side="left" className="w-64 p-0 border-r border-emerald-500/20">
           <SidebarContent />
         </SheetContent>
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex-1 lg:pl-64">
+      <div className="flex-1 lg:pl-64 relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
+        <header className="sticky top-0 z-20 bg-slate-900/80 backdrop-blur-xl border-b border-emerald-500/20">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden"
+                className="lg:hidden text-slate-300 hover:text-emerald-400 hover:bg-emerald-500/10"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm text-muted-foreground">{currentOrg?.name || "Dashboard"}</p>
-                <h1 className="text-xl font-semibold">
+                <p className="text-sm text-slate-400">{currentOrg?.name || "Dashboard"}</p>
+                <h1 className="text-xl font-semibold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
                   {activeTab === "overview" && "Painel de Controlo"}
                   {activeTab === "actions" && "Planos de Ação"}
                   {activeTab === "audits" && "Auditorias"}
@@ -710,27 +719,27 @@ export default function Dashboard() {
                 />
               )}
               <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input 
                   placeholder="Pesquisa" 
-                  className="pl-9 w-64 bg-card"
+                  className="pl-9 w-64 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
                 />
               </div>
               <TooltipProvider>
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <Link to="/legislacao-recente">
-                      <Button variant="ghost" size="icon" className="relative">
+                      <Button variant="ghost" size="icon" className="relative text-slate-300 hover:text-emerald-400 hover:bg-emerald-500/10">
                         <FileText className="h-5 w-5" />
                         {unreadLegislationCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs flex items-center justify-center shadow-lg shadow-emerald-500/30">
                             {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
                           </span>
                         )}
                       </Button>
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-slate-800 border-slate-700 text-white">
                     <p>{unreadLegislationCount > 0 ? `${unreadLegislationCount} diplomas por ler` : "Legislação recente"}</p>
                   </TooltipContent>
                 </UITooltip>
@@ -802,76 +811,92 @@ export default function Dashboard() {
               </div>
 
               {/* Recent Legislation - Improved */}
-              <Card className="overflow-hidden border-0 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        Legislação Recente
-                      </CardTitle>
-                      <CardDescription>Últimos diplomas publicados</CardDescription>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
+                <Card className="overflow-hidden bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
+                  <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-transparent">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-white">
+                          <FileText className="h-5 w-5 text-emerald-400" />
+                          Legislação Recente
+                        </CardTitle>
+                        <CardDescription className="text-slate-400">Últimos diplomas publicados</CardDescription>
+                      </div>
+                      <Link to="/legislacao-recente" className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors">
+                        Ver todos <ChevronRight className="h-4 w-4" />
+                      </Link>
                     </div>
-                    <Link to="/legislacao-recente" className="text-sm text-primary hover:underline flex items-center gap-1 font-medium">
-                      Ver todos <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4">
-                  {loadingLegislation ? (
-                    <div className="grid md:grid-cols-4 gap-4">
-                      {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-40 w-full rounded-xl" />
-                      ))}
-                    </div>
-                  ) : recentLegislation && recentLegislation.length > 0 ? (
-                    <div className="grid md:grid-cols-4 gap-4">
-                      {recentLegislation.slice(0, 4).map((leg) => (
-                        <Link
-                          key={leg.id}
-                          to={`/legislacao/${leg.id}`}
-                          className="relative rounded-xl border bg-gradient-to-br from-card to-muted/30 overflow-hidden group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                        >
-                          <div className="absolute top-2 left-2 z-10">
-                            <Badge variant={leg.source === "dre" ? "default" : "secondary"} className="text-xs shadow-sm">
-                              {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
-                            </Badge>
-                          </div>
-                          <div className="h-16 bg-gradient-to-br from-primary/30 via-primary/10 to-transparent" />
-                          <div className="p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-muted-foreground font-medium">
-                                {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
-                              </span>
-                              <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {loadingLegislation ? (
+                      <div className="grid md:grid-cols-4 gap-4">
+                        {[1, 2, 3, 4].map((i) => (
+                          <Skeleton key={i} className="h-40 w-full rounded-xl bg-slate-800/50" />
+                        ))}
+                      </div>
+                    ) : recentLegislation && recentLegislation.length > 0 ? (
+                      <div className="grid md:grid-cols-4 gap-4">
+                        {recentLegislation.slice(0, 4).map((leg) => (
+                          <Link
+                            key={leg.id}
+                            to={`/legislacao/${leg.id}`}
+                            className="relative rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/80 to-slate-900/80 overflow-hidden group hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all duration-300"
+                          >
+                            <div className="absolute top-2 left-2 z-10">
+                              <Badge className={cn(
+                                "text-xs shadow-sm",
+                                leg.source === "dre" 
+                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
+                                  : "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                              )}>
+                                {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
+                              </Badge>
                             </div>
-                            <p className="text-sm font-semibold line-clamp-2 group-hover:text-primary transition-colors">
-                              {leg.number}
-                            </p>
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                              {leg.title}
-                            </p>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                      <p className="text-muted-foreground">Nenhuma legislação disponível</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                            <div className="h-16 bg-gradient-to-br from-emerald-500/20 via-emerald-500/5 to-transparent" />
+                            <div className="p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs text-slate-500 font-medium">
+                                  {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
+                                </span>
+                                <ExternalLink className="h-3 w-3 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              <p className="text-sm font-semibold text-white line-clamp-2 group-hover:text-emerald-400 transition-colors">
+                                {leg.number}
+                              </p>
+                              <p className="text-xs text-slate-400 line-clamp-2 mt-1">
+                                {leg.title}
+                              </p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <FileText className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+                        <p className="text-slate-500">Nenhuma legislação disponível</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
 
               {/* Charts and Stats Row - 3 columns */}
-              <div className="grid gap-6 lg:grid-cols-3">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="grid gap-6 lg:grid-cols-3"
+              >
                 {/* Compliance Pie Chart */}
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/20">
+                <Card className="bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-primary/10">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-base flex items-center gap-2 text-white">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/20">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                       </div>
                       Estado de Conformidade
                     </CardTitle>
@@ -896,18 +921,24 @@ export default function Dashboard() {
                             </Pie>
                             <Tooltip 
                               formatter={(value: number) => [`${value} requisitos`, ""]}
-                              contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.2)" }}
+                              contentStyle={{ 
+                                borderRadius: "12px", 
+                                border: "1px solid rgba(16, 185, 129, 0.2)", 
+                                boxShadow: "0 10px 40px -10px rgba(0,0,0,0.5)",
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                color: "#fff"
+                              }}
                             />
                             <Legend 
                               verticalAlign="bottom" 
                               height={36}
-                              formatter={(value) => <span className="text-sm">{value}</span>}
+                              formatter={(value) => <span className="text-sm text-slate-300">{value}</span>}
                             />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                      <div className="h-[200px] flex items-center justify-center text-slate-500">
                         <div className="text-center">
                           <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-20" />
                           <p>Sem dados de conformidade</p>
@@ -918,11 +949,11 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Action Plans Pie Chart */}
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/20">
+                <Card className="bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-emerald-500/10">
-                        <ClipboardList className="h-4 w-4 text-emerald-600" />
+                    <CardTitle className="text-base flex items-center gap-2 text-white">
+                      <div className="p-1.5 rounded-lg bg-teal-500/20">
+                        <ClipboardList className="h-4 w-4 text-teal-400" />
                       </div>
                       Planos de Ação
                     </CardTitle>
@@ -947,18 +978,24 @@ export default function Dashboard() {
                             </Pie>
                             <Tooltip 
                               formatter={(value: number) => [`${value} ações`, ""]}
-                              contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.2)" }}
+                              contentStyle={{ 
+                                borderRadius: "12px", 
+                                border: "1px solid rgba(16, 185, 129, 0.2)", 
+                                boxShadow: "0 10px 40px -10px rgba(0,0,0,0.5)",
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                color: "#fff"
+                              }}
                             />
                             <Legend 
                               verticalAlign="bottom" 
                               height={36}
-                              formatter={(value) => <span className="text-sm">{value}</span>}
+                              formatter={(value) => <span className="text-sm text-slate-300">{value}</span>}
                             />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                      <div className="h-[200px] flex items-center justify-center text-slate-500">
                         <div className="text-center">
                           <ClipboardList className="h-10 w-10 mx-auto mb-2 opacity-20" />
                           <p>Sem planos de ação</p>
@@ -969,86 +1006,88 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Quick Stats + Trend */}
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-muted/20">
+                <Card className="bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-amber-500/10">
-                        <TrendingUp className="h-4 w-4 text-amber-600" />
+                    <CardTitle className="text-base flex items-center gap-2 text-white">
+                      <div className="p-1.5 rounded-lg bg-amber-500/20">
+                        <TrendingUp className="h-4 w-4 text-amber-400" />
                       </div>
                       Atividade
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-amber-600" />
-                        <span className="text-sm">Ações Pendentes</span>
+                        <Clock className="h-4 w-4 text-amber-400" />
+                        <span className="text-sm text-slate-300">Ações Pendentes</span>
                       </div>
-                      <Badge variant="secondary" className="font-bold">{actionPlanStats.pending}</Badge>
+                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 font-bold">{actionPlanStats.pending}</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
                       <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-destructive" />
-                        <span className="text-sm">Ações Atrasadas</span>
+                        <AlertTriangle className="h-4 w-4 text-red-400" />
+                        <span className="text-sm text-slate-300">Ações Atrasadas</span>
                       </div>
-                      <Badge variant="destructive" className="font-bold">{actionPlanStats.overdue}</Badge>
+                      <Badge className="bg-red-500/20 text-red-400 border-red-500/30 font-bold">{actionPlanStats.overdue}</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">Concluídas</span>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <span className="text-sm text-slate-300">Concluídas</span>
                       </div>
-                      <Badge className="bg-green-600 font-bold">{actionPlanStats.completed}</Badge>
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold">{actionPlanStats.completed}</Badge>
                     </div>
 
-                {/* Mini Trend Chart */}
-                <div className="pt-3 border-t">
-                  <p className="text-xs text-muted-foreground mb-2">Evolução (últimos 7 dias)</p>
-                  <div className="h-[80px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorTaxa" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fontSize: 10 }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis 
-                          domain={[0, 100]}
-                          tick={{ fontSize: 10 }}
-                          tickLine={false}
-                          axisLine={false}
-                          tickFormatter={(v) => `${v}%`}
-                        />
-                        <Tooltip 
-                          formatter={(value: number) => [`${value}%`, "Taxa"]}
-                          contentStyle={{ 
-                            borderRadius: "8px", 
-                            border: "1px solid hsl(var(--border))",
-                            fontSize: "12px"
-                          }}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="taxa" 
-                          stroke="hsl(var(--primary))" 
-                          strokeWidth={2}
-                          fillOpacity={1} 
-                          fill="url(#colorTaxa)" 
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                    {/* Mini Trend Chart */}
+                    <div className="pt-3 border-t border-slate-700/50">
+                      <p className="text-xs text-slate-500 mb-2">Evolução (últimos 7 dias)</p>
+                      <div className="h-[80px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorTaxa" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="hsl(161, 93%, 30%)" stopOpacity={0.4}/>
+                                <stop offset="95%" stopColor="hsl(161, 93%, 30%)" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 10, fill: "#64748b" }}
+                              tickLine={false}
+                              axisLine={false}
+                            />
+                            <YAxis 
+                              domain={[0, 100]}
+                              tick={{ fontSize: 10, fill: "#64748b" }}
+                              tickLine={false}
+                              axisLine={false}
+                              tickFormatter={(v) => `${v}%`}
+                            />
+                            <Tooltip 
+                              formatter={(value: number) => [`${value}%`, "Taxa"]}
+                              contentStyle={{ 
+                                borderRadius: "8px", 
+                                border: "1px solid rgba(16, 185, 129, 0.2)",
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                color: "#fff",
+                                fontSize: "12px"
+                              }}
+                            />
+                            <Area 
+                              type="monotone" 
+                              dataKey="taxa" 
+                              stroke="hsl(161, 93%, 40%)" 
+                              strokeWidth={2}
+                              fillOpacity={1} 
+                              fill="url(#colorTaxa)" 
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </>
           )}
 
