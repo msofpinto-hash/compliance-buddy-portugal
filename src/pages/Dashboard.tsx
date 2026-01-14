@@ -668,18 +668,21 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex relative overflow-hidden">
       {/* Subtle background pattern */}
       <div 
-        className="fixed inset-0 opacity-30 dark:opacity-10 pointer-events-none"
+        className="fixed inset-0 opacity-40 dark:opacity-15 pointer-events-none"
         style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.15) 1px, transparent 0)`,
-          backgroundSize: '24px 24px'
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(16, 185, 129, 0.08) 1px, transparent 0)`,
+          backgroundSize: '32px 32px'
         }}
       />
+      {/* Decorative gradient orbs */}
+      <div className="fixed top-20 right-20 w-96 h-96 bg-gradient-to-br from-emerald-400/10 via-teal-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed bottom-20 left-20 w-80 h-80 bg-gradient-to-tr from-blue-400/10 via-purple-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
       
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-slate-200/80 dark:border-slate-700/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-slate-200/20 dark:shadow-none">
         <SidebarContent />
       </aside>
 
@@ -693,7 +696,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50">
+        <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-700/50 shadow-sm shadow-slate-200/50 dark:shadow-none">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
@@ -813,7 +816,7 @@ export default function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
               >
-                <Card className="overflow-hidden bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
+                <Card className="overflow-hidden bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
@@ -889,7 +892,7 @@ export default function Dashboard() {
                 className="grid gap-6 lg:grid-cols-3"
               >
                 {/* Compliance Pie Chart */}
-                <Card className="bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
+                <Card className="bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
                       <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
@@ -946,7 +949,7 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Action Plans Pie Chart */}
-                <Card className="bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
+                <Card className="bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
                       <div className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-500/10">
@@ -1003,7 +1006,7 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Quick Stats + Trend */}
-                <Card className="bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
+                <Card className="bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
                       <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10">
