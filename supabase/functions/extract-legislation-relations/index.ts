@@ -11,7 +11,7 @@ const corsHeaders = {
 };
 
 interface ExtractedRelation {
-  relation_type: 'revogado' | 'revogacao_parcial' | 'alteracao' | 'transposicao' | 'regulamentacao';
+  relation_type: 'revogado' | 'revogacao_parcial' | 'alteracao' | 'transposicao' | 'regulamentacao' | 'alterado_por' | 'revogado_por';
   target_number: string;
   notes?: string;
 }
@@ -23,6 +23,9 @@ const INVERSE_RELATION_MAP: Record<string, string> = {
   'alteracao': 'alterado_por',
   'transposicao': 'transposto_por',
   'regulamentacao': 'regulamentado_por',
+  // Inverse relations (when we find "alterado por" we create the inverse "alteracao" for the source)
+  'alterado_por': 'alteracao',
+  'revogado_por': 'revogado',
 };
 
 interface RelationResult {
@@ -75,6 +78,50 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<string |
     return data.data?.markdown || data.markdown || '';
   } catch (error) {
     console.error('Scrape error:', error);
+    return null;
+  }
+}
+
+// Scrape DRE Análise Jurídica page to get "Alterado por", "Revogado por" sections
+async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string): Promise<string | null> {
+  try {
+    // DRE has a separate "Análise Jurídica" section with modification info
+    // We need to scrape without onlyMainContent to get the sidebar
+    console.log('Scraping DRE Análise Jurídica for:', baseUrl);
+    
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: baseUrl,
+        formats: ['markdown'],
+        onlyMainContent: false, // Include sidebar with "Alterado por", "Revogado por"
+        waitFor: 5000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Firecrawl Análise Jurídica error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const markdown = data.data?.markdown || data.markdown || '';
+    
+    // Log what we found for debugging
+    if (markdown.toLowerCase().includes('alterado por')) {
+      console.log('[DRE] Found "Alterado por" section in scraped content');
+    }
+    if (markdown.toLowerCase().includes('revogado por')) {
+      console.log('[DRE] Found "Revogado por" section in scraped content');
+    }
+    
+    return markdown;
+  } catch (error) {
+    console.error('Scrape Análise Jurídica error:', error);
     return null;
   }
 }
@@ -771,6 +818,37 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
         }
       }
     }
+    
+    // "Alterado por" section - diplomas that ALTER the current one
+    // This creates 'alterado_por' relations (inverse of 'alteracao')
+    if (firstLine.includes('alterado por') || 
+        firstLine.includes('modificado por') ||
+        sectionLower.includes('foi alterado por')) {
+      const nums = extractNumbers(section);
+      for (const num of [...nums.pt, ...nums.eu]) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase() && r.relation_type === 'alterado_por')) {
+          relations.push({
+            relation_type: 'alterado_por',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Alterado por'
+          });
+        }
+      }
+    }
+    
+    // "Revogado por" section - diplomas that REVOKE the current one
+    if (firstLine.includes('revogado por') && !firstLine.includes('parcialmente')) {
+      const nums = extractNumbers(section);
+      for (const num of [...nums.pt, ...nums.eu]) {
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase() && r.relation_type === 'revogado_por')) {
+          relations.push({
+            relation_type: 'revogado_por',
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Revogado por'
+          });
+        }
+      }
+    }
   }
   
   // Also scan the full content for any missed relations in summary/header
@@ -1225,7 +1303,17 @@ async function processRelationsInBackground(
       .eq('id', jobId);
     
     try {
-      const textContent = await scrapeUrl(leg.document_url, firecrawlApiKey);
+      // For PT legislation, use full page scrape to get "Alterado por" sidebar
+      const isPT = !leg.origin || leg.origin === 'PT' || 
+                   leg.document_url?.includes('diariodarepublica.pt');
+      
+      let textContent: string | null;
+      if (isPT) {
+        // Use full page scrape for PT to get sidebar with "Alterado por", "Revogado por"
+        textContent = await scrapeDREAnaliseJuridica(leg.document_url, firecrawlApiKey);
+      } else {
+        textContent = await scrapeUrl(leg.document_url, firecrawlApiKey);
+      }
       
       if (!textContent || textContent.length < 100) {
         console.log(`No content for ${leg.number}`);
@@ -1297,12 +1385,33 @@ async function processRelationsInBackground(
         if (match) {
           totalRelationsMatched++;
           
-          const relationKey = `${leg.id}-${match.id}-${rel.relation_type}`;
+          // For "alterado_por" and "revogado_por", the target diploma is the one that alters/revokes
+          // the current diploma, so we need to swap the direction and use the base relation type
+          const isPassiveRelation = rel.relation_type === 'alterado_por' || rel.relation_type === 'revogado_por';
+          
+          let sourceId: string;
+          let targetId: string;
+          let relationType: string;
+          
+          if (isPassiveRelation) {
+            // Swap direction: the matched legislation (e.g., DL 24/2024) is the source
+            // that alters/revokes the current legislation (leg)
+            sourceId = match.id;
+            targetId = leg.id;
+            relationType = INVERSE_RELATION_MAP[rel.relation_type]; // 'alterado_por' -> 'alteracao'
+          } else {
+            // Normal direction: current legislation affects the matched one
+            sourceId = leg.id;
+            targetId = match.id;
+            relationType = rel.relation_type;
+          }
+          
+          const relationKey = `${sourceId}-${targetId}-${relationType}`;
           if (!existingRelationSet.has(relationKey)) {
             toInsert.push({
-              source_legislation_id: leg.id,
-              target_legislation_id: match.id,
-              relation_type: rel.relation_type,
+              source_legislation_id: sourceId,
+              target_legislation_id: targetId,
+              relation_type: relationType,
               notes: rel.notes || null,
             });
             existingRelationSet.add(relationKey);
