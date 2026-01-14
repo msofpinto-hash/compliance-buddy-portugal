@@ -82,12 +82,15 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<string |
   }
 }
 
-// Scrape DRE Análise Jurídica page to get "Alterado por", "Revogado por" sections
+// Scrape DRE Análise Jurídica page to get structured relation information
 async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string): Promise<string | null> {
   try {
-    // DRE has a separate "Análise Jurídica" section with modification info
-    // We need to scrape without onlyMainContent to get the sidebar
-    console.log('Scraping DRE Análise Jurídica for:', baseUrl);
+    // Convert /dr/detalhe/ URL to /dr/analise-juridica/ URL
+    // Example: https://diariodarepublica.pt/dr/detalhe/decreto-lei/24-2024-857366010
+    // becomes: https://diariodarepublica.pt/dr/analise-juridica/decreto-lei/24-2024-857366010
+    let analiseUrl = baseUrl.replace('/dr/detalhe/', '/dr/analise-juridica/');
+    
+    console.log('Scraping DRE Análise Jurídica:', analiseUrl);
     
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -96,27 +99,28 @@ async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url: baseUrl,
+        url: analiseUrl,
         formats: ['markdown'],
-        onlyMainContent: false, // Include sidebar with "Alterado por", "Revogado por"
-        waitFor: 5000,
+        onlyMainContent: true,
+        waitFor: 3000,
       }),
     });
 
     if (!response.ok) {
       console.error('Firecrawl Análise Jurídica error:', response.status);
-      return null;
+      // Fallback to original URL with full content
+      return await scrapeUrl(baseUrl, firecrawlApiKey);
     }
 
     const data = await response.json();
     const markdown = data.data?.markdown || data.markdown || '';
     
     // Log what we found for debugging
-    if (markdown.toLowerCase().includes('alterado por')) {
-      console.log('[DRE] Found "Alterado por" section in scraped content');
+    if (markdown.toLowerCase().includes('alteração')) {
+      console.log('[DRE ANALISE] Found "alteração" mentions in Análise Jurídica content');
     }
-    if (markdown.toLowerCase().includes('revogado por')) {
-      console.log('[DRE] Found "Revogado por" section in scraped content');
+    if (markdown.toLowerCase().includes('revoga')) {
+      console.log('[DRE ANALISE] Found "revoga" mentions in Análise Jurídica content');
     }
     
     return markdown;
@@ -851,8 +855,44 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     }
   }
   
-  // Also scan the full content for any missed relations in summary/header
-  const summarySection = content.substring(0, 2000);
+  // Also scan the full content for "À X alteração ao" pattern (from summary/resumo)
+  // This is CRITICAL - these are explicit alterations and should take priority
+  const summarySection = content.substring(0, 4000);
+  const confirmedAlterations = new Set<string>();
+  
+  // Pattern: "À X alteração ao Decreto-Lei n.º..." or "procede à X alteração"
+  const alteracaoResumoPattern = /(?:à|a)\s+(?:primeira|segunda|terceira|quarta|quinta|sexta|sétima|oitava|nona|décima|\d+\.?ª?)\s+alteração\s+(?:a[os]?\s+)?([^,;]+)/gi;
+  let alterMatch;
+  while ((alterMatch = alteracaoResumoPattern.exec(summarySection)) !== null) {
+    const context = alterMatch[1];
+    const nums = extractNumbers(context);
+    for (const num of [...nums.pt, ...nums.eu]) {
+      const normalizedNum = num.toLowerCase().replace(/\s+/g, '');
+      confirmedAlterations.add(normalizedNum);
+      
+      // Add as alteration if not already present
+      if (!relations.some(r => r.target_number.toLowerCase().replace(/\s+/g, '') === normalizedNum)) {
+        relations.push({
+          relation_type: 'alteracao',
+          target_number: num.trim(),
+          notes: 'Extraído do resumo DRE - Alteração explícita'
+        });
+        console.log(`[DRE PANEL] Found explicit alteration from summary: ${num}`);
+      }
+    }
+  }
+  
+  // Remove any "revogado" relations for diplomas that are confirmed alterations
+  const finalRelations = relations.filter(r => {
+    if (r.relation_type === 'revogado') {
+      const normalizedNum = r.target_number.toLowerCase().replace(/\s+/g, '');
+      if (confirmedAlterations.has(normalizedNum)) {
+        console.log(`[DRE PANEL] Correcting: ${r.target_number} is alteration, not revogado`);
+        return false; // Remove this revogado relation
+      }
+    }
+    return true;
+  });
   
   // Look for transpositions in summary - ONLY for EU legislation!
   const transposeMatches = summarySection.match(/transpon[do]*\s+(?:a[s]?\s+)?(?:Diretiva[s]?\s+)?(?:\(UE\)\s*)?(\d{4}\/\d+(?:\/UE)?(?:\s*,?\s*\d{4}\/\d+(?:\/UE)?)*)/gi);
@@ -862,8 +902,8 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
       if (nums) {
         for (const num of nums) {
           const formatted = `Diretiva (UE) ${num}`;
-          if (!relations.some(r => r.target_number.includes(num))) {
-            relations.push({
+          if (!finalRelations.some(r => r.target_number.includes(num))) {
+            finalRelations.push({
               relation_type: 'transposicao',
               target_number: formatted,
               notes: 'Extraído do sumário DRE'
@@ -874,8 +914,8 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     }
   }
   
-  console.log(`[DRE PANEL] Extracted ${relations.length} relations from DRE Análise Jurídica`);
-  return relations;
+  console.log(`[DRE PANEL] Extracted ${finalRelations.length} relations from DRE Análise Jurídica`);
+  return finalRelations;
 }
 
 // Fallback regex-based relation extraction when AI fails
@@ -885,6 +925,9 @@ function extractRelationsWithRegex(
 ): ExtractedRelation[] {
   const relations: ExtractedRelation[] = [];
   const text = `${legislation.summary || ''} ${fullText}`.toLowerCase();
+  
+  // Keep track of which diplomas are definitely alterations (takes priority over revogado)
+  const confirmedAlterations = new Set<string>();
   
   // Direct pattern to extract directive numbers with various formats
   const directivePattern = /diretiva\s+(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/(?:ue|ce|cee|eu))?|\d+\/\d+\/(?:ue|ce|cee|eu|ec|eec))/gi;
@@ -924,7 +967,7 @@ function extractRelationsWithRegex(
   // Patterns for different legislation types
   const legislationPatterns = [
     // Portuguese
-    /(?:decreto-lei|lei|portaria|despacho|resolução|decreto)\s+n\.?º?\s*(\d+[-\/]\d+(?:\/\d+)?)/gi,
+    /(?:decreto-lei|lei|portaria|despacho|resolução|decreto)\s+n\.?º?\s*(\d+[-\/][a-z]?[-\/]?\d+(?:\/\d+)?)/gi,
     // EU Directives
     directivePattern,
     // EU Regulations
@@ -933,25 +976,43 @@ function extractRelationsWithRegex(
     /decis[ãa]o\s+(?:\(ue\)|\(ce\))?\s*(?:n\.?º?\s*)?(\d{4}\/\d+)/gi,
   ];
   
-  // Find revocations
-  const revokePatterns = [
-    /revoga(?:do|ndo|ção)?[:\s]+(?:o\s+|a\s+)?([^,\.]+)/gi,
-    /fica(?:m)?\s+revogad[oa]s?[:\s]+([^,\.]+)/gi,
+  // Helper to normalize number for comparison
+  const normalizeForComparison = (num: string): string => {
+    return num.toLowerCase().replace(/\s+/g, '').replace(/n\.?º?/gi, '');
+  };
+  
+  // FIRST: Find alterations (BEFORE revocations - alterations take priority!)
+  // These patterns are very specific about "alteração" context
+  const alterPatterns = [
+    // "procede à X alteração ao Decreto-Lei" - very specific format from summaries
+    /procede[:\s]+.*?(?:à|a)\s+(?:primeira|segunda|terceira|quarta|quinta|sexta|sétima|oitava|nona|décima|\d+\.?ª?)\s+alteração\s+(?:a[os]?\s+)?([^,;]+)/gi,
+    // "X alteração ao Decreto-Lei" 
+    /(?:primeira|segunda|terceira|quarta|quinta|sexta|sétima|oitava|nona|décima|\d+\.?ª?)\s+alteração\s+(?:a[os]?\s+)?([^,;]+)/gi,
+    // "altera o/a Decreto-Lei"
+    /\baltera\s+(?:o\s+|a\s+)?([^,;\.]+)/gi,
+    // "alteração ao Decreto-Lei"
+    /alteração\s+(?:a[os]?\s+)?([^,;\.]+)/gi,
   ];
   
-  for (const pattern of revokePatterns) {
+  for (const pattern of alterPatterns) {
     let match;
     while ((match = pattern.exec(text)) !== null) {
+      const context = match[1];
       for (const legPattern of legislationPatterns) {
-        legPattern.lastIndex = 0; // Reset regex state
-        const legMatch = match[1].match(legPattern);
+        legPattern.lastIndex = 0;
+        const legMatch = context.match(legPattern);
         if (legMatch) {
           for (const num of legMatch) {
-            if (!relations.some(r => r.target_number.toLowerCase().includes(num.toLowerCase()))) {
+            const normalizedNum = normalizeForComparison(num);
+            // Mark as confirmed alteration
+            confirmedAlterations.add(normalizedNum);
+            
+            if (!relations.some(r => normalizeForComparison(r.target_number) === normalizedNum)) {
               relations.push({
-                relation_type: 'revogado',
+                relation_type: 'alteracao',
                 target_number: num.trim(),
               });
+              console.log(`[REGEX] Found alteration: ${num}`);
             }
           }
         }
@@ -959,23 +1020,32 @@ function extractRelationsWithRegex(
     }
   }
   
-  // Find alterations
-  const alterPatterns = [
-    /altera(?:ção|ndo)?[:\s]+(?:o\s+|a\s+)?([^,\.]+)/gi,
-    /(?:primeira|segunda|terceira|\d+ª?)\s+alteração\s+(?:a[os]?\s+)?([^,\.]+)/gi,
+  // SECOND: Find revocations (but skip if already marked as alteration)
+  const revokePatterns = [
+    /\brevoga(?:do|ndo|ção)?[:\s]+(?:o\s+|a\s+)?([^,;\.]+)/gi,
+    /\bfica(?:m)?\s+revogad[oa]s?[:\s]+([^,;\.]+)/gi,
   ];
   
-  for (const pattern of alterPatterns) {
+  for (const pattern of revokePatterns) {
     let match;
     while ((match = pattern.exec(text)) !== null) {
+      const context = match[1];
       for (const legPattern of legislationPatterns) {
-        legPattern.lastIndex = 0; // Reset regex state
-        const legMatch = match[1].match(legPattern);
+        legPattern.lastIndex = 0;
+        const legMatch = context.match(legPattern);
         if (legMatch) {
           for (const num of legMatch) {
-            if (!relations.some(r => r.target_number.toLowerCase().includes(num.toLowerCase()))) {
+            const normalizedNum = normalizeForComparison(num);
+            
+            // Skip if this is a confirmed alteration - alterations take priority
+            if (confirmedAlterations.has(normalizedNum)) {
+              console.log(`[REGEX] Skipping revocation for ${num} - already marked as alteration`);
+              continue;
+            }
+            
+            if (!relations.some(r => normalizeForComparison(r.target_number) === normalizedNum)) {
               relations.push({
-                relation_type: 'alteracao',
+                relation_type: 'revogado',
                 target_number: num.trim(),
               });
             }
