@@ -296,8 +296,8 @@ function buildEurLexUrl(number: string): string | null {
     return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
   }
   
-  // Decisão YYYY/NNN
-  const decMatch = number.match(/Decis[ãa]o.*?(\d{4})\/(\d+)/i);
+  // Decisão YYYY/NNN or Decisões YYYY/NNN/JAI
+  const decMatch = number.match(/Decis[ãõa]o?e?s?\s+(\d{4})\/(\d+)/i);
   if (decMatch) {
     const celex = `3${decMatch[1]}D${decMatch[2].padStart(4, '0')}`;
     return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
@@ -591,8 +591,20 @@ function determineOrigin(number: string): string {
     /\(ce\)/i,
     /\(cee\)/i,
     /\(pesc\)/i,
+    /\(eu\)/i,      // English format (EU)
+    /\(ec\)/i,      // English format (EC)
+    /\(eec\)/i,     // English format (EEC)
     /unece/i,
     /euratom/i,
+    /\/jai$/i,      // JAI decisions
+    /\/jha$/i,      // JHA decisions (English)
+    /decisões.*jai/i,  // Decisões JAI do Conselho
+    /decision.*jha/i,  // Decision JHA
+    /eu\s*no\s*\d+\/\d+/i,  // (EU) No 515/2014 format
+    /ec\s*no\s*\d+\/\d+/i,  // (EC) No format
+    /^\(eu\)\s*\d+\/\d+/i,  // (EU) 2016/1624 format
+    /^\(ec\)\s*\d+\/\d+/i,  // (EC) format
+    /^3\d{4}[RLDB]\d{4}$/i, // CELEX format
   ];
   
   for (const pattern of euPatterns) {
