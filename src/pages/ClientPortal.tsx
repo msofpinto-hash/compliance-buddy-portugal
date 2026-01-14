@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ import {
   FolderTree,
   Upload
 } from "lucide-react";
+import { ClientGridBackground, ClientParticles, ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { CategoryTreeItem } from "@/components/client/CategoryTreeItem";
 import { MyComplianceRequestsPanel } from "@/components/client/MyComplianceRequestsPanel";
@@ -436,41 +438,60 @@ export default function ClientPortal() {
 
   if (loadingRole) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Scale className="h-12 w-12 text-primary mx-auto animate-pulse" />
-          <p className="mt-4 text-muted-foreground">A carregar...</p>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+        <ClientGridBackground />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center relative z-10"
+        >
+          <ClientAnimatedLogo className="mx-auto mb-4 scale-150" />
+          <p className="mt-6 text-muted-foreground">A carregar...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (organizationIds.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <ClientGridBackground />
+        <ClientParticles />
+        
+        <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl relative z-10">
           <div className="container mx-auto flex items-center justify-between px-4 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Scale className="h-5 w-5" />
-              </div>
+              <ClientAnimatedLogo />
               <div>
-                <h1 className="text-xl font-semibold">Portal do Cliente</h1>
+                <h1 className="text-xl font-semibold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                  Portal do Cliente
+                </h1>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </div>
             <LogoutConfirmDialog onConfirm={signOut} className="gap-2" />
           </div>
         </header>
-        <main className="container mx-auto px-4 py-16 text-center">
-          <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Sem Organização Associada</h2>
-          <p className="text-muted-foreground mb-4">
-            A sua conta ainda não está associada a nenhuma organização.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Por favor contacte o administrador para ser adicionado a uma organização.
-          </p>
+        
+        <main className="container mx-auto px-4 py-16 text-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="inline-flex p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 mb-6">
+              <Building2 className="h-16 w-16 text-emerald-400" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              Sem Organização Associada
+            </h2>
+            <p className="text-muted-foreground mb-4">
+              A sua conta ainda não está associada a nenhuma organização.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Por favor contacte o administrador para ser adicionado a uma organização.
+            </p>
+          </motion.div>
         </main>
       </div>
     );
@@ -484,16 +505,20 @@ export default function ClientPortal() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Futuristic Background */}
+      <ClientGridBackground />
+      <ClientParticles />
+      
       {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-20">
+      <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-20 relative">
         <div className="flex items-center justify-between px-4 lg:px-6 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-lg">
-              <Scale className="h-5 w-5" />
-            </div>
+            <ClientAnimatedLogo />
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold tracking-tight">Portal do Cliente</h1>
+              <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                Portal do Cliente
+              </h1>
               <p className="text-xs text-muted-foreground">Gestão de Conformidade</p>
             </div>
           </div>
@@ -512,7 +537,7 @@ export default function ClientPortal() {
             <Button 
               variant="ghost"
               size="sm"
-              className="gap-2"
+              className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"
               onClick={() => setExportDialogOpen(true)}
             >
               <Download className="h-4 w-4" />
@@ -520,14 +545,14 @@ export default function ClientPortal() {
             </Button>
             
             <Link to="/biblioteca">
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden md:inline">Biblioteca</span>
               </Button>
             </Link>
             
             <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden md:inline">Dashboard</span>
               </Button>
@@ -535,7 +560,7 @@ export default function ClientPortal() {
             
             {isAdmin && (
               <Link to="/admin">
-                <Button variant="ghost" size="sm" className="gap-2">
+                <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Admin</span>
                 </Button>
@@ -547,18 +572,21 @@ export default function ClientPortal() {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex relative z-10">
         {/* Sidebar Navigation */}
-        <aside className="hidden lg:flex flex-col w-64 border-r bg-card min-h-[calc(100vh-57px)] sticky top-[57px]">
+        <aside className="hidden lg:flex flex-col w-64 border-r border-border/50 bg-card/60 backdrop-blur-xl min-h-[calc(100vh-57px)] sticky top-[57px]">
           <nav className="flex-1 p-4 space-y-1">
-            {navItems.map((item) => (
-              <button
+            {navItems.map((item, index) => (
+              <motion.button
                 key={item.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-300 ${
                   activeTab === item.id 
-                    ? "bg-primary text-primary-foreground" 
-                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10" 
+                    : "hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-400 border border-transparent"
                 }`}
               >
                 <item.icon className="h-5 w-5" />
@@ -566,18 +594,18 @@ export default function ClientPortal() {
                 {item.count !== undefined && item.count > 0 && (
                   <Badge 
                     variant={activeTab === item.id ? "secondary" : "outline"} 
-                    className="ml-auto"
+                    className={`ml-auto ${activeTab === item.id ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : ""}`}
                   >
                     {item.count}
                   </Badge>
                 )}
-              </button>
+              </motion.button>
             ))}
           </nav>
           
           {/* Sidebar Stats Summary */}
-          <div className="p-4 border-t">
-            <div className="space-y-3">
+          <div className="p-4 border-t border-border/50">
+            <div className="space-y-3 p-3 rounded-lg bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/10">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Taxa de Conformidade</span>
                 <span 
@@ -587,19 +615,26 @@ export default function ClientPortal() {
                   {complianceRate}%
                 </span>
               </div>
-              <Progress value={complianceRate} className="h-2" />
+              <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${complianceRate}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                />
+              </div>
               
               <div className="grid grid-cols-3 gap-2 pt-2">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-green-600">{overallStats.compliant}</div>
+                  <div className="text-lg font-bold text-emerald-400">{overallStats.compliant}</div>
                   <div className="text-[10px] text-muted-foreground">Conforme</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-yellow-600">{overallStats.inProgress}</div>
+                  <div className="text-lg font-bold text-yellow-400">{overallStats.inProgress}</div>
                   <div className="text-[10px] text-muted-foreground">Em Aval.</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-red-600">{overallStats.nonCompliant}</div>
+                  <div className="text-lg font-bold text-red-400">{overallStats.nonCompliant}</div>
                   <div className="text-[10px] text-muted-foreground">Não Conf.</div>
                 </div>
               </div>
@@ -608,22 +643,22 @@ export default function ClientPortal() {
         </aside>
 
         {/* Mobile Tab Navigation */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t bg-card z-20">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-border/50 bg-card/80 backdrop-blur-xl z-20">
           <div className="flex">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 transition-colors ${
+                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 transition-all duration-300 ${
                   activeTab === item.id 
-                    ? "text-primary bg-primary/5" 
+                    ? "text-emerald-400 bg-gradient-to-t from-emerald-500/10 to-transparent" 
                     : "text-muted-foreground"
                 }`}
               >
                 <div className="relative">
                   <item.icon className="h-5 w-5" />
                   {item.count !== undefined && item.count > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-[10px] text-primary-foreground rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-[10px] text-white rounded-full flex items-center justify-center">
                       {item.count > 9 ? "9+" : item.count}
                     </span>
                   )}
@@ -638,10 +673,15 @@ export default function ClientPortal() {
         <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
           {/* Overview Tab */}
           {activeTab === "overview" && (
-            <div className="space-y-6">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="space-y-6"
+            >
               {/* Welcome Header */}
               <div>
-                <h2 className="text-2xl font-bold">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
                   Olá, {user?.email?.split("@")[0]}
                 </h2>
                 <p className="text-muted-foreground">
@@ -651,78 +691,65 @@ export default function ClientPortal() {
 
               {/* Quick Stats */}
               <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Temas</CardTitle>
-                    <FolderTree className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{assignedThemes?.length || 0}</div>
-                    <p className="text-xs text-muted-foreground">Áreas de legislação</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Diplomas</CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{overallStats.totalLegislation}</div>
-                    <p className="text-xs text-muted-foreground">Atribuídos à organização</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Requisitos</CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{overallStats.totalRequirements}</div>
-                    <p className="text-xs text-muted-foreground">Aplicáveis à organização</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ações Pendentes</CardTitle>
-                    <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{actionPlanStats.pending + actionPlanStats.inProgress}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {actionPlanStats.overdue > 0 && (
-                        <span className="text-destructive">{actionPlanStats.overdue} em atraso</span>
-                      )}
-                      {actionPlanStats.overdue === 0 && "Nenhuma em atraso"}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Conformidade</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div 
-                      className="text-2xl font-bold"
-                      style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}
-                    >
-                      {complianceRate}%
-                    </div>
-                    <Progress value={complianceRate} className="mt-2 h-2" />
-                  </CardContent>
-                </Card>
+                {[
+                  { label: "Temas", value: assignedThemes?.length || 0, subtitle: "Áreas de legislação", icon: FolderTree, delay: 0 },
+                  { label: "Diplomas", value: overallStats.totalLegislation, subtitle: "Atribuídos à organização", icon: FileText, delay: 0.1 },
+                  { label: "Requisitos", value: overallStats.totalRequirements, subtitle: "Aplicáveis à organização", icon: Clock, delay: 0.2 },
+                  { label: "Ações Pendentes", value: actionPlanStats.pending + actionPlanStats.inProgress, subtitle: actionPlanStats.overdue > 0 ? `${actionPlanStats.overdue} em atraso` : "Nenhuma em atraso", icon: ClipboardList, delay: 0.3, isOverdue: actionPlanStats.overdue > 0 },
+                  { label: "Conformidade", value: `${complianceRate}%`, subtitle: null, icon: TrendingUp, delay: 0.4, isRate: true },
+                ].map((stat, index) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: stat.delay }}
+                  >
+                    <Card className="bg-card/60 backdrop-blur-xl border-border/50 hover:border-emerald-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">{stat.label}</CardTitle>
+                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
+                          <stat.icon className="h-4 w-4 text-emerald-400" />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div 
+                          className={`text-2xl font-bold ${stat.isRate ? "" : "text-foreground"}`}
+                          style={stat.isRate ? { color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant } : undefined}
+                        >
+                          {stat.value}
+                        </div>
+                        {stat.subtitle && (
+                          <p className={`text-xs ${stat.isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
+                            {stat.subtitle}
+                          </p>
+                        )}
+                        {stat.isRate && (
+                          <div className="h-2 mt-2 rounded-full bg-muted/30 overflow-hidden">
+                            <motion.div 
+                              className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${complianceRate}%` }}
+                              transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
               </div>
 
               {/* Charts Row */}
               <div className="grid gap-6 lg:grid-cols-2">
                 {/* Compliance Pie Chart */}
-                <Card>
+                <Card className="bg-card/60 backdrop-blur-xl border-border/50">
                   <CardHeader>
-                    <CardTitle>Estado de Conformidade</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
+                        <TrendingUp className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      Estado de Conformidade
+                    </CardTitle>
                     <CardDescription>Distribuição dos requisitos por estado</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -745,7 +772,12 @@ export default function ClientPortal() {
                             </Pie>
                             <Tooltip 
                               formatter={(value: number) => [`${value} requisitos`, ""]}
-                              contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                              contentStyle={{ 
+                                borderRadius: "8px", 
+                                border: "1px solid hsl(var(--border))",
+                                backgroundColor: "hsl(var(--card) / 0.9)",
+                                backdropFilter: "blur(8px)"
+                              }}
                             />
                             <Legend 
                               verticalAlign="bottom" 
@@ -758,7 +790,7 @@ export default function ClientPortal() {
                     ) : (
                       <div className="h-[280px] flex items-center justify-center text-muted-foreground">
                         <div className="text-center">
-                          <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <Clock className="h-12 w-12 mx-auto mb-2 opacity-50 text-emerald-400" />
                           <p>Sem requisitos avaliados</p>
                         </div>
                       </div>
@@ -767,15 +799,22 @@ export default function ClientPortal() {
                 </Card>
 
                 {/* Quick Actions / Recent Activity */}
-                <Card>
+                <Card className="bg-card/60 backdrop-blur-xl border-border/50">
                   <CardHeader>
-                    <CardTitle>Ações Urgentes</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
+                        <AlertTriangle className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      Ações Urgentes
+                    </CardTitle>
                     <CardDescription>Itens que requerem a sua atenção</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {actionPlanStats.overdue > 0 && (
-                      <div 
-                        className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-colors"
+                      <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-all duration-300 hover:shadow-lg hover:shadow-destructive/10"
                         onClick={() => setActiveTab("actions")}
                       >
                         <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -786,51 +825,61 @@ export default function ClientPortal() {
                           </p>
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
+                      </motion.div>
                     )}
                     
                     {overallStats.nonCompliant > 0 && (
-                      <div 
-                        className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 cursor-pointer hover:bg-red-500/15 transition-colors"
+                      <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 cursor-pointer hover:bg-red-500/15 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/10"
                         onClick={() => { setActiveTab("legislation"); setStatusFilter("non-compliant"); }}
                       >
-                        <XCircle className="h-5 w-5 text-red-600" />
+                        <XCircle className="h-5 w-5 text-red-500" />
                         <div className="flex-1">
-                          <p className="font-medium text-red-700 dark:text-red-400">Não Conformidades</p>
+                          <p className="font-medium text-red-500">Não Conformidades</p>
                           <p className="text-sm text-muted-foreground">
                             {overallStats.nonCompliant} requisitos não conformes
                           </p>
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
+                      </motion.div>
                     )}
                     
                     {overallStats.inProgress > 0 && (
-                      <div 
-                        className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/15 transition-colors"
+                      <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/15 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/10"
                         onClick={() => { setActiveTab("legislation"); setStatusFilter("in-progress"); }}
                       >
-                        <Clock className="h-5 w-5 text-yellow-600" />
+                        <Clock className="h-5 w-5 text-yellow-500" />
                         <div className="flex-1">
-                          <p className="font-medium text-yellow-700 dark:text-yellow-400">Em Avaliação</p>
+                          <p className="font-medium text-yellow-500">Em Avaliação</p>
                           <p className="text-sm text-muted-foreground">
                             {overallStats.inProgress} requisitos em avaliação
                           </p>
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
+                      </motion.div>
                     )}
                     
                     {actionPlanStats.overdue === 0 && overallStats.nonCompliant === 0 && overallStats.inProgress === 0 && (
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20"
+                      >
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                         <div>
-                          <p className="font-medium text-green-700 dark:text-green-400">Tudo em Ordem</p>
+                          <p className="font-medium text-emerald-400">Tudo em Ordem</p>
                           <p className="text-sm text-muted-foreground">
                             Não existem itens urgentes
                           </p>
                         </div>
-                      </div>
+                      </motion.div>
                     )}
                   </CardContent>
                 </Card>
@@ -839,10 +888,12 @@ export default function ClientPortal() {
               {/* My Compliance Requests */}
               <MyComplianceRequestsPanel organizationIds={organizationIds} />
               {assignedThemes && assignedThemes.length > 0 && (
-                <Card>
+                <Card className="bg-card/60 backdrop-blur-xl border-border/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <FolderTree className="h-5 w-5" />
+                      <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
+                        <FolderTree className="h-4 w-4 text-emerald-400" />
+                      </div>
                       Temas Disponíveis
                     </CardTitle>
                     <CardDescription>Áreas de legislação atribuídas à sua organização</CardDescription>
@@ -980,7 +1031,7 @@ export default function ClientPortal() {
                   </CardContent>
                 </Card>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* Legislation Tab - 2 Column Layout */}
