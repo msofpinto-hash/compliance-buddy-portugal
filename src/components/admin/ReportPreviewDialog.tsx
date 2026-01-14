@@ -15,11 +15,12 @@ import {
   FileStack,
   ListChecks,
   TrendingUp,
-  ChevronLeft
+  ChevronLeft,
+  Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { ReportData, exportComplianceReportToPDF } from "@/lib/reportExport";
+import { ReportData, exportComplianceReportToPDF, exportExecutiveSummaryToPDF } from "@/lib/reportExport";
 
 interface ReportPreviewDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ interface ReportPreviewDialogProps {
   data: ReportData | null;
   isLoading: boolean;
   onBack: () => void;
+  isExecutive?: boolean;
 }
 
 export function ReportPreviewDialog({
@@ -35,6 +37,7 @@ export function ReportPreviewDialog({
   data,
   isLoading,
   onBack,
+  isExecutive = false,
 }: ReportPreviewDialogProps) {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -43,7 +46,11 @@ export function ReportPreviewDialog({
     
     setIsExporting(true);
     try {
-      await exportComplianceReportToPDF(data);
+      if (isExecutive) {
+        await exportExecutiveSummaryToPDF(data);
+      } else {
+        await exportComplianceReportToPDF(data);
+      }
       toast.success("Relatório exportado com sucesso!");
       onOpenChange(false);
     } catch (error) {
@@ -74,13 +81,25 @@ export function ReportPreviewDialog({
             <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div>
+            <div className="flex-1">
               <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-emerald-600" />
-                Pré-visualização do Relatório
+                {isExecutive ? (
+                  <Zap className="h-5 w-5 text-amber-500" />
+                ) : (
+                  <FileText className="h-5 w-5 text-emerald-600" />
+                )}
+                {isExecutive ? "Relatório Executivo" : "Pré-visualização do Relatório"}
+                {isExecutive && (
+                  <Badge className="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                    1 Página
+                  </Badge>
+                )}
               </DialogTitle>
               <DialogDescription>
-                Verifique como o relatório ficará antes de exportar
+                {isExecutive 
+                  ? "Resumo executivo ideal para apresentações rápidas"
+                  : "Verifique como o relatório ficará antes de exportar"
+                }
               </DialogDescription>
             </div>
           </div>
@@ -112,9 +131,24 @@ export function ReportPreviewDialog({
                   className="space-y-6"
                 >
                   {/* Cover Preview */}
-                  <div className="relative rounded-xl overflow-hidden border bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-slate-800 dark:via-slate-900 dark:to-emerald-950">
+                  <div className={`relative rounded-xl overflow-hidden border ${
+                    isExecutive 
+                      ? "bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-slate-800 dark:via-slate-900 dark:to-amber-950" 
+                      : "bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-slate-800 dark:via-slate-900 dark:to-emerald-950"
+                  }`}>
                     {/* Header bar */}
-                    <div className="h-12 bg-gradient-to-r from-emerald-500 to-teal-500" />
+                    <div className={`h-12 flex items-center justify-between px-4 ${
+                      isExecutive 
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500" 
+                        : "bg-gradient-to-r from-emerald-500 to-teal-500"
+                    }`}>
+                      {isExecutive && (
+                        <Badge className="bg-white/20 text-white border-white/30">
+                          <Zap className="h-3 w-3 mr-1" />
+                          1 Página
+                        </Badge>
+                      )}
+                    </div>
                     
                     <div className="p-6">
                       <div className="flex items-start gap-4">
@@ -126,8 +160,14 @@ export function ReportPreviewDialog({
                           />
                         )}
                         <div className="flex-1">
-                          <p className="text-sm text-muted-foreground">Relatório de</p>
-                          <h2 className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                          <p className="text-sm text-muted-foreground">
+                            {isExecutive ? "Resumo Executivo" : "Relatório de"}
+                          </p>
+                          <h2 className={`text-2xl font-bold ${
+                            isExecutive 
+                              ? "text-amber-700 dark:text-amber-400" 
+                              : "text-emerald-700 dark:text-emerald-400"
+                          }`}>
                             Conformidade Legal
                           </h2>
                           <div className="flex items-center gap-2 mt-2">
