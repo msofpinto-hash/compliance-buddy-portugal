@@ -166,24 +166,24 @@ export default function Biblioteca() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background dark:bg-slate-950">
       {/* Hero Header with Image */}
-      <header className="relative border-b overflow-hidden">
+      <header className="relative border-b border-border dark:border-slate-800 overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
             src={bibliotecaHero} 
             alt="" 
-            className="w-full h-full object-cover opacity-20"
+            className="w-full h-full object-cover opacity-20 dark:opacity-10"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80 dark:from-slate-950 dark:via-slate-950/95 dark:to-slate-950/80" />
         </div>
         
         {/* Content */}
         <div className="relative z-10 container mx-auto flex items-center justify-between px-4 py-6">
           <div className="flex items-center gap-4">
             <Link to={user ? "/dashboard" : "/"}>
-              <Button variant="ghost" size="icon" className="rounded-full bg-background/50 backdrop-blur-sm">
+              <Button variant="ghost" size="icon" className="rounded-full bg-background/50 dark:bg-slate-900/50 backdrop-blur-sm hover:bg-muted dark:hover:bg-slate-800">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
@@ -192,7 +192,7 @@ export default function Biblioteca() {
                 <BookOpen className="h-7 w-7" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Biblioteca de Legislação</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Biblioteca de Legislação</h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   Explore e pesquise toda a legislação disponível organizada por temas e categorias
                 </p>
@@ -206,85 +206,85 @@ export default function Biblioteca() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Stats Dashboard */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 border-primary/20 dark:border-primary/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/20">
+                <div className="p-2 rounded-lg bg-primary/20 dark:bg-primary/30">
                   <BookOpen className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.total || 0}</p>
                   <p className="text-xs text-muted-foreground">Total Diplomas</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 dark:from-green-500/20 dark:to-green-500/10 border-green-500/20 dark:border-green-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/20">
-                  <Flag className="h-5 w-5 text-green-600" />
+                <div className="p-2 rounded-lg bg-green-500/20 dark:bg-green-500/30">
+                  <Flag className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.pt || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.pt || 0}</p>
                   <p className="text-xs text-muted-foreground">DRE (PT)</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/10 border-blue-500/20 dark:border-blue-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/20">
-                  <Globe className="h-5 w-5 text-blue-600" />
+                <div className="p-2 rounded-lg bg-blue-500/20 dark:bg-blue-500/30">
+                  <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.eu || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.eu || 0}</p>
                   <p className="text-xs text-muted-foreground">EUR-Lex (EU)</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/10 border-amber-500/20 dark:border-amber-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/20">
-                  <Sparkles className="h-5 w-5 text-amber-600" />
+                <div className="p-2 rounded-lg bg-amber-500/20 dark:bg-amber-500/30">
+                  <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.last7Days || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.last7Days || 0}</p>
                   <p className="text-xs text-muted-foreground">Últimos 7 dias</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 dark:from-purple-500/20 dark:to-purple-500/10 border-purple-500/20 dark:border-purple-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-500/20">
-                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                <div className="p-2 rounded-lg bg-purple-500/20 dark:bg-purple-500/30">
+                  <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.last30Days || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.last30Days || 0}</p>
                   <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-teal-500/10 to-teal-500/5 border-teal-500/20">
+          <Card className="bg-gradient-to-br from-teal-500/10 to-teal-500/5 dark:from-teal-500/20 dark:to-teal-500/10 border-teal-500/20 dark:border-teal-500/30">
             <CardContent className="p-4">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-teal-500/20">
-                      <Tags className="h-4 w-4 text-teal-600" />
+                    <div className="p-1.5 rounded-lg bg-teal-500/20 dark:bg-teal-500/30">
+                      <Tags className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                     </div>
-                    <p className="text-lg font-bold">{stats?.categorizedPercent || 0}%</p>
+                    <p className="text-lg font-bold text-foreground">{stats?.categorizedPercent || 0}%</p>
                   </div>
                 </div>
                 <Progress value={stats?.categorizedPercent || 0} className="h-1.5" />
@@ -295,7 +295,7 @@ export default function Biblioteca() {
         </div>
 
         {/* Filters Bar */}
-        <Card>
+        <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
               {/* Origin Tabs */}

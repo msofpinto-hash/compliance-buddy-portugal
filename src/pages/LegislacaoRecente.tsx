@@ -343,17 +343,17 @@ export default function LegislacaoRecente() {
   const readProgress = stats?.total ? Math.round(((readCount || 0) / stats.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background">
+    <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background dark:from-slate-950 dark:to-slate-900">
       {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b border-border dark:border-slate-800 bg-card/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4">
           <Link to="/dashboard">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted dark:hover:bg-slate-800">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold flex items-center gap-2">
+            <h1 className="text-xl font-semibold flex items-center gap-2 text-foreground">
               <BookOpen className="h-5 w-5 text-primary" />
               Biblioteca de Legislação
             </h1>
@@ -365,7 +365,7 @@ export default function LegislacaoRecente() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Pesquisar diplomas..." 
-              className="pl-9 w-72 bg-background"
+              className="pl-9 w-72 bg-background dark:bg-slate-800 border-border dark:border-slate-700"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -376,70 +376,70 @@ export default function LegislacaoRecente() {
       {/* Stats Cards */}
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 border-primary/20 dark:border-primary/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/20">
+                <div className="p-2 rounded-lg bg-primary/20 dark:bg-primary/30">
                   <FileText className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.total || 0}</p>
                   <p className="text-xs text-muted-foreground">Total Diplomas</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/10 border-blue-500/20 dark:border-blue-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/20">
-                  <Flag className="h-5 w-5 text-blue-600" />
+                <div className="p-2 rounded-lg bg-blue-500/20 dark:bg-blue-500/30">
+                  <Flag className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.pt || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.pt || 0}</p>
                   <p className="text-xs text-muted-foreground">Portugal (DRE)</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border-indigo-500/20">
+          <Card className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 dark:from-indigo-500/20 dark:to-indigo-500/10 border-indigo-500/20 dark:border-indigo-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-indigo-500/20">
-                  <Globe className="h-5 w-5 text-indigo-600" />
+                <div className="p-2 rounded-lg bg-indigo-500/20 dark:bg-indigo-500/30">
+                  <Globe className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.eu || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.eu || 0}</p>
                   <p className="text-xs text-muted-foreground">Europa (EUR-Lex)</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
+          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 dark:from-emerald-500/20 dark:to-emerald-500/10 border-emerald-500/20 dark:border-emerald-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-500/20">
-                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+                <div className="p-2 rounded-lg bg-emerald-500/20 dark:bg-emerald-500/30">
+                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.last30Days || 0}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.last30Days || 0}</p>
                   <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20 col-span-2 md:col-span-1">
+          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/10 border-amber-500/20 dark:border-amber-500/30 col-span-2 md:col-span-1">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-amber-600" />
+                  <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   <span className="text-xs text-muted-foreground">Lidos</span>
                 </div>
-                <span className="text-sm font-bold">{readProgress}%</span>
+                <span className="text-sm font-bold text-foreground">{readProgress}%</span>
               </div>
               <Progress value={readProgress} className="h-2" />
               <p className="text-xs text-muted-foreground mt-1">
