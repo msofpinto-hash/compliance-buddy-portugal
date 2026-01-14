@@ -30,6 +30,16 @@ export function ModuleCard({
   isActive = false,
   index = 0,
 }: ModuleCardProps) {
+  // Map gradient to shadow color
+  const getShadowColor = () => {
+    if (gradient.includes("emerald")) return "hover:shadow-emerald-500/30 dark:hover:shadow-emerald-400/20";
+    if (gradient.includes("blue")) return "hover:shadow-blue-500/30 dark:hover:shadow-blue-400/20";
+    if (gradient.includes("amber")) return "hover:shadow-amber-500/30 dark:hover:shadow-amber-400/20";
+    if (gradient.includes("purple")) return "hover:shadow-purple-500/30 dark:hover:shadow-purple-400/20";
+    if (gradient.includes("rose")) return "hover:shadow-rose-500/30 dark:hover:shadow-rose-400/20";
+    return "hover:shadow-emerald-500/30 dark:hover:shadow-emerald-400/20";
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -40,9 +50,9 @@ export function ModuleCard({
         ease: "easeOut"
       }}
       whileHover={{ 
-        y: -8, 
-        scale: 1.02,
-        transition: { duration: 0.2 }
+        y: -12, 
+        scale: 1.03,
+        transition: { duration: 0.25, ease: "easeOut" }
       }}
       whileTap={{ scale: 0.98 }}
     >
@@ -54,31 +64,44 @@ export function ModuleCard({
             "dark:from-slate-700 dark:via-slate-600 dark:to-emerald-900/30",
             "border border-emerald-100/50 dark:border-slate-500/30",
             "shadow-lg hover:shadow-2xl",
+            getShadowColor(),
             "backdrop-blur-sm",
-            "transition-all duration-300",
+            "transition-all duration-500",
             isActive && "ring-2 ring-primary ring-offset-2"
           )}
         >
+          {/* Shine Effect on Hover */}
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+          </div>
+
+          {/* Glow Effect */}
+          <div className={cn(
+            "absolute -inset-1 rounded-2xl opacity-0 group-hover:opacity-60 blur-xl transition-opacity duration-500 -z-10",
+            "bg-gradient-to-r",
+            gradient
+          )} />
+
           {/* Background Image with Overlay */}
           {image && (
             <div className="absolute inset-0">
               <img 
                 src={image} 
                 alt="" 
-                className="w-full h-full object-cover opacity-30 dark:opacity-20 group-hover:opacity-40 dark:group-hover:opacity-30 group-hover:scale-110 transition-all duration-500"
+                className="w-full h-full object-cover opacity-25 dark:opacity-15 group-hover:opacity-35 dark:group-hover:opacity-25 group-hover:scale-110 transition-all duration-700 ease-out"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/95 to-white/80 dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-800/80" />
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/90 to-white/70 dark:from-slate-800 dark:via-slate-800/90 dark:to-slate-700/70" />
             </div>
           )}
 
-          {/* Colored Top Bar with glow */}
+          {/* Colored Top Bar with enhanced glow */}
           <div className={cn(
-            "absolute top-0 left-0 right-0 h-1.5",
+            "absolute top-0 left-0 right-0 h-1.5 group-hover:h-2 transition-all duration-300",
             "bg-gradient-to-r",
             gradient
           )} />
           <div className={cn(
-            "absolute top-0 left-0 right-0 h-8 opacity-30",
+            "absolute top-0 left-0 right-0 h-12 opacity-20 group-hover:opacity-40 transition-opacity duration-300",
             "bg-gradient-to-b",
             gradient.replace("to-", "to-transparent from-")
           )} />
@@ -89,11 +112,11 @@ export function ModuleCard({
             <div className="flex items-start justify-between mb-auto">
               <motion.div 
                 className={cn(
-                  "p-3 rounded-xl shadow-lg",
+                  "p-3 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300",
                   "bg-gradient-to-br",
                   gradient
                 )}
-                whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
+                whileHover={{ rotate: [0, -10, 10, 0], scale: 1.15 }}
                 transition={{ duration: 0.4 }}
               >
                 <Icon className="h-5 w-5 text-white drop-shadow-md" />
@@ -107,7 +130,7 @@ export function ModuleCard({
                 >
                   <Badge 
                     className={cn(
-                      "text-xs font-bold px-3 py-1.5 border-0 shadow-md",
+                      "text-xs font-bold px-3 py-1.5 border-0 shadow-md group-hover:shadow-lg transition-shadow duration-300",
                       "bg-gradient-to-r",
                       gradient,
                       "text-white"
@@ -124,24 +147,28 @@ export function ModuleCard({
               <h3 className="font-bold text-lg text-slate-800 dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-emerald-600 group-hover:to-teal-600 dark:group-hover:from-emerald-400 dark:group-hover:to-teal-400 transition-all duration-300">
                 {title}
               </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors duration-300">
                 {description}
               </p>
             </div>
             
-            {/* Hover Arrow */}
+            {/* Hover Arrow with animation */}
             <motion.div 
-              className="absolute bottom-5 right-5"
-              initial={{ opacity: 0, x: -10 }}
-              whileHover={{ opacity: 1, x: 0 }}
+              className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              initial={{ x: -10, opacity: 0 }}
+              whileHover={{ x: 0, opacity: 1 }}
             >
-              <div className={cn(
-                "p-2 rounded-full shadow-lg",
-                "bg-gradient-to-r",
-                gradient
-              )}>
+              <motion.div 
+                className={cn(
+                  "p-2 rounded-full shadow-lg",
+                  "bg-gradient-to-r",
+                  gradient
+                )}
+                animate={{ x: [0, 4, 0] }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+              >
                 <ChevronRight className="h-4 w-4 text-white" />
-              </div>
+              </motion.div>
             </motion.div>
           </div>
         </div>
