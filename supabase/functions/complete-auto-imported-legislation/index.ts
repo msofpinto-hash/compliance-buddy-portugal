@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -241,14 +243,11 @@ function isEULegislation(number: string): boolean {
 
 // Extract CELEX number from EUR-Lex URL or legislation number
 function extractCelexNumber(url: string | null, number: string): string | null {
-  // From URL
   if (url) {
     const match = url.match(/CELEX:(\d+[A-Z]\d+)/);
     if (match) return match[1];
   }
   
-  // Try to build CELEX from number
-  // Format: 32024R1955 = 3 + 2024 + R + 1955
   const regMatch = number.match(/Regulamento.*?(\d{4})\/(\d+)/i);
   if (regMatch) {
     return `3${regMatch[1]}R${regMatch[2].padStart(4, '0')}`;
@@ -300,38 +299,23 @@ async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<
     
     const update: LegislationUpdate = {};
     
-    // Skip common unwanted patterns
     const skipPatterns = [
-      /eur-lex/i,
-      /cookies/i,
-      /europa\.eu/i,
-      /official.*website/i,
-      /languages/i,
-      /navigation/i,
-      /menu/i,
-      /search/i,
-      /home/i,
-      /^\s*pt\s*$/i,
-      /login/i,
-      /^\d+$/,
-      /accept/i,
+      /eur-lex/i, /cookies/i, /europa\.eu/i, /official.*website/i,
+      /languages/i, /navigation/i, /menu/i, /search/i, /home/i,
+      /^\s*pt\s*$/i, /login/i, /^\d+$/, /accept/i,
     ];
     
-    // Extract title - look for regulation/directive/decision title pattern
     const lines = markdown.split('\n').filter((l: string) => l.trim().length > 20);
     
-    // First, try to find a line that starts with the legislation type
     for (const line of lines) {
       const cleanLine = line.replace(/[#*[\]]/g, '').trim();
       if (cleanLine.match(/^(Regulamento|Diretiva|Decisão|Retificação)/i) && 
           cleanLine.length > 50 && cleanLine.length < 800) {
-        // This looks like a proper EU legislation title
         update.title = cleanLine.substring(0, 500);
         break;
       }
     }
     
-    // If no proper title found, try to find any substantial line that's not garbage
     if (!update.title) {
       for (const line of lines.slice(0, 15)) {
         const cleanLine = line.replace(/[#*[\]]/g, '').trim();
@@ -344,19 +328,16 @@ async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<
       }
     }
     
-    // Extract summary - look for "Sumário" or first paragraph after title
     const summaryMatch = markdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n#|$)/i);
     if (summaryMatch) {
       update.summary = summaryMatch[1].replace(/[*#]/g, '').trim().substring(0, 2000);
     } else {
-      // Try to find a description-like paragraph
       const descMatch = markdown.match(/(?:objeto|objectivo|presente regulamento|presente diretiva|presente decisão)[^.]*\./i);
       if (descMatch) {
         update.summary = descMatch[0].trim();
       }
     }
     
-    // Extract publication date
     const datePatterns = [
       /Data de publicação[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
       /Publicado em[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
@@ -392,7 +373,6 @@ async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<
       }
     }
     
-    // Extract entity
     const entityMatch = markdown.match(/(?:Autor|Emissor|Instituição)[:\s]+([^\n]+)/i);
     if (entityMatch) {
       update.entity = entityMatch[1].replace(/[*#]/g, '').trim().substring(0, 200);
@@ -405,120 +385,97 @@ async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<
   }
 }
 
-// Fix incorrect publication dates extracted from legislation number
-function fixPublicationDate(leg: any): string | null {
-  // Check if publication_date looks like it was wrongly extracted from the number
-  // e.g., "1955-07-26" when the actual legislation is from 2024
+function fixPublicationDate(leg: { publication_date?: string | null; number: string }): string | null {
   const currentYear = new Date().getFullYear();
   
   if (leg.publication_date) {
     const year = parseInt(leg.publication_date.substring(0, 4));
     
-    // If year is before 1950 or in the future, it's likely wrong
     if (year < 1950 || year > currentYear + 1) {
-      // Try to extract correct year from number
       const yearMatch = leg.number.match(/(\d{4})\//);
       if (yearMatch) {
         const correctYear = parseInt(yearMatch[1]);
         if (correctYear >= 1950 && correctYear <= currentYear + 1) {
-          // Use January 1st of the correct year as placeholder
           return `${correctYear}-01-01`;
         }
       }
-      return null; // Clear the date if we can't fix it
+      return null;
     }
   }
   
-  return leg.publication_date;
+  return leg.publication_date || null;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// Background processing function
+async function runBackgroundCompletion(params: {
+  limit: number;
+  dryRun: boolean;
+  includePT: boolean;
+  includeEU: boolean;
+  fixDates: boolean;
+  mode: string;
+  extractRequirements: boolean;
+}) {
+  const { limit, dryRun, includePT, includeEU, fixDates, mode, extractRequirements } = params;
+  
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')!;
+  
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  let syncLogId: string | null = null;
+  if (!dryRun) {
+    const { data: syncLog } = await supabase
+      .from('sync_logs')
+      .insert({
+        sync_type: mode === 'missing_dates' ? 'fix_missing_dates' : 'complete_auto_imported',
+        status: 'running',
+        items_processed: 0,
+        items_added: 0,
+        items_updated: 0,
+      })
+      .select('id')
+      .single();
+    
+    if (syncLog) {
+      syncLogId = syncLog.id;
+      console.log(`Created sync_log entry: ${syncLogId}`);
+    }
   }
 
-  try {
-    const { 
-      limit = 10, 
-      dryRun = false, 
-      includePT = true, 
-      includeEU = true, 
-      fixDates = true, 
-      jobId,
-      mode = 'incomplete', // 'incomplete' | 'missing_dates' | 'generic_titles'
-      extractRequirements = false, // Extract legal requirements after fixing metadata
-    } = await req.json().catch(() => ({}));
-    
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
-    
-    if (!firecrawlKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'FIRECRAWL_API_KEY não configurada' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Create sync_log entry for progress tracking
-    let syncLogId: string | null = null;
-    if (!dryRun) {
-      const { data: syncLog, error: syncLogError } = await supabase
+  const updateProgress = async (processed: number, updated: number, message?: string) => {
+    if (!syncLogId) return;
+    try {
+      await supabase
         .from('sync_logs')
-        .insert({
-          sync_type: mode === 'missing_dates' ? 'fix_missing_dates' : 'complete_auto_imported',
-          status: 'running',
-          items_processed: 0,
-          items_added: 0,
-          items_updated: 0,
+        .update({
+          items_processed: processed,
+          items_updated: updated,
+          error_message: message || null,
         })
-        .select('id')
-        .single();
-      
-      if (!syncLogError && syncLog) {
-        syncLogId = syncLog.id;
-        console.log(`Created sync_log entry: ${syncLogId}`);
-      }
+        .eq('id', syncLogId);
+    } catch (e) {
+      console.error('Failed to update progress:', e);
     }
-
-    // Helper to update progress in sync_logs
-    const updateProgress = async (processed: number, updated: number, message?: string) => {
-      if (!syncLogId) return;
-      try {
-        await supabase
-          .from('sync_logs')
-          .update({
-            items_processed: processed,
-            items_updated: updated,
-            error_message: message || null,
-          })
-          .eq('id', syncLogId);
-      } catch (e) {
-        console.error('Failed to update progress:', e);
-      }
-    };
-    
-    // Build query based on mode
+  };
+  
+  try {
     let query = supabase
       .from('legislation')
       .select('id, number, title, summary, entity, document_url, publication_date, effective_date, origin');
     
     if (mode === 'missing_dates') {
-      // Find legislation with missing publication_date or effective_date
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
-      // Find legislation with generic titles
       query = query.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
     } else {
-      // Default: incomplete data (no URL, no summary, or placeholder summary)
       query = query.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
     }
     
     const { data: legislation, error: fetchError } = await query
       .order('created_at', { ascending: false })
-      .limit(limit * 3); // Fetch more to account for filtering
+      .limit(limit * 3);
     
     if (fetchError) {
       if (syncLogId) {
@@ -535,30 +492,24 @@ Deno.serve(async (req) => {
       if (syncLogId) {
         await supabase.from('sync_logs').update({ 
           status: 'completed', 
-          completed_at: new Date().toISOString() 
+          completed_at: new Date().toISOString(),
+          error_message: 'Não há diplomas incompletos'
         }).eq('id', syncLogId);
       }
-      return new Response(
-        JSON.stringify({ success: true, message: 'Não há diplomas incompletos para processar', processed: 0, results: [], syncLogId }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log('No incomplete legislation to process');
+      return;
     }
     
-    // Filter based on origin preferences and mode-specific checks
     const toProcess = legislation
       .filter(leg => {
-        // Mode-specific checks
         if (mode === 'missing_dates') {
-          // Only include if actually missing dates
           if (leg.publication_date && leg.effective_date) return false;
         } else if (mode === 'generic_titles') {
-          // Only include if has generic title
           const hasGenericTitle = leg.title?.toLowerCase().includes('diploma referenciado') ||
                                   leg.title?.toLowerCase().includes('documento ') ||
                                   (leg.title && leg.title.length < 10);
           if (!hasGenericTitle) return false;
         } else {
-          // Default: check if really incomplete
           const isIncomplete = !leg.document_url || 
                               (leg.summary && leg.summary.includes('Diploma referenciado')) ||
                               !leg.summary ||
@@ -566,7 +517,6 @@ Deno.serve(async (req) => {
           if (!isIncomplete) return false;
         }
         
-        // Check origin filter
         const isEU = isEULegislation(leg.number);
         if (isEU && !includeEU) return false;
         if (!isEU && !includePT) return false;
@@ -577,10 +527,9 @@ Deno.serve(async (req) => {
     
     console.log(`Found ${toProcess.length} incomplete legislation to complete`);
     
-    // Update sync_log with total items
     if (syncLogId) {
       await supabase.from('sync_logs').update({ 
-        items_added: toProcess.length // Using items_added to store total count
+        items_added: toProcess.length
       }).eq('id', syncLogId);
     }
     
@@ -588,13 +537,11 @@ Deno.serve(async (req) => {
       if (syncLogId) {
         await supabase.from('sync_logs').update({ 
           status: 'completed', 
-          completed_at: new Date().toISOString() 
+          completed_at: new Date().toISOString(),
+          error_message: 'Não há diplomas incompletos'
         }).eq('id', syncLogId);
       }
-      return new Response(
-        JSON.stringify({ success: true, message: 'Não há diplomas incompletos para processar', processed: 0, results: [], syncLogId }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return;
     }
     
     const results: ProcessResult[] = [];
@@ -610,7 +557,6 @@ Deno.serve(async (req) => {
         const updates: LegislationUpdate = {};
         let hasUpdates = false;
         
-        // Step 0: Fix incorrect publication dates
         if (fixDates && leg.publication_date) {
           const fixedDate = fixPublicationDate(leg);
           if (fixedDate !== leg.publication_date) {
@@ -620,9 +566,7 @@ Deno.serve(async (req) => {
           }
         }
         
-        // Step 1: Handle EU legislation
         if (isEU) {
-          // Generate or fix EUR-Lex URL
           if (!leg.document_url) {
             const celex = extractCelexNumber(null, leg.number);
             if (celex) {
@@ -634,7 +578,6 @@ Deno.serve(async (req) => {
             }
           }
           
-          // Scrape EUR-Lex for metadata
           const urlToScrape = updates.document_url || leg.document_url;
           if (urlToScrape && urlToScrape.includes('eur-lex')) {
             const metadata = await scrapeEurLexMetadata(urlToScrape, firecrawlKey);
@@ -657,24 +600,19 @@ Deno.serve(async (req) => {
                 const metaYear = parseInt(metadata.publication_date.substring(0, 4));
                 const legYear = leg.publication_date ? parseInt(leg.publication_date.substring(0, 4)) : 0;
                 
-                // Only update if scraped date is valid and current is clearly wrong
                 if (metaYear >= 1950 && metaYear <= currentYear + 1 && (legYear < 1950 || legYear > currentYear + 1)) {
                   updates.publication_date = metadata.publication_date;
                   hasUpdates = true;
                 }
               }
               
-              if (Object.keys(metadata).length > 0) {
-                totalMetadataExtracted++;
-                console.log(`Extracted EUR-Lex metadata:`, metadata);
-              }
+              totalMetadataExtracted++;
+              console.log(`Extracted EUR-Lex metadata:`, metadata);
             }
             
-            // Rate limit
             await new Promise(resolve => setTimeout(resolve, 1500));
           }
         } else {
-          // Step 1: Find URL if missing (PT)
           if (!leg.document_url) {
             const dreUrl = await searchDREUrl(leg.number, firecrawlKey);
             if (dreUrl) {
@@ -687,18 +625,15 @@ Deno.serve(async (req) => {
               console.log(`No URL found for ${leg.number}`);
             }
             
-            // Rate limit
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
           
-          // Step 2: Scrape and extract metadata if we have a URL
           const urlToScrape = updates.document_url || leg.document_url;
           if (urlToScrape) {
             const markdown = await scrapeUrl(urlToScrape, firecrawlKey);
             if (markdown && markdown.length > 100) {
               const metadata = extractMetadataFromDRE(markdown, leg.number);
               
-              // Only update fields that are missing or bad
               if (metadata.title && (!leg.title || leg.title === leg.number)) {
                 updates.title = metadata.title;
                 hasUpdates = true;
@@ -716,18 +651,14 @@ Deno.serve(async (req) => {
                 hasUpdates = true;
               }
               
-              if (Object.keys(metadata).length > 0) {
-                totalMetadataExtracted++;
-                console.log(`Extracted metadata:`, metadata);
-              }
+              totalMetadataExtracted++;
+              console.log(`Extracted metadata:`, metadata);
             }
             
-            // Rate limit
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
         
-        // Step 3: Apply updates
         if (hasUpdates && !dryRun) {
           const { error: updateError } = await supabase
             .from('legislation')
@@ -749,7 +680,6 @@ Deno.serve(async (req) => {
           updates: hasUpdates ? updates : undefined
         });
         
-        // Update progress after each item
         await updateProgress(results.length, totalUpdated, `Processando: ${leg.number}`);
         
       } catch (error) {
@@ -761,7 +691,6 @@ Deno.serve(async (req) => {
           error: error instanceof Error ? error.message : String(error)
         });
         
-        // Update progress even on error
         await updateProgress(results.length, totalUpdated, `Erro: ${leg.number}`);
       }
     }
@@ -770,9 +699,8 @@ Deno.serve(async (req) => {
     const failed = results.filter(r => !r.success).length;
     
     console.log(`\n=== COMPLETE ===`);
-    console.log(`Processed: ${results.length}, Updated: ${totalUpdated}, URLs found: ${totalUrlsFound}, Metadata extracted: ${totalMetadataExtracted}`);
+    console.log(`Processed: ${results.length}, Updated: ${totalUpdated}, URLs: ${totalUrlsFound}, Metadata: ${totalMetadataExtracted}`);
     
-    // Trigger requirements extraction for successfully processed legislation
     let requirementsExtractionStarted = false;
     const successfulIds = results.filter(r => r.success).map(r => r.id);
     
@@ -780,7 +708,6 @@ Deno.serve(async (req) => {
       console.log(`\n=== Starting requirements extraction for ${successfulIds.length} legislation ===`);
       
       try {
-        // Call the extract-requirements-background function
         const extractionResponse = await fetch(
           `${supabaseUrl}/functions/v1/extract-requirements-background`,
           {
@@ -793,7 +720,7 @@ Deno.serve(async (req) => {
               batchSize: 10,
               maxBatches: Math.ceil(successfulIds.length / 10),
               useUrl: true,
-              legislationIds: successfulIds, // Only process the fixed legislation
+              legislationIds: successfulIds,
             }),
           }
         );
@@ -809,11 +736,10 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Mark sync_log as completed
     if (syncLogId) {
       const completionMessage = requirementsExtractionStarted 
         ? `Extração de requisitos iniciada para ${successfulIds.length} diplomas`
-        : (failed > 0 ? `${failed} erro(s)` : null);
+        : (failed > 0 ? `${failed} erro(s)` : `✓ ${totalUpdated} atualizados, ${totalUrlsFound} URLs, ${totalMetadataExtracted} metadados`);
       
       await supabase.from('sync_logs').update({ 
         status: 'completed',
@@ -824,19 +750,116 @@ Deno.serve(async (req) => {
       }).eq('id', syncLogId);
     }
     
-    return new Response(
-      JSON.stringify({
-        success: true,
+    console.log('Background completion finished');
+    
+  } catch (error) {
+    console.error('Background completion error:', error);
+    if (syncLogId) {
+      await supabase.from('sync_logs').update({ 
+        status: 'error',
+        error_message: error instanceof Error ? error.message : String(error),
+        completed_at: new Date().toISOString() 
+      }).eq('id', syncLogId);
+    }
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { 
+      limit = 50, 
+      dryRun = false, 
+      includePT = true, 
+      includeEU = true, 
+      fixDates = true, 
+      mode = 'incomplete',
+      extractRequirements = false,
+      background = true,
+    } = await req.json().catch(() => ({}));
+    
+    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
+    
+    if (!firecrawlKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'FIRECRAWL_API_KEY não configurada' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Quick check for pending items
+    let countQuery = supabase.from('legislation').select('id', { count: 'exact', head: true });
+    
+    if (mode === 'missing_dates') {
+      countQuery = countQuery.or('publication_date.is.null,effective_date.is.null');
+    } else if (mode === 'generic_titles') {
+      countQuery = countQuery.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
+    } else {
+      countQuery = countQuery.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
+    }
+    
+    const { count: pendingCount } = await countQuery;
+    
+    if (!pendingCount || pendingCount === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Não há diplomas incompletos para processar',
+          pendingCount: 0
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (background) {
+      EdgeRuntime.waitUntil(runBackgroundCompletion({
+        limit,
         dryRun,
-        processed: results.length,
-        successful,
-        failed,
-        totalUpdated,
-        totalUrlsFound,
-        totalMetadataExtracted,
-        requirementsExtractionStarted,
-        results,
-        syncLogId
+        includePT,
+        includeEU,
+        fixDates,
+        mode,
+        extractRequirements,
+      }));
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Completar diplomas iniciado em segundo plano',
+          pendingCount,
+          limit,
+          mode,
+          background: true,
+          trackingType: 'complete_auto_imported'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    await runBackgroundCompletion({
+      limit,
+      dryRun,
+      includePT,
+      includeEU,
+      fixDates,
+      mode,
+      extractRequirements,
+    });
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'Processo concluído',
+        pendingCount,
+        limit,
+        mode
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
