@@ -84,14 +84,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 
 // Module images
-import moduleLegislation from "@/assets/module-legislation.jpg";
-import moduleActions from "@/assets/module-actions.jpg";
-import moduleAudits from "@/assets/module-audits.jpg";
-import moduleDocuments from "@/assets/module-documents.jpg";
+import moduleLegislation from "@/assets/module-legislation-new.jpg";
+import moduleActions from "@/assets/module-actions-new.jpg";
+import moduleAudits from "@/assets/module-audits-new.jpg";
+import moduleDocuments from "@/assets/module-documents-new.jpg";
 import auditHero from "@/assets/audit-hero.png";
 import evidenceHero from "@/assets/evidence-hero.png";
 import indicatorsHero from "@/assets/indicators-hero.png";
 import logoIdCompliance from "@/assets/logo-id-compliance.png";
+import heroVideo from "@/assets/hero-background.mp4";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
@@ -669,15 +670,34 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex relative">
+    <div className="min-h-screen flex relative overflow-hidden">
+      {/* Animated Video Background */}
+      <div className="fixed inset-0 z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src={heroVideo} type="video/mp4" />
+        </video>
+        {/* Overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-100/95 via-slate-50/90 to-white/85 dark:from-slate-950/95 dark:via-slate-900/90 dark:to-slate-800/85" />
+        {/* Decorative color orbs */}
+        <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-400/20 dark:bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-300/10 dark:bg-cyan-500/5 rounded-full blur-3xl" />
+      </div>
+
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-slate-200/80 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
         <SidebarContent />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r-2 border-slate-200 dark:border-slate-800">
+        <SheetContent side="left" className="w-64 p-0 border-r border-slate-200/80 dark:border-slate-700/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
           <SidebarContent />
         </SheetContent>
       </Sheet>
@@ -685,7 +705,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-800">
+        <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-700/50">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
