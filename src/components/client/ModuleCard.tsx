@@ -49,9 +49,10 @@ export function ModuleCard({
       <Link to={href} className="group block">
         <div
           className={cn(
-            "relative overflow-hidden rounded-2xl h-48",
-            "bg-white/90 dark:bg-slate-800/70",
-            "border border-white/50 dark:border-slate-600/30",
+            "relative overflow-hidden rounded-2xl min-h-[200px]",
+            "bg-gradient-to-br from-white via-slate-50 to-emerald-50/50",
+            "dark:from-slate-700 dark:via-slate-600 dark:to-emerald-900/30",
+            "border border-emerald-100/50 dark:border-slate-500/30",
             "shadow-lg hover:shadow-2xl",
             "backdrop-blur-sm",
             "transition-all duration-300",
@@ -123,7 +124,7 @@ export function ModuleCard({
               <h3 className="font-bold text-lg text-slate-800 dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-emerald-600 group-hover:to-teal-600 dark:group-hover:from-emerald-400 dark:group-hover:to-teal-400 transition-all duration-300">
                 {title}
               </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                 {description}
               </p>
             </div>
