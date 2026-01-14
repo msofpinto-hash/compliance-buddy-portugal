@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -671,14 +671,17 @@ export default function ClientPortal() {
 
         {/* Main Content */}
         <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
-          {/* Overview Tab */}
-          {activeTab === "overview" && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="space-y-6"
-            >
+          <AnimatePresence mode="wait">
+            {/* Overview Tab */}
+            {activeTab === "overview" && (
+              <motion.div 
+                key="overview"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="space-y-6"
+              >
               {/* Welcome Header */}
               <div>
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
@@ -1036,7 +1039,14 @@ export default function ClientPortal() {
 
           {/* Legislation Tab - 2 Column Layout */}
           {activeTab === "legislation" && (
-            <div className="space-y-4">
+            <motion.div
+              key="legislation"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="space-y-4"
+            >
               {/* Search bar and Theme selector */}
               <Card className="p-4">
                 <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -1301,12 +1311,19 @@ export default function ClientPortal() {
                   </CardContent>
                 </Card>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Action Plans Tab */}
           {activeTab === "actions" && (
-            <div className="space-y-6">
+            <motion.div
+              key="actions"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="space-y-6"
+            >
               <div>
                 <h2 className="text-2xl font-bold">Planos de Ação</h2>
                 <p className="text-muted-foreground">
@@ -1458,13 +1475,22 @@ export default function ClientPortal() {
                   })}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* Documents Tab */}
           {activeTab === "documents" && (
-            <DocumentsPanel organizationIds={organizationIds} />
+            <motion.div
+              key="documents"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
+              <DocumentsPanel organizationIds={organizationIds} />
+            </motion.div>
           )}
+          </AnimatePresence>
         </main>
       </div>
 
