@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Database, Brain, Clock } from "lucide-react";
+import { FileText, Database, Brain, Clock, Link } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
 import { DataQualityPanel } from "./DataQualityPanel";
 import { RequirementsExtractionPanel } from "./RequirementsExtractionPanel";
 import { CronJobsMonitorPanel } from "./CronJobsMonitorPanel";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
+import { UrlHealthPanel } from "./UrlHealthPanel";
 
 export function BibliotecaPanel() {
   const [activeSubTab, setActiveSubTab] = useState("legislacao");
@@ -26,6 +27,10 @@ export function BibliotecaPanel() {
             <Database className="h-4 w-4" />
             Qualidade
           </TabsTrigger>
+          <TabsTrigger value="urls" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+            <Link className="h-4 w-4" />
+            URLs
+          </TabsTrigger>
           <TabsTrigger value="extracao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <Brain className="h-4 w-4" />
             Extração IA
@@ -42,6 +47,10 @@ export function BibliotecaPanel() {
 
         <TabsContent value="qualidade" className="mt-0">
           <DataQualityPanel />
+        </TabsContent>
+
+        <TabsContent value="urls" className="mt-0">
+          <UrlHealthPanel />
         </TabsContent>
 
         <TabsContent value="extracao" className="mt-0">
