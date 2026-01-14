@@ -26,16 +26,16 @@ interface LoginCheckResult {
   lockout_minutes: number;
 }
 
-// Corporate professional background - Clean and institutional
+// Corporate professional background - Clean and institutional with dark mode support
 const CorporateBackground = () => {
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Base gradient - light professional tones */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30" />
+      {/* Base gradient - light/dark professional tones */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/30" />
       
       {/* Subtle grid pattern */}
       <div 
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
         style={{
           backgroundImage: `
             linear-gradient(rgba(100, 116, 139, 0.3) 1px, transparent 1px),
@@ -46,17 +46,17 @@ const CorporateBackground = () => {
       />
       
       {/* Soft decorative shapes */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-100/40 rounded-full blur-[150px]" />
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-slate-200/60 rounded-full blur-[120px]" />
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-100/40 dark:bg-emerald-900/20 rounded-full blur-[150px]" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-slate-200/60 dark:bg-slate-800/40 rounded-full blur-[120px]" />
     </div>
   );
 };
 
 // Removed TechParticles - keeping corporate clean look
 
-// Corporate Logo Component - Clean and professional
+// Corporate Logo Component - Clean and professional with dark mode
 const CorporateLogo = () => (
-  <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white border-2 border-slate-200 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all duration-200">
+  <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-600 hover:shadow-md transition-all duration-200">
     {/* Icon container */}
     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 shadow-sm">
       <Scale className="h-5 w-5 text-white" />
@@ -64,8 +64,8 @@ const CorporateLogo = () => (
     
     {/* Text */}
     <div className="flex flex-col items-start">
-      <span className="text-lg font-bold text-slate-800 tracking-tight">I&D</span>
-      <span className="text-xs font-semibold tracking-[0.15em] text-emerald-600">
+      <span className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">I&D</span>
+      <span className="text-xs font-semibold tracking-[0.15em] text-emerald-600 dark:text-emerald-400">
         COMPLIANCE
       </span>
     </div>
@@ -530,21 +530,21 @@ const Auth = () => {
             <img 
               src={officeWorkspaceImg} 
               alt="Profissional a trabalhar em compliance" 
-              className="relative w-full max-w-md mx-auto lg:mx-0 rounded-2xl border-2 border-slate-200 shadow-lg"
+              className="relative w-full max-w-md mx-auto lg:mx-0 rounded-2xl border-2 border-slate-200 dark:border-slate-700 shadow-lg"
             />
           </div>
           
           {/* Text Content */}
           <div className="space-y-4">
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 leading-tight">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 dark:text-white leading-tight">
               O seu{" "}
-              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
                 assistente digital
               </span>
               <br />
               de conformidade
             </h2>
-            <p className="text-slate-600 text-lg max-w-md mx-auto lg:mx-0">
+            <p className="text-slate-600 dark:text-slate-300 text-lg max-w-md mx-auto lg:mx-0">
               Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
             </p>
             
@@ -557,9 +557,9 @@ const Auth = () => {
               ].map((feature) => (
                 <div
                   key={feature.text}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border-2 border-slate-200 text-sm text-slate-700 shadow-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 shadow-sm"
                 >
-                  <feature.icon className="h-4 w-4 text-emerald-600" />
+                  <feature.icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   {feature.text}
                 </div>
               ))}
@@ -574,25 +574,25 @@ const Auth = () => {
             <CorporateLogo />
           </div>
 
-          <Card className="bg-white border-2 border-slate-200 shadow-lg">
+          <Card className="bg-white dark:bg-slate-800/90 border-2 border-slate-200 dark:border-slate-700 shadow-lg backdrop-blur-sm">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-slate-800 text-xl">Área de Cliente</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-slate-800 dark:text-white text-xl">Área de Cliente</CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-400">
                 Aceda à sua área de gestão de conformidade legal
               </CardDescription>
             </CardHeader>
             <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-slate-100 border-2 border-slate-200">
+              <TabsList className="grid w-full grid-cols-2 bg-slate-100 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700">
                 <TabsTrigger 
                   value="login" 
-                  className="data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm text-slate-600"
+                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400"
                 >
                   Entrar
                 </TabsTrigger>
                 <TabsTrigger 
                   value="register"
-                  className="data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm text-slate-600"
+                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400"
                 >
                   Registar
                 </TabsTrigger>
@@ -601,7 +601,7 @@ const Auth = () => {
               <TabsContent value="login">
                 <form onSubmit={handleSignIn} className="space-y-4 mt-4">
                   {loginBlocked && (
-                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
+                    <Alert variant="destructive" className="bg-red-50 dark:bg-red-950/50 border-2 border-red-200 dark:border-red-800">
                       <ShieldAlert className="h-4 w-4" />
                       <AlertDescription>
                         <div className="font-medium">Conta temporariamente bloqueada</div>
@@ -615,14 +615,14 @@ const Auth = () => {
                     </Alert>
                   )}
                   {error && !loginBlocked && (
-                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
+                    <Alert variant="destructive" className="bg-red-50 dark:bg-red-950/50 border-2 border-red-200 dark:border-red-800">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-700">Email</Label>
+                    <Label htmlFor="email" className="text-slate-700 dark:text-slate-300">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -630,17 +630,17 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="password" className="text-slate-700">Password</Label>
+                      <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">Password</Label>
                       <Button
                         type="button"
                         variant="link"
-                        className="h-auto p-0 text-xs text-emerald-600 hover:text-emerald-700"
+                        className="h-auto p-0 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                         onClick={() => setShowForgotPassword(true)}
                       >
                         Esqueceu a password?
@@ -652,7 +652,7 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
 
@@ -676,14 +676,14 @@ const Auth = () => {
               <TabsContent value="register">
                 <form onSubmit={handleSignUp} className="space-y-4 mt-4">
                   {error && (
-                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
+                    <Alert variant="destructive" className="bg-red-50 dark:bg-red-950/50 border-2 border-red-200 dark:border-red-800">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-name" className="text-slate-700">Nome Completo</Label>
+                    <Label htmlFor="reg-name" className="text-slate-700 dark:text-slate-300">Nome Completo</Label>
                     <Input
                       id="reg-name"
                       type="text"
@@ -691,12 +691,12 @@ const Auth = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reg-email" className="text-slate-700">Email</Label>
+                    <Label htmlFor="reg-email" className="text-slate-700 dark:text-slate-300">Email</Label>
                     <Input
                       id="reg-email"
                       type="email"
@@ -704,12 +704,12 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reg-password" className="text-slate-700">Password</Label>
+                    <Label htmlFor="reg-password" className="text-slate-700 dark:text-slate-300">Password</Label>
                     <Input
                       id="reg-password"
                       type="password"
@@ -717,27 +717,27 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
-                      className={`bg-white border-2 text-slate-800 placeholder:text-slate-400 focus:ring-emerald-500/20 ${
+                      className={`bg-white dark:bg-slate-900 border-2 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-emerald-500/20 ${
                         password.length > 0 
                           ? (isPasswordValid ? "border-emerald-500 focus:border-emerald-500" : "border-amber-500 focus:border-amber-500") 
-                          : "border-slate-200 focus:border-emerald-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-emerald-500"
                       }`}
                     />
                     {password.length > 0 && (
                       <div className="mt-2 space-y-1 text-xs">
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.minLength ? "text-emerald-600" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.minLength ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
                           {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Mínimo 8 caracteres
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasUppercase ? "text-emerald-600" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasUppercase ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
                           {passwordValidation.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Uma letra maiúscula
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasLowercase ? "text-emerald-600" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasLowercase ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
                           {passwordValidation.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Uma letra minúscula
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasNumber ? "text-emerald-600" : "text-slate-500"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasNumber ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
                           {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Um número
                         </div>
@@ -746,7 +746,7 @@ const Auth = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-confirm-password" className="text-slate-700">Confirmar Password</Label>
+                    <Label htmlFor="reg-confirm-password" className="text-slate-700 dark:text-slate-300">Confirmar Password</Label>
                     <Input
                       id="reg-confirm-password"
                       type="password"
@@ -754,20 +754,20 @@ const Auth = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       minLength={8}
-                      className={`bg-white border-2 text-slate-800 placeholder:text-slate-400 focus:ring-emerald-500/20 ${
+                      className={`bg-white dark:bg-slate-900 border-2 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-emerald-500/20 ${
                         confirmPassword.length > 0 
                           ? (password === confirmPassword ? "border-emerald-500 focus:border-emerald-500" : "border-red-500 focus:border-red-500") 
-                          : "border-slate-200 focus:border-emerald-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-emerald-500"
                       }`}
                     />
                     {confirmPassword.length > 0 && password !== confirmPassword && (
-                      <div className="flex items-center gap-1.5 text-xs text-red-600 mt-1">
+                      <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 mt-1">
                         <X className="h-3 w-3" />
                         As passwords não coincidem
                       </div>
                     )}
                     {confirmPassword.length > 0 && password === confirmPassword && (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 mt-1">
+                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mt-1">
                         <Check className="h-3 w-3" />
                         Passwords coincidem
                       </div>
@@ -783,9 +783,9 @@ const Auth = () => {
                     Criar conta
                   </Button>
 
-                  <Alert className="bg-slate-50 border-2 border-slate-200">
-                    <Clock className="h-4 w-4 text-emerald-600" />
-                    <AlertDescription className="text-xs text-slate-600">
+                  <Alert className="bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700">
+                    <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <AlertDescription className="text-xs text-slate-600 dark:text-slate-400">
                       Após criar conta, o seu acesso ficará pendente de aprovação por um administrador.
                     </AlertDescription>
                   </Alert>
@@ -801,7 +801,7 @@ const Auth = () => {
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
       
       {/* Copyright */}
-      <div className="absolute bottom-6 text-slate-500 text-sm">
+      <div className="absolute bottom-6 text-slate-500 dark:text-slate-400 text-sm">
         © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
       </div>
     </div>
