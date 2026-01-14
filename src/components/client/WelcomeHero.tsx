@@ -1,9 +1,9 @@
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Calendar, ChevronRight } from "lucide-react";
-import heroImage from "@/assets/hero-compliance.jpg";
+import { Calendar, ChevronRight, ClipboardList, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 interface WelcomeHeroProps {
   userName?: string;
@@ -24,73 +24,107 @@ export function WelcomeHero({
   const greeting = currentHour < 12 ? "Bom dia" : currentHour < 19 ? "Boa tarde" : "Boa noite";
   const firstName = userName?.split(" ")[0] || userName?.split("@")[0] || "Utilizador";
   
-  // Show quick actions only if there's something to show
-  const hasQuickActions = alertsCount > 0 || upcomingAudits > 0 || pendingActions > 0;
-  
   return (
-    <div className="relative overflow-hidden rounded-2xl">
-      {/* Background Image */}
-      <div className="absolute inset-0">
-        <img 
-          src={heroImage} 
-          alt="Compliance Dashboard" 
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/85 to-background/50" />
-      </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/80 via-slate-900/90 to-emerald-950/50 border border-emerald-500/20 backdrop-blur-xl"
+    >
+      {/* Subtle glow effect */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+      
+      {/* Grid pattern overlay */}
+      <div 
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(16, 185, 129, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(16, 185, 129, 0.3) 1px, transparent 1px)
+          `,
+          backgroundSize: '40px 40px'
+        }}
+      />
       
       {/* Content */}
       <div className="relative z-10 p-6 sm:p-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           {/* Left: Greeting */}
           <div className="max-w-xl">
-            <Badge variant="outline" className="mb-3 bg-background/50 backdrop-blur-sm border-primary/30">
-              {format(new Date(), "EEEE, d 'de' MMMM", { locale: pt })}
-            </Badge>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              <Badge className="mb-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30">
+                <Sparkles className="h-3 w-3 mr-1" />
+                {format(new Date(), "EEEE, d 'de' MMMM", { locale: pt })}
+              </Badge>
+            </motion.div>
             
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
-              {greeting}, {firstName}! 👋
-            </h1>
+            <motion.h1 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="text-2xl sm:text-3xl font-bold text-white mb-2"
+            >
+              {greeting}, <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">{firstName}</span>! 👋
+            </motion.h1>
             
             {organizationName && (
-              <p className="text-muted-foreground">
-                Gestão de conformidade legal para <span className="font-medium text-foreground">{organizationName}</span>
-              </p>
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+                className="text-slate-400"
+              >
+                Gestão de conformidade legal para{" "}
+                <span className="font-semibold text-emerald-400">{organizationName}</span>
+              </motion.p>
             )}
           </div>
 
-          {/* Right: Quick Actions / Notifications */}
-          {hasQuickActions && (
-            <div className="flex flex-wrap gap-3">
-              {alertsCount > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <Bell className="h-4 w-4 text-amber-600" />
-                  <span className="text-sm font-medium">{alertsCount} alertas</span>
+          {/* Right: Quick Stats */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+            className="flex flex-wrap gap-3"
+          >
+            {upcomingAudits > 0 && (
+              <Link 
+                to="/dashboard?tab=audits"
+                className="group flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 border border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50 transition-all duration-300"
+              >
+                <div className="p-2 rounded-lg bg-purple-500/20">
+                  <Calendar className="h-4 w-4 text-purple-400" />
                 </div>
-              )}
-              {upcomingAudits > 0 && (
-                <Link 
-                  to="/dashboard?tab=audits"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors"
-                >
-                  <Calendar className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm font-medium">{upcomingAudits} auditorias</span>
-                  <ChevronRight className="h-3 w-3 text-purple-600" />
-                </Link>
-              )}
-              {pendingActions > 0 && (
-                <Link 
-                  to="/dashboard?tab=actions"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors"
-                >
-                  <span className="text-sm font-medium">{pendingActions} ações pendentes</span>
-                  <ChevronRight className="h-3 w-3 text-primary" />
-                </Link>
-              )}
-            </div>
-          )}
+                <div>
+                  <p className="text-xl font-bold text-white">{upcomingAudits}</p>
+                  <p className="text-xs text-slate-400">auditorias ativas</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
+            )}
+            {pendingActions > 0 && (
+              <Link 
+                to="/dashboard?tab=actions"
+                className="group flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 border border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all duration-300"
+              >
+                <div className="p-2 rounded-lg bg-emerald-500/20">
+                  <ClipboardList className="h-4 w-4 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-white">{pendingActions}</p>
+                  <p className="text-xs text-slate-400">ações pendentes</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
+            )}
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
