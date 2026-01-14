@@ -67,34 +67,48 @@ const StatCard = ({
   delay?: number;
 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay }}
+    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    transition={{ duration: 0.5, delay, type: "spring", stiffness: 100 }}
+    whileHover={{ y: -4, transition: { duration: 0.2 } }}
+    whileTap={{ scale: 0.98 }}
   >
     <Card className={cn(
-      "group relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300",
+      "group relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer",
       gradient
     )}>
-      <div className="absolute inset-0 bg-gradient-to-br from-white/60 to-transparent dark:from-white/5" />
+      {/* Animated shimmer effect on hover */}
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/60 to-transparent dark:from-white/5 group-hover:from-white/70 dark:group-hover:from-white/8 transition-colors duration-300" />
       <CardContent className="p-4 relative">
         <div className="flex items-center gap-3">
           <motion.div 
-            className={cn("p-2.5 rounded-xl shadow-sm", iconColor)}
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 400 }}
+            className={cn("p-2.5 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300", iconColor)}
+            whileHover={{ scale: 1.15, rotate: 8 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 15 }}
           >
             <Icon className="h-5 w-5 text-white" />
           </motion.div>
           <div>
             <motion.p 
               className="text-2xl font-bold text-emerald-800 dark:text-emerald-100"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: delay + 0.2 }}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: delay + 0.2, duration: 0.4 }}
             >
               {value}
             </motion.p>
-            <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 font-medium">{label}</p>
+            <motion.p 
+              className="text-xs text-emerald-700/80 dark:text-emerald-300/80 font-medium"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: delay + 0.3 }}
+            >
+              {label}
+            </motion.p>
           </div>
         </div>
       </CardContent>
@@ -328,27 +342,34 @@ export default function Biblioteca() {
           
           {/* Categorization Progress Card */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.25, type: "spring", stiffness: 100 }}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            whileTap={{ scale: 0.98 }}
           >
-            <Card className="group relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-mint-100/80 to-emerald-100/60 dark:from-emerald-900/30 dark:to-teal-900/20 border border-emerald-200/50 dark:border-emerald-800/30">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent dark:from-white/5" />
+            <Card className="group relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer bg-gradient-to-br from-mint-100/80 to-emerald-100/60 dark:from-emerald-900/30 dark:to-teal-900/20 border border-emerald-200/50 dark:border-emerald-800/30">
+              <motion.div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent dark:from-white/5 group-hover:from-white/50 transition-colors duration-300" />
               <CardContent className="p-4 relative">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <motion.div 
-                        className="p-2 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm"
-                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        className="p-2 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm group-hover:shadow-md transition-shadow duration-300"
+                        whileHover={{ scale: 1.15, rotate: 8 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
                       >
                         <Tags className="h-4 w-4 text-white" />
                       </motion.div>
                       <motion.span 
                         className="text-xl font-bold text-emerald-800 dark:text-emerald-100"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.45 }}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.45, duration: 0.4 }}
                       >
                         {stats?.categorizedPercent || 0}%
                       </motion.span>
@@ -356,13 +377,27 @@ export default function Biblioteca() {
                   </div>
                   <div className="relative h-2 bg-emerald-200/60 dark:bg-emerald-800/40 rounded-full overflow-hidden">
                     <motion.div 
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full"
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${stats?.categorizedPercent || 0}%` }}
-                      transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                      transition={{ duration: 1.2, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                    />
+                    {/* Animated shine effect on progress bar */}
+                    <motion.div 
+                      className="absolute inset-y-0 w-8 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                      initial={{ left: "-10%" }}
+                      animate={{ left: "110%" }}
+                      transition={{ duration: 2, delay: 1.5, repeat: Infinity, repeatDelay: 3 }}
                     />
                   </div>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Categorizados</p>
+                  <motion.p 
+                    className="text-xs text-emerald-700 dark:text-emerald-300 font-medium"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.55 }}
+                  >
+                    Categorizados
+                  </motion.p>
                 </div>
               </CardContent>
             </Card>
@@ -382,106 +417,152 @@ export default function Biblioteca() {
             transition={{ duration: 0.4, delay: 0.3 }}
           >
             {/* Search */}
-            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 dark:text-emerald-400" />
-                  <Input
-                    placeholder="Pesquisar legislação..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-emerald-50/50 dark:bg-slate-800/80 border-emerald-200/80 dark:border-emerald-800/40 focus:border-emerald-400 focus:ring-emerald-400/30"
-                  />
-                  {searchTerm && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
-                      onClick={() => setSearchTerm("")}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.35 }}
+            >
+              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
+                <CardContent className="p-4">
+                  <div className="relative group">
+                    <motion.div
+                      animate={{ scale: searchTerm ? 1.1 : 1 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 dark:text-emerald-400 group-focus-within:text-emerald-600 transition-colors duration-200" />
+                    </motion.div>
+                    <Input
+                      placeholder="Pesquisar legislação..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 bg-emerald-50/50 dark:bg-slate-800/80 border-emerald-200/80 dark:border-emerald-800/40 focus:border-emerald-400 focus:ring-emerald-400/30 transition-all duration-200"
+                    />
+                    {searchTerm && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:rotate-90 transition-all duration-200"
+                          onClick={() => setSearchTerm("")}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
 
             {/* Origin Filter */}
-            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
-              <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-emerald-500" />
-                  Origem
-                </h3>
-                <Tabs value={selectedSource} onValueChange={setSelectedSource} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 bg-emerald-100/60 dark:bg-emerald-900/30">
-                    <TabsTrigger value="all" className="text-xs data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">Todos</TabsTrigger>
-                    <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
-                      <Flag className="h-3 w-3" />
-                      PT
-                    </TabsTrigger>
-                    <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
-                      <Globe className="h-3 w-3" />
-                      UE
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </CardContent>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+            >
+              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
+                <CardContent className="p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                    <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.5 }}>
+                      <Globe className="h-4 w-4 text-emerald-500" />
+                    </motion.div>
+                    Origem
+                  </h3>
+                  <Tabs value={selectedSource} onValueChange={setSelectedSource} className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 bg-emerald-100/60 dark:bg-emerald-900/30">
+                      <TabsTrigger value="all" className="text-xs data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100 transition-all duration-200 data-[state=active]:shadow-sm">Todos</TabsTrigger>
+                      <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100 transition-all duration-200 data-[state=active]:shadow-sm">
+                        <Flag className="h-3 w-3" />
+                        PT
+                      </TabsTrigger>
+                      <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100 transition-all duration-200 data-[state=active]:shadow-sm">
+                        <Globe className="h-3 w-3" />
+                        UE
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </motion.div>
 
             {/* Theme/Category Filter */}
-            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
-              <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
-                  <Tags className="h-4 w-4 text-emerald-500" />
-                  Tema / Categoria
-                </h3>
-                {themes && (
-                  <CategoryTreeFilter
-                    themes={themes}
-                    selectedThemeId={selectedThemeId}
-                    selectedCategoryId={selectedCategoryId}
-                    onThemeSelect={setSelectedThemeId}
-                    onCategorySelect={setSelectedCategoryId}
-                  />
-                )}
-              </CardContent>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.45 }}
+            >
+              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
+                <CardContent className="p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                    <motion.div whileHover={{ scale: 1.2, rotate: 15 }} transition={{ type: "spring", stiffness: 400 }}>
+                      <Tags className="h-4 w-4 text-emerald-500" />
+                    </motion.div>
+                    Tema / Categoria
+                  </h3>
+                  {themes && (
+                    <CategoryTreeFilter
+                      themes={themes}
+                      selectedThemeId={selectedThemeId}
+                      selectedCategoryId={selectedCategoryId}
+                      onThemeSelect={setSelectedThemeId}
+                      onCategorySelect={setSelectedCategoryId}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
 
             {/* Advanced Search */}
-            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
-              <CardContent className="p-4">
-                <AdvancedSearchDialog
-                  searchTerm={searchTerm}
-                  onSearchTermChange={setSearchTerm}
-                  selectedSource={selectedSource}
-                  onSourceChange={setSelectedSource}
-                  selectedApplicability={selectedApplicability}
-                  onApplicabilityChange={setSelectedApplicability}
-                  applicabilityOptions={applicabilityFilterOptions}
-                  showApplicability={!!userOrganization}
-                  startDate={filterStartDate}
-                  endDate={filterEndDate}
-                  onStartDateChange={setFilterStartDate}
-                  onEndDateChange={setFilterEndDate}
-                  onClearAll={clearAllFilters}
-                  hasActiveFilters={hasActiveFilters}
-                />
-              </CardContent>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+            >
+              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
+                <CardContent className="p-4">
+                  <AdvancedSearchDialog
+                    searchTerm={searchTerm}
+                    onSearchTermChange={setSearchTerm}
+                    selectedSource={selectedSource}
+                    onSourceChange={setSelectedSource}
+                    selectedApplicability={selectedApplicability}
+                    onApplicabilityChange={setSelectedApplicability}
+                    applicabilityOptions={applicabilityFilterOptions}
+                    showApplicability={!!userOrganization}
+                    startDate={filterStartDate}
+                    endDate={filterEndDate}
+                    onStartDateChange={setFilterStartDate}
+                    onEndDateChange={setFilterEndDate}
+                    onClearAll={clearAllFilters}
+                    hasActiveFilters={hasActiveFilters}
+                  />
+                </CardContent>
+              </Card>
+            </motion.div>
 
             {/* Clear Filters */}
             {hasActiveFilters && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
               >
                 <Button
                   variant="outline"
-                  className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                  className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                   onClick={clearAllFilters}
                 >
-                  <X className="h-4 w-4" />
+                  <motion.div
+                    whileHover={{ rotate: 90 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <X className="h-4 w-4" />
+                  </motion.div>
                   Limpar todos os filtros
                 </Button>
               </motion.div>
@@ -498,18 +579,25 @@ export default function Biblioteca() {
               transition={{ duration: 0.3, delay: 0.4 }}
             >
               <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={cn(
-                    "gap-2 border-emerald-200/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/30",
-                    showFilters && "bg-emerald-100/80 border-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700"
-                  )}
-                >
-                  <Filter className="h-4 w-4" />
-                  Filtros
-                </Button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={cn(
+                      "gap-2 border-emerald-200/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/30 transition-all duration-200",
+                      showFilters && "bg-emerald-100/80 border-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700"
+                    )}
+                  >
+                    <motion.div
+                      animate={{ rotate: showFilters ? 0 : 180 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Filter className="h-4 w-4" />
+                    </motion.div>
+                    Filtros
+                  </Button>
+                </motion.div>
                 
                 <div className="h-6 w-px bg-emerald-200 dark:bg-emerald-800" />
                 
