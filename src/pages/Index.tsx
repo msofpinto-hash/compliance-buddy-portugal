@@ -4,30 +4,30 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, Zap, Lock, Scale } from "lucide-react";
 import { motion } from "framer-motion";
 
-// Animated grid background
+// Animated grid background - Green/Sage tones
 const GridBackground = () => {
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Base gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+      {/* Base gradient - warm dark with green undertones */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-emerald-950/40 to-slate-950" />
       
-      {/* Animated grid */}
+      {/* Animated grid - sage green */}
       <div 
-        className="absolute inset-0 opacity-20"
+        className="absolute inset-0 opacity-15"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(34, 211, 238, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(34, 211, 238, 0.1) 1px, transparent 1px)
+            linear-gradient(rgba(132, 169, 140, 0.15) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(132, 169, 140, 0.15) 1px, transparent 1px)
           `,
           backgroundSize: '50px 50px',
           animation: 'gridMove 20s linear infinite'
         }}
       />
       
-      {/* Glow orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[120px] animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-purple-600/15 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
+      {/* Glow orbs - sage/olive/mint tones */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-600/15 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-700/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-lime-600/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
       
       {/* Scan line effect */}
       <div 
@@ -40,14 +40,15 @@ const GridBackground = () => {
   );
 };
 
-// Floating particles
+// Floating particles - sage/mint colors
 const TechParticles = () => {
+  const colors = ['bg-emerald-400', 'bg-teal-400', 'bg-lime-400', 'bg-green-300'];
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {[...Array(30)].map((_, i) => (
         <div
           key={i}
-          className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-60"
+          className={`absolute w-1 h-1 ${colors[i % colors.length]} rounded-full opacity-50`}
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
@@ -60,30 +61,46 @@ const TechParticles = () => {
   );
 };
 
-// Animated Logo Component
+// Animated Logo Component with continuous glow pulse
 const AnimatedLogo = () => (
   <motion.div 
     className="relative group cursor-pointer"
     whileHover={{ scale: 1.05 }}
     transition={{ type: "spring", stiffness: 400, damping: 10 }}
   >
-    {/* Glow effect */}
-    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 rounded-2xl blur-2xl scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    {/* Continuous glow effect behind icon */}
+    <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-teal-400/20 to-lime-500/20 rounded-3xl blur-2xl opacity-60 group-hover:opacity-100 transition-opacity duration-500 animate-glow-pulse" />
     
     {/* Logo container */}
-    <div className="relative flex items-center gap-4 px-6 py-4 rounded-2xl bg-slate-800/50 border border-cyan-500/30 backdrop-blur-sm">
-      {/* Icon */}
-      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-lg shadow-cyan-500/30">
-        <Scale className="h-7 w-7 text-white" />
+    <div className="relative flex items-center gap-4 px-6 py-4 rounded-2xl bg-slate-800/60 border border-emerald-500/30 backdrop-blur-sm group-hover:border-emerald-400/50 transition-all duration-300">
+      {/* Icon with continuous pulse animation */}
+      <div className="relative">
+        {/* Inner glow ring */}
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 blur-md opacity-60 animate-icon-glow" />
+        
+        {/* Icon container */}
+        <motion.div 
+          className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 shadow-lg shadow-emerald-500/40"
+          animate={{ 
+            boxShadow: [
+              '0 0 20px rgba(16, 185, 129, 0.4)',
+              '0 0 35px rgba(16, 185, 129, 0.6)',
+              '0 0 20px rgba(16, 185, 129, 0.4)'
+            ]
+          }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Scale className="h-7 w-7 text-white drop-shadow-lg" />
+        </motion.div>
       </div>
       
       {/* Text */}
       <div className="flex flex-col items-start">
         <span className="text-2xl font-bold text-white tracking-tight">I&D</span>
         <span 
-          className="text-sm font-semibold tracking-[0.3em] text-cyan-400"
+          className="text-sm font-semibold tracking-[0.3em] text-emerald-400"
           style={{
-            textShadow: '0 0 10px rgba(34, 211, 238, 0.5)'
+            textShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
           }}
         >
           COMPLIANCE
@@ -93,12 +110,12 @@ const AnimatedLogo = () => (
   </motion.div>
 );
 
-// Neon text effect component
+// Neon text effect component - green tones
 const NeonText = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <span 
     className={`relative ${className}`}
     style={{
-      textShadow: '0 0 10px rgba(34, 211, 238, 0.5), 0 0 20px rgba(34, 211, 238, 0.3), 0 0 40px rgba(34, 211, 238, 0.2)'
+      textShadow: '0 0 10px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.3), 0 0 40px rgba(16, 185, 129, 0.2)'
     }}
   >
     {children}
@@ -134,7 +151,7 @@ const Index = () => {
       
       {/* Mouse-following glow */}
       <div 
-        className="absolute w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none transition-all duration-300"
+        className="absolute w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none transition-all duration-300"
         style={{
           left: `${mousePosition.x * 100}%`,
           top: `${mousePosition.y * 100}%`,
@@ -165,7 +182,7 @@ const Index = () => {
           <span className="block text-slate-300 text-lg md:text-xl font-normal tracking-widest uppercase mb-4">
             Plataforma de Gestão
           </span>
-          <NeonText className="text-cyan-400">
+          <NeonText className="text-emerald-400">
             Conformidade Legal
           </NeonText>
           <span className="block text-white mt-2">
@@ -194,13 +211,13 @@ const Index = () => {
           <Link to="/auth">
             <Button 
               size="lg" 
-              className="group relative overflow-hidden bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white border-0 px-8 py-6 text-lg font-semibold rounded-xl shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:shadow-[0_0_40px_rgba(34,211,238,0.5)] transition-all duration-300"
+              className="group relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white border-0 px-8 py-6 text-lg font-semibold rounded-xl shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] transition-all duration-300"
             >
               <span className="relative z-10 flex items-center gap-2">
                 Aceder à Área Cliente
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
           </Link>
         </motion.div>
@@ -224,8 +241,8 @@ const Index = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 1.3 + index * 0.1 }}
             >
-              <div className="p-2 rounded-lg bg-slate-800/50 border border-cyan-500/20 group-hover:border-cyan-500/50 group-hover:bg-slate-800 transition-all">
-                <item.icon className="w-5 h-5 text-cyan-400" />
+              <div className="p-2 rounded-lg bg-slate-800/50 border border-emerald-500/20 group-hover:border-emerald-500/50 group-hover:bg-slate-800 transition-all">
+                <item.icon className="w-5 h-5 text-emerald-400" />
               </div>
               <span className="text-sm md:text-base">{item.label}</span>
             </motion.div>
@@ -234,7 +251,7 @@ const Index = () => {
       </div>
 
       {/* Bottom decoration */}
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
       
       {/* Version/Copyright */}
       <div className="absolute bottom-6 text-slate-600 text-sm">
