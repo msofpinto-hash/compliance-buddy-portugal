@@ -857,10 +857,10 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
   
   // Also scan the full content for "À X alteração ao" pattern (from summary/resumo)
   // This is CRITICAL - these are explicit alterations and should take priority
-  const summarySection = content.substring(0, 4000);
+  const summarySection = content.substring(0, 6000);
   const confirmedAlterations = new Set<string>();
   
-  // Pattern: "À X alteração ao Decreto-Lei n.º..." or "procede à X alteração"
+  // Pattern 1: "À X alteração ao Decreto-Lei n.º..." or "procede à X alteração"
   const alteracaoResumoPattern = /(?:à|a)\s+(?:primeira|segunda|terceira|quarta|quinta|sexta|sétima|oitava|nona|décima|\d+\.?ª?)\s+alteração\s+(?:a[os]?\s+)?([^,;]+)/gi;
   let alterMatch;
   while ((alterMatch = alteracaoResumoPattern.exec(summarySection)) !== null) {
@@ -878,6 +878,27 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
           notes: 'Extraído do resumo DRE - Alteração explícita'
         });
         console.log(`[DRE PANEL] Found explicit alteration from summary: ${num}`);
+      }
+    }
+  }
+  
+  // Pattern 2: Handle more complex patterns like "À terceira alteração ao Regime Geral..., aprovado pelo anexo I ao Decreto-Lei n.º 102-D/2020"
+  // This captures cases where there's text between "alteração" and the actual Decreto-Lei number
+  const complexAlteracaoPattern = /(?:à|a)\s+(?:primeira|segunda|terceira|quarta|quinta|sexta|sétima|oitava|nona|décima|\d+\.?ª?)\s+alteração[^.]*?((?:Decreto[- ]Lei|Lei|Portaria|Despacho|Regulamento)\s+n\.?º?\s*\d+[A-Z\-]*\/\d{4})/gi;
+  while ((alterMatch = complexAlteracaoPattern.exec(summarySection)) !== null) {
+    const capturedNum = alterMatch[1];
+    const nums = extractNumbers(capturedNum);
+    for (const num of [...nums.pt, ...nums.eu]) {
+      const normalizedNum = num.toLowerCase().replace(/\s+/g, '');
+      confirmedAlterations.add(normalizedNum);
+      
+      if (!relations.some(r => r.target_number.toLowerCase().replace(/\s+/g, '') === normalizedNum)) {
+        relations.push({
+          relation_type: 'alteracao',
+          target_number: num.trim(),
+          notes: 'Extraído do resumo DRE - Alteração explícita (padrão complexo)'
+        });
+        console.log(`[DRE PANEL] Found explicit alteration from complex pattern: ${num}`);
       }
     }
   }
@@ -1650,7 +1671,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true, background = false } = await req.json();
+    const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true, background = false, force = false } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -1705,7 +1726,15 @@ Deno.serve(async (req) => {
         .not('document_url', 'is', null);
       
       if (error) throw error;
-      legislationToProcess = data || [];
+      
+      // When specific legislation IDs are passed, only skip processed ones if force=false
+      if (force) {
+        legislationToProcess = data || [];
+        console.log(`Force mode enabled - processing all ${legislationToProcess.length} specified legislation`);
+      } else {
+        legislationToProcess = (data || []).filter(leg => !processedLegislationIds.has(leg.id));
+        console.log(`Filtered: ${legislationToProcess.length} of ${data?.length || 0} legislation to process (${data?.length || 0 - legislationToProcess.length} already processed)`);
+      }
     } else {
       // Get legislation with URLs, optionally filtered by origin
       // We fetch more than limit to account for skipped ones
@@ -1808,8 +1837,17 @@ Deno.serve(async (req) => {
       console.log(`\n=== Processing relations: ${leg.number} ===`);
       
       try {
-        // Step 1: Scrape the URL
-        const textContent = await scrapeUrl(leg.document_url, firecrawlApiKey);
+        // Step 1: Scrape the URL - use Análise Jurídica for PT legislation
+        const isPT = !leg.origin || leg.origin === 'PT' || 
+                     leg.document_url?.includes('diariodarepublica.pt');
+        
+        let textContent: string | null;
+        if (isPT) {
+          // Use full page scrape for PT to get sidebar with "Alterado por", "Revogado por"
+          textContent = await scrapeDREAnaliseJuridica(leg.document_url, firecrawlApiKey);
+        } else {
+          textContent = await scrapeUrl(leg.document_url, firecrawlApiKey);
+        }
         
         if (!textContent || textContent.length < 100) {
           console.log(`No content for ${leg.number}`);
