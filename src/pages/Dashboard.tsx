@@ -848,11 +848,11 @@ export default function Dashboard() {
               </div>
 
               {/* Recent Legislation */}
-              <Card className="overflow-hidden bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40 shadow-md backdrop-blur-sm">
-                <CardHeader className="bg-gradient-to-r from-amber-100/60 to-orange-100/40 dark:from-amber-900/25 dark:to-orange-900/15">
+              <Card className="overflow-hidden bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 dark:from-slate-900 dark:via-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/60 dark:border-emerald-800/40 shadow-md backdrop-blur-sm">
+                <CardHeader className="bg-gradient-to-r from-emerald-50/80 to-teal-50/60 dark:from-emerald-900/25 dark:to-teal-900/15">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-400/25">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 shadow-lg shadow-emerald-400/25">
                         <FileText className="h-5 w-5 text-white" />
                       </div>
                       <div>
@@ -938,15 +938,15 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
-                  <Card className="group relative bg-gradient-to-br from-stone-50/95 via-amber-50/80 to-orange-50/70 dark:from-stone-900/50 dark:via-amber-950/40 dark:to-orange-950/30 border border-stone-200/60 dark:border-stone-700/40 shadow-sm hover:shadow-lg hover:shadow-amber-400/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
+                  <Card className="group relative bg-gradient-to-br from-white via-emerald-50/50 to-teal-50/40 dark:from-slate-900 dark:via-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm hover:shadow-lg hover:shadow-emerald-400/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
                     {/* Animated background glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-200/15 via-transparent to-orange-200/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-amber-300/20 to-orange-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-200/15 via-transparent to-teal-200/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-emerald-300/20 to-teal-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     
                     <CardHeader className="pb-2 relative z-10">
-                      <CardTitle className="text-base flex items-center gap-2 text-stone-800 dark:text-stone-100">
+                      <CardTitle className="text-base flex items-center gap-2 text-emerald-900 dark:text-emerald-100">
                         <motion.div 
-                          className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-400/25"
+                          className="p-2 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 shadow-lg shadow-emerald-400/25"
                           whileHover={{ scale: 1.1, rotate: 5 }}
                           transition={{ type: "spring", stiffness: 400 }}
                         >
@@ -967,7 +967,7 @@ export default function Dashboard() {
                               transition={{ delay: 0.8, duration: 0.5, type: "spring" }}
                             >
                               <motion.span 
-                                className="text-2xl font-bold bg-gradient-to-br from-amber-500 to-orange-500 bg-clip-text text-transparent"
+                                className="text-2xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 1.2 }}
@@ -1063,15 +1063,15 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  <Card className="group relative bg-gradient-to-br from-orange-50/95 via-amber-50/80 to-yellow-50/70 dark:from-orange-950/40 dark:via-amber-950/35 dark:to-yellow-950/25 border border-orange-200/60 dark:border-orange-800/40 shadow-sm hover:shadow-lg hover:shadow-orange-400/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
+                  <Card className="group relative bg-gradient-to-br from-white via-sage-50/50 to-emerald-50/40 dark:from-slate-900 dark:via-emerald-950/25 dark:to-teal-950/15 border border-emerald-200/50 dark:border-emerald-800/35 shadow-sm hover:shadow-lg hover:shadow-emerald-400/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
                     {/* Animated background glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-orange-200/15 via-transparent to-amber-200/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-orange-300/20 to-amber-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-200/10 via-transparent to-teal-200/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-emerald-300/15 to-teal-400/15 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     
                     <CardHeader className="pb-2 relative z-10">
-                      <CardTitle className="text-base flex items-center gap-2 text-stone-800 dark:text-stone-100">
+                      <CardTitle className="text-base flex items-center gap-2 text-emerald-900 dark:text-emerald-100">
                         <motion.div 
-                          className="p-2 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-400/25"
+                          className="p-2 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 shadow-lg shadow-emerald-400/25"
                           whileHover={{ scale: 1.1, rotate: -5 }}
                           transition={{ type: "spring", stiffness: 400 }}
                         >
@@ -1092,7 +1092,7 @@ export default function Dashboard() {
                               transition={{ delay: 0.9, duration: 0.5, type: "spring" }}
                             >
                               <motion.span 
-                                className="text-2xl font-bold bg-gradient-to-br from-teal-500 to-cyan-600 bg-clip-text text-transparent"
+                                className="text-2xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 1.3 }}
@@ -1161,7 +1161,7 @@ export default function Dashboard() {
                               <Legend 
                                 verticalAlign="bottom" 
                                 height={36}
-                                formatter={(value) => <span className="text-sm font-medium text-stone-700/80 dark:text-stone-300/80">{value}</span>}
+                                formatter={(value) => <span className="text-sm font-medium text-emerald-800/80 dark:text-emerald-300/80">{value}</span>}
                               />
                             </PieChart>
                           </ResponsiveContainer>
@@ -1184,15 +1184,15 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
-                  <Card className="group relative bg-gradient-to-br from-yellow-50/95 via-amber-50/80 to-stone-50/70 dark:from-yellow-950/40 dark:via-amber-950/35 dark:to-stone-900/30 border border-yellow-200/60 dark:border-yellow-800/40 shadow-sm hover:shadow-lg hover:shadow-yellow-400/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
+                  <Card className="group relative bg-gradient-to-br from-white via-teal-50/40 to-emerald-50/30 dark:from-slate-900 dark:via-teal-950/25 dark:to-emerald-950/15 border border-teal-200/50 dark:border-teal-800/35 shadow-sm hover:shadow-lg hover:shadow-teal-400/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
                     {/* Animated background glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/15 via-transparent to-amber-200/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-yellow-300/20 to-amber-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-teal-200/10 via-transparent to-emerald-200/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-teal-300/15 to-emerald-400/15 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     
                     <CardHeader className="pb-3 relative z-10">
-                      <CardTitle className="text-base flex items-center gap-2 text-stone-800 dark:text-stone-100">
+                      <CardTitle className="text-base flex items-center gap-2 text-emerald-900 dark:text-emerald-100">
                         <motion.div 
-                          className="p-2 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500 shadow-lg shadow-yellow-400/25"
+                          className="p-2 rounded-xl bg-gradient-to-br from-teal-600 to-emerald-600 shadow-lg shadow-teal-400/25"
                           whileHover={{ scale: 1.1, rotate: 5 }}
                           transition={{ type: "spring", stiffness: 400 }}
                         >
@@ -1203,45 +1203,45 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent className="space-y-3 relative z-10">
                       <motion.div 
-                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-100/70 to-yellow-100/50 dark:from-amber-900/30 dark:to-yellow-900/20 border border-amber-200/70 dark:border-amber-700/40 hover:shadow-md hover:shadow-amber-400/15 transition-all duration-300"
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-100/60 to-teal-100/40 dark:from-emerald-900/25 dark:to-teal-900/15 border border-emerald-200/60 dark:border-emerald-700/30 hover:shadow-md hover:shadow-emerald-400/15 transition-all duration-300"
                         whileHover={{ scale: 1.02, x: 4 }}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 shadow-sm">
+                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 shadow-sm">
                             <Clock className="h-3.5 w-3.5 text-white" />
                           </div>
-                          <span className="text-sm font-medium text-stone-800/90 dark:text-stone-200/90">Ações Pendentes</span>
+                          <span className="text-sm font-medium text-emerald-900/90 dark:text-emerald-100/90">Ações Pendentes</span>
                         </div>
-                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-0 shadow-lg shadow-amber-400/20 font-bold px-3">{actionPlanStats.pending}</Badge>
+                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-lg shadow-amber-400/20 font-bold px-3">{actionPlanStats.pending}</Badge>
                       </motion.div>
                       <motion.div 
-                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-rose-100/70 to-red-100/50 dark:from-red-900/30 dark:to-rose-900/20 border border-red-200/70 dark:border-red-700/40 hover:shadow-md hover:shadow-red-400/15 transition-all duration-300"
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-100/50 to-sage-100/40 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-200/50 dark:border-emerald-700/25 hover:shadow-md hover:shadow-rose-400/15 transition-all duration-300"
                         whileHover={{ scale: 1.02, x: 4 }}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-red-400 to-rose-500 shadow-sm">
+                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-red-500 to-rose-500 shadow-sm">
                             <AlertTriangle className="h-3.5 w-3.5 text-white" />
                           </div>
-                          <span className="text-sm font-medium text-stone-800/90 dark:text-stone-200/90">Ações Atrasadas</span>
+                          <span className="text-sm font-medium text-emerald-900/90 dark:text-emerald-100/90">Ações Atrasadas</span>
                         </div>
                         <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg shadow-red-400/20 font-bold px-3">{actionPlanStats.overdue}</Badge>
                       </motion.div>
                       <motion.div 
-                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-100/70 to-teal-100/50 dark:from-emerald-900/30 dark:to-teal-900/20 border border-emerald-200/70 dark:border-emerald-700/40 hover:shadow-md hover:shadow-emerald-400/15 transition-all duration-300"
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-teal-100/50 to-emerald-100/40 dark:from-teal-900/20 dark:to-emerald-900/15 border border-teal-200/50 dark:border-teal-700/25 hover:shadow-md hover:shadow-emerald-400/15 transition-all duration-300"
                         whileHover={{ scale: 1.02, x: 4 }}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm">
+                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 shadow-sm">
                             <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                           </div>
-                          <span className="text-sm font-medium text-stone-800/90 dark:text-stone-200/90">Concluídas</span>
+                          <span className="text-sm font-medium text-emerald-900/90 dark:text-emerald-100/90">Concluídas</span>
                         </div>
-                        <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 shadow-lg shadow-emerald-400/20 font-bold px-3">{actionPlanStats.completed}</Badge>
+                        <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 shadow-lg shadow-emerald-400/20 font-bold px-3">{actionPlanStats.completed}</Badge>
                       </motion.div>
 
                       {/* Mini Trend Chart */}
-                      <div className="pt-3 border-t border-stone-200/60 dark:border-stone-700/40">
-                        <p className="text-xs font-medium text-stone-600/80 dark:text-stone-400/80 mb-2">Evolução (últimos 7 dias)</p>
+                      <div className="pt-3 border-t border-emerald-200/50 dark:border-emerald-700/30">
+                        <p className="text-xs font-medium text-emerald-700/80 dark:text-emerald-400/80 mb-2">Evolução (últimos 7 dias)</p>
                         <div className="h-[80px]">
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -1318,12 +1318,12 @@ export default function Dashboard() {
           {activeTab === "audits" && (
             <div className="space-y-8">
               {/* Hero Header */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600/20 via-violet-500/10 to-indigo-500/20">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
                 <div className="absolute inset-0 bg-grid-white/10" />
                 <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
                   <div className="flex-1 space-y-3">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-purple-500/20 text-purple-700 border-0">
+                      <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
                         <ClipboardCheck className="h-3 w-3 mr-1" />
                         Módulo de Auditorias
                       </Badge>
@@ -1352,8 +1352,8 @@ export default function Dashboard() {
                 return (
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-500/10">
-                        <Calendar className="h-5 w-5 text-blue-600" />
+                      <div className="p-2 rounded-lg bg-emerald-500/10">
+                        <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
                         <h2 className="text-xl font-bold">Plano de Auditoria</h2>
@@ -1387,8 +1387,8 @@ export default function Dashboard() {
                               {/* Decorative gradient header */}
                               <div className={`h-2 ${
                                 audit.status === "in_progress" 
-                                  ? "bg-gradient-to-r from-yellow-400 to-amber-500" 
-                                  : "bg-gradient-to-r from-blue-500 to-indigo-500"
+                                  ? "bg-gradient-to-r from-amber-400 to-orange-500" 
+                                  : "bg-gradient-to-r from-emerald-500 to-teal-500"
                               }`} />
                               
                               <CardContent className="p-6">
@@ -1535,8 +1535,8 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-green-500/10">
-                      <ClipboardCheck className="h-5 w-5 text-green-600" />
+                    <div className="p-2 rounded-lg bg-emerald-500/10">
+                      <ClipboardCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">Histórico de Auditorias</h2>
@@ -1793,12 +1793,12 @@ export default function Dashboard() {
           {activeTab === "indicators" && (
             <div className="space-y-6">
               {/* Hero Header */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-600/20 via-blue-500/10 to-sky-500/20">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
                 <div className="absolute inset-0 bg-grid-white/10" />
                 <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
                   <div className="flex-1 space-y-3">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-700 border-0">
+                      <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
                         <BarChart3 className="h-3 w-3 mr-1" />
                         Módulo de Indicadores
                       </Badge>
@@ -1821,11 +1821,11 @@ export default function Dashboard() {
               
               {/* Coming Soon Cards */}
               <div className="grid gap-4 md:grid-cols-3">
-                <Card className="relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-500/20 to-transparent rounded-bl-full" />
+                <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-bl-full" />
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                       Taxa de Conformidade
                     </CardTitle>
                     <CardDescription>Evolução ao longo do tempo</CardDescription>
@@ -1837,11 +1837,11 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
                 
-                <Card className="relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-yellow-500/20 to-transparent rounded-bl-full" />
+                <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-500/20 to-transparent rounded-bl-full" />
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-yellow-600" />
+                      <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                       Tempo de Resolução
                     </CardTitle>
                     <CardDescription>Média de tempo para corrigir não-conformidades</CardDescription>
@@ -1853,11 +1853,11 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
                 
-                <Card className="relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-bl-full" />
+                <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-teal-500/20 to-transparent rounded-bl-full" />
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <ClipboardCheck className="h-5 w-5 text-blue-600" />
+                      <ClipboardCheck className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                       Auditorias Concluídas
                     </CardTitle>
                     <CardDescription>Resultados e tendências de auditoria</CardDescription>
@@ -1870,10 +1870,10 @@ export default function Dashboard() {
                 </Card>
               </div>
               
-              <Card className="border-dashed">
+              <Card className="border-dashed bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-800/40">
                 <CardContent className="py-16 text-center">
-                  <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
-                    <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                  <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 flex items-center justify-center mb-6">
+                    <BarChart3 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">Indicadores em Desenvolvimento</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
