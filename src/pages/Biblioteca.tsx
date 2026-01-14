@@ -531,9 +531,6 @@ export default function Biblioteca() {
                           <span className={cn("text-sm font-semibold", config.color)}>
                             Categorias de {selectedTheme.name}
                           </span>
-                          <Badge variant="secondary" className="text-xs">
-                            {selectedTheme.categories.length}
-                          </Badge>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {rootCategories.map((category, index) => {
@@ -558,11 +555,6 @@ export default function Biblioteca() {
                               >
                                 <Folder className="h-3.5 w-3.5" />
                                 {category.name}
-                                {childCategories.length > 0 && (
-                                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 ml-1">
-                                    +{childCategories.length}
-                                  </Badge>
-                                )}
                               </motion.button>
                             );
                           })}
