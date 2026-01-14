@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
 import { motion } from "framer-motion";
-import robotAuditorImg from "@/assets/robot-auditor.png";
+import officeWorkspaceImg from "@/assets/office-workspace.jpg";
 
 interface LoginCheckResult {
   allowed: boolean;
@@ -626,7 +626,7 @@ const Auth = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="flex-1 text-center lg:text-left hidden md:block"
         >
-          {/* Robot Illustration */}
+          {/* Office Workspace Photo */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -635,9 +635,9 @@ const Auth = () => {
           >
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-3xl blur-3xl" />
             <img 
-              src={robotAuditorImg} 
-              alt="Robot Auditor" 
-              className="relative w-full max-w-md mx-auto lg:mx-0 drop-shadow-2xl"
+              src={officeWorkspaceImg} 
+              alt="Profissional a trabalhar em compliance" 
+              className="relative w-full max-w-md mx-auto lg:mx-0 rounded-2xl shadow-2xl shadow-emerald-900/30"
             />
           </motion.div>
           
