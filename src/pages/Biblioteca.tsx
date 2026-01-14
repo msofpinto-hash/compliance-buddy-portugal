@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   FileText, 
   Search, 
@@ -19,7 +21,11 @@ import {
   CheckCircle,
   TrendingUp,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Filter,
+  LayoutGrid,
+  List,
+  ChevronRight
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +36,7 @@ import { useLegislationWithCategories } from "@/hooks/useLegislation";
 import { CategoryTreeFilter } from "@/components/CategoryTreeFilter";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
+import { cn } from "@/lib/utils";
 import bibliotecaHero from "@/assets/biblioteca-hero.png";
 
 const applicabilityFilterOptions = [
@@ -44,6 +51,57 @@ const applicabilityFilterOptions = [
   { value: "pending", label: "Pendente de avaliação" },
 ];
 
+const StatCard = ({ 
+  icon: Icon, 
+  value, 
+  label, 
+  gradient, 
+  iconColor,
+  delay = 0 
+}: { 
+  icon: React.ElementType; 
+  value: number | string; 
+  label: string; 
+  gradient: string;
+  iconColor: string;
+  delay?: number;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4, delay }}
+  >
+    <Card className={cn(
+      "group relative overflow-hidden border-0 shadow-sm hover:shadow-lg transition-all duration-300",
+      gradient
+    )}>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent dark:from-white/5" />
+      <CardContent className="p-4 relative">
+        <div className="flex items-center gap-3">
+          <motion.div 
+            className={cn("p-2.5 rounded-xl shadow-sm", iconColor)}
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            transition={{ type: "spring", stiffness: 400 }}
+          >
+            <Icon className="h-5 w-5 text-white" />
+          </motion.div>
+          <div>
+            <motion.p 
+              className="text-2xl font-bold text-slate-900 dark:text-white"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: delay + 0.2 }}
+            >
+              {value}
+            </motion.p>
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{label}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  </motion.div>
+);
+
 export default function Biblioteca() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,6 +111,7 @@ export default function Biblioteca() {
   const [selectedApplicability, setSelectedApplicability] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(true);
 
   // Fetch themes with categories
   const { data: themes } = useThemesWithCategories();
@@ -166,345 +225,402 @@ export default function Biblioteca() {
   };
 
   return (
-    <div className="min-h-screen bg-background dark:bg-slate-950">
-      {/* Hero Header with Image */}
-      <header className="relative border-b border-border dark:border-slate-800 overflow-hidden">
-        {/* Background Image */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Hero Header */}
+      <header className="relative border-b border-slate-200/80 dark:border-slate-800 overflow-hidden">
+        {/* Background with gradient overlay */}
         <div className="absolute inset-0 z-0">
           <img 
             src={bibliotecaHero} 
             alt="" 
-            className="w-full h-full object-cover opacity-20 dark:opacity-10"
+            className="w-full h-full object-cover opacity-15 dark:opacity-8"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80 dark:from-slate-950 dark:via-slate-950/95 dark:to-slate-950/80" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/98 to-white/90 dark:from-slate-950 dark:via-slate-950/98 dark:to-slate-950/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/50 dark:to-slate-950/50" />
         </div>
         
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-400/10 to-teal-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-400/10 to-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        
         {/* Content */}
-        <div className="relative z-10 container mx-auto flex items-center justify-between px-4 py-6">
-          <div className="flex items-center gap-4">
+        <div className="relative z-10 container mx-auto px-4 py-8">
+          <motion.div 
+            className="flex items-center gap-6"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
             <Link to={user ? "/dashboard" : "/"}>
-              <Button variant="ghost" size="icon" className="rounded-full bg-background/50 dark:bg-slate-900/50 backdrop-blur-sm hover:bg-muted dark:hover:bg-slate-800">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-700 shadow-sm border border-slate-200/50 dark:border-slate-700/50"
+              >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xl">
-                <BookOpen className="h-7 w-7" />
-              </div>
+            <div className="flex items-center gap-5">
+              <motion.div 
+                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/25"
+                whileHover={{ scale: 1.05, rotate: 3 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                <BookOpen className="h-8 w-8" />
+              </motion.div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">Biblioteca de Legislação</h1>
-                <p className="text-sm text-muted-foreground mt-1">
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Biblioteca de Legislação
+                </h1>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-lg">
                   Explore e pesquise toda a legislação disponível organizada por temas e categorias
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-8">
         {/* Stats Dashboard */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 border-primary/20 dark:border-primary/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/20 dark:bg-primary/30">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.total || 0}</p>
-                  <p className="text-xs text-muted-foreground">Total Diplomas</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <StatCard
+            icon={BookOpen}
+            value={stats?.total || 0}
+            label="Total Diplomas"
+            gradient="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40"
+            iconColor="bg-gradient-to-br from-emerald-500 to-teal-600"
+            delay={0}
+          />
+          <StatCard
+            icon={Flag}
+            value={stats?.pt || 0}
+            label="DRE (Portugal)"
+            gradient="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40"
+            iconColor="bg-gradient-to-br from-green-500 to-emerald-600"
+            delay={0.05}
+          />
+          <StatCard
+            icon={Globe}
+            value={stats?.eu || 0}
+            label="EUR-Lex (UE)"
+            gradient="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40"
+            iconColor="bg-gradient-to-br from-blue-500 to-indigo-600"
+            delay={0.1}
+          />
+          <StatCard
+            icon={Sparkles}
+            value={stats?.last7Days || 0}
+            label="Últimos 7 dias"
+            gradient="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40"
+            iconColor="bg-gradient-to-br from-amber-500 to-orange-600"
+            delay={0.15}
+          />
+          <StatCard
+            icon={TrendingUp}
+            value={stats?.last30Days || 0}
+            label="Últimos 30 dias"
+            gradient="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/40"
+            iconColor="bg-gradient-to-br from-purple-500 to-pink-600"
+            delay={0.2}
+          />
           
-          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 dark:from-green-500/20 dark:to-green-500/10 border-green-500/20 dark:border-green-500/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/20 dark:bg-green-500/30">
-                  <Flag className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.pt || 0}</p>
-                  <p className="text-xs text-muted-foreground">DRE (PT)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/10 border-blue-500/20 dark:border-blue-500/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/20 dark:bg-blue-500/30">
-                  <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.eu || 0}</p>
-                  <p className="text-xs text-muted-foreground">EUR-Lex (EU)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/10 border-amber-500/20 dark:border-amber-500/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/20 dark:bg-amber-500/30">
-                  <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.last7Days || 0}</p>
-                  <p className="text-xs text-muted-foreground">Últimos 7 dias</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 dark:from-purple-500/20 dark:to-purple-500/10 border-purple-500/20 dark:border-purple-500/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-500/20 dark:bg-purple-500/30">
-                  <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.last30Days || 0}</p>
-                  <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-teal-500/10 to-teal-500/5 dark:from-teal-500/20 dark:to-teal-500/10 border-teal-500/20 dark:border-teal-500/30">
-            <CardContent className="p-4">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-teal-500/20 dark:bg-teal-500/30">
-                      <Tags className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+          {/* Categorization Progress Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+          >
+            <Card className="group relative overflow-hidden border-0 shadow-sm hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/40 dark:to-cyan-950/40">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent dark:from-white/5" />
+              <CardContent className="p-4 relative">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <motion.div 
+                        className="p-2 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-sm"
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                      >
+                        <Tags className="h-4 w-4 text-white" />
+                      </motion.div>
+                      <motion.span 
+                        className="text-xl font-bold text-slate-900 dark:text-white"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.45 }}
+                      >
+                        {stats?.categorizedPercent || 0}%
+                      </motion.span>
                     </div>
-                    <p className="text-lg font-bold text-foreground">{stats?.categorizedPercent || 0}%</p>
                   </div>
+                  <div className="relative h-2 bg-slate-200/50 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${stats?.categorizedPercent || 0}%` }}
+                      transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Categorizados</p>
                 </div>
-                <Progress value={stats?.categorizedPercent || 0} className="h-1.5" />
-                <p className="text-xs text-muted-foreground">Categorizados</p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
-        {/* Filters Bar */}
-        <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
-          <CardContent className="p-4">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-              {/* Origin Tabs */}
-              <Tabs value={selectedSource} onValueChange={setSelectedSource} className="w-full lg:w-auto">
-                <TabsList className="grid w-full grid-cols-3 lg:w-auto">
-                  <TabsTrigger value="all" className="gap-1.5">
-                    <BookOpen className="h-4 w-4" />
-                    <span className="hidden sm:inline">Todos</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="dre" className="gap-1.5">
-                    <Flag className="h-4 w-4" />
-                    <span className="hidden sm:inline">DRE</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="eurlex" className="gap-1.5">
-                    <Globe className="h-4 w-4" />
-                    <span className="hidden sm:inline">EUR-Lex</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+        {/* Two Column Layout: Filters + Content */}
+        <div className="flex gap-6">
+          {/* Left Sidebar - Filters */}
+          <motion.aside 
+            className={cn(
+              "w-80 shrink-0 space-y-4 transition-all duration-300",
+              !showFilters && "hidden"
+            )}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            {/* Search */}
+            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <CardContent className="p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Pesquisar legislação..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setSearchTerm("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Theme/Category Filter */}
-              {themes && (
-                <CategoryTreeFilter
-                  themes={themes}
-                  selectedThemeId={selectedThemeId}
-                  selectedCategoryId={selectedCategoryId}
-                  onThemeSelect={setSelectedThemeId}
-                  onCategorySelect={setSelectedCategoryId}
-                />
-              )}
+            {/* Origin Filter */}
+            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-emerald-600" />
+                  Origem
+                </h3>
+                <Tabs value={selectedSource} onValueChange={setSelectedSource} className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800">
+                    <TabsTrigger value="all" className="text-xs">Todos</TabsTrigger>
+                    <TabsTrigger value="dre" className="text-xs gap-1">
+                      <Flag className="h-3 w-3" />
+                      PT
+                    </TabsTrigger>
+                    <TabsTrigger value="eurlex" className="text-xs gap-1">
+                      <Globe className="h-3 w-3" />
+                      UE
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </CardContent>
+            </Card>
 
-              {/* Search bar */}
-              <div className="relative flex-1 w-full lg:max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar por título, número ou palavras no sumário..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-                {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                    onClick={() => setSearchTerm("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+            {/* Theme/Category Filter */}
+            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Tags className="h-4 w-4 text-emerald-600" />
+                  Tema / Categoria
+                </h3>
+                {themes && (
+                  <CategoryTreeFilter
+                    themes={themes}
+                    selectedThemeId={selectedThemeId}
+                    selectedCategoryId={selectedCategoryId}
+                    onThemeSelect={setSelectedThemeId}
+                    onCategorySelect={setSelectedCategoryId}
+                  />
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Advanced Search */}
+            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <CardContent className="p-4">
+                <AdvancedSearchDialog
+                  searchTerm={searchTerm}
+                  onSearchTermChange={setSearchTerm}
+                  selectedSource={selectedSource}
+                  onSourceChange={setSelectedSource}
+                  selectedApplicability={selectedApplicability}
+                  onApplicabilityChange={setSelectedApplicability}
+                  applicabilityOptions={applicabilityFilterOptions}
+                  showApplicability={!!userOrganization}
+                  startDate={filterStartDate}
+                  endDate={filterEndDate}
+                  onStartDateChange={setFilterStartDate}
+                  onEndDateChange={setFilterEndDate}
+                  onClearAll={clearAllFilters}
+                  hasActiveFilters={hasActiveFilters}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                  onClick={clearAllFilters}
+                >
+                  <X className="h-4 w-4" />
+                  Limpar todos os filtros
+                </Button>
+              </motion.div>
+            )}
+          </motion.aside>
+
+          {/* Main Content Area */}
+          <div className="flex-1 min-w-0 space-y-4">
+            {/* Toolbar */}
+            <motion.div 
+              className="flex items-center justify-between"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+            >
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={cn(
+                    "gap-2",
+                    showFilters && "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400"
+                  )}
+                >
+                  <Filter className="h-4 w-4" />
+                  Filtros
+                </Button>
+                
+                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+                
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <span className="font-semibold text-slate-900 dark:text-white">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
+                </p>
               </div>
 
-              {/* Advanced Search */}
-              <AdvancedSearchDialog
-                searchTerm={searchTerm}
-                onSearchTermChange={setSearchTerm}
-                selectedSource={selectedSource}
-                onSourceChange={setSelectedSource}
-                selectedApplicability={selectedApplicability}
-                onApplicabilityChange={setSelectedApplicability}
-                applicabilityOptions={applicabilityFilterOptions}
-                showApplicability={!!userOrganization}
-                startDate={filterStartDate}
-                endDate={filterEndDate}
-                onStartDateChange={setFilterStartDate}
-                onEndDateChange={setFilterEndDate}
-                onClearAll={clearAllFilters}
-                hasActiveFilters={hasActiveFilters}
-              />
-            </div>
-
-            {/* Active Filters Chips */}
-            {hasActiveFilters && (
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
-                {selectedThemeId && !selectedCategoryId && themes && (
-                  <Badge variant="default" className="gap-1.5 pr-1">
-                    <Tags className="h-3 w-3" />
-                    {themes.find(t => t.id === selectedThemeId)?.name}
-                    <button
-                      onClick={() => setSelectedThemeId(null)}
-                      className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {selectedCategoryId && themes && (() => {
-                  const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
-                  const category = theme?.categories.find(c => c.id === selectedCategoryId);
-                  return theme && category ? (
-                    <Badge variant="default" className="gap-1.5 pr-1">
-                      <Tags className="h-3 w-3" />
-                      {theme.name} → {category.name}
-                      <button
-                        onClick={() => {
-                          setSelectedCategoryId(null);
-                          setSelectedThemeId(null);
-                        }}
-                        className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5"
-                      >
+              {/* Active Filters Pills */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {selectedSource !== "all" && (
+                    <Badge variant="secondary" className="gap-1 shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      {selectedSource === "dre" ? <Flag className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
+                      {selectedSource === "dre" ? "Portugal" : "UE"}
+                      <button onClick={() => setSelectedSource("all")} className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5">
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
-                  ) : null;
-                })()}
-                {selectedSource !== "all" && (
-                  <Badge variant="secondary" className="gap-1.5 pr-1">
-                    {selectedSource === "dre" ? <Flag className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
-                    {selectedSource === "dre" ? "DRE" : "EUR-Lex"}
-                    <button
-                      onClick={() => setSelectedSource("all")}
-                      className="ml-1 rounded-full hover:bg-muted p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {(filterStartDate || filterEndDate) && (
-                  <Badge variant="secondary" className="gap-1.5 pr-1">
-                    <Calendar className="h-3 w-3" />
-                    {filterStartDate && filterEndDate
-                      ? `${format(new Date(filterStartDate), "dd/MM/yyyy")} → ${format(new Date(filterEndDate), "dd/MM/yyyy")}`
-                      : filterStartDate
-                        ? `De ${format(new Date(filterStartDate), "dd/MM/yyyy")}`
-                        : `Até ${format(new Date(filterEndDate!), "dd/MM/yyyy")}`
-                    }
-                    <button
-                      onClick={() => {
-                        setFilterStartDate(null);
-                        setFilterEndDate(null);
-                      }}
-                      className="ml-1 rounded-full hover:bg-muted p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {selectedApplicability !== "all" && (
-                  <Badge variant="secondary" className="gap-1.5 pr-1">
-                    <CheckCircle className="h-3 w-3" />
-                    {applicabilityFilterOptions.find(o => o.value === selectedApplicability)?.label}
-                    <button
-                      onClick={() => setSelectedApplicability("all")}
-                      className="ml-1 rounded-full hover:bg-muted p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {searchTerm && (
-                  <Badge variant="secondary" className="gap-1.5 pr-1">
-                    <Search className="h-3 w-3" />
-                    "{searchTerm}"
-                    <button
-                      onClick={() => setSearchTerm("")}
-                      className="ml-1 rounded-full hover:bg-muted p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Limpar tudo
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  )}
+                  {selectedThemeId && themes && !selectedCategoryId && (
+                    <Badge variant="secondary" className="gap-1 shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                      <Tags className="h-3 w-3" />
+                      {themes.find(t => t.id === selectedThemeId)?.name}
+                      <button onClick={() => setSelectedThemeId(null)} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  {selectedCategoryId && themes && (() => {
+                    const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
+                    const category = theme?.categories.find(c => c.id === selectedCategoryId);
+                    return theme && category ? (
+                      <Badge variant="secondary" className="gap-1 shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                        <Tags className="h-3 w-3" />
+                        {category.name}
+                        <button 
+                          onClick={() => { setSelectedCategoryId(null); setSelectedThemeId(null); }} 
+                          className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })()}
+                  {searchTerm && (
+                    <Badge variant="secondary" className="gap-1 shrink-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <Search className="h-3 w-3" />
+                      "{searchTerm.slice(0, 20)}{searchTerm.length > 20 ? '...' : ''}"
+                      <button onClick={() => setSearchTerm("")} className="ml-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full p-0.5">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </motion.div>
 
-        {/* Results Info */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {filteredCount} diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
-          </p>
-        </div>
-
-        {/* Tree View */}
-        {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-32 w-full" />
-            ))}
+            {/* Legislation Content */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+            >
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-32 w-full rounded-xl" />
+                  ))}
+                </div>
+              ) : legislationWithCategories ? (
+                <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+                  <LegislationTreeView 
+                    legislation={legislationWithCategories} 
+                    hideFilters 
+                    externalThemeId={selectedThemeId}
+                    applicabilityMap={legislationApplicabilitiesMap}
+                    externalSearchTerm={searchTerm}
+                  />
+                </Card>
+              ) : (
+                <Card className="py-20 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800">
+                  <CardContent className="flex flex-col items-center justify-center text-center">
+                    <motion.div 
+                      className="p-6 rounded-full bg-slate-100 dark:bg-slate-800 mb-6"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200 }}
+                    >
+                      <FileText className="h-12 w-12 text-slate-400" />
+                    </motion.div>
+                    <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-white">Nenhum diploma encontrado</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md">
+                      Não encontrámos legislação disponível com os filtros selecionados.
+                    </p>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="outline"
+                        className="mt-6 gap-2"
+                        onClick={clearAllFilters}
+                      >
+                        <X className="h-4 w-4" />
+                        Limpar filtros
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </motion.div>
           </div>
-        ) : legislationWithCategories ? (
-          <LegislationTreeView 
-            legislation={legislationWithCategories} 
-            hideFilters 
-            externalThemeId={selectedThemeId}
-            applicabilityMap={legislationApplicabilitiesMap}
-            externalSearchTerm={searchTerm}
-          />
-        ) : (
-          <Card className="py-16">
-            <CardContent className="flex flex-col items-center justify-center text-center">
-              <div className="p-4 rounded-full bg-muted mb-4">
-                <FileText className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-1">Nenhum diploma encontrado</h3>
-              <p className="text-sm text-muted-foreground max-w-md">
-                Não encontrámos legislação disponível.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        </div>
       </main>
     </div>
   );
