@@ -559,12 +559,12 @@ export default function Dashboard() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-gradient-to-b from-white to-emerald-50/30 dark:from-slate-900 dark:to-emerald-950/20">
       {/* Logo/Org - Clickable to Dashboard */}
       <Link 
         to="/dashboard" 
         onClick={() => setSidebarOpen(false)}
-        className="p-4 border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+        className="p-4 border-b border-emerald-200/60 dark:border-emerald-900/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors cursor-pointer"
       >
         {currentOrg?.logo_url ? (
           <img 
@@ -576,7 +576,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <ClientAnimatedLogo />
             <div className="flex flex-col">
-              <span className="font-bold text-slate-800 dark:text-white leading-tight">I&D</span>
+              <span className="font-bold text-emerald-800 dark:text-emerald-100 leading-tight">I&D</span>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 leading-tight font-medium tracking-wider">COMPLIANCE</span>
             </div>
           </div>
@@ -584,18 +584,18 @@ export default function Dashboard() {
       </Link>
 
       {/* User Info */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-700/50">
+      <div className="p-4 border-b border-emerald-200/60 dark:border-emerald-900/30">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
-            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+          <div className="h-10 w-10 rounded-full bg-emerald-100/80 dark:bg-emerald-500/15 border border-emerald-300/60 dark:border-emerald-500/25 flex items-center justify-center">
+            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
               {user?.email?.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800 dark:text-white truncate">
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-100 truncate">
               {user?.email?.split("@")[0]}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+            <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 truncate">
               {currentOrg?.name || ""}
             </p>
           </div>
@@ -616,8 +616,8 @@ export default function Dashboard() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                   isActive 
-                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20" 
-                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white"
+                    ? "bg-emerald-100/80 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-500/25" 
+                    : "text-emerald-700/80 dark:text-emerald-200/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-100"
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -626,8 +626,8 @@ export default function Dashboard() {
                   <Badge className={cn(
                     "ml-auto text-xs",
                     isActive 
-                      ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0" 
-                      : "bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border-0"
+                      ? "bg-emerald-200/80 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border-0" 
+                      : "bg-emerald-100/60 dark:bg-emerald-800/40 text-emerald-600 dark:text-emerald-300 border-0"
                   )}>
                     {item.count}
                   </Badge>
@@ -639,11 +639,11 @@ export default function Dashboard() {
 
         {/* Admin link if admin */}
         {isAdmin && (
-          <div className="px-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50">
+          <div className="px-3 mt-4 pt-4 border-t border-emerald-200/60 dark:border-emerald-900/30">
             <Link
               to="/admin"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white transition-all duration-200"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-700/80 dark:text-emerald-200/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-100 transition-all duration-200"
             >
               <Settings className="h-5 w-5 shrink-0" />
               <span>Administração</span>
@@ -653,25 +653,25 @@ export default function Dashboard() {
       </ScrollArea>
 
       {/* Footer - Help, Settings & Logout */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700/50 mt-auto space-y-1">
+      <div className="p-4 border-t border-emerald-200/60 dark:border-emerald-900/30 mt-auto space-y-1">
         <Link
           to="/settings"
           onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-700 dark:hover:text-white transition-all duration-200 w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-600/80 dark:text-emerald-300/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-100 transition-all duration-200 w-full"
         >
           <User className="h-4 w-4" />
           <span>Definições</span>
         </Link>
         <a
           href="mailto:suporte@legalcompliance.pt"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-700 dark:hover:text-white transition-all duration-200 w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-600/80 dark:text-emerald-300/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-100 transition-all duration-200 w-full"
         >
           <HelpCircle className="h-4 w-4" />
           <span>Ajuda</span>
         </a>
         <LogoutConfirmDialog 
           onConfirm={signOut} 
-          className="w-full justify-start gap-3 text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 px-3" 
+          className="w-full justify-start gap-3 text-emerald-600/80 dark:text-emerald-300/80 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 px-3" 
           variant="ghost"
         />
       </div>
@@ -691,26 +691,26 @@ export default function Dashboard() {
         >
           <source src={heroVideo} type="video/mp4" />
         </video>
-        {/* Lighter Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/90 via-slate-50/85 to-emerald-50/80 dark:from-slate-900/90 dark:via-slate-800/85 dark:to-slate-700/80" />
-        {/* Decorative color orbs - more vibrant */}
-        <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-400/30 dark:bg-emerald-400/15 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-400/30 dark:bg-teal-400/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-300/20 dark:bg-cyan-400/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-amber-300/20 dark:bg-amber-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        {/* Lighter Overlay gradient - green pastel tones */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/95 via-white/90 to-teal-50/85 dark:from-slate-900/92 dark:via-slate-900/88 dark:to-emerald-950/30" />
+        {/* Decorative color orbs - soft green pastel */}
+        <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-300/25 dark:bg-emerald-400/12 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-300/25 dark:bg-teal-400/12 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-mint-200/20 dark:bg-emerald-400/8 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-lime-200/20 dark:bg-lime-400/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         
         {/* Animated Particles */}
         <AnimatedParticles count={25} />
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-slate-200/80 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-emerald-200/60 dark:border-emerald-900/30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
         <SidebarContent />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-slate-200/80 dark:border-slate-700/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
+        <SheetContent side="left" className="w-64 p-0 border-r border-emerald-200/60 dark:border-emerald-900/30 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl">
           <SidebarContent />
         </SheetContent>
       </Sheet>
@@ -718,20 +718,20 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-700/50">
+        <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-emerald-200/60 dark:border-emerald-900/30">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 icon-pulse transition-all duration-200 active:scale-90"
+                className="lg:hidden text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15 icon-pulse transition-all duration-200 active:scale-90"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{currentOrg?.name || "Dashboard"}</p>
-                <h1 className="text-xl font-semibold text-slate-800 dark:text-white">
+                <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80">{currentOrg?.name || "Dashboard"}</p>
+                <h1 className="text-xl font-semibold text-emerald-800 dark:text-emerald-100">
                   {activeTab === "overview" && "Painel de Controlo"}
                   {activeTab === "actions" && "Planos de Ação"}
                   {activeTab === "audits" && "Auditorias"}
@@ -749,17 +749,17 @@ export default function Dashboard() {
                 />
               )}
               <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500/70" />
                 <Input 
                   placeholder="Pesquisa" 
-                  className="pl-9 w-64 bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  className="pl-9 w-64 bg-emerald-50/60 dark:bg-emerald-900/20 border-emerald-200/80 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-100 placeholder:text-emerald-500/60 focus:border-emerald-400 focus:ring-emerald-400/30"
                 />
               </div>
               <TooltipProvider>
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <Link to="/legislacao-recente">
-                      <Button variant="ghost" size="icon" className="relative text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 icon-pulse transition-all duration-200 hover:scale-110 active:scale-95">
+                      <Button variant="ghost" size="icon" className="relative text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15 icon-pulse transition-all duration-200 hover:scale-110 active:scale-95">
                         <FileText className="h-5 w-5" />
                         {unreadLegislationCount > 0 && (
                           <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 text-white text-xs flex items-center justify-center shadow-sm animate-pulse-ring">
@@ -769,7 +769,7 @@ export default function Dashboard() {
                       </Button>
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white">
+                  <TooltipContent className="bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-700/40 text-emerald-800 dark:text-emerald-100">
                     <p>{unreadLegislationCount > 0 ? `${unreadLegislationCount} diplomas por ler` : "Legislação recente"}</p>
                   </TooltipContent>
                 </UITooltip>
@@ -848,16 +848,16 @@ export default function Dashboard() {
               </div>
 
               {/* Recent Legislation */}
-              <Card className="overflow-hidden bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/50 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/50">
+              <Card className="overflow-hidden bg-white/90 dark:bg-slate-800/80 border border-emerald-200/60 dark:border-emerald-800/30 shadow-md backdrop-blur-sm">
+                <CardHeader className="bg-gradient-to-r from-emerald-50/80 to-teal-50/60 dark:from-emerald-900/20 dark:to-teal-900/10">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-400/25">
                         <FileText className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <CardTitle className="text-slate-900 dark:text-white">Legislação Recente</CardTitle>
-                        <CardDescription className="text-slate-500 dark:text-slate-300">Últimos diplomas publicados</CardDescription>
+                        <CardTitle className="text-emerald-800 dark:text-emerald-100">Legislação Recente</CardTitle>
+                        <CardDescription className="text-emerald-600/80 dark:text-emerald-300/80">Últimos diplomas publicados</CardDescription>
                       </div>
                     </div>
                     <Link 
@@ -938,10 +938,10 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
-                  <Card className="group relative bg-white dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 border border-slate-200/80 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 overflow-hidden">
+                  <Card className="group relative bg-white/90 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 border border-emerald-200/60 dark:border-emerald-800/30 shadow-sm hover:shadow-lg hover:shadow-emerald-400/10 transition-all duration-300 overflow-hidden backdrop-blur-sm">
                     {/* Animated background glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 via-transparent to-teal-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-emerald-400/20 to-teal-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-300/10 via-transparent to-teal-300/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-emerald-300/20 to-teal-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     
                     <CardHeader className="pb-2 relative z-10">
                       <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
@@ -1063,15 +1063,15 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  <Card className="group relative bg-white dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 border border-slate-200/80 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 overflow-hidden">
+                  <Card className="group relative bg-white/90 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 border border-emerald-200/60 dark:border-emerald-800/30 shadow-sm hover:shadow-lg hover:shadow-teal-400/10 transition-all duration-300 overflow-hidden backdrop-blur-sm">
                     {/* Animated background glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 via-transparent to-indigo-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-blue-400/20 to-indigo-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-teal-300/10 via-transparent to-cyan-300/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-teal-300/20 to-cyan-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     
                     <CardHeader className="pb-2 relative z-10">
-                      <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                      <CardTitle className="text-base flex items-center gap-2 text-emerald-800 dark:text-emerald-100">
                         <motion.div 
-                          className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30"
+                          className="p-2 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 shadow-lg shadow-teal-400/25"
                           whileHover={{ scale: 1.1, rotate: -5 }}
                           transition={{ type: "spring", stiffness: 400 }}
                         >
@@ -1092,7 +1092,7 @@ export default function Dashboard() {
                               transition={{ delay: 0.9, duration: 0.5, type: "spring" }}
                             >
                               <motion.span 
-                                className="text-2xl font-bold bg-gradient-to-br from-blue-500 to-indigo-600 bg-clip-text text-transparent"
+                                className="text-2xl font-bold bg-gradient-to-br from-teal-500 to-cyan-600 bg-clip-text text-transparent"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 1.3 }}
@@ -1103,7 +1103,7 @@ export default function Dashboard() {
                                   return total > 0 ? Math.round((completed / total) * 100) : 0;
                                 })()}%
                               </motion.span>
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Concluído</p>
+                              <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">Concluído</p>
                             </motion.div>
                           </div>
                           <ResponsiveContainer width="100%" height="100%">
@@ -1161,7 +1161,7 @@ export default function Dashboard() {
                               <Legend 
                                 verticalAlign="bottom" 
                                 height={36}
-                                formatter={(value) => <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{value}</span>}
+                                formatter={(value) => <span className="text-sm font-medium text-emerald-700/80 dark:text-emerald-300/80">{value}</span>}
                               />
                             </PieChart>
                           </ResponsiveContainer>
@@ -1184,15 +1184,15 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
-                  <Card className="group relative bg-white dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 border border-slate-200/80 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-300 overflow-hidden">
+                  <Card className="group relative bg-white/90 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 border border-emerald-200/60 dark:border-emerald-800/30 shadow-sm hover:shadow-lg hover:shadow-lime-400/10 transition-all duration-300 overflow-hidden backdrop-blur-sm">
                     {/* Animated background glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-400/5 via-transparent to-orange-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-lime-300/10 via-transparent to-emerald-300/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-lime-300/20 to-emerald-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     
                     <CardHeader className="pb-3 relative z-10">
-                      <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                      <CardTitle className="text-base flex items-center gap-2 text-emerald-800 dark:text-emerald-100">
                         <motion.div 
-                          className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30"
+                          className="p-2 rounded-xl bg-gradient-to-br from-lime-400 to-emerald-500 shadow-lg shadow-lime-400/25"
                           whileHover={{ scale: 1.1, rotate: 5 }}
                           transition={{ type: "spring", stiffness: 400 }}
                         >
@@ -1203,45 +1203,45 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent className="space-y-3 relative z-10">
                       <motion.div 
-                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-700/30 hover:shadow-md hover:shadow-amber-500/10 transition-all duration-300"
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-100/60 to-yellow-100/40 dark:from-amber-900/25 dark:to-yellow-900/15 border border-amber-200/60 dark:border-amber-700/30 hover:shadow-md hover:shadow-amber-400/10 transition-all duration-300"
                         whileHover={{ scale: 1.02, x: 4 }}
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 shadow-sm">
                             <Clock className="h-3.5 w-3.5 text-white" />
                           </div>
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Ações Pendentes</span>
+                          <span className="text-sm font-medium text-emerald-800/90 dark:text-emerald-200/90">Ações Pendentes</span>
                         </div>
-                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-0 shadow-lg shadow-amber-500/25 font-bold px-3">{actionPlanStats.pending}</Badge>
+                        <Badge className="bg-gradient-to-r from-amber-400 to-yellow-500 text-white border-0 shadow-lg shadow-amber-400/20 font-bold px-3">{actionPlanStats.pending}</Badge>
                       </motion.div>
                       <motion.div 
-                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border border-red-200/50 dark:border-red-700/30 hover:shadow-md hover:shadow-red-500/10 transition-all duration-300"
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-rose-100/60 to-red-100/40 dark:from-red-900/25 dark:to-rose-900/15 border border-red-200/60 dark:border-red-700/30 hover:shadow-md hover:shadow-red-400/10 transition-all duration-300"
                         whileHover={{ scale: 1.02, x: 4 }}
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-1.5 rounded-lg bg-gradient-to-br from-red-400 to-rose-500 shadow-sm">
                             <AlertTriangle className="h-3.5 w-3.5 text-white" />
                           </div>
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Ações Atrasadas</span>
+                          <span className="text-sm font-medium text-emerald-800/90 dark:text-emerald-200/90">Ações Atrasadas</span>
                         </div>
-                        <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg shadow-red-500/25 font-bold px-3">{actionPlanStats.overdue}</Badge>
+                        <Badge className="bg-gradient-to-r from-red-400 to-rose-500 text-white border-0 shadow-lg shadow-red-400/20 font-bold px-3">{actionPlanStats.overdue}</Badge>
                       </motion.div>
                       <motion.div 
-                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200/50 dark:border-emerald-700/30 hover:shadow-md hover:shadow-emerald-500/10 transition-all duration-300"
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-100/60 to-teal-100/40 dark:from-emerald-900/25 dark:to-teal-900/15 border border-emerald-200/60 dark:border-emerald-700/30 hover:shadow-md hover:shadow-emerald-400/10 transition-all duration-300"
                         whileHover={{ scale: 1.02, x: 4 }}
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm">
                             <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                           </div>
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Concluídas</span>
+                          <span className="text-sm font-medium text-emerald-800/90 dark:text-emerald-200/90">Concluídas</span>
                         </div>
-                        <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 shadow-lg shadow-emerald-500/25 font-bold px-3">{actionPlanStats.completed}</Badge>
+                        <Badge className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white border-0 shadow-lg shadow-emerald-400/20 font-bold px-3">{actionPlanStats.completed}</Badge>
                       </motion.div>
 
                       {/* Mini Trend Chart */}
-                      <div className="pt-3 border-t border-amber-200/50 dark:border-amber-800/30">
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Evolução (últimos 7 dias)</p>
+                      <div className="pt-3 border-t border-emerald-200/60 dark:border-emerald-800/30">
+                        <p className="text-xs font-medium text-emerald-600/80 dark:text-emerald-400/80 mb-2">Evolução (últimos 7 dias)</p>
                         <div className="h-[80px]">
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
