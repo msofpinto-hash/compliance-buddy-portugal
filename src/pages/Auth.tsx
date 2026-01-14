@@ -13,6 +13,7 @@ import { Loader2, Scale, AlertCircle, Clock, CheckCircle2, ArrowLeft, Mail, Chec
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
 import officeWorkspaceImg from "@/assets/office-workspace.jpg";
 
@@ -515,6 +516,10 @@ const Auth = () => {
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
       <CorporateBackground />
       
+      {/* Theme Toggle - Top Right */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
       {/* Two Column Layout */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-8 flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
         
