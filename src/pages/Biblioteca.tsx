@@ -25,7 +25,14 @@ import {
   Filter,
   LayoutGrid,
   List,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  Leaf,
+  Shield,
+  Zap,
+  Award,
+  Heart,
+  Folder
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -33,11 +40,43 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, subDays } from "date-fns";
 import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useLegislationWithCategories } from "@/hooks/useLegislation";
-import { CategoryTreeFilter } from "@/components/CategoryTreeFilter";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
 import { cn } from "@/lib/utils";
 import bibliotecaHero from "@/assets/biblioteca-hero.png";
+
+// Theme icons and colors mapping
+import themeAmbiente from "@/assets/theme-ambiente.png";
+import themeSst from "@/assets/theme-sst.png";
+import themeEnergia from "@/assets/theme-energia.png";
+import themeQualidade from "@/assets/theme-qualidade.png";
+import themeSeguranca from "@/assets/theme-seguranca.png";
+import themeGeral from "@/assets/theme-geral.png";
+
+const themeImages: Record<string, string> = {
+  ambiente: themeAmbiente,
+  sst: themeSst,
+  energia: themeEnergia,
+  qualidade: themeQualidade,
+  seguranca: themeSeguranca,
+  segurança: themeSeguranca,
+  geral: themeGeral,
+};
+
+const themeConfig: Record<string, { icon: React.ElementType; color: string; bgLight: string; bgDark: string; border: string }> = {
+  "Ambiente": { icon: Leaf, color: "text-emerald-600", bgLight: "bg-emerald-100", bgDark: "dark:bg-emerald-900/40", border: "border-emerald-300 dark:border-emerald-700" },
+  "SST": { icon: Shield, color: "text-orange-600", bgLight: "bg-orange-100", bgDark: "dark:bg-orange-900/40", border: "border-orange-300 dark:border-orange-700" },
+  "Segurança e Saúde no Trabalho": { icon: Shield, color: "text-orange-600", bgLight: "bg-orange-100", bgDark: "dark:bg-orange-900/40", border: "border-orange-300 dark:border-orange-700" },
+  "Energia": { icon: Zap, color: "text-yellow-600", bgLight: "bg-yellow-100", bgDark: "dark:bg-yellow-900/40", border: "border-yellow-300 dark:border-yellow-700" },
+  "Qualidade": { icon: Award, color: "text-blue-600", bgLight: "bg-blue-100", bgDark: "dark:bg-blue-900/40", border: "border-blue-300 dark:border-blue-700" },
+  "Segurança": { icon: Shield, color: "text-red-600", bgLight: "bg-red-100", bgDark: "dark:bg-red-900/40", border: "border-red-300 dark:border-red-700" },
+  "Conciliação Familiar e Profissional": { icon: Heart, color: "text-pink-600", bgLight: "bg-pink-100", bgDark: "dark:bg-pink-900/40", border: "border-pink-300 dark:border-pink-700" },
+};
+
+const getThemeImage = (themeName: string): string | undefined => {
+  const normalized = themeName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return themeImages[normalized] || themeImages[Object.keys(themeImages).find(k => normalized.includes(k)) || ""];
+};
 
 const applicabilityFilterOptions = [
   { value: "all", label: "Todos" },
@@ -125,7 +164,7 @@ export default function Biblioteca() {
   const [selectedApplicability, setSelectedApplicability] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(true);
+  
 
   // Fetch themes with categories
   const { data: themes } = useThemesWithCategories();
@@ -296,312 +335,364 @@ export default function Biblioteca() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Two Column Layout: Filters + Content */}
-        <div className="flex gap-6">
-          {/* Left Sidebar - Filters */}
-          <motion.aside 
-            className={cn(
-              "w-80 shrink-0 space-y-4 transition-all duration-300",
-              !showFilters && "hidden"
-            )}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-          >
-            {/* Search */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.35 }}
-            >
-              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
-                <CardContent className="p-4">
-                  <div className="relative group">
-                    <motion.div
-                      animate={{ scale: searchTerm ? 1.1 : 1 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 dark:text-emerald-400 group-focus-within:text-emerald-600 transition-colors duration-200" />
-                    </motion.div>
-                    <Input
-                      placeholder="Pesquisar legislação..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-emerald-50/50 dark:bg-slate-800/80 border-emerald-200/80 dark:border-emerald-800/40 focus:border-emerald-400 focus:ring-emerald-400/30 transition-all duration-200"
-                    />
-                    {searchTerm && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:rotate-90 transition-all duration-200"
-                          onClick={() => setSearchTerm("")}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </motion.div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Origin Filter */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.4 }}
-            >
-              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
-                <CardContent className="p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
-                    <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.5 }}>
-                      <Globe className="h-4 w-4 text-emerald-500" />
-                    </motion.div>
-                    Origem
-                  </h3>
-                  <Tabs value={selectedSource} onValueChange={setSelectedSource} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 bg-emerald-100/60 dark:bg-emerald-900/30">
-                      <TabsTrigger value="all" className="text-xs data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100 transition-all duration-200 data-[state=active]:shadow-sm">Todos</TabsTrigger>
-                      <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100 transition-all duration-200 data-[state=active]:shadow-sm">
-                        <Flag className="h-3 w-3" />
-                        PT
-                      </TabsTrigger>
-                      <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100 transition-all duration-200 data-[state=active]:shadow-sm">
-                        <Globe className="h-3 w-3" />
-                        UE
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Theme/Category Filter */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.45 }}
-            >
-              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
-                <CardContent className="p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
-                    <motion.div whileHover={{ scale: 1.2, rotate: 15 }} transition={{ type: "spring", stiffness: 400 }}>
-                      <Tags className="h-4 w-4 text-emerald-500" />
-                    </motion.div>
-                    Tema / Categoria
-                  </h3>
-                  {themes && (
-                    <CategoryTreeFilter
-                      themes={themes}
-                      selectedThemeId={selectedThemeId}
-                      selectedCategoryId={selectedCategoryId}
-                      onThemeSelect={setSelectedThemeId}
-                      onCategorySelect={setSelectedCategoryId}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Advanced Search */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.5 }}
-            >
-              <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
-                <CardContent className="p-4">
-                  <AdvancedSearchDialog
-                    searchTerm={searchTerm}
-                    onSearchTermChange={setSearchTerm}
-                    selectedSource={selectedSource}
-                    onSourceChange={setSelectedSource}
-                    selectedApplicability={selectedApplicability}
-                    onApplicabilityChange={setSelectedApplicability}
-                    applicabilityOptions={applicabilityFilterOptions}
-                    showApplicability={!!userOrganization}
-                    startDate={filterStartDate}
-                    endDate={filterEndDate}
-                    onStartDateChange={setFilterStartDate}
-                    onEndDateChange={setFilterEndDate}
-                    onClearAll={clearAllFilters}
-                    hasActiveFilters={hasActiveFilters}
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Search Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <Card className="bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1 group">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 dark:text-emerald-400" />
+                  <Input
+                    placeholder="Pesquisar legislação por título, número ou conteúdo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-emerald-50/50 dark:bg-slate-800/80 border-emerald-200/80 dark:border-emerald-800/40 focus:border-emerald-400 focus:ring-emerald-400/30"
                   />
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                transition={{ type: "spring", stiffness: 200, damping: 20 }}
-              >
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                  onClick={clearAllFilters}
-                >
-                  <motion.div
-                    whileHover={{ rotate: 90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <X className="h-4 w-4" />
-                  </motion.div>
-                  Limpar todos os filtros
-                </Button>
-              </motion.div>
-            )}
-          </motion.aside>
-
-          {/* Main Content Area */}
-          <div className="flex-1 min-w-0 space-y-4">
-            {/* Toolbar */}
-            <motion.div 
-              className="flex items-center justify-between"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-            >
-              <div className="flex items-center gap-3">
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={cn(
-                      "gap-2 border-emerald-200/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/30 transition-all duration-200",
-                      showFilters && "bg-emerald-100/80 border-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700"
-                    )}
-                  >
-                    <motion.div
-                      animate={{ rotate: showFilters ? 0 : 180 }}
-                      transition={{ duration: 0.3 }}
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                      onClick={() => setSearchTerm("")}
                     >
-                      <Filter className="h-4 w-4" />
-                    </motion.div>
-                    Filtros
-                  </Button>
-                </motion.div>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
                 
-                <div className="h-6 w-px bg-emerald-200 dark:bg-emerald-800" />
-                
-                <p className="text-sm text-emerald-700/80 dark:text-emerald-300/80">
-                  <span className="font-semibold text-emerald-800 dark:text-emerald-100">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
-                </p>
+                {/* Origin Tabs */}
+                <Tabs value={selectedSource} onValueChange={setSelectedSource} className="shrink-0">
+                  <TabsList className="bg-emerald-100/60 dark:bg-emerald-900/30">
+                    <TabsTrigger value="all" className="text-xs data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
+                      Todos
+                    </TabsTrigger>
+                    <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
+                      <Flag className="h-3 w-3" />
+                      PT
+                    </TabsTrigger>
+                    <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
+                      <Globe className="h-3 w-3" />
+                      UE
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                {/* Advanced Search */}
+                <AdvancedSearchDialog
+                  searchTerm={searchTerm}
+                  onSearchTermChange={setSearchTerm}
+                  selectedSource={selectedSource}
+                  onSourceChange={setSelectedSource}
+                  selectedApplicability={selectedApplicability}
+                  onApplicabilityChange={setSelectedApplicability}
+                  applicabilityOptions={applicabilityFilterOptions}
+                  showApplicability={!!userOrganization}
+                  startDate={filterStartDate}
+                  endDate={filterEndDate}
+                  onStartDateChange={setFilterStartDate}
+                  onEndDateChange={setFilterEndDate}
+                  onClearAll={clearAllFilters}
+                  hasActiveFilters={hasActiveFilters}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Theme Icons Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <Card className="bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm overflow-hidden">
+            <CardContent className="p-4">
+              {/* Theme selector row */}
+              <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                {/* All themes button */}
+                <motion.button
+                  onClick={() => { setSelectedThemeId(null); setSelectedCategoryId(null); }}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 min-w-[100px] shrink-0",
+                    !selectedThemeId 
+                      ? "bg-emerald-100 dark:bg-emerald-900/50 border-2 border-emerald-400 dark:border-emerald-600 shadow-md" 
+                      : "bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                  )}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center",
+                    !selectedThemeId ? "bg-emerald-500 text-white shadow-lg" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  )}>
+                    <LayoutGrid className="h-6 w-6" />
+                  </div>
+                  <span className={cn(
+                    "text-xs font-medium",
+                    !selectedThemeId ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-400"
+                  )}>
+                    Todos
+                  </span>
+                </motion.button>
+
+                {/* Theme buttons */}
+                {themes?.map((theme, index) => {
+                  const config = themeConfig[theme.name] || { icon: Folder, color: "text-slate-600", bgLight: "bg-slate-100", bgDark: "dark:bg-slate-800", border: "border-slate-300" };
+                  const ThemeIcon = config.icon;
+                  const isSelected = selectedThemeId === theme.id;
+                  const themeImage = getThemeImage(theme.name);
+                  
+                  return (
+                    <motion.button
+                      key={theme.id}
+                      onClick={() => { 
+                        if (isSelected) {
+                          setSelectedThemeId(null);
+                          setSelectedCategoryId(null);
+                        } else {
+                          setSelectedThemeId(theme.id);
+                          setSelectedCategoryId(null);
+                        }
+                      }}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 min-w-[100px] shrink-0 relative overflow-hidden",
+                        isSelected 
+                          ? cn(config.bgLight, config.bgDark, "border-2", config.border, "shadow-md")
+                          : "bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      )}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 * index }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {/* Background image */}
+                      {themeImage && (
+                        <div className="absolute inset-0 opacity-10">
+                          <img src={themeImage} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center relative z-10 shadow-sm",
+                        isSelected ? cn(config.bgLight, config.bgDark) : "bg-white dark:bg-slate-700"
+                      )}>
+                        <ThemeIcon className={cn("h-6 w-6", config.color)} />
+                      </div>
+                      <span className={cn(
+                        "text-xs font-medium relative z-10 text-center leading-tight",
+                        isSelected ? config.color : "text-slate-600 dark:text-slate-400"
+                      )}>
+                        {theme.name.length > 12 ? theme.name.substring(0, 12) + "..." : theme.name}
+                      </span>
+                      {isSelected && (
+                        <motion.div 
+                          className="absolute bottom-0 left-0 right-0 h-1 bg-current opacity-50"
+                          layoutId="themeIndicator"
+                        />
+                      )}
+                    </motion.button>
+                  );
+                })}
               </div>
 
-              {/* Active Filters Pills */}
-              {hasActiveFilters && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  {selectedSource !== "all" && (
-                    <Badge variant="secondary" className="gap-1 shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                      {selectedSource === "dre" ? <Flag className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
-                      {selectedSource === "dre" ? "Portugal" : "UE"}
-                      <button onClick={() => setSelectedSource("all")} className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  )}
-                  {selectedThemeId && themes && !selectedCategoryId && (
-                    <Badge variant="secondary" className="gap-1 shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
-                      <Tags className="h-3 w-3" />
-                      {themes.find(t => t.id === selectedThemeId)?.name}
-                      <button onClick={() => setSelectedThemeId(null)} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  )}
-                  {selectedCategoryId && themes && (() => {
-                    const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
-                    const category = theme?.categories.find(c => c.id === selectedCategoryId);
-                    return theme && category ? (
-                      <Badge variant="secondary" className="gap-1 shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
-                        <Tags className="h-3 w-3" />
-                        {category.name}
-                        <button 
-                          onClick={() => { setSelectedCategoryId(null); setSelectedThemeId(null); }} 
-                          className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ) : null;
-                  })()}
-                  {searchTerm && (
-                    <Badge variant="secondary" className="gap-1 shrink-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                      <Search className="h-3 w-3" />
-                      "{searchTerm.slice(0, 20)}{searchTerm.length > 20 ? '...' : ''}"
-                      <button onClick={() => setSearchTerm("")} className="ml-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full p-0.5">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </motion.div>
+              {/* Categories panel - shows when a theme is selected */}
+              {selectedThemeId && themes && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="border-t border-emerald-200/60 dark:border-emerald-800/30 mt-4 pt-4"
+                >
+                  {(() => {
+                    const selectedTheme = themes.find(t => t.id === selectedThemeId);
+                    const config = themeConfig[selectedTheme?.name || ""] || { icon: Folder, color: "text-slate-600", bgLight: "bg-slate-100", bgDark: "dark:bg-slate-800", border: "border-slate-300" };
+                    
+                    if (!selectedTheme || selectedTheme.categories.length === 0) {
+                      return (
+                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-2">
+                          Sem categorias disponíveis para este tema
+                        </p>
+                      );
+                    }
 
-            {/* Legislation Content */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.5 }}
-            >
-              {isLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-32 w-full rounded-xl" />
-                  ))}
-                </div>
-              ) : legislationWithCategories ? (
-                <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm overflow-hidden backdrop-blur-sm">
-                  <LegislationTreeView 
-                    legislation={legislationWithCategories} 
-                    hideFilters 
-                    externalThemeId={selectedThemeId}
-                    applicabilityMap={legislationApplicabilitiesMap}
-                    externalSearchTerm={searchTerm}
-                  />
-                </Card>
-              ) : (
-                <Card className="py-20 bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 backdrop-blur-sm">
-                  <CardContent className="flex flex-col items-center justify-center text-center">
-                    <motion.div 
-                      className="p-6 rounded-full bg-emerald-100/60 dark:bg-emerald-900/30 mb-6"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200 }}
-                    >
-                      <FileText className="h-12 w-12 text-emerald-400" />
-                    </motion.div>
-                    <h3 className="text-xl font-semibold mb-2 text-emerald-800 dark:text-emerald-100">Nenhum diploma encontrado</h3>
-                    <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 max-w-md">
-                      Não encontrámos legislação disponível com os filtros selecionados.
-                    </p>
-                    {hasActiveFilters && (
-                      <Button
-                        variant="outline"
-                        className="mt-6 gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
-                        onClick={clearAllFilters}
-                      >
-                        <X className="h-4 w-4" />
-                        Limpar filtros
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                    // Get root categories (no parent)
+                    const rootCategories = selectedTheme.categories.filter(c => !c.parent_id);
+
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-3">
+                          <ChevronDown className={cn("h-4 w-4", config.color)} />
+                          <span className={cn("text-sm font-semibold", config.color)}>
+                            Categorias de {selectedTheme.name}
+                          </span>
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedTheme.categories.length}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {rootCategories.map((category, index) => {
+                            const isSelected = selectedCategoryId === category.id;
+                            const childCategories = selectedTheme.categories.filter(c => c.parent_id === category.id);
+                            
+                            return (
+                              <motion.button
+                                key={category.id}
+                                onClick={() => setSelectedCategoryId(isSelected ? null : category.id)}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5",
+                                  isSelected 
+                                    ? cn(config.bgLight, config.bgDark, config.color, "shadow-sm border", config.border)
+                                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent"
+                                )}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.2, delay: 0.03 * index }}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <Folder className="h-3.5 w-3.5" />
+                                {category.name}
+                                {childCategories.length > 0 && (
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 ml-1">
+                                    +{childCategories.length}
+                                  </Badge>
+                                )}
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </motion.div>
               )}
-            </motion.div>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Active Filters & Results Count */}
+        <motion.div 
+          className="flex items-center justify-between flex-wrap gap-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.4 }}
+        >
+          <p className="text-sm text-emerald-700/80 dark:text-emerald-300/80">
+            <span className="font-semibold text-emerald-800 dark:text-emerald-100">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
+          </p>
+          
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {selectedSource !== "all" && (
+                <Badge variant="secondary" className="gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                  {selectedSource === "dre" ? <Flag className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
+                  {selectedSource === "dre" ? "Portugal" : "UE"}
+                  <button onClick={() => setSelectedSource("all")} className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {selectedThemeId && themes && (
+                <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                  <Tags className="h-3 w-3" />
+                  {themes.find(t => t.id === selectedThemeId)?.name}
+                  <button onClick={() => { setSelectedThemeId(null); setSelectedCategoryId(null); }} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {selectedCategoryId && themes && (() => {
+                const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
+                const category = theme?.categories.find(c => c.id === selectedCategoryId);
+                return category ? (
+                  <Badge variant="secondary" className="gap-1 bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300">
+                    <Folder className="h-3 w-3" />
+                    {category.name}
+                    <button onClick={() => setSelectedCategoryId(null)} className="ml-1 hover:bg-teal-200 dark:hover:bg-teal-800 rounded-full p-0.5">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : null;
+              })()}
+              {searchTerm && (
+                <Badge variant="secondary" className="gap-1 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <Search className="h-3 w-3" />
+                  "{searchTerm.slice(0, 20)}{searchTerm.length > 20 ? '...' : ''}"
+                  <button onClick={() => setSearchTerm("")} className="ml-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full p-0.5">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950 gap-1"
+                onClick={clearAllFilters}
+              >
+                <X className="h-3 w-3" />
+                Limpar
+              </Button>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Legislation Content */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+        >
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-32 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : legislationWithCategories ? (
+            <Card className="bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm overflow-hidden backdrop-blur-sm">
+              <LegislationTreeView 
+                legislation={legislationWithCategories} 
+                hideFilters 
+                externalThemeId={selectedThemeId}
+                applicabilityMap={legislationApplicabilitiesMap}
+                externalSearchTerm={searchTerm}
+              />
+            </Card>
+          ) : (
+            <Card className="py-20 bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 backdrop-blur-sm">
+              <CardContent className="flex flex-col items-center justify-center text-center">
+                <motion.div 
+                  className="p-6 rounded-full bg-emerald-100/60 dark:bg-emerald-900/30 mb-6"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200 }}
+                >
+                  <FileText className="h-12 w-12 text-emerald-400" />
+                </motion.div>
+                <h3 className="text-xl font-semibold mb-2 text-emerald-800 dark:text-emerald-100">Nenhum diploma encontrado</h3>
+                <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 max-w-md">
+                  Não encontrámos legislação disponível com os filtros selecionados.
+                </p>
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    className="mt-6 gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
+                    onClick={clearAllFilters}
+                  >
+                    <X className="h-4 w-4" />
+                    Limpar filtros
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </motion.div>
       </main>
     </div>
   );
