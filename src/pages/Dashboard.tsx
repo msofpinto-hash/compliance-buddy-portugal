@@ -957,7 +957,30 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent className="relative z-10">
                       {compliancePieData.length > 0 ? (
-                        <div className="h-[200px]">
+                        <div className="h-[200px] relative">
+                          {/* Central indicator */}
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '36px' }}>
+                            <motion.div 
+                              className="text-center"
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ delay: 0.8, duration: 0.5, type: "spring" }}
+                            >
+                              <motion.span 
+                                className="text-2xl font-bold bg-gradient-to-br from-emerald-500 to-teal-600 bg-clip-text text-transparent"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 1.2 }}
+                              >
+                                {(() => {
+                                  const total = compliancePieData.reduce((acc, item) => acc + item.value, 0);
+                                  const compliant = compliancePieData.find(d => d.name === "Conforme")?.value || 0;
+                                  return total > 0 ? Math.round((compliant / total) * 100) : 0;
+                                })()}%
+                              </motion.span>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Conforme</p>
+                            </motion.div>
+                          </div>
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <defs>
@@ -1059,7 +1082,30 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent className="relative z-10">
                       {actionPlanPieData.length > 0 ? (
-                        <div className="h-[200px]">
+                        <div className="h-[200px] relative">
+                          {/* Central indicator */}
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '36px' }}>
+                            <motion.div 
+                              className="text-center"
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ delay: 0.9, duration: 0.5, type: "spring" }}
+                            >
+                              <motion.span 
+                                className="text-2xl font-bold bg-gradient-to-br from-blue-500 to-indigo-600 bg-clip-text text-transparent"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 1.3 }}
+                              >
+                                {(() => {
+                                  const total = actionPlanPieData.reduce((acc, item) => acc + item.value, 0);
+                                  const completed = actionPlanPieData.find(d => d.name === "Concluído")?.value || 0;
+                                  return total > 0 ? Math.round((completed / total) * 100) : 0;
+                                })()}%
+                              </motion.span>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Concluído</p>
+                            </motion.div>
+                          </div>
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <defs>
