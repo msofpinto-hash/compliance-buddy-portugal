@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Shield, Zap, Lock } from "lucide-react";
-import logoIdCompliance from "@/assets/logo-id-compliance.png";
+import { ArrowRight, Shield, Zap, Lock, Scale } from "lucide-react";
+import { motion } from "framer-motion";
 
 // Animated grid background
 const GridBackground = () => {
@@ -60,6 +60,39 @@ const TechParticles = () => {
   );
 };
 
+// Animated Logo Component
+const AnimatedLogo = () => (
+  <motion.div 
+    className="relative group cursor-pointer"
+    whileHover={{ scale: 1.05 }}
+    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+  >
+    {/* Glow effect */}
+    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/30 to-blue-500/30 rounded-2xl blur-2xl scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    
+    {/* Logo container */}
+    <div className="relative flex items-center gap-4 px-6 py-4 rounded-2xl bg-slate-800/50 border border-cyan-500/30 backdrop-blur-sm">
+      {/* Icon */}
+      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-lg shadow-cyan-500/30">
+        <Scale className="h-7 w-7 text-white" />
+      </div>
+      
+      {/* Text */}
+      <div className="flex flex-col items-start">
+        <span className="text-2xl font-bold text-white tracking-tight">I&D</span>
+        <span 
+          className="text-sm font-semibold tracking-[0.3em] text-cyan-400"
+          style={{
+            textShadow: '0 0 10px rgba(34, 211, 238, 0.5)'
+          }}
+        >
+          COMPLIANCE
+        </span>
+      </div>
+    </div>
+  </motion.div>
+);
+
 // Neon text effect component
 const NeonText = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <span 
@@ -112,18 +145,23 @@ const Index = () => {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center px-6 py-12 text-center max-w-5xl mx-auto">
         
-        {/* Logo with glow effect */}
-        <div className="relative mb-8 group">
-          <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-2xl scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <img 
-            src={logoIdCompliance} 
-            alt="ID Compliance" 
-            className="h-20 md:h-28 relative z-10 drop-shadow-[0_0_15px_rgba(34,211,238,0.3)]"
-          />
-        </div>
+        {/* Logo with animation */}
+        <motion.div
+          initial={{ opacity: 0, y: -30, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="mb-10"
+        >
+          <AnimatedLogo />
+        </motion.div>
 
         {/* Main headline */}
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 tracking-tight">
+        <motion.h1 
+          className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 tracking-tight"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+        >
           <span className="block text-slate-300 text-lg md:text-xl font-normal tracking-widest uppercase mb-4">
             Plataforma de Gestão
           </span>
@@ -133,16 +171,26 @@ const Index = () => {
           <span className="block text-white mt-2">
             Simplificada
           </span>
-        </h1>
+        </motion.h1>
 
         {/* Subtitle */}
-        <p className="text-slate-400 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
+        <motion.p 
+          className="text-slate-400 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6, ease: "easeOut" }}
+        >
           Monitorização inteligente de legislação, auditorias automatizadas e gestão de evidências 
           — tudo numa única plataforma.
-        </p>
+        </motion.p>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-16">
+        <motion.div 
+          className="flex flex-col sm:flex-row gap-4 mb-16"
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.9, ease: "easeOut" }}
+        >
           <Link to="/auth">
             <Button 
               size="lg" 
@@ -155,29 +203,34 @@ const Index = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
           </Link>
-        </div>
+        </motion.div>
 
         {/* Feature badges */}
-        <div className="flex flex-wrap justify-center gap-6 md:gap-10">
-          <div className="flex items-center gap-3 text-slate-400 group">
-            <div className="p-2 rounded-lg bg-slate-800/50 border border-cyan-500/20 group-hover:border-cyan-500/50 group-hover:bg-slate-800 transition-all">
-              <Shield className="w-5 h-5 text-cyan-400" />
-            </div>
-            <span className="text-sm md:text-base">Dados Seguros</span>
-          </div>
-          <div className="flex items-center gap-3 text-slate-400 group">
-            <div className="p-2 rounded-lg bg-slate-800/50 border border-cyan-500/20 group-hover:border-cyan-500/50 group-hover:bg-slate-800 transition-all">
-              <Zap className="w-5 h-5 text-cyan-400" />
-            </div>
-            <span className="text-sm md:text-base">Atualizações em Tempo Real</span>
-          </div>
-          <div className="flex items-center gap-3 text-slate-400 group">
-            <div className="p-2 rounded-lg bg-slate-800/50 border border-cyan-500/20 group-hover:border-cyan-500/50 group-hover:bg-slate-800 transition-all">
-              <Lock className="w-5 h-5 text-cyan-400" />
-            </div>
-            <span className="text-sm md:text-base">Acesso Privado</span>
-          </div>
-        </div>
+        <motion.div 
+          className="flex flex-wrap justify-center gap-6 md:gap-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 1.2, ease: "easeOut" }}
+        >
+          {[
+            { icon: Shield, label: "Dados Seguros" },
+            { icon: Zap, label: "Atualizações em Tempo Real" },
+            { icon: Lock, label: "Acesso Privado" }
+          ].map((item, index) => (
+            <motion.div
+              key={item.label}
+              className="flex items-center gap-3 text-slate-400 group"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 1.3 + index * 0.1 }}
+            >
+              <div className="p-2 rounded-lg bg-slate-800/50 border border-cyan-500/20 group-hover:border-cyan-500/50 group-hover:bg-slate-800 transition-all">
+                <item.icon className="w-5 h-5 text-cyan-400" />
+              </div>
+              <span className="text-sm md:text-base">{item.label}</span>
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
 
       {/* Bottom decoration */}
