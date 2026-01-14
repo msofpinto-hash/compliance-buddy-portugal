@@ -548,12 +548,12 @@ export default function Dashboard() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-slate-900/95 backdrop-blur-xl">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Logo/Org - Clickable to Dashboard */}
       <Link 
         to="/dashboard" 
         onClick={() => setSidebarOpen(false)}
-        className="p-4 border-b border-emerald-500/20 hover:bg-emerald-500/5 transition-colors cursor-pointer"
+        className="p-4 border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
       >
         {currentOrg?.logo_url ? (
           <img 
@@ -565,26 +565,26 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <ClientAnimatedLogo />
             <div className="flex flex-col">
-              <span className="font-bold text-white leading-tight">I&D</span>
-              <span className="text-xs text-emerald-400 leading-tight font-medium tracking-wider">COMPLIANCE</span>
+              <span className="font-bold text-slate-800 dark:text-white leading-tight">I&D</span>
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 leading-tight font-medium tracking-wider">COMPLIANCE</span>
             </div>
           </div>
         )}
       </Link>
 
       {/* User Info */}
-      <div className="p-4 border-b border-emerald-500/20">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-700/50">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center">
-            <span className="text-sm font-medium text-emerald-400">
+          <div className="h-10 w-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
+            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
               {user?.email?.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">
+            <p className="text-sm font-medium text-slate-800 dark:text-white truncate">
               {user?.email?.split("@")[0]}
             </p>
-            <p className="text-xs text-slate-400 truncate">
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
               {currentOrg?.name || ""}
             </p>
           </div>
@@ -605,8 +605,8 @@ export default function Dashboard() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                   isActive 
-                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25" 
-                    : "text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400"
+                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20" 
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white"
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -615,8 +615,8 @@ export default function Dashboard() {
                   <Badge className={cn(
                     "ml-auto text-xs",
                     isActive 
-                      ? "bg-white/20 text-white border-0" 
-                      : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                      ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0" 
+                      : "bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border-0"
                   )}>
                     {item.count}
                   </Badge>
@@ -628,11 +628,11 @@ export default function Dashboard() {
 
         {/* Admin link if admin */}
         {isAdmin && (
-          <div className="px-3 mt-4 pt-4 border-t border-emerald-500/20">
+          <div className="px-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50">
             <Link
               to="/admin"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all duration-200"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white transition-all duration-200"
             >
               <Settings className="h-5 w-5 shrink-0" />
               <span>Administração</span>
@@ -642,25 +642,25 @@ export default function Dashboard() {
       </ScrollArea>
 
       {/* Footer - Help, Settings & Logout */}
-      <div className="p-4 border-t border-emerald-500/20 mt-auto space-y-1">
+      <div className="p-4 border-t border-slate-200 dark:border-slate-700/50 mt-auto space-y-1">
         <Link
           to="/settings"
           onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all duration-200 w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-700 dark:hover:text-white transition-all duration-200 w-full"
         >
           <User className="h-4 w-4" />
           <span>Definições</span>
         </Link>
         <a
           href="mailto:suporte@legalcompliance.pt"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all duration-200 w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-700 dark:hover:text-white transition-all duration-200 w-full"
         >
           <HelpCircle className="h-4 w-4" />
           <span>Ajuda</span>
         </a>
         <LogoutConfirmDialog 
           onConfirm={signOut} 
-          className="w-full justify-start gap-3 text-slate-400 hover:bg-red-500/10 hover:text-red-400 px-3" 
+          className="w-full justify-start gap-3 text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 px-3" 
           variant="ghost"
         />
       </div>
@@ -668,19 +668,24 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 flex relative overflow-hidden">
-      {/* Background effects */}
-      <ClientGridBackground />
-      <ClientParticles />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex relative overflow-hidden">
+      {/* Subtle background pattern */}
+      <div 
+        className="fixed inset-0 opacity-30 dark:opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.15) 1px, transparent 0)`,
+          backgroundSize: '24px 24px'
+        }}
+      />
       
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-emerald-500/20">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900">
         <SidebarContent />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-emerald-500/20">
+        <SheetContent side="left" className="w-64 p-0 border-r border-slate-200 dark:border-slate-700/50">
           <SidebarContent />
         </SheetContent>
       </Sheet>
@@ -688,20 +693,20 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-slate-900/80 backdrop-blur-xl border-b border-emerald-500/20">
+        <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden text-slate-300 hover:text-emerald-400 hover:bg-emerald-500/10"
+                className="lg:hidden text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm text-slate-400">{currentOrg?.name || "Dashboard"}</p>
-                <h1 className="text-xl font-semibold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                <p className="text-sm text-slate-500 dark:text-slate-400">{currentOrg?.name || "Dashboard"}</p>
+                <h1 className="text-xl font-semibold text-slate-800 dark:text-white">
                   {activeTab === "overview" && "Painel de Controlo"}
                   {activeTab === "actions" && "Planos de Ação"}
                   {activeTab === "audits" && "Auditorias"}
@@ -719,27 +724,27 @@ export default function Dashboard() {
                 />
               )}
               <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input 
                   placeholder="Pesquisa" 
-                  className="pl-9 w-64 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  className="pl-9 w-64 bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
                 />
               </div>
               <TooltipProvider>
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <Link to="/legislacao-recente">
-                      <Button variant="ghost" size="icon" className="relative text-slate-300 hover:text-emerald-400 hover:bg-emerald-500/10">
+                      <Button variant="ghost" size="icon" className="relative text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
                         <FileText className="h-5 w-5" />
                         {unreadLegislationCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 text-white text-xs flex items-center justify-center shadow-sm">
                             {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
                           </span>
                         )}
                       </Button>
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-slate-800 border-slate-700 text-white">
+                  <TooltipContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white">
                     <p>{unreadLegislationCount > 0 ? `${unreadLegislationCount} diplomas por ler` : "Legislação recente"}</p>
                   </TooltipContent>
                 </UITooltip>
@@ -765,8 +770,8 @@ export default function Dashboard() {
               {/* Modules Grid */}
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold">Acesso Rápido</h2>
+                  <Sparkles className="h-5 w-5 text-emerald-500" />
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Acesso Rápido</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <ModuleCard
@@ -774,38 +779,30 @@ export default function Dashboard() {
                     description="Consulte a biblioteca de diplomas legais aplicáveis"
                     icon={Gavel}
                     href="/biblioteca"
-                    image={moduleLegislation}
                     count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
                     countLabel="novos"
-                    gradient="from-blue-600/90 to-indigo-800/90"
                   />
                   <ModuleCard
                     title="Planos de Ação"
                     description="Gerir ações de conformidade e prazos"
                     icon={ClipboardList}
                     href="/dashboard?tab=actions"
-                    image={moduleActions}
                     count={actionPlanStats.pending + actionPlanStats.inProgress}
                     countLabel="ativos"
-                    gradient="from-emerald-600/90 to-teal-800/90"
                   />
                   <ModuleCard
                     title="Auditorias"
                     description="Acompanhe o estado das auditorias"
                     icon={ClipboardCheck}
                     href="/dashboard?tab=audits"
-                    image={moduleAudits}
                     count={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length}
                     countLabel="ativas"
-                    gradient="from-purple-600/90 to-violet-800/90"
                   />
                   <ModuleCard
                     title="Evidências"
                     description="Submeta documentos de conformidade"
                     icon={FolderOpen}
                     href="/dashboard?tab=documents"
-                    image={moduleDocuments}
-                    gradient="from-amber-600/90 to-orange-800/90"
                   />
                 </div>
               </div>
@@ -816,17 +813,17 @@ export default function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
               >
-                <Card className="overflow-hidden bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
-                  <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-transparent">
+                <Card className="overflow-hidden bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
+                  <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="flex items-center gap-2 text-white">
-                          <FileText className="h-5 w-5 text-emerald-400" />
+                        <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-white">
+                          <FileText className="h-5 w-5 text-emerald-500" />
                           Legislação Recente
                         </CardTitle>
-                        <CardDescription className="text-slate-400">Últimos diplomas publicados</CardDescription>
+                        <CardDescription className="text-slate-500 dark:text-slate-400">Últimos diplomas publicados</CardDescription>
                       </div>
-                      <Link to="/legislacao-recente" className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors">
+                      <Link to="/legislacao-recente" className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors">
                         Ver todos <ChevronRight className="h-4 w-4" />
                       </Link>
                     </div>
@@ -835,7 +832,7 @@ export default function Dashboard() {
                     {loadingLegislation ? (
                       <div className="grid md:grid-cols-4 gap-4">
                         {[1, 2, 3, 4].map((i) => (
-                          <Skeleton key={i} className="h-40 w-full rounded-xl bg-slate-800/50" />
+                          <Skeleton key={i} className="h-40 w-full rounded-xl bg-slate-100 dark:bg-slate-800/50" />
                         ))}
                       </div>
                     ) : recentLegislation && recentLegislation.length > 0 ? (
@@ -844,30 +841,30 @@ export default function Dashboard() {
                           <Link
                             key={leg.id}
                             to={`/legislacao/${leg.id}`}
-                            className="relative rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/80 to-slate-900/80 overflow-hidden group hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all duration-300"
+                            className="relative rounded-xl border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/40 overflow-hidden group hover:border-emerald-300 dark:hover:border-emerald-500/30 hover:shadow-md hover:-translate-y-1 transition-all duration-300"
                           >
                             <div className="absolute top-2 left-2 z-10">
                               <Badge className={cn(
                                 "text-xs shadow-sm",
                                 leg.source === "dre" 
-                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
-                                  : "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                                  ? "bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" 
+                                  : "bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
                               )}>
                                 {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
                               </Badge>
                             </div>
-                            <div className="h-16 bg-gradient-to-br from-emerald-500/20 via-emerald-500/5 to-transparent" />
+                            <div className="h-16 bg-gradient-to-br from-emerald-50 dark:from-emerald-500/10 via-transparent to-transparent" />
                             <div className="p-4">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-xs text-slate-500 font-medium">
                                   {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
                                 </span>
-                                <ExternalLink className="h-3 w-3 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
-                              <p className="text-sm font-semibold text-white line-clamp-2 group-hover:text-emerald-400 transition-colors">
+                              <p className="text-sm font-semibold text-slate-800 dark:text-white line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                 {leg.number}
                               </p>
-                              <p className="text-xs text-slate-400 line-clamp-2 mt-1">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
                                 {leg.title}
                               </p>
                             </div>
@@ -876,7 +873,7 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="text-center py-12">
-                        <FileText className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+                        <FileText className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                         <p className="text-slate-500">Nenhuma legislação disponível</p>
                       </div>
                     )}
@@ -892,11 +889,11 @@ export default function Dashboard() {
                 className="grid gap-6 lg:grid-cols-3"
               >
                 {/* Compliance Pie Chart */}
-                <Card className="bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
+                <Card className="bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2 text-white">
-                      <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
+                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       Estado de Conformidade
                     </CardTitle>
@@ -923,22 +920,22 @@ export default function Dashboard() {
                               formatter={(value: number) => [`${value} requisitos`, ""]}
                               contentStyle={{ 
                                 borderRadius: "12px", 
-                                border: "1px solid rgba(16, 185, 129, 0.2)", 
-                                boxShadow: "0 10px 40px -10px rgba(0,0,0,0.5)",
-                                backgroundColor: "rgba(15, 23, 42, 0.95)",
-                                color: "#fff"
+                                border: "1px solid #e2e8f0", 
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                backgroundColor: "#fff",
+                                color: "#1e293b"
                               }}
                             />
                             <Legend 
                               verticalAlign="bottom" 
                               height={36}
-                              formatter={(value) => <span className="text-sm text-slate-300">{value}</span>}
+                              formatter={(value) => <span className="text-sm text-slate-600 dark:text-slate-300">{value}</span>}
                             />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-[200px] flex items-center justify-center text-slate-500">
+                      <div className="h-[200px] flex items-center justify-center text-slate-400">
                         <div className="text-center">
                           <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-20" />
                           <p>Sem dados de conformidade</p>
@@ -949,11 +946,11 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Action Plans Pie Chart */}
-                <Card className="bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
+                <Card className="bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2 text-white">
-                      <div className="p-1.5 rounded-lg bg-teal-500/20">
-                        <ClipboardList className="h-4 w-4 text-teal-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
+                      <div className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-500/10">
+                        <ClipboardList className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                       </div>
                       Planos de Ação
                     </CardTitle>
@@ -980,22 +977,22 @@ export default function Dashboard() {
                               formatter={(value: number) => [`${value} ações`, ""]}
                               contentStyle={{ 
                                 borderRadius: "12px", 
-                                border: "1px solid rgba(16, 185, 129, 0.2)", 
-                                boxShadow: "0 10px 40px -10px rgba(0,0,0,0.5)",
-                                backgroundColor: "rgba(15, 23, 42, 0.95)",
-                                color: "#fff"
+                                border: "1px solid #e2e8f0", 
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                backgroundColor: "#fff",
+                                color: "#1e293b"
                               }}
                             />
                             <Legend 
                               verticalAlign="bottom" 
                               height={36}
-                              formatter={(value) => <span className="text-sm text-slate-300">{value}</span>}
+                              formatter={(value) => <span className="text-sm text-slate-600 dark:text-slate-300">{value}</span>}
                             />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-[200px] flex items-center justify-center text-slate-500">
+                      <div className="h-[200px] flex items-center justify-center text-slate-400">
                         <div className="text-center">
                           <ClipboardList className="h-10 w-10 mx-auto mb-2 opacity-20" />
                           <p>Sem planos de ação</p>
@@ -1006,59 +1003,59 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Quick Stats + Trend */}
-                <Card className="bg-slate-900/60 backdrop-blur-xl border border-emerald-500/20 shadow-xl shadow-emerald-900/10">
+                <Card className="bg-white/80 dark:bg-slate-800/40 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2 text-white">
-                      <div className="p-1.5 rounded-lg bg-amber-500/20">
-                        <TrendingUp className="h-4 w-4 text-amber-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
+                      <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                        <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       Atividade
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-amber-400" />
-                        <span className="text-sm text-slate-300">Ações Pendentes</span>
+                        <Clock className="h-4 w-4 text-amber-500" />
+                        <span className="text-sm text-slate-600 dark:text-slate-300">Ações Pendentes</span>
                       </div>
-                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 font-bold">{actionPlanStats.pending}</Badge>
+                      <Badge className="bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30 font-bold">{actionPlanStats.pending}</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                       <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-red-400" />
-                        <span className="text-sm text-slate-300">Ações Atrasadas</span>
+                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                        <span className="text-sm text-slate-600 dark:text-slate-300">Ações Atrasadas</span>
                       </div>
-                      <Badge className="bg-red-500/20 text-red-400 border-red-500/30 font-bold">{actionPlanStats.overdue}</Badge>
+                      <Badge className="bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30 font-bold">{actionPlanStats.overdue}</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                        <span className="text-sm text-slate-300">Concluídas</span>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm text-slate-600 dark:text-slate-300">Concluídas</span>
                       </div>
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold">{actionPlanStats.completed}</Badge>
+                      <Badge className="bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30 font-bold">{actionPlanStats.completed}</Badge>
                     </div>
 
                     {/* Mini Trend Chart */}
-                    <div className="pt-3 border-t border-slate-700/50">
+                    <div className="pt-3 border-t border-slate-200 dark:border-slate-700/50">
                       <p className="text-xs text-slate-500 mb-2">Evolução (últimos 7 dias)</p>
                       <div className="h-[80px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                             <defs>
                               <linearGradient id="colorTaxa" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="hsl(161, 93%, 30%)" stopOpacity={0.4}/>
+                                <stop offset="5%" stopColor="hsl(161, 93%, 30%)" stopOpacity={0.3}/>
                                 <stop offset="95%" stopColor="hsl(161, 93%, 30%)" stopOpacity={0}/>
                               </linearGradient>
                             </defs>
                             <XAxis 
                               dataKey="date" 
-                              tick={{ fontSize: 10, fill: "#64748b" }}
+                              tick={{ fontSize: 10, fill: "#94a3b8" }}
                               tickLine={false}
                               axisLine={false}
                             />
                             <YAxis 
                               domain={[0, 100]}
-                              tick={{ fontSize: 10, fill: "#64748b" }}
+                              tick={{ fontSize: 10, fill: "#94a3b8" }}
                               tickLine={false}
                               axisLine={false}
                               tickFormatter={(v) => `${v}%`}
@@ -1067,9 +1064,9 @@ export default function Dashboard() {
                               formatter={(value: number) => [`${value}%`, "Taxa"]}
                               contentStyle={{ 
                                 borderRadius: "8px", 
-                                border: "1px solid rgba(16, 185, 129, 0.2)",
-                                backgroundColor: "rgba(15, 23, 42, 0.95)",
-                                color: "#fff",
+                                border: "1px solid #e2e8f0",
+                                backgroundColor: "#fff",
+                                color: "#1e293b",
                                 fontSize: "12px"
                               }}
                             />
