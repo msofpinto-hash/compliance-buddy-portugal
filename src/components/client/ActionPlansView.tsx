@@ -1049,12 +1049,12 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
   return (
     <div className="space-y-6">
       {/* Hero Header - Aligned with other modules */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/20 via-primary/10 to-emerald-500/20">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
         <div className="absolute inset-0 bg-grid-white/10" />
         <div className="relative flex flex-col md:flex-row items-center justify-between gap-6 p-6 md:p-8">
           <div className="flex-1 space-y-3">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-primary/20 text-primary border-0">
+              <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Ações Corretivas
               </Badge>
@@ -1095,86 +1095,86 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
       {/* Stats Row - Enhanced */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <Card 
-          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${!filters.status.length && filters.type === "all" ? "ring-2 ring-primary/20 border-primary/30" : ""}`}
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${!filters.status.length && filters.type === "all" ? "ring-2 ring-emerald-400/30 border-emerald-400/50" : ""}`}
           onClick={() => clearFilters()}
         >
           <CardContent className="p-4 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-3xl font-bold text-primary">{stats.total}</p>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{stats.total}</p>
             <p className="text-xs text-muted-foreground font-medium mt-1">Total</p>
           </CardContent>
         </Card>
         
         <Card 
-          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.status.includes("pendente") ? "ring-2 ring-slate-300 border-slate-400" : ""}`}
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${filters.status.includes("pendente") ? "ring-2 ring-slate-300 border-slate-400" : ""}`}
           onClick={() => toggleStatusFilter("pendente")}
         >
           <CardContent className="p-4 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-slate-700" />
             <div className="flex items-center justify-center gap-2">
               <Clock className="h-4 w-4 text-slate-500" />
-              <p className="text-3xl font-bold text-slate-600">{stats.pendente}</p>
+              <p className="text-3xl font-bold text-slate-600 dark:text-slate-300">{stats.pendente}</p>
             </div>
             <p className="text-xs text-muted-foreground font-medium mt-1">Pendentes</p>
           </CardContent>
         </Card>
         
         <Card 
-          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.status.includes("em_curso") ? "ring-2 ring-amber-300 border-amber-400" : ""}`}
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${filters.status.includes("em_curso") ? "ring-2 ring-amber-300 border-amber-400" : ""}`}
           onClick={() => toggleStatusFilter("em_curso")}
         >
           <CardContent className="p-4 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-amber-900/20" />
             <div className="flex items-center justify-center gap-2">
               <AlertCircle className="h-4 w-4 text-amber-500" />
-              <p className="text-3xl font-bold text-amber-600">{stats.em_curso}</p>
+              <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.em_curso}</p>
             </div>
             <p className="text-xs text-muted-foreground font-medium mt-1">Em Curso</p>
           </CardContent>
         </Card>
         
         <Card 
-          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.status.includes("concluido") ? "ring-2 ring-emerald-300 border-emerald-400" : ""}`}
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${filters.status.includes("concluido") ? "ring-2 ring-emerald-300 border-emerald-400" : ""}`}
           onClick={() => toggleStatusFilter("concluido")}
         >
           <CardContent className="p-4 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-emerald-900/20" />
             <div className="flex items-center justify-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <p className="text-3xl font-bold text-emerald-600">{stats.concluido}</p>
+              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{stats.concluido}</p>
             </div>
             <p className="text-xs text-muted-foreground font-medium mt-1">Concluídas</p>
           </CardContent>
         </Card>
         
-        <Card className="border-rose-200 bg-rose-50/50">
+        <Card className="border-rose-200 dark:border-rose-800/50 bg-rose-50/50 dark:bg-rose-950/20">
           <CardContent className="p-4 text-center">
             <div className="flex items-center justify-center gap-2">
               <XCircle className="h-4 w-4 text-rose-500" />
-              <p className="text-3xl font-bold text-rose-600">{stats.overdue}</p>
+              <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{stats.overdue}</p>
             </div>
-            <p className="text-xs text-rose-600/80 font-medium mt-1">Em Atraso</p>
+            <p className="text-xs text-rose-600/80 dark:text-rose-400/80 font-medium mt-1">Em Atraso</p>
           </CardContent>
         </Card>
         
         <Card 
-          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.type === "audit" ? "ring-2 ring-sky-300 border-sky-400" : ""}`}
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${filters.type === "audit" ? "ring-2 ring-teal-300 border-teal-400" : ""}`}
           onClick={() => setFilters(p => ({ ...p, type: p.type === "audit" ? "all" : "audit" }))}
         >
           <CardContent className="p-4 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-sky-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-3xl font-bold text-sky-600">{stats.fromAudit}</p>
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-teal-900/20" />
+            <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">{stats.fromAudit}</p>
             <p className="text-xs text-muted-foreground font-medium mt-1">📋 Auditoria</p>
           </CardContent>
         </Card>
         
         <Card 
-          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${filters.type === "adhoc" ? "ring-2 ring-violet-300 border-violet-400" : ""}`}
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${filters.type === "adhoc" ? "ring-2 ring-cyan-300 border-cyan-400" : ""}`}
           onClick={() => setFilters(p => ({ ...p, type: p.type === "adhoc" ? "all" : "adhoc" }))}
         >
           <CardContent className="p-4 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-3xl font-bold text-violet-600">{stats.adhoc}</p>
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-cyan-900/20" />
+            <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">{stats.adhoc}</p>
             <p className="text-xs text-muted-foreground font-medium mt-1">⚡ Ad-hoc</p>
           </CardContent>
         </Card>
