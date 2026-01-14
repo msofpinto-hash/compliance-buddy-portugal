@@ -60,6 +60,7 @@ import { WelcomeHero } from "@/components/client/WelcomeHero";
 import { ModuleCard } from "@/components/client/ModuleCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ClientGridBackground, ClientParticles, ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
+import { AnimatedParticles } from "@/components/client/AnimatedParticles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -682,12 +683,16 @@ export default function Dashboard() {
         >
           <source src={heroVideo} type="video/mp4" />
         </video>
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-100/95 via-slate-50/90 to-white/85 dark:from-slate-950/95 dark:via-slate-900/90 dark:to-slate-800/85" />
-        {/* Decorative color orbs */}
-        <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-400/20 dark:bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-300/10 dark:bg-cyan-500/5 rounded-full blur-3xl" />
+        {/* Lighter Overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/90 via-slate-50/85 to-emerald-50/80 dark:from-slate-900/90 dark:via-slate-800/85 dark:to-slate-700/80" />
+        {/* Decorative color orbs - more vibrant */}
+        <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-400/30 dark:bg-emerald-400/15 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-400/30 dark:bg-teal-400/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-300/20 dark:bg-cyan-400/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-amber-300/20 dark:bg-amber-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        
+        {/* Animated Particles */}
+        <AnimatedParticles count={25} />
       </div>
 
       {/* Desktop Sidebar */}
@@ -782,13 +787,13 @@ export default function Dashboard() {
 
               {/* Modules Grid */}
               <div>
-                <div className="flex items-center gap-2 mb-5">
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500">
-                    <Sparkles className="h-4 w-4 text-white" />
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 shadow-lg">
+                    <Sparkles className="h-5 w-5 text-white" />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-white">Acesso Rápido</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Acesso Rápido</h2>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                   <ModuleCard
                     title="Legislação"
                     description="Consulte a biblioteca de diplomas legais aplicáveis"
@@ -798,6 +803,7 @@ export default function Dashboard() {
                     gradient="from-emerald-500 to-teal-600"
                     count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
                     countLabel="novos"
+                    index={0}
                   />
                   <ModuleCard
                     title="Planos de Ação"
@@ -808,6 +814,7 @@ export default function Dashboard() {
                     gradient="from-blue-500 to-indigo-600"
                     count={actionPlanStats.pending + actionPlanStats.inProgress}
                     countLabel="ativos"
+                    index={1}
                   />
                   <ModuleCard
                     title="Auditorias"
@@ -818,6 +825,7 @@ export default function Dashboard() {
                     gradient="from-amber-500 to-orange-600"
                     count={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length}
                     countLabel="ativas"
+                    index={2}
                   />
                   <ModuleCard
                     title="Evidências"
@@ -826,6 +834,7 @@ export default function Dashboard() {
                     href="/dashboard?tab=documents"
                     image={moduleDocuments}
                     gradient="from-purple-500 to-pink-600"
+                    index={3}
                   />
                 </div>
               </div>

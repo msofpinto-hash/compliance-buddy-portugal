@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { LucideIcon, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface ModuleCardProps {
   title: string;
@@ -14,14 +15,8 @@ interface ModuleCardProps {
   gradient?: string;
   accentColor?: string;
   isActive?: boolean;
+  index?: number;
 }
-
-const defaultGradients = [
-  "from-emerald-500 to-teal-600",
-  "from-blue-500 to-indigo-600",
-  "from-amber-500 to-orange-600",
-  "from-purple-500 to-pink-600",
-];
 
 export function ModuleCard({
   title,
@@ -31,90 +26,125 @@ export function ModuleCard({
   image,
   count,
   countLabel,
-  gradient,
-  accentColor = "emerald",
+  gradient = "from-emerald-500 to-teal-600",
   isActive = false,
+  index = 0,
 }: ModuleCardProps) {
   return (
-    <Link to={href} className="group block">
-      <div
-        className={cn(
-          "relative overflow-hidden rounded-xl h-44",
-          "bg-white dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900",
-          "border border-slate-200/80 dark:border-slate-700/50",
-          "shadow-md hover:shadow-xl",
-          "transition-all duration-300 transform hover:-translate-y-1",
-          isActive && "ring-2 ring-primary ring-offset-2"
-        )}
-      >
-        {/* Background Image with Overlay */}
-        {image && (
-          <div className="absolute inset-0">
-            <img 
-              src={image} 
-              alt="" 
-              className="w-full h-full object-cover opacity-20 dark:opacity-15 group-hover:opacity-30 dark:group-hover:opacity-25 transition-opacity duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-white via-white/90 to-white/70 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-800/70" />
-          </div>
-        )}
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ 
+        duration: 0.4, 
+        delay: index * 0.1,
+        ease: "easeOut"
+      }}
+      whileHover={{ 
+        y: -8, 
+        scale: 1.02,
+        transition: { duration: 0.2 }
+      }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <Link to={href} className="group block">
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-2xl h-48",
+            "bg-white/90 dark:bg-slate-800/70",
+            "border border-white/50 dark:border-slate-600/30",
+            "shadow-lg hover:shadow-2xl",
+            "backdrop-blur-sm",
+            "transition-all duration-300",
+            isActive && "ring-2 ring-primary ring-offset-2"
+          )}
+        >
+          {/* Background Image with Overlay */}
+          {image && (
+            <div className="absolute inset-0">
+              <img 
+                src={image} 
+                alt="" 
+                className="w-full h-full object-cover opacity-30 dark:opacity-20 group-hover:opacity-40 dark:group-hover:opacity-30 group-hover:scale-110 transition-all duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/95 to-white/80 dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-800/80" />
+            </div>
+          )}
 
-        {/* Colored Top Bar */}
-        <div className={cn(
-          "absolute top-0 left-0 right-0 h-1.5",
-          "bg-gradient-to-r",
-          gradient || defaultGradients[0]
-        )} />
+          {/* Colored Top Bar with glow */}
+          <div className={cn(
+            "absolute top-0 left-0 right-0 h-1.5",
+            "bg-gradient-to-r",
+            gradient
+          )} />
+          <div className={cn(
+            "absolute top-0 left-0 right-0 h-8 opacity-30",
+            "bg-gradient-to-b",
+            gradient.replace("to-", "to-transparent from-")
+          )} />
 
-        {/* Content */}
-        <div className="relative h-full p-5 flex flex-col">
-          {/* Header with icon and count */}
-          <div className="flex items-start justify-between mb-auto">
-            <div className={cn(
-              "p-3 rounded-xl shadow-lg",
-              "bg-gradient-to-br",
-              gradient || defaultGradients[0],
-              "group-hover:scale-110 transition-transform duration-300"
-            )}>
-              <Icon className="h-5 w-5 text-white" />
+          {/* Content */}
+          <div className="relative h-full p-5 flex flex-col">
+            {/* Header with icon and count */}
+            <div className="flex items-start justify-between mb-auto">
+              <motion.div 
+                className={cn(
+                  "p-3 rounded-xl shadow-lg",
+                  "bg-gradient-to-br",
+                  gradient
+                )}
+                whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <Icon className="h-5 w-5 text-white drop-shadow-md" />
+              </motion.div>
+              
+              {count !== undefined && count > 0 && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: index * 0.1 + 0.3, type: "spring", stiffness: 500 }}
+                >
+                  <Badge 
+                    className={cn(
+                      "text-xs font-bold px-3 py-1.5 border-0 shadow-md",
+                      "bg-gradient-to-r",
+                      gradient,
+                      "text-white"
+                    )}
+                  >
+                    {count} {countLabel || ""}
+                  </Badge>
+                </motion.div>
+              )}
             </div>
             
-            {count !== undefined && count > 0 && (
-              <Badge 
-                className={cn(
-                  "text-xs font-bold px-2.5 py-1 border-0 shadow-sm",
-                  "bg-gradient-to-r",
-                  gradient || defaultGradients[0],
-                  "text-white"
-                )}
-              >
-                {count} {countLabel || ""}
-              </Badge>
-            )}
-          </div>
-          
-          {/* Title and Description */}
-          <div className="mt-auto space-y-1">
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-primary transition-colors">
-              {title}
-            </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
-              {description}
-            </p>
-          </div>
-          
-          {/* Hover Arrow */}
-          <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-            <div className={cn(
-              "p-1.5 rounded-full",
-              "bg-gradient-to-r",
-              gradient || defaultGradients[0]
-            )}>
-              <ChevronRight className="h-4 w-4 text-white" />
+            {/* Title and Description */}
+            <div className="mt-auto space-y-1.5">
+              <h3 className="font-bold text-lg text-slate-800 dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-emerald-600 group-hover:to-teal-600 dark:group-hover:from-emerald-400 dark:group-hover:to-teal-400 transition-all duration-300">
+                {title}
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                {description}
+              </p>
             </div>
+            
+            {/* Hover Arrow */}
+            <motion.div 
+              className="absolute bottom-5 right-5"
+              initial={{ opacity: 0, x: -10 }}
+              whileHover={{ opacity: 1, x: 0 }}
+            >
+              <div className={cn(
+                "p-2 rounded-full shadow-lg",
+                "bg-gradient-to-r",
+                gradient
+              )}>
+                <ChevronRight className="h-4 w-4 text-white" />
+              </div>
+            </motion.div>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+    </motion.div>
   );
 }
