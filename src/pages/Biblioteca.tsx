@@ -499,62 +499,6 @@ export default function Biblioteca() {
                   );
                 })}
               </div>
-
-              {/* Categories panel - shows when a theme is selected */}
-              {selectedThemeId && themes && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="border-t border-emerald-200/60 dark:border-emerald-800/30 mt-4 pt-4"
-                >
-                  {(() => {
-                    const selectedTheme = themes.find(t => t.id === selectedThemeId);
-                    const config = themeConfig[selectedTheme?.name || ""] || { icon: Folder, color: "text-slate-600", bgLight: "bg-slate-100", bgDark: "dark:bg-slate-800", border: "border-slate-300" };
-                    
-                    if (!selectedTheme || selectedTheme.categories.length === 0) {
-                      return (
-                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-2">
-                          Sem categorias disponíveis para este tema
-                        </p>
-                      );
-                    }
-
-                    // Get root categories (no parent)
-                    const rootCategories = selectedTheme.categories.filter(c => !c.parent_id);
-
-                    return (
-                      <div className="flex flex-wrap gap-2">
-                        {rootCategories.map((category, index) => {
-                          const isSelected = selectedCategoryId === category.id;
-                          
-                          return (
-                            <motion.button
-                              key={category.id}
-                              onClick={() => setSelectedCategoryId(isSelected ? null : category.id)}
-                              className={cn(
-                                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5",
-                                isSelected 
-                                  ? cn(config.bgLight, config.bgDark, config.color, "shadow-sm border", config.border)
-                                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-transparent"
-                              )}
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ duration: 0.2, delay: 0.03 * index }}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <Folder className="h-3.5 w-3.5" />
-                              {category.name}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </motion.div>
-              )}
             </CardContent>
           </Card>
         </motion.div>
