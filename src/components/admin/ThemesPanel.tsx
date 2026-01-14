@@ -78,28 +78,28 @@ export function ThemesPanel() {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
           <CardHeader className="pb-2">
-            <CardDescription>Total de Temas</CardDescription>
-            <CardTitle className="text-3xl">{themes?.length || 0}</CardTitle>
+            <CardDescription className="text-amber-700/70 dark:text-amber-400/70">Total de Temas</CardDescription>
+            <CardTitle className="text-3xl text-stone-800 dark:text-stone-100">{themes?.length || 0}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-orange-50/95 via-amber-50/80 to-yellow-50/70 dark:from-orange-950/40 dark:via-amber-950/35 dark:to-yellow-950/25 border border-orange-200/60 dark:border-orange-800/40">
           <CardHeader className="pb-2">
-            <CardDescription>Categorias</CardDescription>
-            <CardTitle className="text-3xl">{totalCategories - totalSubcategories}</CardTitle>
+            <CardDescription className="text-amber-700/70 dark:text-amber-400/70">Categorias</CardDescription>
+            <CardTitle className="text-3xl text-stone-800 dark:text-stone-100">{totalCategories - totalSubcategories}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-yellow-50/95 via-amber-50/80 to-stone-50/70 dark:from-yellow-950/40 dark:via-amber-950/35 dark:to-stone-900/30 border border-yellow-200/60 dark:border-yellow-800/40">
           <CardHeader className="pb-2">
-            <CardDescription>Subcategorias</CardDescription>
-            <CardTitle className="text-3xl">{totalSubcategories}</CardTitle>
+            <CardDescription className="text-amber-700/70 dark:text-amber-400/70">Subcategorias</CardDescription>
+            <CardTitle className="text-3xl text-stone-800 dark:text-stone-100">{totalSubcategories}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-stone-50/95 via-amber-50/80 to-orange-50/70 dark:from-stone-900/50 dark:via-amber-950/40 dark:to-orange-950/30 border border-stone-200/60 dark:border-stone-700/40">
           <CardHeader className="pb-2">
-            <CardDescription>Keywords</CardDescription>
-            <CardTitle className="text-3xl">
+            <CardDescription className="text-amber-700/70 dark:text-amber-400/70">Keywords</CardDescription>
+            <CardTitle className="text-3xl text-stone-800 dark:text-stone-100">
               {themes?.reduce((acc, t) => 
                 acc + t.categories.reduce((catAcc, c) => catAcc + (c.keywords?.length || 0), 0), 0
               ) || 0}
@@ -109,19 +109,21 @@ export function ThemesPanel() {
       </div>
 
       {/* Theme List */}
-      <Card>
+      <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-stone-100">
+                <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+                  <Palette className="h-4 w-4 text-white" />
+                </div>
                 Temas e Categorias
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-amber-700/70 dark:text-amber-400/70">
                 Gerencie os temas, categorias e subcategorias para organizar a legislação
               </CardDescription>
             </div>
-            <Button onClick={() => setShowCreateTheme(true)}>
+            <Button onClick={() => setShowCreateTheme(true)} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
               <Plus className="mr-2 h-4 w-4" />
               Novo Tema
             </Button>

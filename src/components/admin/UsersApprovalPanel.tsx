@@ -263,43 +263,45 @@ export function UsersApprovalPanel() {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
           <CardHeader className="pb-2">
-            <CardDescription>Total de Utilizadores</CardDescription>
-            <CardTitle className="text-3xl">{profiles?.length || 0}</CardTitle>
+            <CardDescription className="text-amber-700/70 dark:text-amber-400/70">Total de Utilizadores</CardDescription>
+            <CardTitle className="text-3xl text-stone-800 dark:text-stone-100">{profiles?.length || 0}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className={pendingUsers.length > 0 ? "border-amber-300 bg-amber-50/50" : ""}>
+        <Card className={pendingUsers.length > 0 ? "border-amber-400/70 bg-gradient-to-br from-amber-100/90 via-orange-100/70 to-yellow-100/60 dark:from-amber-900/50 dark:via-orange-900/40 dark:to-yellow-900/30" : "bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40"}>
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
+            <CardDescription className="flex items-center gap-1 text-amber-700/70 dark:text-amber-400/70">
               <Clock className="h-3 w-3" />
               Pendentes de Aprovação
             </CardDescription>
-            <CardTitle className={`text-3xl ${pendingUsers.length > 0 ? "text-amber-600" : ""}`}>
+            <CardTitle className={`text-3xl ${pendingUsers.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-800 dark:text-stone-100"}`}>
               {pendingUsers.length}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
+            <CardDescription className="flex items-center gap-1 text-amber-700/70 dark:text-amber-400/70">
               <CheckCircle2 className="h-3 w-3" />
               Aprovados
             </CardDescription>
-            <CardTitle className="text-3xl text-green-600">{approvedUsers.length}</CardTitle>
+            <CardTitle className="text-3xl text-emerald-600 dark:text-emerald-400">{approvedUsers.length}</CardTitle>
           </CardHeader>
         </Card>
       </div>
 
       {/* Pending Users */}
       {pendingUsers.length > 0 && (
-        <Card className="border-amber-300">
+        <Card className="border-amber-400/70 bg-gradient-to-br from-amber-100/90 via-orange-100/70 to-yellow-100/60 dark:from-amber-900/50 dark:via-orange-900/40 dark:to-yellow-900/30">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-700">
-              <Clock className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+                <Clock className="h-4 w-4 text-white" />
+              </div>
               Utilizadores Pendentes
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-amber-700/70 dark:text-amber-400/70">
               Aprove estes utilizadores associando-os a uma ou mais organizações
             </CardDescription>
           </CardHeader>
@@ -336,13 +338,15 @@ export function UsersApprovalPanel() {
       )}
 
       {/* Approved Users */}
-      <Card>
+      <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-stone-100">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+              <Users className="h-4 w-4 text-white" />
+            </div>
             Utilizadores Aprovados
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-amber-700/70 dark:text-amber-400/70">
             Utilizadores com acesso ativo à aplicação
           </CardDescription>
         </CardHeader>

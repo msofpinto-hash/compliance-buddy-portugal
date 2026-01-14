@@ -295,13 +295,15 @@ export function AuditsPanel() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <ClipboardCheck className="h-6 w-6" />
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-stone-800 dark:text-stone-100">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25">
+              <ClipboardCheck className="h-5 w-5 text-white" />
+            </div>
             Módulo de Auditorias
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-amber-700/70 dark:text-amber-400/70 mt-1">
             Gerencie auditorias de conformidade legal
           </p>
         </div>
@@ -311,10 +313,10 @@ export function AuditsPanel() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Audits List */}
         <div className="lg:col-span-1 space-y-4">
-          <Card>
+          <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Auditorias</CardTitle>
-              <CardDescription>{audits?.length || 0} auditorias registadas</CardDescription>
+              <CardTitle className="text-base text-stone-800 dark:text-stone-100">Auditorias</CardTitle>
+              <CardDescription className="text-amber-700/70 dark:text-amber-400/70">{audits?.length || 0} auditorias registadas</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {loadingAudits ? (

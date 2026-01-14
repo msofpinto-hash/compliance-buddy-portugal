@@ -438,10 +438,15 @@ export function ClientsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Gestão de Clientes</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2 text-stone-800 dark:text-stone-100">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            Gestão de Clientes
+          </h2>
+          <p className="text-amber-700/70 dark:text-amber-400/70 mt-1">
             Gerir organizações e utilizadores clientes
           </p>
         </div>

@@ -201,10 +201,15 @@ export function EvidenceTemplatesPanel() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
         <div>
-          <h2 className="text-2xl font-bold">Catálogo de Evidências</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-stone-800 dark:text-stone-100">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25">
+              <FileText className="h-5 w-5 text-white" />
+            </div>
+            Catálogo de Evidências
+          </h2>
+          <p className="text-amber-700/70 dark:text-amber-400/70 mt-1">
             {templates?.length || 0} templates de evidência documental
           </p>
         </div>
@@ -262,17 +267,17 @@ export function EvidenceTemplatesPanel() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600/60 dark:text-amber-400/60" />
                 <Input
                   placeholder="Pesquisar templates..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-amber-200/60 dark:border-amber-800/40 focus:border-amber-400 focus:ring-amber-400/30"
                 />
               </div>
             </div>
