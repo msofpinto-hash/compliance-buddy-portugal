@@ -43,6 +43,7 @@ import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
 import { Link, useLocation } from "react-router-dom";
+import { BibliotecaContent } from "@/components/client/BibliotecaContent";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -62,7 +63,7 @@ const COLORS = {
   inProgress: "hsl(45, 93%, 47%)",
 };
 
-type TabValue = "overview" | "legislation" | "actions" | "documents";
+type TabValue = "overview" | "legislation" | "actions" | "documents" | "biblioteca";
 
 export default function ClientPortal() {
   const { user, signOut, isAdmin } = useAuth();
@@ -500,6 +501,7 @@ export default function ClientPortal() {
   const navItems = [
     { id: "overview" as TabValue, label: "Visão Geral", icon: LayoutDashboard },
     { id: "legislation" as TabValue, label: "Diplomas", icon: FileText, count: overallStats.totalLegislation },
+    { id: "biblioteca" as TabValue, label: "Biblioteca", icon: BookOpen },
     { id: "documents" as TabValue, label: "Documentos", icon: Upload },
     { id: "actions" as TabValue, label: "Planos de Ação", icon: ClipboardList, count: actionPlanStats.pending + actionPlanStats.inProgress },
   ];
@@ -544,12 +546,6 @@ export default function ClientPortal() {
               <span className="hidden md:inline">Exportar</span>
             </Button>
             
-            <Link to="/biblioteca">
-              <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
-                <BookOpen className="h-4 w-4" />
-                <span className="hidden md:inline">Biblioteca</span>
-              </Button>
-            </Link>
             
             <Link to="/dashboard">
               <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
@@ -1488,6 +1484,19 @@ export default function ClientPortal() {
               transition={{ duration: 0.3, ease: "easeInOut" }}
             >
               <DocumentsPanel organizationIds={organizationIds} />
+            </motion.div>
+          )}
+
+          {/* Biblioteca Tab */}
+          {activeTab === "biblioteca" && (
+            <motion.div
+              key="biblioteca"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
+              <BibliotecaContent organizationId={selectedOrgId || organizationIds[0]} />
             </motion.div>
           )}
           </AnimatePresence>
