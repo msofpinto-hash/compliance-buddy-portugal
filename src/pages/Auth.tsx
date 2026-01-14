@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
 import { motion } from "framer-motion";
+import robotAuditorImg from "@/assets/robot-auditor.png";
 
 interface LoginCheckResult {
   allowed: boolean;
@@ -611,34 +612,101 @@ const Auth = () => {
 
   // Main auth form
   return (
-    <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden p-4">
+    <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
       <GridBackground />
       <TechParticles />
       
-      {/* Logo */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8 relative z-10"
-      >
-        <AnimatedLogo />
-      </motion.div>
+      {/* Two Column Layout */}
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-8 flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
+        
+        {/* Left Column - Illustration & Message */}
+        <motion.div
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="flex-1 text-center lg:text-left hidden md:block"
+        >
+          {/* Robot Illustration */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="relative mb-6"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-3xl blur-3xl" />
+            <img 
+              src={robotAuditorImg} 
+              alt="Robot Auditor" 
+              className="relative w-full max-w-md mx-auto lg:mx-0 drop-shadow-2xl"
+            />
+          </motion.div>
+          
+          {/* Text Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="space-y-4"
+          >
+            <h2 className="text-3xl lg:text-4xl font-bold text-white leading-tight">
+              O seu{" "}
+              <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                assistente digital
+              </span>
+              <br />
+              de conformidade
+            </h2>
+            <p className="text-slate-400 text-lg max-w-md mx-auto lg:mx-0">
+              Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
+            </p>
+            
+            {/* Features list */}
+            <div className="flex flex-wrap gap-3 justify-center lg:justify-start pt-4">
+              {[
+                { icon: CheckCircle2, text: "Monitorização 24/7" },
+                { icon: Scale, text: "Legislação atualizada" },
+                { icon: ShieldAlert, text: "Auditorias rigorosas" },
+              ].map((feature, i) => (
+                <motion.div
+                  key={feature.text}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.7 + i * 0.1 }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-emerald-500/30 text-sm text-slate-300"
+                >
+                  <feature.icon className="h-4 w-4 text-emerald-400" />
+                  {feature.text}
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="relative z-10 w-full max-w-md"
-      >
-        <Card className="bg-slate-900/80 border-emerald-500/30 backdrop-blur-xl shadow-2xl shadow-emerald-900/20">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-white text-xl">Área de Cliente</CardTitle>
-            <CardDescription className="text-slate-400">
-              Aceda à sua área de gestão de conformidade legal
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Right Column - Auth Form */}
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="w-full max-w-md"
+        >
+          {/* Logo - Mobile & Desktop */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex justify-center mb-6"
+          >
+            <AnimatedLogo />
+          </motion.div>
+
+          <Card className="bg-slate-900/80 border-emerald-500/30 backdrop-blur-xl shadow-2xl shadow-emerald-900/20">
+            <CardHeader className="text-center pb-2">
+              <CardTitle className="text-white text-xl">Área de Cliente</CardTitle>
+              <CardDescription className="text-slate-400">
+                Aceda à sua área de gestão de conformidade legal
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-slate-700">
                 <TabsTrigger 
@@ -852,6 +920,7 @@ const Auth = () => {
           </CardContent>
         </Card>
       </motion.div>
+      </div>
 
       {/* Bottom decoration */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
