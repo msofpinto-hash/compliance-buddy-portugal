@@ -466,12 +466,12 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
   return (
     <div className="space-y-6">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-600/20 via-emerald-500/10 to-green-500/20">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
         <div className="absolute inset-0 bg-grid-white/10" />
         <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
           <div className="flex-1 space-y-3">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-teal-500/20 text-teal-700 border-0">
+              <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
                 <FileText className="h-3 w-3 mr-1" />
                 Evidências Documentais
               </Badge>
@@ -493,12 +493,12 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
 
       {/* Progress Overview */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-gray-400/20 to-transparent rounded-bl-full" />
+        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-slate-400/20 to-transparent rounded-bl-full" />
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gray-100">
-                <Clock className="h-5 w-5 text-gray-600" />
+              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
+                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.pending}</p>
@@ -508,12 +508,12 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
           </CardContent>
         </Card>
         
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-blue-400/20 to-transparent rounded-bl-full" />
+        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-teal-400/20 to-transparent rounded-bl-full" />
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100">
-                <Send className="h-5 w-5 text-blue-600" />
+              <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
+                <Send className="h-5 w-5 text-teal-600 dark:text-teal-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.submitted}</p>
@@ -523,12 +523,12 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
           </CardContent>
         </Card>
         
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-green-400/20 to-transparent rounded-bl-full" />
+        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-400/20 to-transparent rounded-bl-full" />
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.approved}</p>
@@ -538,13 +538,13 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
           </CardContent>
         </Card>
         
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-primary/20 to-transparent rounded-bl-full" />
+        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-bl-full" />
           <CardContent className="pt-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Progresso</span>
-                <span className="text-lg font-bold">{progressPercentage}%</span>
+                <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{progressPercentage}%</span>
               </div>
               <Progress value={progressPercentage} className="h-2" />
             </div>
@@ -553,7 +553,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-800/30">
         <CardContent className="p-4 space-y-4">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
