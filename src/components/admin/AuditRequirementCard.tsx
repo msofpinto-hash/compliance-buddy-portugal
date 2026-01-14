@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronUp, Save, Loader2, FileText, Link2, ExternalLink, X, Paperclip, Upload, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, Loader2, FileText, Link2, ExternalLink, X, Paperclip, Upload, Trash2, FolderInput, CheckCircle2 } from "lucide-react";
 
 const complianceOptions = [
   { value: "pending", label: "Pendente", color: "bg-gray-100 text-gray-700 border-gray-300" },
@@ -22,6 +23,7 @@ interface AuditRequirementCardProps {
   requirement: {
     id: string;
     audit_id: string;
+    legislation_id: string;
     compliance_status: string | null;
     evidence: string | null;
     findings: string | null;
@@ -42,6 +44,7 @@ export function AuditRequirementCard({ requirement, organizationId, onUpdated }:
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showDocumentSelector, setShowDocumentSelector] = useState(false);
+  const [showEvidenceImport, setShowEvidenceImport] = useState(false);
   const [form, setForm] = useState({
     compliance_status: requirement.compliance_status || "pending",
     evidence: requirement.evidence || "",
@@ -81,6 +84,84 @@ export function AuditRequirementCard({ requirement, organizationId, onUpdated }:
       return data;
     },
     enabled: isOpen,
+  });
+
+  // Fetch evidence documents submitted by the client for legislation linked to templates
+  const { data: evidenceDocuments } = useQuery({
+    queryKey: ["evidence-documents-for-legislation", organizationId, requirement.legislation_id],
+    queryFn: async () => {
+      // First, get templates linked to this legislation
+      const { data: templates } = await supabase
+        .from("evidence_template_legislation")
+        .select("template_id")
+        .eq("legislation_id", requirement.legislation_id);
+
+      if (!templates || templates.length === 0) {
+        // Fallback: get all evidence documents for this organization
+        const { data: allRequests } = await supabase
+          .from("organization_evidence_requests")
+          .select(`
+            id,
+            status,
+            evidence_templates(id, title)
+          `)
+          .eq("organization_id", organizationId)
+          .in("status", ["submitted", "approved"]);
+
+        if (!allRequests || allRequests.length === 0) return [];
+
+        const requestIds = allRequests.map(r => r.id);
+        const { data: evidenceDocs, error } = await supabase
+          .from("evidence_request_documents")
+          .select(`
+            id,
+            document_id,
+            request_id,
+            documents(id, name, file_url, category),
+            organization_evidence_requests!inner(
+              id,
+              evidence_templates(id, title)
+            )
+          `)
+          .in("request_id", requestIds);
+
+        if (error) throw error;
+        return evidenceDocs || [];
+      }
+
+      const templateIds = templates.map(t => t.template_id);
+
+      // Get evidence requests for these templates
+      const { data: requests } = await supabase
+        .from("organization_evidence_requests")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .in("template_id", templateIds)
+        .in("status", ["submitted", "approved"]);
+
+      if (!requests || requests.length === 0) return [];
+
+      const requestIds = requests.map(r => r.id);
+
+      // Get documents from these requests
+      const { data: evidenceDocs, error } = await supabase
+        .from("evidence_request_documents")
+        .select(`
+          id,
+          document_id,
+          request_id,
+          documents(id, name, file_url, category),
+          organization_evidence_requests!inner(
+            id,
+            evidence_templates(id, title)
+          )
+        `)
+        .in("request_id", requestIds);
+
+      if (error) throw error;
+      return evidenceDocs || [];
+    },
+    enabled: isOpen && showEvidenceImport && !!organizationId && !!requirement.legislation_id,
   });
 
   const linkedDocumentIds = linkedDocuments?.map(ld => ld.document_id) || [];
@@ -364,8 +445,75 @@ export function AuditRequirementCard({ requirement, organizationId, onUpdated }:
                     <Paperclip className="h-3 w-3" />
                     Associar
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowEvidenceImport(!showEvidenceImport)}
+                    className="gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/30"
+                  >
+                    <FolderInput className="h-3 w-3" />
+                    Importar Evidências
+                  </Button>
                 </div>
               </div>
+
+              {/* Evidence Import Section */}
+              {showEvidenceImport && (
+                <div className="border rounded-lg p-4 bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FolderInput className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      Documentos das Evidências Documentais
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Importe documentos que o cliente submeteu no módulo de Evidências Documentais
+                  </p>
+                  
+                  {evidenceDocuments && evidenceDocuments.length > 0 ? (
+                    <ScrollArea className="h-[180px]">
+                      <div className="space-y-2">
+                        {evidenceDocuments
+                          .filter((ed: any) => !linkedDocumentIds.includes(ed.document_id))
+                          .map((ed: any) => (
+                            <div
+                              key={ed.id}
+                              className="flex items-center justify-between p-2 rounded-md bg-white dark:bg-slate-800 border hover:border-emerald-400 transition-colors"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <span className="text-sm truncate">{ed.documents?.name}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground ml-6 truncate">
+                                  {ed.organization_evidence_requests?.evidence_templates?.title}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleLinkDocument(ed.document_id)}
+                                className="h-7 gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                              >
+                                <CheckCircle2 className="h-3 w-3" />
+                                Importar
+                              </Button>
+                            </div>
+                          ))}
+                        {evidenceDocuments.filter((ed: any) => !linkedDocumentIds.includes(ed.document_id)).length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">
+                            Todos os documentos de evidências já foram importados
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      Nenhum documento de evidências disponível para importar
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Linked documents list */}
               {linkedDocuments && linkedDocuments.length > 0 ? (

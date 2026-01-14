@@ -399,36 +399,36 @@ export async function exportFullReportToExcel(data: ReportData): Promise<void> {
 
 // ==================== PDF THEME CONFIGURATION ====================
 
-// You can customize these colors to match your brand
-// Colors are in RGB format [R, G, B] with values 0-255
+// Premium corporate theme with emerald accent
 export const PDF_THEME = {
-  // Brand colors
+  // Brand colors - Updated to corporate emerald palette
   colors: {
-    primary: [37, 99, 235] as [number, number, number],      // Blue - main accent
-    secondary: [99, 102, 241] as [number, number, number],   // Indigo - secondary accent
-    success: [22, 163, 74] as [number, number, number],      // Green - compliant
-    warning: [234, 179, 8] as [number, number, number],      // Yellow - in progress
-    danger: [220, 38, 38] as [number, number, number],       // Red - non-compliant
+    primary: [16, 185, 129] as [number, number, number],      // Emerald - main accent
+    secondary: [20, 184, 166] as [number, number, number],    // Teal - secondary accent
+    success: [22, 163, 74] as [number, number, number],       // Green - compliant
+    warning: [234, 179, 8] as [number, number, number],       // Yellow - in progress
+    danger: [220, 38, 38] as [number, number, number],        // Red - non-compliant
     
     // Text colors
-    textDark: [17, 24, 39] as [number, number, number],      // Headings
-    textMuted: [107, 114, 128] as [number, number, number],  // Secondary text
-    textLight: [156, 163, 175] as [number, number, number],  // Subtle text
+    textDark: [17, 24, 39] as [number, number, number],       // Headings
+    textMuted: [107, 114, 128] as [number, number, number],   // Secondary text
+    textLight: [156, 163, 175] as [number, number, number],   // Subtle text
     
     // Background colors
-    bgLight: [249, 250, 251] as [number, number, number],    // Light background
-    bgHeader: [243, 244, 246] as [number, number, number],   // Table header
-    bgAccent: [239, 246, 255] as [number, number, number],   // Accent background
+    bgLight: [249, 250, 251] as [number, number, number],     // Light background
+    bgHeader: [236, 253, 245] as [number, number, number],    // Emerald tinted header
+    bgAccent: [209, 250, 229] as [number, number, number],    // Accent background
+    bgWarm: [255, 251, 235] as [number, number, number],      // Warm beige accent
     
     // Border colors
-    border: [229, 231, 235] as [number, number, number],     // Light border
-    borderAccent: [191, 219, 254] as [number, number, number], // Accent border
+    border: [229, 231, 235] as [number, number, number],      // Light border
+    borderAccent: [167, 243, 208] as [number, number, number], // Emerald border
   },
   
   // Typography settings
   typography: {
     // Font sizes in points
-    titleSize: 22,
+    titleSize: 24,
     subtitleSize: 14,
     headingSize: 12,
     bodySize: 10,
@@ -754,43 +754,207 @@ export async function exportRequirementsToPDF(data: ReportData): Promise<void> {
 export async function exportComplianceReportToPDF(data: ReportData): Promise<void> {
   const doc = new jsPDF();
   const { colors, typography, spacing } = PDF_THEME;
-  const tableStyles = getTableStyles();
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
   
   // Load logo if available
   const logoBase64 = data.organization.logoUrl 
     ? await loadImageAsBase64(data.organization.logoUrl) 
     : null;
   
-  addPDFHeader(doc, "Relatório de Conformidade Legal", data.organization.name, logoBase64);
+  // ===== COVER PAGE =====
   
-  let currentY = addStatsBox(doc, data.stats, 58);
+  // Decorative header bar
+  doc.setFillColor(...colors.primary);
+  doc.rect(0, 0, pageWidth, 50, "F");
   
-  // Action Plans Section
+  // Subtle gradient effect with secondary color
+  doc.setFillColor(...colors.secondary);
+  doc.rect(pageWidth - 80, 0, 80, 50, "F");
+  
+  // Logo on cover
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', spacing.margin, 60, 40, 40);
+    } catch {}
+  }
+  
+  // Title section
+  const titleStartY = logoBase64 ? 115 : 80;
+  
+  doc.setFontSize(28);
+  doc.setTextColor(...colors.textDark);
+  doc.text("Relatório de", spacing.margin, titleStartY);
+  
+  doc.setFontSize(32);
+  doc.setTextColor(...colors.primary);
+  doc.text("Conformidade Legal", spacing.margin, titleStartY + 14);
+  
+  // Organization name
+  doc.setFontSize(16);
+  doc.setTextColor(...colors.textDark);
+  doc.text(data.organization.name, spacing.margin, titleStartY + 35);
+  
+  // Description if available
+  if (data.organization.description) {
+    doc.setFontSize(typography.bodySize);
+    doc.setTextColor(...colors.textMuted);
+    const desc = data.organization.description.length > 100 
+      ? data.organization.description.substring(0, 97) + "..." 
+      : data.organization.description;
+    doc.text(desc, spacing.margin, titleStartY + 45);
+  }
+  
+  // Decorative line
+  doc.setDrawColor(...colors.primary);
+  doc.setLineWidth(2);
+  doc.line(spacing.margin, titleStartY + 55, spacing.margin + 60, titleStartY + 55);
+  
+  // Date box
+  const dateBoxY = titleStartY + 70;
+  doc.setFillColor(...colors.bgWarm);
+  doc.roundedRect(spacing.margin, dateBoxY, 80, 20, 3, 3, "F");
+  doc.setFontSize(typography.smallSize);
+  doc.setTextColor(...colors.textMuted);
+  doc.text("Data do Relatório", spacing.margin + 5, dateBoxY + 8);
+  doc.setFontSize(typography.bodySize);
+  doc.setTextColor(...colors.textDark);
+  doc.text(new Date().toLocaleDateString("pt-PT", { 
+    day: "2-digit", 
+    month: "long", 
+    year: "numeric"
+  }), spacing.margin + 5, dateBoxY + 15);
+  
+  // ===== SUMMARY STATS ON COVER =====
+  const statsY = 180;
+  
+  // Stats background
+  doc.setFillColor(...colors.bgLight);
+  doc.roundedRect(spacing.margin, statsY, pageWidth - (spacing.margin * 2), 70, 4, 4, "F");
+  
+  doc.setFontSize(typography.headingSize);
+  doc.setTextColor(...colors.primary);
+  doc.text("Resumo Executivo", spacing.margin + 8, statsY + 12);
+  
+  // Stats grid
+  const statsItems = [
+    { label: "Diplomas", value: data.stats.totalLegislation.toString(), color: colors.primary },
+    { label: "Requisitos", value: data.stats.totalRequirements.toString(), color: colors.secondary },
+    { label: "Conforme", value: data.stats.conforme.toString(), color: colors.success },
+    { label: "Não Conforme", value: data.stats.naoConforme.toString(), color: colors.danger },
+    { label: "Em Avaliação", value: data.stats.emCurso.toString(), color: colors.warning },
+  ];
+  
+  const boxWidth = 30;
+  const boxStartX = spacing.margin + 8;
+  const boxY = statsY + 22;
+  
+  statsItems.forEach((stat, index) => {
+    const x = boxStartX + (index * (boxWidth + 5));
+    
+    // Value
+    doc.setFontSize(20);
+    doc.setTextColor(...stat.color);
+    doc.text(stat.value, x + boxWidth / 2, boxY + 15, { align: "center" });
+    
+    // Label
+    doc.setFontSize(typography.tinySize);
+    doc.setTextColor(...colors.textMuted);
+    doc.text(stat.label, x + boxWidth / 2, boxY + 24, { align: "center" });
+  });
+  
+  // Compliance rate circle
+  const circleX = pageWidth - 50;
+  const circleY = statsY + 40;
+  const circleRadius = 22;
+  
+  // Background circle
+  doc.setFillColor(...colors.bgAccent);
+  doc.circle(circleX, circleY, circleRadius, "F");
+  
+  // Percentage text
+  doc.setFontSize(22);
+  doc.setTextColor(...colors.primary);
+  doc.text(`${data.stats.complianceRate}%`, circleX, circleY + 3, { align: "center" });
+  
+  doc.setFontSize(typography.tinySize);
+  doc.setTextColor(...colors.textMuted);
+  doc.text("Conformidade", circleX, circleY + 12, { align: "center" });
+  
+  // Footer on cover
+  doc.setFillColor(...colors.bgHeader);
+  doc.rect(0, pageHeight - 25, pageWidth, 25, "F");
+  doc.setFontSize(typography.tinySize);
+  doc.setTextColor(...colors.textLight);
+  doc.text("Documento gerado automaticamente pela plataforma ID Compliance", pageWidth / 2, pageHeight - 10, { align: "center" });
+  
+  // ===== PAGE 2: ACTION PLANS =====
   if (data.actionPlans.length > 0) {
-    currentY = addSectionTitle(doc, "Planos de Ação", currentY);
+    doc.addPage();
+    addPDFHeader(doc, "Planos de Ação", data.organization.name, logoBase64);
+    
+    let currentY = 65;
+    
+    // Summary box
+    const planStats = {
+      total: data.actionPlans.length,
+      pending: data.actionPlans.filter(p => p.status === "pendente" || p.status === "pending").length,
+      inProgress: data.actionPlans.filter(p => p.status === "em_curso" || p.status === "in_progress").length,
+      completed: data.actionPlans.filter(p => p.status === "concluido" || p.status === "completed").length,
+    };
+    
+    doc.setFillColor(...colors.bgWarm);
+    doc.roundedRect(spacing.margin, currentY, pageWidth - (spacing.margin * 2), 20, 3, 3, "F");
+    
+    doc.setFontSize(typography.smallSize);
+    doc.setTextColor(...colors.textMuted);
+    doc.text(`Total: ${planStats.total}`, spacing.margin + 10, currentY + 12);
+    doc.text(`Pendentes: ${planStats.pending}`, spacing.margin + 50, currentY + 12);
+    doc.text(`Em Curso: ${planStats.inProgress}`, spacing.margin + 95, currentY + 12);
+    doc.setTextColor(...colors.success);
+    doc.text(`Concluídas: ${planStats.completed}`, spacing.margin + 135, currentY + 12);
+    
+    currentY += 30;
     
     doc.autoTable({
       startY: currentY,
-      head: [["Ação", "Estado", "Responsável", "Prazo"]],
+      head: [["Ação", "Descrição", "Estado", "Responsável", "Prazo"]],
       body: data.actionPlans.map(plan => [
-        plan.title,
+        plan.title.length > 30 ? plan.title.substring(0, 27) + "..." : plan.title,
+        plan.description ? (plan.description.length > 40 ? plan.description.substring(0, 37) + "..." : plan.description) : "-",
         getStatusLabel(plan.status),
         plan.responsible || "-",
         formatDate(plan.dueDate),
       ]),
-      ...tableStyles,
+      ...getTableStyles(),
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 25 },
+      },
       margin: { left: spacing.margin, right: spacing.margin },
+      didParseCell: function(data: any) {
+        if (data.section === 'body' && data.column.index === 2) {
+          const status = data.cell.raw;
+          if (status === "Conforme" || status === "Concluída" || status === "Concluído") {
+            data.cell.styles.textColor = colors.success;
+          } else if (status === "Não Conforme") {
+            data.cell.styles.textColor = colors.danger;
+          } else if (status === "Em Curso" || status === "Parcial") {
+            data.cell.styles.textColor = colors.warning;
+          }
+        }
+      },
     });
-    
-    currentY = doc.lastAutoTable.finalY + spacing.sectionGap;
   }
   
-  // Requirements by Legislation
-  if (currentY > 250) {
-    doc.addPage();
-    currentY = 20;
-  }
-  currentY = addSectionTitle(doc, "Requisitos por Diploma", currentY);
+  // ===== REQUIREMENTS BY LEGISLATION =====
+  doc.addPage();
+  addPDFHeader(doc, "Requisitos por Diploma", data.organization.name, logoBase64);
+  
+  let currentY = 65;
   
   // Group requirements by legislation
   const grouped = new Map<string, RequirementItem[]>();
@@ -803,38 +967,63 @@ export async function exportComplianceReportToPDF(data: ReportData): Promise<voi
   });
   
   grouped.forEach((reqs, legNumber) => {
-    if (currentY > 250) {
+    const legTitle = reqs[0]?.legislationTitle || "";
+    
+    // Check if we need a new page
+    if (currentY > pageHeight - 60) {
       doc.addPage();
-      currentY = 20;
+      currentY = 30;
     }
     
-    // Legislation header with accent
+    // Legislation header with emerald accent
     doc.setFillColor(...colors.bgAccent);
-    doc.rect(spacing.margin, currentY - 4, 170, 7, "F");
+    doc.roundedRect(spacing.margin, currentY - 4, pageWidth - (spacing.margin * 2), 12, 2, 2, "F");
     
     doc.setFontSize(typography.bodySize);
     doc.setTextColor(...colors.primary);
-    doc.text(legNumber, spacing.margin + 2, currentY);
-    currentY += 6;
+    doc.text(legNumber, spacing.margin + 3, currentY + 3);
+    
+    doc.setFontSize(typography.smallSize);
+    doc.setTextColor(...colors.textDark);
+    const titleText = legTitle.length > 70 ? legTitle.substring(0, 67) + "..." : legTitle;
+    doc.text(titleText, spacing.margin + 45, currentY + 3);
+    
+    currentY += 14;
     
     doc.autoTable({
       startY: currentY,
-      head: [["Artigo", "Requisito", "Estado"]],
+      head: [["Art.", "Requisito", "Estado", "Observações"]],
       body: reqs.map(req => [
         req.article || "-",
-        req.text.length > 100 ? req.text.substring(0, 97) + "..." : req.text,
+        req.text.length > 70 ? req.text.substring(0, 67) + "..." : req.text,
         getStatusLabel(req.status),
+        req.notes ? (req.notes.length > 25 ? req.notes.substring(0, 22) + "..." : req.notes) : "-",
       ]),
-      ...tableStyles,
+      ...getTableStyles(),
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 120 },
-        2: { cellWidth: 30 },
+        0: { cellWidth: 15 },
+        1: { cellWidth: 90 },
+        2: { cellWidth: 22, halign: "center" as const },
+        3: { cellWidth: 38 },
       },
       margin: { left: spacing.margin, right: spacing.margin },
+      didParseCell: function(data: any) {
+        if (data.section === 'body' && data.column.index === 2) {
+          const status = data.cell.raw;
+          if (status === "Conforme") {
+            data.cell.styles.textColor = colors.success;
+            data.cell.styles.fontStyle = 'bold';
+          } else if (status === "Não Conforme") {
+            data.cell.styles.textColor = colors.danger;
+            data.cell.styles.fontStyle = 'bold';
+          } else if (status === "Parcial") {
+            data.cell.styles.textColor = colors.warning;
+          }
+        }
+      },
     });
     
-    currentY = doc.lastAutoTable.finalY + spacing.itemGap;
+    currentY = doc.lastAutoTable.finalY + spacing.itemGap + 4;
   });
   
   addFooter(doc, data.organization.name);
