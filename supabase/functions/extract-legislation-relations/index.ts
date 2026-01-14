@@ -511,7 +511,9 @@ Se não encontrares relações, retorna um array vazio: []`;
 
     if (!response.ok) {
       console.error(`AI API error: ${response.status}`);
-      return [];
+      // Fallback to regex extraction when AI fails
+      console.log(`[FALLBACK] Using regex extraction for ${legislation.number}`);
+      return extractRelationsWithRegex(legislation, fullText);
     }
 
     const aiData = await response.json();
@@ -552,11 +554,122 @@ Se não encontrares relações, retorna um array vazio: []`;
     
   } catch (error) {
     console.error(`AI extraction error:`, error);
-    return [];
+    // Fallback to regex extraction on any error
+    return extractRelationsWithRegex(legislation, fullText);
   }
 }
 
-// Normalize legislation number for matching
+// Fallback regex-based relation extraction when AI fails
+function extractRelationsWithRegex(
+  legislation: { number: string; title: string; summary: string },
+  fullText: string
+): ExtractedRelation[] {
+  const relations: ExtractedRelation[] = [];
+  const text = `${legislation.summary || ''} ${fullText}`.toLowerCase();
+  
+  // Direct pattern to extract directive numbers with various formats
+  const directivePattern = /diretiva\s+(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/(?:ue|ce|cee|eu))?|\d+\/\d+\/(?:ue|ce|cee|eu|ec|eec))/gi;
+  
+  // Find transpositions - multiple patterns
+  const transposePatterns = [
+    /transpõe[ndo]*\s+.*?(?:diretiva|directiva)s?\s+(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/ue)?)/gi,
+    /transpon[do]*\s+.*?(?:diretiva|directiva)s?\s+(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/ue)?)/gi,
+    /transpos[eição]+\s+.*?(?:diretiva|directiva)s?\s+(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/ue)?)/gi,
+  ];
+  
+  for (const pattern of transposePatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const num = match[1];
+      if (num && !relations.some(r => r.target_number.toLowerCase().includes(num.toLowerCase()))) {
+        relations.push({
+          relation_type: 'transposicao',
+          target_number: `Diretiva ${num}`.toUpperCase().replace('DIRETIVA', 'Diretiva'),
+        });
+      }
+    }
+  }
+  
+  // Also check for "transpondo a Diretiva" pattern directly
+  const simpleTranspose = text.match(/transpon[do]+\s+a\s+diretiva\s+(?:n\.?º?\s*)?(\d{4}\/\d+(?:\/ue)?)/i);
+  if (simpleTranspose) {
+    const num = simpleTranspose[1];
+    if (!relations.some(r => r.target_number.toLowerCase().includes(num.toLowerCase()))) {
+      relations.push({
+        relation_type: 'transposicao',
+        target_number: `Diretiva ${num}/UE`,
+      });
+    }
+  }
+  
+  // Patterns for different legislation types
+  const legislationPatterns = [
+    // Portuguese
+    /(?:decreto-lei|lei|portaria|despacho|resolução|decreto)\s+n\.?º?\s*(\d+[-\/]\d+(?:\/\d+)?)/gi,
+    // EU Directives
+    directivePattern,
+    // EU Regulations
+    /regulamento\s+(?:\(ue\)|\(ce\)|\(cee\))?\s*(?:n\.?º?\s*)?(\d+\/\d{4}|\d{4}\/\d+)/gi,
+    // EU Decisions
+    /decis[ãa]o\s+(?:\(ue\)|\(ce\))?\s*(?:n\.?º?\s*)?(\d{4}\/\d+)/gi,
+  ];
+  
+  // Find revocations
+  const revokePatterns = [
+    /revoga(?:do|ndo|ção)?[:\s]+(?:o\s+|a\s+)?([^,\.]+)/gi,
+    /fica(?:m)?\s+revogad[oa]s?[:\s]+([^,\.]+)/gi,
+  ];
+  
+  for (const pattern of revokePatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      for (const legPattern of legislationPatterns) {
+        legPattern.lastIndex = 0; // Reset regex state
+        const legMatch = match[1].match(legPattern);
+        if (legMatch) {
+          for (const num of legMatch) {
+            if (!relations.some(r => r.target_number.toLowerCase().includes(num.toLowerCase()))) {
+              relations.push({
+                relation_type: 'revogado',
+                target_number: num.trim(),
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Find alterations
+  const alterPatterns = [
+    /altera(?:ção|ndo)?[:\s]+(?:o\s+|a\s+)?([^,\.]+)/gi,
+    /(?:primeira|segunda|terceira|\d+ª?)\s+alteração\s+(?:a[os]?\s+)?([^,\.]+)/gi,
+  ];
+  
+  for (const pattern of alterPatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      for (const legPattern of legislationPatterns) {
+        legPattern.lastIndex = 0; // Reset regex state
+        const legMatch = match[1].match(legPattern);
+        if (legMatch) {
+          for (const num of legMatch) {
+            if (!relations.some(r => r.target_number.toLowerCase().includes(num.toLowerCase()))) {
+              relations.push({
+                relation_type: 'alteracao',
+                target_number: num.trim(),
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`[REGEX FALLBACK] Found ${relations.length} relations for ${legislation.number}`);
+  return relations;
+}
+
 function normalizeNumber(num: string): string {
   return num
     .toLowerCase()
@@ -656,37 +769,51 @@ async function createMissingLegislation(
     const origin = determineOrigin(targetNumber);
     const year = extractYear(targetNumber);
     
-    console.log(`Creating legislation: ${targetNumber} (origin: ${origin})`);
+    console.log(`[CREATE] Starting creation: ${targetNumber} (origin: ${origin})`);
     
     // Initialize with basic data
     let title = targetNumber;
-    let summary = notes || `Diploma referenciado - a aguardar importação completa`;
+    let summary: string | undefined;
     let entity: string | undefined;
     let documentUrl: string | undefined;
     let publicationDate = sanitizeDate(year);
     let effectiveDate: string | null = null;
+    let metadataExtracted = false;
     
     // Try to fetch full metadata based on origin
     if (origin === 'PT') {
       // Search for DRE URL
+      console.log(`[CREATE] Searching DRE URL for: ${targetNumber}`);
       const dreUrl = await searchDREUrl(targetNumber, firecrawlApiKey);
       
       if (dreUrl) {
         documentUrl = dreUrl;
-        console.log(`Found DRE URL for ${targetNumber}: ${dreUrl}`);
+        console.log(`[CREATE] Found DRE URL: ${dreUrl}`);
         
         // Scrape metadata from DRE
+        console.log(`[CREATE] Scraping DRE for metadata...`);
         const content = await scrapeUrl(dreUrl, firecrawlApiKey);
         if (content && content.length > 100) {
           const metadata = extractMetadataFromDRE(content);
           
+          if (metadata.title && metadata.title.length > 10) {
+            title = metadata.title;
+            metadataExtracted = true;
+          }
           if (metadata.entity) entity = metadata.entity;
-          if (metadata.summary) summary = metadata.summary;
+          if (metadata.summary && metadata.summary.length > 20) {
+            summary = metadata.summary;
+            metadataExtracted = true;
+          }
           if (metadata.publicationDate) publicationDate = metadata.publicationDate;
           if (metadata.effectiveDate) effectiveDate = metadata.effectiveDate;
           
-          console.log(`Extracted DRE metadata for ${targetNumber}: entity=${metadata.entity}, summary=${metadata.summary?.substring(0, 50)}...`);
+          console.log(`[CREATE] DRE metadata extracted: title=${title?.substring(0, 50)}, summary=${summary?.substring(0, 50)}`);
+        } else {
+          console.log(`[CREATE] DRE scraping returned no content`);
         }
+      } else {
+        console.log(`[CREATE] No DRE URL found for ${targetNumber}`);
       }
     } else {
       // EU legislation - build EUR-Lex URL
@@ -694,22 +821,47 @@ async function createMissingLegislation(
       
       if (eurLexUrl) {
         documentUrl = eurLexUrl;
-        console.log(`Built EUR-Lex URL for ${targetNumber}: ${eurLexUrl}`);
+        console.log(`[CREATE] Built EUR-Lex URL: ${eurLexUrl}`);
         
         // Scrape metadata from EUR-Lex
+        console.log(`[CREATE] Scraping EUR-Lex for metadata...`);
         const content = await scrapeUrl(eurLexUrl, firecrawlApiKey);
         if (content && content.length > 100) {
+          console.log(`[CREATE] EUR-Lex content length: ${content.length} chars`);
           const metadata = extractMetadataFromEurLex(content);
           
           if (metadata.title && metadata.title.length > targetNumber.length) {
             title = metadata.title;
+            metadataExtracted = true;
+            console.log(`[CREATE] Extracted title: ${title.substring(0, 80)}`);
           }
-          if (metadata.entity) entity = metadata.entity;
-          if (metadata.summary) summary = metadata.summary;
-          if (metadata.publicationDate) publicationDate = metadata.publicationDate;
-          
-          console.log(`Extracted EUR-Lex metadata for ${targetNumber}: title=${title.substring(0, 50)}...`);
+          if (metadata.entity) {
+            entity = metadata.entity;
+            console.log(`[CREATE] Extracted entity: ${entity}`);
+          }
+          if (metadata.summary && metadata.summary.length > 20) {
+            summary = metadata.summary;
+            metadataExtracted = true;
+            console.log(`[CREATE] Extracted summary: ${summary.substring(0, 80)}`);
+          }
+          if (metadata.publicationDate) {
+            publicationDate = metadata.publicationDate;
+            console.log(`[CREATE] Extracted publication date: ${publicationDate}`);
+          }
+        } else {
+          console.log(`[CREATE] EUR-Lex scraping returned no/short content (${content?.length || 0} chars)`);
         }
+      } else {
+        console.log(`[CREATE] Could not build EUR-Lex URL for ${targetNumber}`);
+      }
+    }
+    
+    // Only use placeholder if no metadata was extracted
+    if (!summary) {
+      if (metadataExtracted) {
+        summary = notes || undefined;
+      } else {
+        summary = notes || `Diploma referenciado - a aguardar importação completa`;
       }
     }
     
@@ -718,13 +870,23 @@ async function createMissingLegislation(
       number: targetNumber,
       title,
       origin,
-      summary,
     };
     
+    if (summary) insertData.summary = summary;
     if (documentUrl) insertData.document_url = documentUrl;
     if (entity) insertData.entity = entity;
     if (publicationDate) insertData.publication_date = publicationDate;
     if (effectiveDate) insertData.effective_date = effectiveDate;
+    
+    console.log(`[CREATE] Inserting legislation with data:`, JSON.stringify({
+      number: targetNumber,
+      title: title?.substring(0, 50),
+      origin,
+      hasUrl: !!documentUrl,
+      hasSummary: !!summary,
+      hasEntity: !!entity,
+      metadataExtracted
+    }));
     
     const { data, error } = await supabase
       .from('legislation')
@@ -733,14 +895,14 @@ async function createMissingLegislation(
       .single();
     
     if (error) {
-      console.error(`Failed to create legislation "${targetNumber}":`, error);
+      console.error(`[CREATE] Failed to insert legislation "${targetNumber}":`, error);
       return null;
     }
     
-    console.log(`✓ Created legislation: ${targetNumber} (id: ${data.id}) with ${documentUrl ? 'URL' : 'no URL'}`);
+    console.log(`[CREATE] ✓ Created legislation: ${targetNumber} (id: ${data.id}) - metadata: ${metadataExtracted ? 'COMPLETE' : 'PENDING'}`);
     return { id: data.id, number: data.number };
   } catch (error) {
-    console.error(`Error creating legislation "${targetNumber}":`, error);
+    console.error(`[CREATE] Error creating legislation "${targetNumber}":`, error);
     return null;
   }
 }
