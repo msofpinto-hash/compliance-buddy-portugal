@@ -58,6 +58,7 @@ import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDial
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
 import { WelcomeHero } from "@/components/client/WelcomeHero";
 import { ModuleCard } from "@/components/client/ModuleCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { ClientGridBackground, ClientParticles, ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -740,6 +741,7 @@ export default function Dashboard() {
                   </TooltipContent>
                 </UITooltip>
               </TooltipProvider>
+              <ThemeToggle />
             </div>
           </div>
         </header>
