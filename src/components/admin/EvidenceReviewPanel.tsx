@@ -381,46 +381,48 @@ export function EvidenceReviewPanel() {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-sm text-muted-foreground">Total</p>
+            <div className="text-2xl font-bold text-stone-800 dark:text-stone-100">{stats.total}</div>
+            <p className="text-sm text-amber-700/70 dark:text-amber-400/70">Total</p>
           </CardContent>
         </Card>
-        <Card className="border-gray-300">
+        <Card className="bg-gradient-to-br from-stone-50/95 via-amber-50/80 to-orange-50/70 dark:from-stone-900/50 dark:via-amber-950/40 dark:to-orange-950/30 border border-stone-200/60 dark:border-stone-700/40">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-gray-600">{stats.pending}</div>
-            <p className="text-sm text-muted-foreground">Pendentes</p>
+            <div className="text-2xl font-bold text-stone-600 dark:text-stone-300">{stats.pending}</div>
+            <p className="text-sm text-amber-700/70 dark:text-amber-400/70">Pendentes</p>
           </CardContent>
         </Card>
-        <Card className="border-blue-300">
+        <Card className="bg-gradient-to-br from-blue-50/95 via-sky-50/80 to-cyan-50/70 dark:from-blue-950/40 dark:via-sky-950/30 dark:to-cyan-950/25 border border-blue-200/60 dark:border-blue-800/40">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">{stats.submitted}</div>
-            <p className="text-sm text-muted-foreground">Para Revisão</p>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.submitted}</div>
+            <p className="text-sm text-blue-700/70 dark:text-blue-400/70">Para Revisão</p>
           </CardContent>
         </Card>
-        <Card className="border-green-300">
+        <Card className="bg-gradient-to-br from-emerald-50/95 via-teal-50/80 to-green-50/70 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-green-950/25 border border-emerald-200/60 dark:border-emerald-800/40">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
-            <p className="text-sm text-muted-foreground">Aprovados</p>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.approved}</div>
+            <p className="text-sm text-emerald-700/70 dark:text-emerald-400/70">Aprovados</p>
           </CardContent>
         </Card>
-        <Card className="border-red-300">
+        <Card className="bg-gradient-to-br from-red-50/95 via-rose-50/80 to-pink-50/70 dark:from-red-950/40 dark:via-rose-950/30 dark:to-pink-950/25 border border-red-200/60 dark:border-red-800/40">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-            <p className="text-sm text-muted-foreground">Rejeitados</p>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.rejected}</div>
+            <p className="text-sm text-red-700/70 dark:text-red-400/70">Rejeitados</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-stone-100">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+              <Eye className="h-4 w-4 text-white" />
+            </div>
             Revisão de Evidências
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-amber-700/70 dark:text-amber-400/70">
             Reveja e aprove as evidências documentais submetidas pelos clientes
           </CardDescription>
         </CardHeader>

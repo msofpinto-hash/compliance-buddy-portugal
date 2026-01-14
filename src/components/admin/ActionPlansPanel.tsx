@@ -513,13 +513,15 @@ export function ActionPlansPanel() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <ListTodo className="h-6 w-6" />
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-stone-800 dark:text-stone-100">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25">
+              <ListTodo className="h-5 w-5 text-white" />
+            </div>
             Planos de Ação
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-amber-700/70 dark:text-amber-400/70 mt-1">
             Gerencie ações corretivas para não conformidades
           </p>
         </div>
@@ -531,28 +533,28 @@ export function ActionPlansPanel() {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setStatusFilter("all")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40" onClick={() => setStatusFilter("all")}>
           <CardContent className="pt-4">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Total</p>
+            <div className="text-2xl font-bold text-stone-800 dark:text-stone-100">{stats.total}</div>
+            <p className="text-xs text-amber-700/70 dark:text-amber-400/70">Total</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setStatusFilter("pendente")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-stone-50/95 via-amber-50/80 to-orange-50/70 dark:from-stone-900/50 dark:via-amber-950/40 dark:to-orange-950/30 border border-stone-200/60 dark:border-stone-700/40" onClick={() => setStatusFilter("pendente")}>
           <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-gray-600">{stats.pendente}</div>
-            <p className="text-xs text-muted-foreground">Pendentes</p>
+            <div className="text-2xl font-bold text-stone-600 dark:text-stone-300">{stats.pendente}</div>
+            <p className="text-xs text-amber-700/70 dark:text-amber-400/70">Pendentes</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setStatusFilter("em_curso")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-orange-50/95 via-amber-50/80 to-yellow-50/70 dark:from-orange-950/40 dark:via-amber-950/35 dark:to-yellow-950/25 border border-orange-200/60 dark:border-orange-800/40" onClick={() => setStatusFilter("em_curso")}>
           <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-amber-600">{stats.em_curso}</div>
-            <p className="text-xs text-muted-foreground">Em Curso</p>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.em_curso}</div>
+            <p className="text-xs text-amber-700/70 dark:text-amber-400/70">Em Curso</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setStatusFilter("concluido")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-emerald-50/95 via-teal-50/80 to-green-50/70 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-green-950/25 border border-emerald-200/60 dark:border-emerald-800/40" onClick={() => setStatusFilter("concluido")}>
           <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-green-600">{stats.concluido}</div>
-            <p className="text-xs text-muted-foreground">Concluídos</p>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.concluido}</div>
+            <p className="text-xs text-emerald-700/70 dark:text-emerald-400/70">Concluídos</p>
           </CardContent>
         </Card>
       </div>
@@ -560,17 +562,17 @@ export function ActionPlansPanel() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Plans List */}
         <div className="lg:col-span-1 space-y-4">
-          <Card>
+          <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Planos de Ação</CardTitle>
+                <CardTitle className="text-base text-stone-800 dark:text-stone-100">Planos de Ação</CardTitle>
                 {statusFilter !== "all" && (
-                  <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+                  <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")} className="text-amber-700 hover:text-amber-800 hover:bg-amber-100/50">
                     Limpar filtro
                   </Button>
                 )}
               </div>
-              <CardDescription>{filteredPlans?.length || 0} planos</CardDescription>
+              <CardDescription className="text-amber-700/70 dark:text-amber-400/70">{filteredPlans?.length || 0} planos</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (

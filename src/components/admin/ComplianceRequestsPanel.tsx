@@ -235,12 +235,14 @@ export function ComplianceRequestsPanel() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-stone-100">
+                <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+                  <AlertCircle className="h-4 w-4 text-white" />
+                </div>
                 Pedidos de Alteração de Compliance
                 {pendingCount > 0 && (
                   <Badge variant="destructive" className="ml-2">
@@ -248,12 +250,12 @@ export function ComplianceRequestsPanel() {
                   </Badge>
                 )}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-amber-700/70 dark:text-amber-400/70">
                 Reveja e aprove alterações de conformidade propostas por clientes
               </CardDescription>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 border-amber-200/60 dark:border-amber-800/40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
