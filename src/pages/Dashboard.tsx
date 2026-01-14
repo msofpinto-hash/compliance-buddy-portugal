@@ -716,7 +716,7 @@ export default function Dashboard() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+                className="lg:hidden text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 icon-pulse transition-all duration-200 active:scale-90"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
@@ -751,10 +751,10 @@ export default function Dashboard() {
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <Link to="/legislacao-recente">
-                      <Button variant="ghost" size="icon" className="relative text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
+                      <Button variant="ghost" size="icon" className="relative text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 icon-pulse transition-all duration-200 hover:scale-110 active:scale-95">
                         <FileText className="h-5 w-5" />
                         {unreadLegislationCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 text-white text-xs flex items-center justify-center shadow-sm">
+                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 text-white text-xs flex items-center justify-center shadow-sm animate-pulse-ring">
                             {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
                           </span>
                         )}
@@ -854,9 +854,9 @@ export default function Dashboard() {
                     </div>
                     <Link 
                       to="/legislacao-recente" 
-                      className="flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium hover:from-emerald-600 hover:to-teal-700 transition-all shadow-md hover:shadow-lg"
+                      className="group flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-emerald-500/25 active:scale-95"
                     >
-                      Ver todos <ChevronRight className="h-4 w-4" />
+                      Ver todos <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                     </Link>
                   </div>
                 </CardHeader>
@@ -880,7 +880,7 @@ export default function Dashboard() {
                           <Link
                             key={leg.id}
                             to={`/legislacao/${leg.id}`}
-                            className="group relative rounded-xl border border-slate-200/80 dark:border-slate-600/50 bg-white dark:bg-slate-700/80 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                            className="group relative rounded-xl border border-slate-200/80 dark:border-slate-600/50 bg-white dark:bg-slate-700/80 overflow-hidden hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 transform hover:-translate-y-2 active:translate-y-0 active:shadow-md"
                           >
                             {/* Colored top accent */}
                             <div className={cn(

@@ -254,3 +254,119 @@ All colors MUST be HSL.
 .bg-gradient-radial {
   background: radial-gradient(circle, var(--tw-gradient-stops));
 }
+
+/* Interactive element micro-interactions */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes press {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+}
+
+/* Utility classes for micro-interactions */
+.interactive-lift {
+  @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:shadow-md;
+}
+
+.interactive-scale {
+  @apply transition-transform duration-200 ease-out hover:scale-105 active:scale-95;
+}
+
+.interactive-glow {
+  @apply transition-shadow duration-300 hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)];
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animate-press {
+  animation: press 0.2s ease-out;
+}
+
+/* Card interactive styles */
+.card-interactive {
+  @apply transition-all duration-300 ease-out hover:shadow-xl hover:-translate-y-1 active:translate-y-0 cursor-pointer;
+}
+
+/* Link interactive styles */
+.link-interactive {
+  @apply relative transition-colors duration-200;
+}
+
+.link-interactive::after {
+  content: '';
+  @apply absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
+}
+
+.link-interactive:hover::after {
+  @apply w-full;
+}
+
+/* Badge interactive styles */
+.badge-interactive {
+  @apply transition-all duration-200 hover:scale-110 hover:shadow-md cursor-default;
+}
+
+/* Input focus animation */
+.input-focus-ring {
+  @apply transition-all duration-200 focus:ring-4 focus:ring-primary/20 focus:border-primary;
+}
+
+/* Icon button pulse */
+.icon-pulse:hover svg {
+  animation: bounce-subtle 0.5s ease-out;
+}
