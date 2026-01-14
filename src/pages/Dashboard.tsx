@@ -98,10 +98,18 @@ import heroVideo from "@/assets/hero-background.mp4";
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
 const COLORS = {
-  compliant: "hsl(142, 76%, 36%)",
-  nonCompliant: "hsl(0, 84%, 60%)",
-  inProgress: "hsl(45, 93%, 47%)",
-  pending: "hsl(215, 20%, 65%)",
+  compliant: "hsl(152, 82%, 42%)",
+  nonCompliant: "hsl(354, 85%, 55%)",
+  inProgress: "hsl(38, 95%, 52%)",
+  pending: "hsl(220, 15%, 55%)",
+};
+
+// Gradient definitions for pie charts
+const PIE_GRADIENTS = {
+  compliant: { start: "hsl(158, 85%, 48%)", end: "hsl(145, 78%, 36%)" },
+  nonCompliant: { start: "hsl(0, 90%, 65%)", end: "hsl(354, 85%, 50%)" },
+  inProgress: { start: "hsl(45, 100%, 60%)", end: "hsl(32, 95%, 48%)" },
+  pending: { start: "hsl(220, 20%, 70%)", end: "hsl(220, 15%, 50%)" },
 };
 
 // Audit icon configuration based on keywords
@@ -925,201 +933,329 @@ export default function Dashboard() {
               {/* Charts and Stats Row - 3 columns */}
               <div className="grid gap-6 lg:grid-cols-3">
                 {/* Compliance Pie Chart */}
-                <Card className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
-                      <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                      </div>
-                      Estado de Conformidade
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {compliancePieData.length > 0 ? (
-                      <div className="h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={compliancePieData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={80}
-                              paddingAngle={2}
-                              dataKey="value"
-                            >
-                              {compliancePieData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              formatter={(value: number) => [`${value} requisitos`, ""]}
-                              contentStyle={{ 
-                                borderRadius: "8px", 
-                                border: "2px solid #e2e8f0", 
-                                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                                backgroundColor: "#fff",
-                                color: "#1e293b"
-                              }}
-                            />
-                            <Legend 
-                              verticalAlign="bottom" 
-                              height={36}
-                              formatter={(value) => <span className="text-sm text-slate-600 dark:text-slate-300">{value}</span>}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-[200px] flex items-center justify-center text-slate-400">
-                        <div className="text-center">
-                          <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                          <p>Sem dados de conformidade</p>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                >
+                  <Card className="group relative bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/50 dark:from-slate-900 dark:via-emerald-950/20 dark:to-slate-900 border-2 border-emerald-200/60 dark:border-emerald-800/40 shadow-lg hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden">
+                    {/* Animated background glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 via-transparent to-teal-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-emerald-400/20 to-teal-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    
+                    <CardHeader className="pb-2 relative z-10">
+                      <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                        <motion.div 
+                          className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30"
+                          whileHover={{ scale: 1.1, rotate: 5 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-white" />
+                        </motion.div>
+                        <span className="font-semibold">Estado de Conformidade</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="relative z-10">
+                      {compliancePieData.length > 0 ? (
+                        <div className="h-[200px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <defs>
+                                <linearGradient id="complianceGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor={PIE_GRADIENTS.compliant.start} />
+                                  <stop offset="100%" stopColor={PIE_GRADIENTS.compliant.end} />
+                                </linearGradient>
+                                <linearGradient id="nonComplianceGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor={PIE_GRADIENTS.nonCompliant.start} />
+                                  <stop offset="100%" stopColor={PIE_GRADIENTS.nonCompliant.end} />
+                                </linearGradient>
+                                <linearGradient id="inProgressGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor={PIE_GRADIENTS.inProgress.start} />
+                                  <stop offset="100%" stopColor={PIE_GRADIENTS.inProgress.end} />
+                                </linearGradient>
+                                <linearGradient id="pendingGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor={PIE_GRADIENTS.pending.start} />
+                                  <stop offset="100%" stopColor={PIE_GRADIENTS.pending.end} />
+                                </linearGradient>
+                                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                  <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                              </defs>
+                              <Pie
+                                data={compliancePieData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={45}
+                                outerRadius={75}
+                                paddingAngle={4}
+                                dataKey="value"
+                                animationBegin={0}
+                                animationDuration={1200}
+                                animationEasing="ease-out"
+                                stroke="none"
+                              >
+                                {compliancePieData.map((entry, index) => {
+                                  const gradientId = entry.name === "Conforme" ? "complianceGradient" 
+                                    : entry.name === "Não Conforme" ? "nonComplianceGradient"
+                                    : entry.name === "Em Progresso" ? "inProgressGradient" 
+                                    : "pendingGradient";
+                                  return <Cell key={`cell-${index}`} fill={`url(#${gradientId})`} filter="url(#glow)" />;
+                                })}
+                              </Pie>
+                              <Tooltip 
+                                formatter={(value: number) => [`${value} requisitos`, ""]}
+                                contentStyle={{ 
+                                  borderRadius: "12px", 
+                                  border: "none", 
+                                  boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                                  background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+                                  color: "#1e293b",
+                                  padding: "12px 16px"
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="bottom" 
+                                height={36}
+                                formatter={(value) => <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{value}</span>}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
                         </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      ) : (
+                        <div className="h-[200px] flex items-center justify-center text-slate-400">
+                          <div className="text-center">
+                            <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                            <p>Sem dados de conformidade</p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
                 {/* Action Plans Pie Chart */}
-                <Card className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
-                      <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                        <ClipboardList className="h-4 w-4 text-primary" />
-                      </div>
-                      Planos de Ação
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {actionPlanPieData.length > 0 ? (
-                      <div className="h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={actionPlanPieData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={80}
-                              paddingAngle={2}
-                              dataKey="value"
-                            >
-                              {actionPlanPieData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              formatter={(value: number) => [`${value} ações`, ""]}
-                              contentStyle={{ 
-                                borderRadius: "8px", 
-                                border: "2px solid #e2e8f0", 
-                                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                                backgroundColor: "#fff",
-                                color: "#1e293b"
-                              }}
-                            />
-                            <Legend 
-                              verticalAlign="bottom" 
-                              height={36}
-                              formatter={(value) => <span className="text-sm text-slate-600 dark:text-slate-300">{value}</span>}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-[200px] flex items-center justify-center text-slate-400">
-                        <div className="text-center">
-                          <ClipboardList className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                          <p>Sem planos de ação</p>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <Card className="group relative bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 dark:from-slate-900 dark:via-blue-950/20 dark:to-slate-900 border-2 border-blue-200/60 dark:border-blue-800/40 shadow-lg hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 overflow-hidden">
+                    {/* Animated background glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 via-transparent to-indigo-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-blue-400/20 to-indigo-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    
+                    <CardHeader className="pb-2 relative z-10">
+                      <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                        <motion.div 
+                          className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30"
+                          whileHover={{ scale: 1.1, rotate: -5 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <ClipboardList className="h-4 w-4 text-white" />
+                        </motion.div>
+                        <span className="font-semibold">Planos de Ação</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="relative z-10">
+                      {actionPlanPieData.length > 0 ? (
+                        <div className="h-[200px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <defs>
+                                <linearGradient id="actionCompletedGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor="hsl(158, 85%, 48%)" />
+                                  <stop offset="100%" stopColor="hsl(145, 78%, 36%)" />
+                                </linearGradient>
+                                <linearGradient id="actionPendingGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor="hsl(45, 100%, 60%)" />
+                                  <stop offset="100%" stopColor="hsl(32, 95%, 48%)" />
+                                </linearGradient>
+                                <linearGradient id="actionOverdueGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor="hsl(0, 90%, 65%)" />
+                                  <stop offset="100%" stopColor="hsl(354, 85%, 50%)" />
+                                </linearGradient>
+                                <linearGradient id="actionInProgressGradient" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor="hsl(217, 91%, 65%)" />
+                                  <stop offset="100%" stopColor="hsl(224, 76%, 48%)" />
+                                </linearGradient>
+                              </defs>
+                              <Pie
+                                data={actionPlanPieData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={45}
+                                outerRadius={75}
+                                paddingAngle={4}
+                                dataKey="value"
+                                animationBegin={100}
+                                animationDuration={1200}
+                                animationEasing="ease-out"
+                                stroke="none"
+                              >
+                                {actionPlanPieData.map((entry, index) => {
+                                  const gradientId = entry.name === "Concluído" ? "actionCompletedGradient" 
+                                    : entry.name === "Pendente" ? "actionPendingGradient"
+                                    : entry.name === "Atrasado" ? "actionOverdueGradient" 
+                                    : "actionInProgressGradient";
+                                  return <Cell key={`cell-${index}`} fill={`url(#${gradientId})`} filter="url(#glow)" />;
+                                })}
+                              </Pie>
+                              <Tooltip 
+                                formatter={(value: number) => [`${value} ações`, ""]}
+                                contentStyle={{ 
+                                  borderRadius: "12px", 
+                                  border: "none", 
+                                  boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                                  background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+                                  color: "#1e293b",
+                                  padding: "12px 16px"
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="bottom" 
+                                height={36}
+                                formatter={(value) => <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{value}</span>}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
                         </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      ) : (
+                        <div className="h-[200px] flex items-center justify-center text-slate-400">
+                          <div className="text-center">
+                            <ClipboardList className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                            <p>Sem planos de ação</p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
                 {/* Quick Stats + Trend */}
-                <Card className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
-                      <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700">
-                        <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      Atividade
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-amber-500" />
-                        <span className="text-sm text-slate-600 dark:text-slate-300">Ações Pendentes</span>
-                      </div>
-                      <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 font-bold">{actionPlanStats.pending}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-red-500" />
-                        <span className="text-sm text-slate-600 dark:text-slate-300">Ações Atrasadas</span>
-                      </div>
-                      <Badge variant="outline" className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700 font-bold">{actionPlanStats.overdue}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        <span className="text-sm text-slate-600 dark:text-slate-300">Concluídas</span>
-                      </div>
-                      <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 font-bold">{actionPlanStats.completed}</Badge>
-                    </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <Card className="group relative bg-gradient-to-br from-white via-amber-50/30 to-orange-50/50 dark:from-slate-900 dark:via-amber-950/20 dark:to-slate-900 border-2 border-amber-200/60 dark:border-amber-800/40 shadow-lg hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden">
+                    {/* Animated background glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-400/5 via-transparent to-orange-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                        <motion.div 
+                          className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30"
+                          whileHover={{ scale: 1.1, rotate: 5 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <TrendingUp className="h-4 w-4 text-white" />
+                        </motion.div>
+                        <span className="font-semibold">Atividade</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 relative z-10">
+                      <motion.div 
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-700/30 hover:shadow-md hover:shadow-amber-500/10 transition-all duration-300"
+                        whileHover={{ scale: 1.02, x: 4 }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 shadow-sm">
+                            <Clock className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Ações Pendentes</span>
+                        </div>
+                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-0 shadow-lg shadow-amber-500/25 font-bold px-3">{actionPlanStats.pending}</Badge>
+                      </motion.div>
+                      <motion.div 
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border border-red-200/50 dark:border-red-700/30 hover:shadow-md hover:shadow-red-500/10 transition-all duration-300"
+                        whileHover={{ scale: 1.02, x: 4 }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-red-400 to-rose-500 shadow-sm">
+                            <AlertTriangle className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Ações Atrasadas</span>
+                        </div>
+                        <Badge className="bg-gradient-to-r from-red-500 to-rose-500 text-white border-0 shadow-lg shadow-red-500/25 font-bold px-3">{actionPlanStats.overdue}</Badge>
+                      </motion.div>
+                      <motion.div 
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200/50 dark:border-emerald-700/30 hover:shadow-md hover:shadow-emerald-500/10 transition-all duration-300"
+                        whileHover={{ scale: 1.02, x: 4 }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Concluídas</span>
+                        </div>
+                        <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 shadow-lg shadow-emerald-500/25 font-bold px-3">{actionPlanStats.completed}</Badge>
+                      </motion.div>
 
-                    {/* Mini Trend Chart */}
-                    <div className="pt-3 border-t-2 border-slate-100 dark:border-slate-800">
-                      <p className="text-xs text-slate-500 mb-2">Evolução (últimos 7 dias)</p>
-                      <div className="h-[80px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="colorTaxa" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="hsl(161, 93%, 30%)" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="hsl(161, 93%, 30%)" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <XAxis 
-                              dataKey="date" 
-                              tick={{ fontSize: 10, fill: "#94a3b8" }}
-                              tickLine={false}
-                              axisLine={false}
-                            />
-                            <YAxis 
-                              domain={[0, 100]}
-                              tick={{ fontSize: 10, fill: "#94a3b8" }}
-                              tickLine={false}
-                              axisLine={false}
-                              tickFormatter={(v) => `${v}%`}
-                            />
-                            <Tooltip 
-                              formatter={(value: number) => [`${value}%`, "Taxa"]}
-                              contentStyle={{ 
-                                borderRadius: "8px", 
-                                border: "2px solid #e2e8f0",
-                                backgroundColor: "#fff",
-                                color: "#1e293b",
-                                fontSize: "12px"
-                              }}
-                            />
-                            <Area 
-                              type="monotone" 
-                              dataKey="taxa" 
-                              stroke="hsl(161, 93%, 40%)" 
-                              strokeWidth={2}
-                              fillOpacity={1} 
-                              fill="url(#colorTaxa)" 
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
+                      {/* Mini Trend Chart */}
+                      <div className="pt-3 border-t border-amber-200/50 dark:border-amber-800/30">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Evolução (últimos 7 dias)</p>
+                        <div className="h-[80px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="colorTaxaVibrant" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="hsl(158, 90%, 45%)" stopOpacity={0.6}/>
+                                  <stop offset="50%" stopColor="hsl(168, 85%, 38%)" stopOpacity={0.3}/>
+                                  <stop offset="100%" stopColor="hsl(175, 80%, 35%)" stopOpacity={0.05}/>
+                                </linearGradient>
+                              </defs>
+                              <XAxis 
+                                dataKey="date" 
+                                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                                tickLine={false}
+                                axisLine={false}
+                              />
+                              <YAxis 
+                                domain={[0, 100]}
+                                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(v) => `${v}%`}
+                              />
+                              <Tooltip 
+                                formatter={(value: number) => [`${value}%`, "Taxa"]}
+                                contentStyle={{ 
+                                  borderRadius: "12px", 
+                                  border: "none",
+                                  boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                                  background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+                                  color: "#1e293b",
+                                  fontSize: "12px",
+                                  padding: "10px 14px"
+                                }}
+                              />
+                              <Area 
+                                type="monotone" 
+                                dataKey="taxa" 
+                                stroke="url(#trendStroke)"
+                                strokeWidth={3}
+                                fillOpacity={1} 
+                                fill="url(#colorTaxaVibrant)"
+                                animationBegin={200}
+                                animationDuration={1500}
+                                animationEasing="ease-out"
+                              />
+                              <defs>
+                                <linearGradient id="trendStroke" x1="0" y1="0" x2="1" y2="0">
+                                  <stop offset="0%" stopColor="hsl(158, 90%, 45%)" />
+                                  <stop offset="50%" stopColor="hsl(168, 85%, 40%)" />
+                                  <stop offset="100%" stopColor="hsl(175, 80%, 35%)" />
+                                </linearGradient>
+                              </defs>
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               </div>
             </>
           )}
