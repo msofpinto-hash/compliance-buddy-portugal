@@ -668,27 +668,15 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex relative overflow-hidden">
-      {/* Subtle background pattern */}
-      <div 
-        className="fixed inset-0 opacity-40 dark:opacity-15 pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(16, 185, 129, 0.08) 1px, transparent 0)`,
-          backgroundSize: '32px 32px'
-        }}
-      />
-      {/* Decorative gradient orbs */}
-      <div className="fixed top-20 right-20 w-96 h-96 bg-gradient-to-br from-emerald-400/10 via-teal-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed bottom-20 left-20 w-80 h-80 bg-gradient-to-tr from-blue-400/10 via-purple-400/5 to-transparent rounded-full blur-3xl pointer-events-none" />
-      
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex relative">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-slate-200/80 dark:border-slate-700/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-slate-200/20 dark:shadow-none">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <SidebarContent />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-slate-200 dark:border-slate-700/50">
+        <SheetContent side="left" className="w-64 p-0 border-r-2 border-slate-200 dark:border-slate-800">
           <SidebarContent />
         </SheetContent>
       </Sheet>
@@ -696,7 +684,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-700/50 shadow-sm shadow-slate-200/50 dark:shadow-none">
+        <header className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
@@ -810,93 +798,82 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Recent Legislation - Improved */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-              >
-                <Card className="overflow-hidden bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-white">
-                          <FileText className="h-5 w-5 text-emerald-500" />
-                          Legislação Recente
-                        </CardTitle>
-                        <CardDescription className="text-slate-500 dark:text-slate-400">Últimos diplomas publicados</CardDescription>
-                      </div>
-                      <Link to="/legislacao-recente" className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors">
-                        Ver todos <ChevronRight className="h-4 w-4" />
-                      </Link>
+              {/* Recent Legislation */}
+              <Card className="overflow-hidden bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Legislação Recente
+                      </CardTitle>
+                      <CardDescription className="text-slate-500 dark:text-slate-400">Últimos diplomas publicados</CardDescription>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    {loadingLegislation ? (
-                      <div className="grid md:grid-cols-4 gap-4">
-                        {[1, 2, 3, 4].map((i) => (
-                          <Skeleton key={i} className="h-40 w-full rounded-xl bg-slate-100 dark:bg-slate-800/50" />
-                        ))}
-                      </div>
-                    ) : recentLegislation && recentLegislation.length > 0 ? (
-                      <div className="grid md:grid-cols-4 gap-4">
-                        {recentLegislation.slice(0, 4).map((leg) => (
-                          <Link
-                            key={leg.id}
-                            to={`/legislacao/${leg.id}`}
-                            className="relative rounded-xl border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/40 overflow-hidden group hover:border-emerald-300 dark:hover:border-emerald-500/30 hover:shadow-md hover:-translate-y-1 transition-all duration-300"
-                          >
-                            <div className="absolute top-2 left-2 z-10">
-                              <Badge className={cn(
-                                "text-xs shadow-sm",
-                                leg.source === "dre" 
-                                  ? "bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" 
-                                  : "bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
-                              )}>
-                                {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
-                              </Badge>
+                    <Link to="/legislacao-recente" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium transition-colors">
+                      Ver todos <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {loadingLegislation ? (
+                    <div className="grid md:grid-cols-4 gap-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <Skeleton key={i} className="h-40 w-full rounded-lg bg-slate-100 dark:bg-slate-800" />
+                      ))}
+                    </div>
+                  ) : recentLegislation && recentLegislation.length > 0 ? (
+                    <div className="grid md:grid-cols-4 gap-4">
+                      {recentLegislation.slice(0, 4).map((leg) => (
+                        <Link
+                          key={leg.id}
+                          to={`/legislacao/${leg.id}`}
+                          className="relative rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden group hover:border-primary/50 hover:shadow-md transition-all duration-200"
+                        >
+                          <div className="absolute top-2 left-2 z-10">
+                            <Badge variant="outline" className={cn(
+                              "text-xs",
+                              leg.source === "dre" 
+                                ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700" 
+                                : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                            )}>
+                              {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
+                            </Badge>
+                          </div>
+                          <div className="h-12 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700" />
+                          <div className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-slate-500 font-medium">
+                                {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
+                              </span>
+                              <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
-                            <div className="h-16 bg-gradient-to-br from-emerald-50 dark:from-emerald-500/10 via-transparent to-transparent" />
-                            <div className="p-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-slate-500 font-medium">
-                                  {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
-                                </span>
-                                <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                              <p className="text-sm font-semibold text-slate-800 dark:text-white line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                                {leg.number}
-                              </p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
-                                {leg.title}
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <FileText className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-500">Nenhuma legislação disponível</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-primary transition-colors">
+                              {leg.number}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
+                              {leg.title}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <FileText className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                      <p className="text-slate-500">Nenhuma legislação disponível</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Charts and Stats Row - 3 columns */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="grid gap-6 lg:grid-cols-3"
-              >
+              <div className="grid gap-6 lg:grid-cols-3">
                 {/* Compliance Pie Chart */}
-                <Card className="bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
+                <Card className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
-                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                      <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
                       </div>
                       Estado de Conformidade
                     </CardTitle>
@@ -922,9 +899,9 @@ export default function Dashboard() {
                             <Tooltip 
                               formatter={(value: number) => [`${value} requisitos`, ""]}
                               contentStyle={{ 
-                                borderRadius: "12px", 
-                                border: "1px solid #e2e8f0", 
-                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                borderRadius: "8px", 
+                                border: "2px solid #e2e8f0", 
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                                 backgroundColor: "#fff",
                                 color: "#1e293b"
                               }}
@@ -949,11 +926,11 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Action Plans Pie Chart */}
-                <Card className="bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
+                <Card className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
-                      <div className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-500/10">
-                        <ClipboardList className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                      <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                        <ClipboardList className="h-4 w-4 text-primary" />
                       </div>
                       Planos de Ação
                     </CardTitle>
@@ -979,9 +956,9 @@ export default function Dashboard() {
                             <Tooltip 
                               formatter={(value: number) => [`${value} ações`, ""]}
                               contentStyle={{ 
-                                borderRadius: "12px", 
-                                border: "1px solid #e2e8f0", 
-                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                borderRadius: "8px", 
+                                border: "2px solid #e2e8f0", 
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                                 backgroundColor: "#fff",
                                 color: "#1e293b"
                               }}
@@ -1006,40 +983,40 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Quick Stats + Trend */}
-                <Card className="bg-white/90 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/40 shadow-lg shadow-slate-200/50 dark:shadow-none">
+                <Card className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2 text-slate-800 dark:text-white">
-                      <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                    <CardTitle className="text-base flex items-center gap-2 text-slate-900 dark:text-white">
+                      <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700">
                         <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       Atividade
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-amber-500" />
                         <span className="text-sm text-slate-600 dark:text-slate-300">Ações Pendentes</span>
                       </div>
-                      <Badge className="bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30 font-bold">{actionPlanStats.pending}</Badge>
+                      <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 font-bold">{actionPlanStats.pending}</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-red-500" />
                         <span className="text-sm text-slate-600 dark:text-slate-300">Ações Atrasadas</span>
                       </div>
-                      <Badge className="bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30 font-bold">{actionPlanStats.overdue}</Badge>
+                      <Badge variant="outline" className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700 font-bold">{actionPlanStats.overdue}</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                         <span className="text-sm text-slate-600 dark:text-slate-300">Concluídas</span>
                       </div>
-                      <Badge className="bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30 font-bold">{actionPlanStats.completed}</Badge>
+                      <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 font-bold">{actionPlanStats.completed}</Badge>
                     </div>
 
                     {/* Mini Trend Chart */}
-                    <div className="pt-3 border-t border-slate-200 dark:border-slate-700/50">
+                    <div className="pt-3 border-t-2 border-slate-100 dark:border-slate-800">
                       <p className="text-xs text-slate-500 mb-2">Evolução (últimos 7 dias)</p>
                       <div className="h-[80px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -1067,7 +1044,7 @@ export default function Dashboard() {
                               formatter={(value: number) => [`${value}%`, "Taxa"]}
                               contentStyle={{ 
                                 borderRadius: "8px", 
-                                border: "1px solid #e2e8f0",
+                                border: "2px solid #e2e8f0",
                                 backgroundColor: "#fff",
                                 color: "#1e293b",
                                 fontSize: "12px"
@@ -1087,7 +1064,7 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             </>
           )}
 
