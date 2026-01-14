@@ -213,8 +213,8 @@ const Index = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.6, ease: "easeOut" }}
         >
-          Monitorização inteligente de legislação, auditorias automatizadas e gestão de evidências 
-          — tudo numa única plataforma.
+          Gestão de conformidade legal conduzida por auditores especializados — 
+          acompanhamento personalizado, auditorias rigorosas e suporte contínuo para o seu negócio.
         </motion.p>
 
         {/* CTA Buttons */}
