@@ -255,6 +255,36 @@ export default function Biblioteca() {
 
         {/* Page Content */}
         <main className="p-4 lg:p-8 space-y-6">
+          {/* Hero Header Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-100/80 via-teal-50/70 to-cyan-100/60 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-cyan-900/25 border border-emerald-200/60 dark:border-emerald-800/40 p-6 lg:p-8"
+          >
+            {/* Background decorative elements */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-300/20 dark:bg-emerald-400/10 rounded-full blur-3xl" />
+              <div className="absolute -left-10 -top-10 w-32 h-32 bg-teal-300/20 dark:bg-teal-400/10 rounded-full blur-2xl" />
+              <AnimatedParticles count={12} />
+            </div>
+
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="space-y-3">
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-300/50 dark:border-emerald-600/50 hover:bg-emerald-500/20">
+                  <BookOpen className="h-3 w-3 mr-1" />
+                  Gestão Documental
+                </Badge>
+                <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-slate-100">
+                  Biblioteca de Legislação
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400 max-w-xl">
+                  Consulta e acompanhamento de toda a legislação aplicável à sua organização
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
           {/* Search Bar */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
