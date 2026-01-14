@@ -888,18 +888,7 @@ export default function Dashboard() {
                               gradients[index % gradients.length]
                             )} />
                             
-                            <div className="absolute top-4 left-3 z-10">
-                              <Badge className={cn(
-                                "text-xs font-semibold border-0 shadow-sm",
-                                leg.source === "dre" 
-                                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white" 
-                                  : "bg-gradient-to-r from-blue-500 to-indigo-600 text-white"
-                              )}>
-                                {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
-                              </Badge>
-                            </div>
-                            
-                            <div className="p-4 pt-10">
+                            <div className="p-4 pt-4">
                               <div className="flex items-center justify-between mb-3">
                                 <span className="text-xs text-slate-500 dark:text-slate-300 font-medium bg-slate-100 dark:bg-slate-600 px-2 py-1 rounded-full">
                                   {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
