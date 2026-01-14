@@ -221,7 +221,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background">
+    <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background dark:from-slate-950 dark:to-slate-900">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -232,15 +232,15 @@ export default function Settings() {
       />
 
       {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b border-border dark:border-slate-800 bg-card/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4">
           <Link to="/dashboard">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted dark:hover:bg-slate-800">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold">Definições</h1>
+            <h1 className="text-xl font-semibold text-foreground">Definições</h1>
             <p className="text-sm text-muted-foreground">Gerir as suas preferências e conta</p>
           </div>
           <Button 
@@ -262,8 +262,8 @@ export default function Settings() {
       <main className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="space-y-6">
           {/* Profile Header Card */}
-          <Card className="overflow-hidden">
-            <div className="h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
+          <Card className="overflow-hidden bg-card dark:bg-slate-900 border-border dark:border-slate-800">
+            <div className="h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent dark:from-primary/10 dark:via-primary/5" />
             <CardContent className="relative pt-0 pb-6">
               <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
                 <div className="relative group">
@@ -293,14 +293,14 @@ export default function Settings() {
                   </div>
                 </div>
                 <div className="flex-1 space-y-1">
-                  <h2 className="text-2xl font-bold">{fullName || user?.email?.split("@")[0]}</h2>
+                  <h2 className="text-2xl font-bold text-foreground">{fullName || user?.email?.split("@")[0]}</h2>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Mail className="h-3.5 w-3.5" />
                       {user?.email}
                     </span>
                     {profile?.is_approved && (
-                      <Badge variant="outline" className="gap-1 text-green-600 border-green-200 bg-green-50">
+                      <Badge variant="outline" className="gap-1 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/50">
                         <CheckCircle2 className="h-3 w-3" />
                         Conta verificada
                       </Badge>
@@ -324,10 +324,10 @@ export default function Settings() {
           </Card>
 
           {/* Profile Details Section */}
-          <Card>
+          <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
+                <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/20">
                   <User className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -339,31 +339,32 @@ export default function Settings() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Nome Completo</Label>
+                  <Label htmlFor="fullName" className="text-foreground">Nome Completo</Label>
                   <Input 
                     id="fullName" 
                     value={fullName} 
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Introduza o seu nome"
+                    className="bg-background dark:bg-slate-800 border-border dark:border-slate-700"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-foreground">Email</Label>
                   <Input 
                     id="email" 
                     value={user?.email || ""} 
                     disabled 
-                    className="bg-muted"
+                    className="bg-muted dark:bg-slate-800/50 border-border dark:border-slate-700"
                   />
                 </div>
               </div>
               
               {userOrganizations && userOrganizations.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Organizações</Label>
+                  <Label className="text-foreground">Organizações</Label>
                   <div className="flex flex-wrap gap-2">
                     {userOrganizations.map((org, index) => (
-                      <Badge key={index} variant="secondary" className="gap-1.5 py-1.5">
+                      <Badge key={index} variant="secondary" className="gap-1.5 py-1.5 bg-secondary/50 dark:bg-slate-800">
                         <Building2 className="h-3 w-3" />
                         {(org.organizations as any)?.name || "Organização"}
                         <span className="text-xs text-muted-foreground capitalize">
@@ -387,14 +388,14 @@ export default function Settings() {
           </Card>
 
           {/* Notifications Section */}
-          <Card>
+          <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-amber-500/10">
-                  <Bell className="h-5 w-5 text-amber-600" />
+                <div className="p-2 rounded-lg bg-amber-500/10 dark:bg-amber-500/20">
+                  <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <CardTitle>Notificações</CardTitle>
+                  <CardTitle className="text-foreground">Notificações</CardTitle>
                   <CardDescription>Preferências de alertas e comunicações</CardDescription>
                 </div>
               </div>
@@ -402,7 +403,7 @@ export default function Settings() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications" className="font-medium">
+                  <Label htmlFor="email-notifications" className="font-medium text-foreground">
                     Notificações por Email
                   </Label>
                   <p className="text-sm text-muted-foreground">
@@ -415,10 +416,10 @@ export default function Settings() {
                   onCheckedChange={setEmailNotifications}
                 />
               </div>
-              <Separator />
+              <Separator className="bg-border dark:bg-slate-700" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Resumo Semanal</Label>
+                  <Label className="font-medium text-foreground">Resumo Semanal</Label>
                   <p className="text-sm text-muted-foreground">
                     Receber um resumo semanal de atividades
                   </p>
@@ -428,10 +429,10 @@ export default function Settings() {
                   onCheckedChange={setWeeklyDigest}
                 />
               </div>
-              <Separator />
+              <Separator className="bg-border dark:bg-slate-700" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Alertas de Prazo</Label>
+                  <Label className="font-medium text-foreground">Alertas de Prazo</Label>
                   <p className="text-sm text-muted-foreground">
                     Notificar sobre prazos próximos de vencer
                   </p>
@@ -445,14 +446,14 @@ export default function Settings() {
           </Card>
 
           {/* Security Section */}
-          <Card>
+          <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-red-500/10">
-                  <Shield className="h-5 w-5 text-red-600" />
+                <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
+                  <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <CardTitle>Segurança</CardTitle>
+                  <CardTitle className="text-foreground">Segurança</CardTitle>
                   <CardDescription>Configurações de segurança da conta</CardDescription>
                 </div>
               </div>
@@ -468,39 +469,39 @@ export default function Settings() {
               />
               
               {isAdmin && !is2FAEnabled && (
-                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800">
                   <div className="flex items-start gap-2">
-                    <ShieldCheck className="h-4 w-4 text-amber-600 mt-0.5" />
-                    <div className="text-sm text-amber-800">
+                    <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
                       <p className="font-medium">Recomendado para administradores</p>
-                      <p className="text-xs mt-0.5">Ative a autenticação de dois fatores para maior segurança da sua conta de administrador.</p>
+                      <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300">Ative a autenticação de dois fatores para maior segurança da sua conta de administrador.</p>
                     </div>
                   </div>
                 </div>
               )}
               
-              <Separator />
+              <Separator className="bg-border dark:bg-slate-700" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Alterar Password</Label>
+                  <Label className="font-medium text-foreground">Alterar Password</Label>
                   <p className="text-sm text-muted-foreground">
                     Atualizar a password da sua conta
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowPasswordDialog(true)}>
+                <Button variant="outline" size="sm" onClick={() => setShowPasswordDialog(true)} className="border-border dark:border-slate-700 hover:bg-muted dark:hover:bg-slate-800">
                   <KeyRound className="h-4 w-4 mr-1" />
                   Alterar
                 </Button>
               </div>
-              <Separator />
+              <Separator className="bg-border dark:bg-slate-700" />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Sessões Ativas</Label>
+                  <Label className="font-medium text-foreground">Sessões Ativas</Label>
                   <p className="text-sm text-muted-foreground">
                     Gerir dispositivos conectados
                   </p>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="border-border dark:border-slate-700 hover:bg-muted dark:hover:bg-slate-800">
                   Ver
                 </Button>
               </div>
