@@ -762,16 +762,20 @@ export default function Dashboard() {
 
               {/* Modules Grid */}
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-5 w-5 text-emerald-500" />
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Acesso Rápido</h2>
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-white">Acesso Rápido</h2>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
                   <ModuleCard
                     title="Legislação"
                     description="Consulte a biblioteca de diplomas legais aplicáveis"
                     icon={Gavel}
                     href="/biblioteca"
+                    image={moduleLegislation}
+                    gradient="from-emerald-500 to-teal-600"
                     count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
                     countLabel="novos"
                   />
@@ -780,6 +784,8 @@ export default function Dashboard() {
                     description="Gerir ações de conformidade e prazos"
                     icon={ClipboardList}
                     href="/dashboard?tab=actions"
+                    image={moduleActions}
+                    gradient="from-blue-500 to-indigo-600"
                     count={actionPlanStats.pending + actionPlanStats.inProgress}
                     countLabel="ativos"
                   />
@@ -788,6 +794,8 @@ export default function Dashboard() {
                     description="Acompanhe o estado das auditorias"
                     icon={ClipboardCheck}
                     href="/dashboard?tab=audits"
+                    image={moduleAudits}
+                    gradient="from-amber-500 to-orange-600"
                     count={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length}
                     countLabel="ativas"
                   />
@@ -796,72 +804,100 @@ export default function Dashboard() {
                     description="Submeta documentos de conformidade"
                     icon={FolderOpen}
                     href="/dashboard?tab=documents"
+                    image={moduleDocuments}
+                    gradient="from-purple-500 to-pink-600"
                   />
                 </div>
               </div>
 
               {/* Recent Legislation */}
-              <Card className="overflow-hidden bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600/50 shadow-sm">
-                <CardHeader>
+              <Card className="overflow-hidden bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/50 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/50">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
-                        <FileText className="h-5 w-5 text-primary" />
-                        Legislação Recente
-                      </CardTitle>
-                      <CardDescription className="text-slate-500 dark:text-slate-300">Últimos diplomas publicados</CardDescription>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                        <FileText className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-slate-900 dark:text-white">Legislação Recente</CardTitle>
+                        <CardDescription className="text-slate-500 dark:text-slate-300">Últimos diplomas publicados</CardDescription>
+                      </div>
                     </div>
-                    <Link to="/legislacao-recente" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium transition-colors">
+                    <Link 
+                      to="/legislacao-recente" 
+                      className="flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium hover:from-emerald-600 hover:to-teal-700 transition-all shadow-md hover:shadow-lg"
+                    >
                       Ver todos <ChevronRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </CardHeader>
-                <CardContent className="p-4">
+                <CardContent className="p-5">
                   {loadingLegislation ? (
                     <div className="grid md:grid-cols-4 gap-4">
                       {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-40 w-full rounded-lg bg-slate-100 dark:bg-slate-700" />
+                        <Skeleton key={i} className="h-44 w-full rounded-xl bg-slate-100 dark:bg-slate-700" />
                       ))}
                     </div>
                   ) : recentLegislation && recentLegislation.length > 0 ? (
                     <div className="grid md:grid-cols-4 gap-4">
-                      {recentLegislation.slice(0, 4).map((leg) => (
-                        <Link
-                          key={leg.id}
-                          to={`/legislacao/${leg.id}`}
-                          className="relative rounded-lg border border-slate-200 dark:border-slate-600/50 bg-white dark:bg-slate-700/80 overflow-hidden group hover:border-primary/50 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200"
-                        >
-                          <div className="absolute top-2 left-2 z-10">
-                            <Badge variant="outline" className={cn(
-                              "text-xs",
-                              leg.source === "dre" 
-                                ? "bg-emerald-50 dark:bg-emerald-800/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600" 
-                                : "bg-blue-50 dark:bg-blue-800/60 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600"
-                            )}>
-                              {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
-                            </Badge>
-                          </div>
-                          <div className="h-12 bg-slate-50 dark:bg-slate-600/50 border-b border-slate-100 dark:border-slate-600" />
-                          <div className="p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-slate-500 dark:text-slate-300 font-medium">
-                                {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
-                              </span>
-                              <ExternalLink className="h-3 w-3 text-slate-400 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {recentLegislation.slice(0, 4).map((leg, index) => {
+                        const gradients = [
+                          "from-emerald-400 to-teal-500",
+                          "from-blue-400 to-indigo-500",
+                          "from-amber-400 to-orange-500",
+                          "from-purple-400 to-pink-500",
+                        ];
+                        return (
+                          <Link
+                            key={leg.id}
+                            to={`/legislacao/${leg.id}`}
+                            className="group relative rounded-xl border border-slate-200/80 dark:border-slate-600/50 bg-white dark:bg-slate-700/80 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                          >
+                            {/* Colored top accent */}
+                            <div className={cn(
+                              "h-2 bg-gradient-to-r",
+                              gradients[index % gradients.length]
+                            )} />
+                            
+                            <div className="absolute top-4 left-3 z-10">
+                              <Badge className={cn(
+                                "text-xs font-semibold border-0 shadow-sm",
+                                leg.source === "dre" 
+                                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white" 
+                                  : "bg-gradient-to-r from-blue-500 to-indigo-600 text-white"
+                              )}>
+                                {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
+                              </Badge>
                             </div>
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-primary transition-colors">
-                              {leg.number}
-                            </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2 mt-1">
-                              {leg.title}
-                            </p>
-                          </div>
-                        </Link>
-                      ))}
+                            
+                            <div className="p-4 pt-10">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs text-slate-500 dark:text-slate-300 font-medium bg-slate-100 dark:bg-slate-600 px-2 py-1 rounded-full">
+                                  {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
+                                </span>
+                                <div className={cn(
+                                  "p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all bg-gradient-to-r",
+                                  gradients[index % gradients.length]
+                                )}>
+                                  <ExternalLink className="h-3 w-3 text-white" />
+                                </div>
+                              </div>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-primary transition-colors">
+                                {leg.number}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2 mt-2">
+                                {leg.title}
+                              </p>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-12">
-                      <FileText className="h-12 w-12 text-slate-300 dark:text-slate-500 mx-auto mb-3" />
+                      <div className="p-4 rounded-full bg-slate-100 dark:bg-slate-700 inline-block mb-3">
+                        <FileText className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                      </div>
                       <p className="text-slate-500 dark:text-slate-300">Nenhuma legislação disponível</p>
                     </div>
                   )}
