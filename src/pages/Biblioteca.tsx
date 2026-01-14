@@ -72,10 +72,10 @@ const StatCard = ({
     transition={{ duration: 0.4, delay }}
   >
     <Card className={cn(
-      "group relative overflow-hidden border-0 shadow-sm hover:shadow-lg transition-all duration-300",
+      "group relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300",
       gradient
     )}>
-      <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent dark:from-white/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/60 to-transparent dark:from-white/5" />
       <CardContent className="p-4 relative">
         <div className="flex items-center gap-3">
           <motion.div 
@@ -87,14 +87,14 @@ const StatCard = ({
           </motion.div>
           <div>
             <motion.p 
-              className="text-2xl font-bold text-slate-900 dark:text-white"
+              className="text-2xl font-bold text-emerald-800 dark:text-emerald-100"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: delay + 0.2 }}
             >
               {value}
             </motion.p>
-            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{label}</p>
+            <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 font-medium">{label}</p>
           </div>
         </div>
       </CardContent>
@@ -225,23 +225,23 @@ export default function Biblioteca() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/50 via-mint-50/30 to-teal-50/40 dark:from-slate-900 dark:via-slate-900/95 dark:to-emerald-950/20">
       {/* Hero Header */}
-      <header className="relative border-b border-slate-200/80 dark:border-slate-800 overflow-hidden">
+      <header className="relative border-b border-emerald-200/60 dark:border-emerald-900/30 overflow-hidden">
         {/* Background with gradient overlay */}
         <div className="absolute inset-0 z-0">
           <img 
             src={bibliotecaHero} 
             alt="" 
-            className="w-full h-full object-cover opacity-15 dark:opacity-8"
+            className="w-full h-full object-cover opacity-10 dark:opacity-5"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/98 to-white/90 dark:from-slate-950 dark:via-slate-950/98 dark:to-slate-950/90" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/50 dark:to-slate-950/50" />
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/95 via-white/90 to-teal-50/80 dark:from-slate-900/98 dark:via-slate-900/95 dark:to-emerald-950/40" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/30 dark:to-slate-900/30" />
         </div>
         
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-400/10 to-teal-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-400/10 to-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-200/30 to-teal-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-teal-200/25 to-mint-200/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4 py-8">
@@ -255,14 +255,14 @@ export default function Biblioteca() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-700 shadow-sm border border-slate-200/50 dark:border-slate-700/50"
+                className="rounded-full bg-white/90 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-700 shadow-sm border border-emerald-200/50 dark:border-emerald-800/30"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
               </Button>
             </Link>
             <div className="flex items-center gap-5">
               <motion.div 
-                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/25"
+                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 dark:shadow-emerald-500/20"
                 whileHover={{ scale: 1.05, rotate: 3 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
@@ -289,40 +289,40 @@ export default function Biblioteca() {
             icon={BookOpen}
             value={stats?.total || 0}
             label="Total Diplomas"
-            gradient="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40"
-            iconColor="bg-gradient-to-br from-emerald-500 to-teal-600"
+            gradient="bg-gradient-to-br from-emerald-100/80 to-teal-100/60 dark:from-emerald-900/30 dark:to-teal-900/20 border border-emerald-200/50 dark:border-emerald-800/30"
+            iconColor="bg-gradient-to-br from-emerald-400 to-teal-500"
             delay={0}
           />
           <StatCard
             icon={Flag}
             value={stats?.pt || 0}
             label="DRE (Portugal)"
-            gradient="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40"
-            iconColor="bg-gradient-to-br from-green-500 to-emerald-600"
+            gradient="bg-gradient-to-br from-green-100/80 to-emerald-100/60 dark:from-green-900/30 dark:to-emerald-900/20 border border-green-200/50 dark:border-green-800/30"
+            iconColor="bg-gradient-to-br from-green-400 to-emerald-500"
             delay={0.05}
           />
           <StatCard
             icon={Globe}
             value={stats?.eu || 0}
             label="EUR-Lex (UE)"
-            gradient="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40"
-            iconColor="bg-gradient-to-br from-blue-500 to-indigo-600"
+            gradient="bg-gradient-to-br from-sky-100/80 to-teal-100/60 dark:from-sky-900/30 dark:to-teal-900/20 border border-sky-200/50 dark:border-sky-800/30"
+            iconColor="bg-gradient-to-br from-sky-400 to-teal-500"
             delay={0.1}
           />
           <StatCard
             icon={Sparkles}
             value={stats?.last7Days || 0}
             label="Últimos 7 dias"
-            gradient="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40"
-            iconColor="bg-gradient-to-br from-amber-500 to-orange-600"
+            gradient="bg-gradient-to-br from-lime-100/80 to-emerald-100/60 dark:from-lime-900/30 dark:to-emerald-900/20 border border-lime-200/50 dark:border-lime-800/30"
+            iconColor="bg-gradient-to-br from-lime-400 to-emerald-500"
             delay={0.15}
           />
           <StatCard
             icon={TrendingUp}
             value={stats?.last30Days || 0}
             label="Últimos 30 dias"
-            gradient="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/40"
-            iconColor="bg-gradient-to-br from-purple-500 to-pink-600"
+            gradient="bg-gradient-to-br from-teal-100/80 to-cyan-100/60 dark:from-teal-900/30 dark:to-cyan-900/20 border border-teal-200/50 dark:border-teal-800/30"
+            iconColor="bg-gradient-to-br from-teal-400 to-cyan-500"
             delay={0.2}
           />
           
@@ -332,20 +332,20 @@ export default function Biblioteca() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.25 }}
           >
-            <Card className="group relative overflow-hidden border-0 shadow-sm hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/40 dark:to-cyan-950/40">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent dark:from-white/5" />
+            <Card className="group relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-mint-100/80 to-emerald-100/60 dark:from-emerald-900/30 dark:to-teal-900/20 border border-emerald-200/50 dark:border-emerald-800/30">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent dark:from-white/5" />
               <CardContent className="p-4 relative">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <motion.div 
-                        className="p-2 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-sm"
+                        className="p-2 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
                         <Tags className="h-4 w-4 text-white" />
                       </motion.div>
                       <motion.span 
-                        className="text-xl font-bold text-slate-900 dark:text-white"
+                        className="text-xl font-bold text-emerald-800 dark:text-emerald-100"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.45 }}
@@ -354,15 +354,15 @@ export default function Biblioteca() {
                       </motion.span>
                     </div>
                   </div>
-                  <div className="relative h-2 bg-slate-200/50 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                  <div className="relative h-2 bg-emerald-200/60 dark:bg-emerald-800/40 rounded-full overflow-hidden">
                     <motion.div 
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full"
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${stats?.categorizedPercent || 0}%` }}
                       transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
                     />
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Categorizados</p>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Categorizados</p>
                 </div>
               </CardContent>
             </Card>
@@ -382,21 +382,21 @@ export default function Biblioteca() {
             transition={{ duration: 0.4, delay: 0.3 }}
           >
             {/* Search */}
-            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 dark:text-emerald-400" />
                   <Input
                     placeholder="Pesquisar legislação..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                    className="pl-10 bg-emerald-50/50 dark:bg-slate-800/80 border-emerald-200/80 dark:border-emerald-800/40 focus:border-emerald-400 focus:ring-emerald-400/30"
                   />
                   {searchTerm && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
                       onClick={() => setSearchTerm("")}
                     >
                       <X className="h-4 w-4" />
@@ -407,20 +407,20 @@ export default function Biblioteca() {
             </Card>
 
             {/* Origin Filter */}
-            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
               <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-emerald-600" />
+                <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-emerald-500" />
                   Origem
                 </h3>
                 <Tabs value={selectedSource} onValueChange={setSelectedSource} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800">
-                    <TabsTrigger value="all" className="text-xs">Todos</TabsTrigger>
-                    <TabsTrigger value="dre" className="text-xs gap-1">
+                  <TabsList className="grid w-full grid-cols-3 bg-emerald-100/60 dark:bg-emerald-900/30">
+                    <TabsTrigger value="all" className="text-xs data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">Todos</TabsTrigger>
+                    <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
                       <Flag className="h-3 w-3" />
                       PT
                     </TabsTrigger>
-                    <TabsTrigger value="eurlex" className="text-xs gap-1">
+                    <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
                       <Globe className="h-3 w-3" />
                       UE
                     </TabsTrigger>
@@ -430,10 +430,10 @@ export default function Biblioteca() {
             </Card>
 
             {/* Theme/Category Filter */}
-            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
               <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Tags className="h-4 w-4 text-emerald-600" />
+                <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                  <Tags className="h-4 w-4 text-emerald-500" />
                   Tema / Categoria
                 </h3>
                 {themes && (
@@ -449,7 +449,7 @@ export default function Biblioteca() {
             </Card>
 
             {/* Advanced Search */}
-            <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
               <CardContent className="p-4">
                 <AdvancedSearchDialog
                   searchTerm={searchTerm}
@@ -503,18 +503,18 @@ export default function Biblioteca() {
                   size="sm"
                   onClick={() => setShowFilters(!showFilters)}
                   className={cn(
-                    "gap-2",
-                    showFilters && "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400"
+                    "gap-2 border-emerald-200/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/30",
+                    showFilters && "bg-emerald-100/80 border-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700"
                   )}
                 >
                   <Filter className="h-4 w-4" />
                   Filtros
                 </Button>
                 
-                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+                <div className="h-6 w-px bg-emerald-200 dark:bg-emerald-800" />
                 
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  <span className="font-semibold text-slate-900 dark:text-white">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
+                <p className="text-sm text-emerald-700/80 dark:text-emerald-300/80">
+                  <span className="font-semibold text-emerald-800 dark:text-emerald-100">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
                 </p>
               </div>
 
@@ -581,7 +581,7 @@ export default function Biblioteca() {
                   ))}
                 </div>
               ) : legislationWithCategories ? (
-                <Card className="bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+                <Card className="bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm overflow-hidden backdrop-blur-sm">
                   <LegislationTreeView 
                     legislation={legislationWithCategories} 
                     hideFilters 
@@ -591,24 +591,24 @@ export default function Biblioteca() {
                   />
                 </Card>
               ) : (
-                <Card className="py-20 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800">
+                <Card className="py-20 bg-white/90 dark:bg-slate-900/80 border-emerald-200/60 dark:border-emerald-800/30 backdrop-blur-sm">
                   <CardContent className="flex flex-col items-center justify-center text-center">
                     <motion.div 
-                      className="p-6 rounded-full bg-slate-100 dark:bg-slate-800 mb-6"
+                      className="p-6 rounded-full bg-emerald-100/60 dark:bg-emerald-900/30 mb-6"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200 }}
                     >
-                      <FileText className="h-12 w-12 text-slate-400" />
+                      <FileText className="h-12 w-12 text-emerald-400" />
                     </motion.div>
-                    <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-white">Nenhum diploma encontrado</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md">
+                    <h3 className="text-xl font-semibold mb-2 text-emerald-800 dark:text-emerald-100">Nenhum diploma encontrado</h3>
+                    <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 max-w-md">
                       Não encontrámos legislação disponível com os filtros selecionados.
                     </p>
                     {hasActiveFilters && (
                       <Button
                         variant="outline"
-                        className="mt-6 gap-2"
+                        className="mt-6 gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
                         onClick={clearAllFilters}
                       >
                         <X className="h-4 w-4" />
