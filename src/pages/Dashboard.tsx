@@ -801,7 +801,7 @@ export default function Dashboard() {
               </div>
 
               {/* Recent Legislation */}
-              <Card className="overflow-hidden bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+              <Card className="overflow-hidden bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600/50 shadow-sm">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -809,7 +809,7 @@ export default function Dashboard() {
                         <FileText className="h-5 w-5 text-primary" />
                         Legislação Recente
                       </CardTitle>
-                      <CardDescription className="text-slate-500 dark:text-slate-400">Últimos diplomas publicados</CardDescription>
+                      <CardDescription className="text-slate-500 dark:text-slate-300">Últimos diplomas publicados</CardDescription>
                     </div>
                     <Link to="/legislacao-recente" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium transition-colors">
                       Ver todos <ChevronRight className="h-4 w-4" />
@@ -820,7 +820,7 @@ export default function Dashboard() {
                   {loadingLegislation ? (
                     <div className="grid md:grid-cols-4 gap-4">
                       {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-40 w-full rounded-lg bg-slate-100 dark:bg-slate-800" />
+                        <Skeleton key={i} className="h-40 w-full rounded-lg bg-slate-100 dark:bg-slate-700" />
                       ))}
                     </div>
                   ) : recentLegislation && recentLegislation.length > 0 ? (
@@ -829,30 +829,30 @@ export default function Dashboard() {
                         <Link
                           key={leg.id}
                           to={`/legislacao/${leg.id}`}
-                          className="relative rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden group hover:border-primary/50 hover:shadow-md transition-all duration-200"
+                          className="relative rounded-lg border border-slate-200 dark:border-slate-600/50 bg-white dark:bg-slate-700/80 overflow-hidden group hover:border-primary/50 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200"
                         >
                           <div className="absolute top-2 left-2 z-10">
                             <Badge variant="outline" className={cn(
                               "text-xs",
                               leg.source === "dre" 
-                                ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700" 
-                                : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                                ? "bg-emerald-50 dark:bg-emerald-800/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600" 
+                                : "bg-blue-50 dark:bg-blue-800/60 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600"
                             )}>
                               {leg.source === "eurlex" ? "EUR-Lex" : leg.source?.toUpperCase() || "Manual"}
                             </Badge>
                           </div>
-                          <div className="h-12 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700" />
+                          <div className="h-12 bg-slate-50 dark:bg-slate-600/50 border-b border-slate-100 dark:border-slate-600" />
                           <div className="p-4">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-slate-500 font-medium">
+                              <span className="text-xs text-slate-500 dark:text-slate-300 font-medium">
                                 {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
                               </span>
-                              <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ExternalLink className="h-3 w-3 text-slate-400 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <p className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-primary transition-colors">
                               {leg.number}
                             </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
+                            <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2 mt-1">
                               {leg.title}
                             </p>
                           </div>
@@ -861,8 +861,8 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="text-center py-12">
-                      <FileText className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                      <p className="text-slate-500">Nenhuma legislação disponível</p>
+                      <FileText className="h-12 w-12 text-slate-300 dark:text-slate-500 mx-auto mb-3" />
+                      <p className="text-slate-500 dark:text-slate-300">Nenhuma legislação disponível</p>
                     </div>
                   )}
                 </CardContent>
