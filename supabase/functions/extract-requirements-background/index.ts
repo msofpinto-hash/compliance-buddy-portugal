@@ -752,57 +752,83 @@ Deno.serve(async (req) => {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
 
-    // Verify authentication
+    // Verify authentication - support JWT, internal header, or admin secret in body
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const internalKey = req.headers.get('x-internal-key');
+    
+    // Parse body first to check for admin secret
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+    
+    const adminSecret = body.adminSecret;
+    
+    // Check for internal service key (header or body secret)
+    const isInternalCall = internalKey === supabaseServiceKey || adminSecret === supabaseServiceKey;
+    
+    if (isInternalCall) {
+      console.log('🔐 Internal service call authenticated');
+    }
+    
+    if (!isInternalCall && (!authHeader || !authHeader.startsWith('Bearer '))) {
+      console.log('❌ No valid auth method found');
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Check if this is an internal call with service role key
-    const isServiceRoleCall = token === supabaseServiceKey;
     let userId: string | null = null;
     
-    if (!isServiceRoleCall) {
-      // Validate user JWT token
-      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-
-      const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized - invalid token' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      userId = claimsData.claims.sub as string;
-
-      // Only admins can extract requirements
-      const { data: adminRole } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (!adminRole) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Forbidden - admin access required' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (isInternalCall) {
+      console.log('🔐 Internal service call via x-internal-key - bypassing user auth');
     } else {
-      console.log('🔐 Internal service role call - bypassing user auth');
+      const token = authHeader!.replace('Bearer ', '');
+      
+      // Check if this is a service role key in bearer token
+      const isServiceRoleCall = token === supabaseServiceKey;
+      
+      if (!isServiceRoleCall) {
+        // Validate user JWT token
+        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader! } },
+        });
+
+        const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+        if (claimsError || !claimsData?.claims) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Unauthorized - invalid token' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        userId = claimsData.claims.sub as string;
+
+        // Only admins can extract requirements
+        const { data: adminRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (!adminRole) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Forbidden - admin access required' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        console.log('🔐 Service role bearer token - bypassing user auth');
+      }
     }
 
-    const { batchSize = 50, maxBatches = 20, origin, useUrl = false, legislationIds } = await req.json();
+    // Body was already parsed above for auth check
+    const { batchSize = 50, maxBatches = 20, origin, useUrl = false, legislationIds, onlyWithoutRequirements = false } = body;
 
     // Validate useUrl - needs Firecrawl API key
     if (useUrl && !firecrawlApiKey) {
