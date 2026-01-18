@@ -128,11 +128,30 @@ async function runBackgroundExtraction(
     useUrl?: boolean;
     firecrawlApiKey?: string;
     legislationIds?: string[]; // Optional: specific IDs to process
+    forceReplace?: boolean; // Optional: delete existing requirements and re-extract
   }
 ) {
-  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey, legislationIds } = options;
+  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey, legislationIds, forceReplace } = options;
   
-  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}`);
+  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}, forceReplace=${forceReplace || false}`);
+  
+  // If forceReplace is true and we have specific IDs, delete their existing requirements first
+  if (forceReplace && legislationIds && legislationIds.length > 0) {
+    console.log(`🗑️ ForceReplace: Deleting existing requirements for ${legislationIds.length} legislation items...`);
+    
+    for (const legId of legislationIds) {
+      const { error: deleteError, count } = await supabase
+        .from('legal_requirements')
+        .delete({ count: 'exact' })
+        .eq('legislation_id', legId);
+      
+      if (deleteError) {
+        console.error(`Failed to delete requirements for ${legId}:`, deleteError);
+      } else {
+        console.log(`🗑️ Deleted ${count || 0} requirements for legislation ${legId}`);
+      }
+    }
+  }
   
   const isTargetedExtraction = legislationIds && legislationIds.length > 0;
   // Create a sync log entry to track progress
@@ -197,7 +216,10 @@ async function runBackgroundExtraction(
       // If we have specific IDs, use them; otherwise query all legislation
       if (isTargetedExtraction) {
         // Process specific legislation IDs (from post-fix extraction)
-        const idsToProcess = legislationIds.filter(id => !idsWithReqs.has(id));
+        // If forceReplace is true, process all specified IDs regardless of existing requirements
+        const idsToProcess = forceReplace 
+          ? legislationIds 
+          : legislationIds.filter(id => !idsWithReqs.has(id));
         
         if (idsToProcess.length === 0) {
           console.log('All specified legislation already has requirements');
@@ -211,7 +233,7 @@ async function runBackgroundExtraction(
           .in('id', idsToProcess.slice(0, batchSize));
         
         legislationWithoutReqs = specificLegislation || [];
-        console.log(`📋 Targeted: ${legislationIds.length} specified, ${idsToProcess.length} without reqs, fetched ${legislationWithoutReqs.length}`);
+        console.log(`📋 Targeted: ${legislationIds.length} specified, ${idsToProcess.length} to process (forceReplace=${forceReplace}), fetched ${legislationWithoutReqs.length}`);
       } else {
         // Build query with optional origin filter
         let query = supabase
@@ -828,7 +850,7 @@ Deno.serve(async (req) => {
     }
 
     // Body was already parsed above for auth check
-    const { batchSize = 50, maxBatches = 20, origin, useUrl = false, legislationIds, onlyWithoutRequirements = false } = body;
+    const { batchSize = 50, maxBatches = 20, origin, useUrl = false, legislationIds, onlyWithoutRequirements = false, forceReplace = false } = body;
 
     // Validate useUrl - needs Firecrawl API key
     if (useUrl && !firecrawlApiKey) {
@@ -875,6 +897,7 @@ Deno.serve(async (req) => {
         useUrl,
         firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
         legislationIds,
+        forceReplace,
       })
     ) || runBackgroundExtraction(supabase, lovableApiKey, createdBy, { 
       batchSize, 
@@ -883,6 +906,7 @@ Deno.serve(async (req) => {
       useUrl,
       firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
       legislationIds,
+      forceReplace,
     });
 
     // Return immediately
