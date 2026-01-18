@@ -433,22 +433,17 @@ Retorna APENAS um array JSON válido com TODOS os artigos:
                     
                     // INSERT IMMEDIATELY after each chunk to avoid data loss on shutdown
                     if (cleanedReqs.length > 0) {
-                      // Check for duplicates before inserting
+                      // Check for duplicates before inserting - use ONLY article as key to avoid duplicate articles
                       const { data: existingReqsForChunk } = await supabase
                         .from('legal_requirements')
-                        .select('article, requirement_text')
+                        .select('article')
                         .eq('legislation_id', leg.id);
                       
-                      const existingSet = new Set(
-                        (existingReqsForChunk || []).map((r: { article: string; requirement_text: string }) => 
-                          `${r.article}::${r.requirement_text.substring(0, 100)}`
-                        )
+                      const existingArticles = new Set(
+                        (existingReqsForChunk || []).map((r: { article: string }) => r.article)
                       );
                       
-                      const newReqs = cleanedReqs.filter(req => {
-                        const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
-                        return !existingSet.has(key);
-                      });
+                      const newReqs = cleanedReqs.filter(req => !existingArticles.has(req.article));
                       
                       if (newReqs.length > 0) {
                         const toInsert = newReqs.map(req => ({
