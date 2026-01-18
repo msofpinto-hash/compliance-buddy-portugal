@@ -763,16 +763,36 @@ function extractRelationsFromDREContent(markdown: string): ExtractedRelation[] {
     }
     
     // Modificações / Alterações = alteracao (ONLY between same origin - PT<->PT or EU<->EU)
+    // CRITICAL: PT legislation CANNOT alter EU legislation
     if (firstLine.includes('modificações') || 
         firstLine.includes('alterações') || 
         firstLine.includes('altera ')) {
       const nums = extractNumbers(section);
-      for (const num of [...nums.pt, ...nums.eu]) {
+      
+      // Only add PT legislation as alterations (PT can alter PT)
+      for (const num of nums.pt) {
         if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
           relations.push({
             relation_type: 'alteracao',
             target_number: num.trim(),
             notes: 'Extraído do painel DRE - Modificações/Alterações'
+          });
+        }
+      }
+      
+      // EU legislation in "Alterações" section from PT source should be treated as:
+      // - Diretivas → transposicao (if source is DL/Lei) or regulamentacao (if other)
+      // - Regulamentos/Decisões → regulamentacao
+      // Note: We'll let validateAndCorrectPTtoEURelation handle this during insertion
+      // But we log a warning here
+      for (const num of nums.eu) {
+        console.log(`[DRE PANEL WARNING] Found EU legislation "${num}" in Alterações section - will be corrected during insertion`);
+        // Still add it, but it will be corrected by validateAndCorrectPTtoEURelation
+        if (!relations.some(r => r.target_number.toLowerCase() === num.toLowerCase())) {
+          relations.push({
+            relation_type: 'alteracao', // Will be corrected to transposicao/regulamentacao
+            target_number: num.trim(),
+            notes: 'Extraído do painel DRE - Modificações/Alterações (EU - a corrigir)'
           });
         }
       }
@@ -1139,6 +1159,74 @@ function determineOrigin(number: string): string {
   return 'PT';
 }
 
+// ============================================================================
+// VALIDATE AND CORRECT PT→EU RELATION TYPES
+// Portuguese legislation CANNOT alter EU legislation. It can only:
+// - Transpose directives (transposicao)
+// - Implement/regulate EU regulations and decisions (regulamentacao)
+// - Be affected by EU legislation (alterado_por, revogado_por)
+// ============================================================================
+function validateAndCorrectPTtoEURelation(
+  relationType: string,
+  sourceNumber: string,
+  targetNumber: string,
+  sourceOrigin: string | null,
+  targetOrigin: string | null
+): string | null {
+  // Determine origins if not provided
+  const srcOrigin = sourceOrigin || determineOrigin(sourceNumber);
+  const tgtOrigin = targetOrigin || determineOrigin(targetNumber);
+  
+  // Only apply corrections for PT → EU relations
+  if (srcOrigin !== 'PT' || tgtOrigin !== 'EU') {
+    return relationType; // No correction needed
+  }
+  
+  // PT → EU: Never allow 'alteracao' - PT legislation cannot alter EU legislation
+  if (relationType === 'alteracao') {
+    // Check if target is a Directive (Diretiva) → should be transposicao
+    const isDirective = /diretiva|directiva|directive/i.test(targetNumber);
+    // Check if target is a Regulation (Regulamento) → should be regulamentacao
+    const isRegulation = /regulamento|regulation/i.test(targetNumber);
+    // Check if target is a Decision (Decisão) → should be regulamentacao
+    const isDecision = /decis[ãa]o|decision/i.test(targetNumber);
+    
+    if (isDirective) {
+      // Check if source is a Decreto-Lei or Lei (main transposition instruments)
+      const isTranspositionInstrument = /decreto-lei|^lei\s+n/i.test(sourceNumber);
+      if (isTranspositionInstrument) {
+        console.log(`[RELATION FIX] PT→EU: Changed 'alteracao' to 'transposicao' for ${sourceNumber} → ${targetNumber} (Directive)`);
+        return 'transposicao';
+      } else {
+        // Other PT instruments (Portarias, Despachos) implement directives = regulamentacao
+        console.log(`[RELATION FIX] PT→EU: Changed 'alteracao' to 'regulamentacao' for ${sourceNumber} → ${targetNumber} (Directive via secondary instrument)`);
+        return 'regulamentacao';
+      }
+    } else if (isRegulation || isDecision) {
+      // PT legislation implementing EU Regulations/Decisions = regulamentacao
+      console.log(`[RELATION FIX] PT→EU: Changed 'alteracao' to 'regulamentacao' for ${sourceNumber} → ${targetNumber} (Regulation/Decision)`);
+      return 'regulamentacao';
+    } else {
+      // Unknown EU type - default to regulamentacao (safer than alteracao)
+      console.log(`[RELATION FIX] PT→EU: Changed 'alteracao' to 'regulamentacao' for ${sourceNumber} → ${targetNumber} (unknown EU type)`);
+      return 'regulamentacao';
+    }
+  }
+  
+  // PT → EU: Correct 'regulamentacao' for Directives from DL/Lei → should be 'transposicao'
+  if (relationType === 'regulamentacao') {
+    const isDirective = /diretiva|directiva|directive/i.test(targetNumber);
+    const isTranspositionInstrument = /decreto-lei|^lei\s+n/i.test(sourceNumber);
+    
+    if (isDirective && isTranspositionInstrument) {
+      console.log(`[RELATION FIX] PT→EU: Changed 'regulamentacao' to 'transposicao' for ${sourceNumber} → ${targetNumber} (DL/Lei transposes Directive)`);
+      return 'transposicao';
+    }
+  }
+  
+  return relationType;
+}
+
 // Extract year from legislation number
 function extractYear(number: string): number | null {
   const yearMatch = number.match(/\/(\d{4})/);
@@ -1483,19 +1571,43 @@ async function processRelationsInBackground(
           let sourceId: string;
           let targetId: string;
           let relationType: string;
+          let sourceNumber: string;
+          let targetNumber: string;
           
           if (isPassiveRelation) {
             // Swap direction: the matched legislation (e.g., DL 24/2024) is the source
             // that alters/revokes the current legislation (leg)
             sourceId = match.id;
             targetId = leg.id;
+            sourceNumber = match.number;
+            targetNumber = leg.number;
             relationType = INVERSE_RELATION_MAP[rel.relation_type]; // 'alterado_por' -> 'alteracao'
           } else {
             // Normal direction: current legislation affects the matched one
             sourceId = leg.id;
             targetId = match.id;
+            sourceNumber = leg.number;
+            targetNumber = rel.target_number;
             relationType = rel.relation_type;
           }
+          
+          // CRITICAL: Validate and correct PT→EU relation types
+          // PT legislation cannot alter EU legislation - only transpose or regulate
+          const correctedRelationType = validateAndCorrectPTtoEURelation(
+            relationType,
+            sourceNumber,
+            targetNumber,
+            leg.origin,
+            null // Will be determined from targetNumber
+          );
+          
+          // Skip if relation type was invalidated (returned null)
+          if (!correctedRelationType) {
+            console.log(`[RELATION SKIP] Invalid PT→EU relation: ${relationType} for ${sourceNumber} → ${targetNumber}`);
+            continue;
+          }
+          
+          relationType = correctedRelationType;
           
           const relationKey = `${sourceId}-${targetId}-${relationType}`;
           if (!existingRelationSet.has(relationKey)) {
