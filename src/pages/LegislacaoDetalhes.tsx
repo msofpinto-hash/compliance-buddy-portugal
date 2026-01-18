@@ -83,7 +83,7 @@ export default function LegislacaoDetalhes() {
         .from("legal_requirements")
         .select("*")
         .eq("legislation_id", id)
-        .order("article", { ascending: true });
+        .order("display_order", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data;
     },
