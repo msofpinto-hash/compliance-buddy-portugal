@@ -27,16 +27,28 @@ const MALFORMED_ARTICLE_PATTERNS = [
 function cleanArticle(article: string | undefined | null, legislationNumber: string): string {
   if (!article) return 'Geral';
   
-  const trimmed = article.trim();
+  let trimmed = article.trim();
+  
+  // FIRST: Normalize subarticle references to just the main article
+  // "Artigo 47.º, n.º 2" -> "Artigo 47.º"
+  // "Artigo 49.º, n.º 3, alínea c)" -> "Artigo 49.º"
+  const mainArticleMatch = trimmed.match(/^(Art(?:igo)?\.?\s*\d+[ºª]?(?:-[A-Z])?)/i);
+  if (mainArticleMatch) {
+    trimmed = mainArticleMatch[1];
+    // Normalize "Art." to "Artigo"
+    trimmed = trimmed.replace(/^Art\.?\s*/i, 'Artigo ');
+  }
   
   // Check if article contains diploma-type keywords (malformed)
   const isMalformed = MALFORMED_ARTICLE_PATTERNS.some(pattern => pattern.test(trimmed));
   
   if (isMalformed) {
     // Try to extract just the article part if it exists (e.g., "Despacho n.º 123, Art. 2º" -> "Art. 2º")
-    const articleMatch = trimmed.match(/\b(Art(?:igo)?\.?\s*\d+[ºª]?(?:\s*,?\s*n\.?\s*º?\s*\d+)?)/i);
+    const articleMatch = trimmed.match(/\b(Art(?:igo)?\.?\s*\d+[ºª]?)/i);
     if (articleMatch) {
-      return articleMatch[1].substring(0, 50);
+      let result = articleMatch[1];
+      result = result.replace(/^Art\.?\s*/i, 'Artigo ');
+      return result.substring(0, 50);
     }
     
     // Check for Anexo pattern
@@ -46,7 +58,7 @@ function cleanArticle(article: string | undefined | null, legislationNumber: str
     }
     
     // If no valid article pattern found, return 'Geral'
-    console.log(`Cleaned malformed article for ${legislationNumber}: "${trimmed}" -> "Geral"`);
+    console.log(`Cleaned malformed article for ${legislationNumber}: "${article}" -> "Geral"`);
     return 'Geral';
   }
   
@@ -345,16 +357,17 @@ ${truncatedText}
 
 INSTRUÇÕES CRÍTICAS:
 1. IGNORA preâmbulos, considerandos, vistos - começa nos Artigos
-2. Extrai CADA ARTIGO encontrado no texto com o seu texto INTEGRAL
-3. Extrai também ANEXOS se existirem
-4. NÃO LIMITES o número de artigos - extrai TODOS os que encontrares
+2. Extrai CADA ARTIGO COMPLETO (Artigo 1.º, Artigo 2.º, etc.) com TODO o seu texto
+3. NÃO extraias números/alíneas separadamente - inclui tudo no artigo principal
+4. article deve ser APENAS "Artigo X.º" ou "Anexo X" - NUNCA "Artigo X.º, n.º Y"
+5. NÃO LIMITES o número de artigos - extrai TODOS
 
-FORMATO:
-- article: "Artigo 1.º", "Artigo 2.º", "Anexo I", etc.
-- requirement_text: TEXTO INTEGRAL em PORTUGUÊS (máx 2500 caracteres por artigo)
-- notes: contexto breve se necessário (opcional)
+FORMATO OBRIGATÓRIO:
+- article: "Artigo 1.º", "Artigo 2.º", "Anexo I" (NUNCA incluir n.º ou alíneas)
+- requirement_text: TEXTO INTEGRAL incluindo TODOS os números e alíneas (máx 3500 chars)
+- notes: contexto breve (opcional)
 
-Retorna APENAS um array JSON válido com TODOS os artigos:
+Retorna APENAS um array JSON válido:
 [{"article": "Artigo 1.º", "requirement_text": "1 - O presente regulamento estabelece...", "notes": "Objeto"}]`;
                 } else {
                   // PT LEGISLATION - artigos, anexos OU texto corrido
@@ -369,17 +382,24 @@ ${truncatedText}
 
 INSTRUÇÕES CRÍTICAS:
 1. IGNORA preâmbulos, vistos, considerandos - começa nos Artigos
-2. Extrai CADA ARTIGO encontrado no texto com o seu texto INTEGRAL
-3. Extrai também ANEXOS se existirem
-4. NÃO LIMITES o número de artigos - extrai TODOS os que encontrares
+2. Extrai CADA ARTIGO COMPLETO (Art. 1.º, Art. 2.º, etc.) com TODO o seu texto
+3. NÃO extraias números/alíneas separadamente - inclui tudo no artigo principal
+4. article deve ser APENAS "Artigo X.º" ou "Anexo X" - NUNCA "Artigo X.º, n.º Y"
+5. NÃO LIMITES o número de artigos - extrai TODOS os que encontrares
 
-FORMATO:
-- article: "Art. 1.º", "Art. 2.º", "Anexo I", etc.
-- requirement_text: TEXTO INTEGRAL do artigo (máx 2500 caracteres por artigo)
+FORMATO OBRIGATÓRIO:
+- article: "Artigo 1.º", "Artigo 2.º", "Anexo I" (NUNCA incluir n.º ou alíneas no nome)
+- requirement_text: TEXTO INTEGRAL do artigo incluindo TODOS os números e alíneas (máx 3500 chars)
 - notes: contexto breve se necessário (opcional)
 
-Retorna APENAS um array JSON válido com TODOS os artigos:
-[{"article": "Art. 1.º", "requirement_text": "1 - O presente decreto-lei estabelece...", "notes": "Objeto"}]`;
+EXEMPLO CORRETO:
+{"article": "Artigo 5.º", "requirement_text": "1 - O detentor deve... 2 - Sem prejuízo... a) Os resíduos... b) A separação..."}
+
+EXEMPLO ERRADO (NÃO FAZER):
+{"article": "Artigo 5.º, n.º 2, alínea a)", "requirement_text": "Os resíduos..."}
+
+Retorna APENAS um array JSON válido:
+[{"article": "Artigo 1.º", "requirement_text": "1 - O presente decreto-lei estabelece...", "notes": "Objeto"}]`;
                 }
                 
                 // Make AI call for this chunk
