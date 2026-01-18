@@ -430,8 +430,48 @@ Retorna APENAS um array JSON válido com TODOS os artigos:
                         requirement_text: String(r.requirement_text).substring(0, 3500),
                         notes: r.notes ? String(r.notes).substring(0, 500) : undefined,
                       }));
-                    allChunkRequirements.push(...cleanedReqs);
-                    console.log(`📄 ${leg.number} chunk ${chunkIndex + 1}: extracted ${cleanedReqs.length} requirements`);
+                    
+                    // INSERT IMMEDIATELY after each chunk to avoid data loss on shutdown
+                    if (cleanedReqs.length > 0) {
+                      // Check for duplicates before inserting
+                      const { data: existingReqsForChunk } = await supabase
+                        .from('legal_requirements')
+                        .select('article, requirement_text')
+                        .eq('legislation_id', leg.id);
+                      
+                      const existingSet = new Set(
+                        (existingReqsForChunk || []).map((r: { article: string; requirement_text: string }) => 
+                          `${r.article}::${r.requirement_text.substring(0, 100)}`
+                        )
+                      );
+                      
+                      const newReqs = cleanedReqs.filter(req => {
+                        const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
+                        return !existingSet.has(key);
+                      });
+                      
+                      if (newReqs.length > 0) {
+                        const toInsert = newReqs.map(req => ({
+                          legislation_id: leg.id,
+                          article: req.article,
+                          requirement_text: req.requirement_text,
+                          notes: req.notes || null,
+                        }));
+                        
+                        const { error: insertError } = await supabase
+                          .from('legal_requirements')
+                          .insert(toInsert);
+                        
+                        if (!insertError) {
+                          console.log(`💾 ${leg.number} chunk ${chunkIndex + 1}: saved ${newReqs.length} requirements`);
+                          allChunkRequirements.push(...newReqs);
+                        } else {
+                          console.error(`Insert error for ${leg.number} chunk ${chunkIndex + 1}:`, insertError);
+                        }
+                      } else {
+                        console.log(`📄 ${leg.number} chunk ${chunkIndex + 1}: extracted ${cleanedReqs.length} (all duplicates)`);
+                      }
+                    }
                   }
                 } catch (parseError) {
                   console.error(`Parse error for ${leg.number} chunk ${chunkIndex}:`, parseError);
@@ -443,45 +483,12 @@ Retorna APENAS um array JSON válido com TODOS os artigos:
                 }
               }
               
-              // Use collected requirements from all chunks
+              // Log final summary
               if (allChunkRequirements.length > 0) {
-                console.log(`📊 ${leg.number}: Total ${allChunkRequirements.length} requirements from ${textChunks.length} chunks`);
-                
-                // Skip the normal AI call since we already processed
-                // Insert requirements directly
-                const { data: existingReqsForLeg } = await supabase
-                  .from('legal_requirements')
-                  .select('article, requirement_text')
-                  .eq('legislation_id', leg.id);
-
-                const existingSet = new Set(
-                  (existingReqsForLeg || []).map((r: { article: string; requirement_text: string }) => `${r.article}::${r.requirement_text.substring(0, 100)}`)
-                );
-
-                const newRequirements = allChunkRequirements.filter(req => {
-                  const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
-                  return !existingSet.has(key);
-                });
-
-                if (newRequirements.length > 0) {
-                  const toInsert = newRequirements.map(req => ({
-                    legislation_id: leg.id,
-                    article: req.article,
-                    requirement_text: req.requirement_text,
-                    notes: req.notes || null,
-                  }));
-
-                  const { error: insertError } = await supabase
-                    .from('legal_requirements')
-                    .insert(toInsert);
-
-                  if (!insertError) {
-                    console.log(`✅ ${leg.number}: Inserted ${newRequirements.length} requirements (from ${textChunks.length} chunks)`);
-                    return { processed: true, usedUrl: true, requirementsAdded: newRequirements.length };
-                  }
-                }
-                return { processed: true, usedUrl: true, requirementsAdded: 0 };
+                console.log(`✅ ${leg.number}: Total ${allChunkRequirements.length} requirements from ${textChunks.length} chunks (already saved)`);
+                return { processed: true, usedUrl: true, requirementsAdded: allChunkRequirements.length };
               }
+              return { processed: true, usedUrl: true, requirementsAdded: 0 };
             }
             
             // Summary-based extraction - fallback when no URL content available
