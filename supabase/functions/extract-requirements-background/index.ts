@@ -32,32 +32,39 @@ function cleanArticle(article: string | undefined | null, legislationNumber: str
   // FIRST: Normalize subarticle references to just the main article
   // "Artigo 47.º, n.º 2" -> "Artigo 47.º"
   // "Artigo 49.º, n.º 3, alínea c)" -> "Artigo 49.º"
-  const mainArticleMatch = trimmed.match(/^(Art(?:igo)?\.?\s*\d+[ºª]?(?:-[A-Z])?)/i);
+  // Also handle "Artigo 1" without º
+  const mainArticleMatch = trimmed.match(/^Art(?:igo)?\.?\s*(\d+)([ºª]?(?:-[A-Z])?)?/i);
   if (mainArticleMatch) {
-    trimmed = mainArticleMatch[1];
-    // Normalize "Art." to "Artigo"
-    trimmed = trimmed.replace(/^Art\.?\s*/i, 'Artigo ');
+    const num = mainArticleMatch[1];
+    const suffix = mainArticleMatch[2] || '.º';
+    trimmed = `Artigo ${num}${suffix.startsWith('.') || suffix.startsWith('º') || suffix.startsWith('ª') ? suffix : '.º' + suffix}`;
+  }
+  
+  // Handle Anexo variations
+  const anexoMatch = trimmed.match(/^Anexo\s*([IVX\d]+)?/i);
+  if (anexoMatch) {
+    const num = anexoMatch[1] || '';
+    return `Anexo${num ? ' ' + num.toUpperCase() : ''}`.substring(0, 50);
   }
   
   // Check if article contains diploma-type keywords (malformed)
   const isMalformed = MALFORMED_ARTICLE_PATTERNS.some(pattern => pattern.test(trimmed));
   
   if (isMalformed) {
-    // Try to extract just the article part if it exists (e.g., "Despacho n.º 123, Art. 2º" -> "Art. 2º")
-    const articleMatch = trimmed.match(/\b(Art(?:igo)?\.?\s*\d+[ºª]?)/i);
-    if (articleMatch) {
-      let result = articleMatch[1];
-      result = result.replace(/^Art\.?\s*/i, 'Artigo ');
-      return result.substring(0, 50);
+    // Try to extract just the article part if it exists
+    const artMatch = trimmed.match(/Art(?:igo)?\.?\s*(\d+)([ºª]?)/i);
+    if (artMatch) {
+      const num = artMatch[1];
+      const suffix = artMatch[2] || '.º';
+      return `Artigo ${num}${suffix || '.º'}`.substring(0, 50);
     }
     
     // Check for Anexo pattern
-    const anexoMatch = trimmed.match(/\b(Anexo\s+[IVX\d]+)/i);
-    if (anexoMatch) {
-      return anexoMatch[1].substring(0, 50);
+    const anMatch = trimmed.match(/\b(Anexo\s+[IVX\d]+)/i);
+    if (anMatch) {
+      return anMatch[1].substring(0, 50);
     }
     
-    // If no valid article pattern found, return 'Geral'
     console.log(`Cleaned malformed article for ${legislationNumber}: "${article}" -> "Geral"`);
     return 'Geral';
   }
