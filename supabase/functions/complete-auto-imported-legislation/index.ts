@@ -469,6 +469,10 @@ async function runBackgroundCompletion(params: {
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
       query = query.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
+    } else if (mode === 'short_summary') {
+      // Diplomas with malformed/very short summaries (< 20 chars)
+      // This is done via raw SQL filter since Supabase doesn't support length() in .or()
+      query = query.not('summary', 'is', null);
     } else {
       query = query.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
     }
@@ -509,6 +513,10 @@ async function runBackgroundCompletion(params: {
                                   leg.title?.toLowerCase().includes('documento ') ||
                                   (leg.title && leg.title.length < 10);
           if (!hasGenericTitle) return false;
+        } else if (mode === 'short_summary') {
+          // Only process diplomas with very short/malformed summaries
+          const summaryLength = leg.summary?.length || 0;
+          if (summaryLength === 0 || summaryLength >= 20) return false;
         } else {
           const isIncomplete = !leg.document_url || 
                               (leg.summary && leg.summary.includes('Diploma referenciado')) ||
@@ -587,7 +595,11 @@ async function runBackgroundCompletion(params: {
                 updates.title = metadata.title;
                 hasUpdates = true;
               }
-              if (metadata.summary && (!leg.summary || leg.summary.includes('Diploma referenciado'))) {
+              // In short_summary mode, always overwrite malformed summaries
+              const shouldUpdateSummary = !leg.summary || 
+                                          leg.summary.includes('Diploma referenciado') ||
+                                          (mode === 'short_summary' && (leg.summary?.length || 0) < 20);
+              if (metadata.summary && shouldUpdateSummary) {
                 updates.summary = metadata.summary;
                 hasUpdates = true;
               }
@@ -638,7 +650,11 @@ async function runBackgroundCompletion(params: {
                 updates.title = metadata.title;
                 hasUpdates = true;
               }
-              if (metadata.summary && (!leg.summary || leg.summary.includes('Diploma referenciado'))) {
+              // In short_summary mode, always overwrite malformed summaries
+              const shouldUpdateSummary = !leg.summary || 
+                                          leg.summary.includes('Diploma referenciado') ||
+                                          (mode === 'short_summary' && (leg.summary?.length || 0) < 20);
+              if (metadata.summary && shouldUpdateSummary) {
                 updates.summary = metadata.summary;
                 hasUpdates = true;
               }
@@ -801,6 +817,9 @@ Deno.serve(async (req) => {
       countQuery = countQuery.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
       countQuery = countQuery.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
+    } else if (mode === 'short_summary') {
+      // Count all with non-null summary - will filter in processing
+      countQuery = countQuery.not('summary', 'is', null);
     } else {
       countQuery = countQuery.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
     }
