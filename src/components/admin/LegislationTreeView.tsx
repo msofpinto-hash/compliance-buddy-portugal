@@ -723,7 +723,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       )}
 
       {/* Tree View - 2/3 column layout */}
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-4 items-start overflow-x-auto pb-4 -mx-2 px-2 touch-pan-x">
         {/* Theme selector */}
         {!hideThemesColumn && (
           <Card className="w-72 flex-shrink-0">
