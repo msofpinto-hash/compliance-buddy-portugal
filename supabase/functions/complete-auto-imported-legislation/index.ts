@@ -227,19 +227,40 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
 
 // Determine if legislation is EU based on number
 function isEULegislation(number: string): boolean {
+  const n = (number || '').trim();
   const euPatterns = [
+    // Portuguese
     /\(UE\)/i,
     /\(CE\)/i,
     /\(PESC\)/i,
-    /Regulamento de Execução/i,
-    /Diretiva \d+/i,
-    /Decisão \d+/i,
+    /Regulamento(?:\s+de\s+Execução|\s+Delegado)?/i,
+    /Diretiva/i,
+    /Decisão/i,
+    /Recomendação/i,
+
+    // English (some imports come with EN titles)
+    /Directive/i,
+    /Decision/i,
+    /Regulation/i,
+    /Recommendation/i,
+
+    // Other sources
     /UNECE/i,
-    /^Regulamento.*\/UE/i,
-    /^32\d{7}/,  // CELEX numbers
+
+    // CELEX-like numbers stored directly in number field
+    /^3\d{4}[RLD]\d{4}$/i, // e.g. 32019R0942, 32016L2284
+    /^32\d{2}[RLD]\d{4}$/i, // fallback for some variants
   ];
-  return euPatterns.some(p => p.test(number));
+
+  return euPatterns.some((p) => p.test(n));
 }
+
+function isEULegislationRecord(leg: { number: string; origin?: string | null; document_url?: string | null }): boolean {
+  if (leg?.origin === 'EU') return true;
+  if (leg?.document_url && leg.document_url.includes('eur-lex')) return true;
+  return isEULegislation(leg?.number);
+}
+
 
 // Extract CELEX number from EUR-Lex URL or legislation number
 function extractCelexNumber(url: string | null, number: string): string | null {
@@ -525,7 +546,7 @@ async function runBackgroundCompletion(params: {
           if (!isIncomplete) return false;
         }
         
-        const isEU = isEULegislation(leg.number);
+        const isEU = isEULegislationRecord(leg);
         if (isEU && !includeEU) return false;
         if (!isEU && !includePT) return false;
         
@@ -561,7 +582,7 @@ async function runBackgroundCompletion(params: {
       try {
         console.log(`\n=== Processing: ${leg.number} ===`);
         
-        const isEU = isEULegislation(leg.number);
+        const isEU = isEULegislationRecord(leg);
         const updates: LegislationUpdate = {};
         let hasUpdates = false;
         
