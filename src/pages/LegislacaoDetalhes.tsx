@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { RequirementApplicabilitySelect, ApplicabilityBadge } from "@/components/RequirementApplicabilitySelect";
 import { LegislationApplicabilitySelect, LegislationApplicabilityBadge } from "@/components/LegislationApplicabilitySelect";
+import { EditLegislationDialog } from "@/components/admin/EditLegislationDialog";
+import { ManageRelationsDialog } from "@/components/admin/ManageRelationsDialog";
+import { ManageRequirementsDialog } from "@/components/admin/ManageRequirementsDialog";
+import { AssignCategoriesDialog } from "@/components/admin/AssignCategoriesDialog";
 import { 
   ArrowLeft, 
   ExternalLink, 
@@ -23,14 +28,32 @@ import {
   BookOpen,
   Flag,
   Globe,
-  Building
+  Building,
+  Pencil,
+  Tags,
+  FileEdit,
+  Settings
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export default function LegislacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Dialog states
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
+  const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
+  const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
 
   // Fetch user's organization
   const { data: userOrganization } = useQuery({
@@ -320,14 +343,46 @@ export default function LegislacaoDetalhes() {
               <p className="text-sm text-muted-foreground">Detalhes do Diploma</p>
             </div>
           </div>
-          {legislation.document_url && (
-            <a href={legislation.document_url} target="_blank" rel="noopener noreferrer">
-              <Button className="gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Ver Documento Original
-              </Button>
-            </a>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Admin Edit Actions */}
+            {isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Editar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Dados Gerais
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCategoriesDialogOpen(true)}>
+                    <Tags className="h-4 w-4 mr-2" />
+                    Categorias
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setRequirementsDialogOpen(true)}>
+                    <FileEdit className="h-4 w-4 mr-2" />
+                    Requisitos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRelationsDialogOpen(true)}>
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Relações
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {legislation.document_url && (
+              <a href={legislation.document_url} target="_blank" rel="noopener noreferrer">
+                <Button className="gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  Ver Documento Original
+                </Button>
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
@@ -676,6 +731,96 @@ export default function LegislacaoDetalhes() {
           </div>
         </div>
       </main>
+
+      {/* Admin Edit Dialogs */}
+      {isAdmin && legislation && (
+        <>
+          <EditLegislationDialog
+            legislation={{
+              ...legislation,
+              categories: categories.map(c => ({ 
+                id: c.id, 
+                name: c.name, 
+                full_path: `${c.themeName} > ${c.name}`,
+                theme_name: c.themeName,
+                parent_id: null 
+              })),
+              relations: (relations?.outgoing || []).map((r: any) => ({
+                id: r.id,
+                relation_type: r.relation_type,
+                target_id: r.target?.id || r.target_legislation_id,
+                target_number: r.target?.number || '',
+                target_title: r.target?.title || ''
+              }))
+            }}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+          />
+          <ManageRelationsDialog
+            legislation={{
+              ...legislation,
+              categories: categories.map(c => ({ 
+                id: c.id, 
+                name: c.name, 
+                full_path: `${c.themeName} > ${c.name}`,
+                theme_name: c.themeName,
+                parent_id: null 
+              })),
+              relations: (relations?.outgoing || []).map((r: any) => ({
+                id: r.id,
+                relation_type: r.relation_type,
+                target_id: r.target?.id || r.target_legislation_id,
+                target_number: r.target?.number || '',
+                target_title: r.target?.title || ''
+              }))
+            }}
+            open={relationsDialogOpen}
+            onOpenChange={setRelationsDialogOpen}
+          />
+          <ManageRequirementsDialog
+            legislation={{
+              ...legislation,
+              categories: categories.map(c => ({ 
+                id: c.id, 
+                name: c.name, 
+                full_path: `${c.themeName} > ${c.name}`,
+                theme_name: c.themeName,
+                parent_id: null 
+              })),
+              relations: (relations?.outgoing || []).map((r: any) => ({
+                id: r.id,
+                relation_type: r.relation_type,
+                target_id: r.target?.id || r.target_legislation_id,
+                target_number: r.target?.number || '',
+                target_title: r.target?.title || ''
+              }))
+            }}
+            open={requirementsDialogOpen}
+            onOpenChange={setRequirementsDialogOpen}
+          />
+          <AssignCategoriesDialog
+            legislation={{
+              ...legislation,
+              categories: categories.map(c => ({ 
+                id: c.id, 
+                name: c.name, 
+                full_path: `${c.themeName} > ${c.name}`,
+                theme_name: c.themeName,
+                parent_id: null 
+              })),
+              relations: (relations?.outgoing || []).map((r: any) => ({
+                id: r.id,
+                relation_type: r.relation_type,
+                target_id: r.target?.id || r.target_legislation_id,
+                target_number: r.target?.number || '',
+                target_title: r.target?.title || ''
+              }))
+            }}
+            open={categoriesDialogOpen}
+            onOpenChange={setCategoriesDialogOpen}
+          />
+        </>
+      )}
     </div>
   );
 }
