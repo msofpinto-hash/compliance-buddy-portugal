@@ -48,6 +48,8 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
+  LayoutGrid,
+  List,
   type LucideIcon
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,6 +61,7 @@ import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { exportSimpleExcel, ColumnConfig } from "@/lib/excelUtils";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 import emptySearchImage from "@/assets/empty-search.png";
 import treeCategoriesImage from "@/assets/tree-categories.png";
 
@@ -264,6 +267,8 @@ interface CategoryNode {
 
 export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, externalSearchTerm }: LegislationTreeViewProps) {
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
   const [internalSelectedThemeId, setInternalSelectedThemeId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -273,6 +278,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<50 | 100>(50);
+  const [mobileThemeFilter, setMobileThemeFilter] = useState<string | null>(null);
+  const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string | null>(null);
   
   // Use external search term if provided (from Biblioteca), otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
@@ -656,8 +663,67 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
   const hasFilters = searchTerm || sourceFilter !== "all";
 
+  // Mobile list mode - filter legislation based on selected theme/category
+  const mobileListLegislation = useMemo(() => {
+    let result = filteredLegislation;
+    
+    if (mobileThemeFilter) {
+      const theme = themesWithCategories?.find(t => t.id === mobileThemeFilter);
+      if (theme) {
+        const themeCategoryIds = new Set(theme.categories.map(c => c.id));
+        result = result.filter(leg => 
+          leg.categories.some(cat => themeCategoryIds.has(cat.id))
+        );
+      }
+    }
+    
+    if (mobileCategoryFilter) {
+      result = result.filter(leg => 
+        leg.categories.some(cat => cat.id === mobileCategoryFilter)
+      );
+    }
+    
+    return result;
+  }, [filteredLegislation, mobileThemeFilter, mobileCategoryFilter, themesWithCategories]);
+
+  // Get categories for selected theme in mobile mode
+  const mobileCategories = useMemo(() => {
+    if (!mobileThemeFilter || !themesWithCategories) return [];
+    const theme = themesWithCategories.find(t => t.id === mobileThemeFilter);
+    return theme?.categories.filter(c => !c.parent_id) || [];
+  }, [mobileThemeFilter, themesWithCategories]);
+
+  // Check if we should show list mode (mobile + user chose list OR mobile by default)
+  const showMobileListView = isMobile && viewMode === "list";
+
   return (
     <div className="space-y-4">
+      {/* Mobile View Mode Toggle */}
+      {isMobile && (
+        <div className="flex justify-end">
+          <div className="inline-flex rounded-lg border bg-muted p-0.5">
+            <Button
+              variant={viewMode === "tree" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={() => setViewMode("tree")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5 mr-1" />
+              Colunas
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-3.5 w-3.5 mr-1" />
+              Lista
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Search and Filters */}
       {!hideFilters && (
         <Card>
@@ -715,14 +781,230 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               )}
 
               <div className="text-sm text-muted-foreground ml-auto">
-                {filteredLegislation.length} diploma{filteredLegislation.length !== 1 ? "s" : ""}
+                {showMobileListView ? mobileListLegislation.length : filteredLegislation.length} diploma{(showMobileListView ? mobileListLegislation.length : filteredLegislation.length) !== 1 ? "s" : ""}
               </div>
             </div>
+
+            {/* Mobile List Mode Filters */}
+            {showMobileListView && (
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
+                <Select 
+                  value={mobileThemeFilter || "all"} 
+                  onValueChange={(v) => {
+                    setMobileThemeFilter(v === "all" ? null : v);
+                    setMobileCategoryFilter(null);
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs w-[150px]">
+                    <Tags className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="Tema" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os temas</SelectItem>
+                    {themesWithCategories?.map(theme => (
+                      <SelectItem key={theme.id} value={theme.id}>
+                        {theme.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {mobileThemeFilter && mobileCategories.length > 0 && (
+                  <Select 
+                    value={mobileCategoryFilter || "all"} 
+                    onValueChange={(v) => setMobileCategoryFilter(v === "all" ? null : v)}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-[180px]">
+                      <Folder className="h-3 w-3 mr-1" />
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as categorias</SelectItem>
+                      {mobileCategories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number")}>
+                  <SelectTrigger className="h-8 text-xs w-[130px]">
+                    <ArrowUpDown className="h-3 w-3 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Data publicação</SelectItem>
+                    <SelectItem value="title">Título</SelectItem>
+                    <SelectItem value="number">Número</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+                >
+                  {sortOrder === "asc" ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Tree View - 2/3 column layout */}
+      {/* Mobile List View */}
+      {showMobileListView ? (
+        <div className="space-y-3">
+          {mobileListLegislation.length > 0 ? (
+            <>
+              {/* Sorted legislation list */}
+              {[...mobileListLegislation]
+                .sort((a, b) => {
+                  let comparison = 0;
+                  if (sortBy === "date") {
+                    const dateA = a.publication_date || a.effective_date || "";
+                    const dateB = b.publication_date || b.effective_date || "";
+                    comparison = dateA.localeCompare(dateB);
+                  } else if (sortBy === "title") {
+                    comparison = (a.title || "").localeCompare(b.title || "", 'pt');
+                  } else {
+                    comparison = (a.number || "").localeCompare(b.number || "", 'pt');
+                  }
+                  return sortOrder === "asc" ? comparison : -comparison;
+                })
+                .slice(0, 50)
+                .map(leg => {
+                  const requirementsCount = (leg as any).legal_requirements?.length || 0;
+                  const applicabilityType = applicabilityMap?.[leg.id];
+                  const applicabilityInfo = applicabilityType ? getLegislationApplicabilityInfo(applicabilityType) : null;
+                  const showApplicability = applicabilityInfo && applicabilityType !== "nao_avaliado";
+                  const isNotEvaluated = applicabilityMap && (!applicabilityType || applicabilityType === "nao_avaliado");
+                  const isRevoked = !!(leg as any).revocation_date;
+
+                  return (
+                    <Card 
+                      key={leg.id}
+                      className={`overflow-hidden ${
+                        isNotEvaluated ? "border-l-4 border-l-amber-400" : ""
+                      } ${
+                        isRevoked ? "opacity-75" : ""
+                      }`}
+                    >
+                      <CardContent className="p-4">
+                        {/* Header with badges */}
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={`shrink-0 text-xs ${
+                              leg.origin === "PT"
+                                ? "bg-green-500/10 text-green-700 border-green-300"
+                                : "bg-blue-500/10 text-blue-700 border-blue-300"
+                            }`}
+                          >
+                            {leg.origin === "PT" ? (
+                              <><Flag className="h-3 w-3 mr-1" />DRE</>
+                            ) : (
+                              <><Globe className="h-3 w-3 mr-1" />EU</>
+                            )}
+                          </Badge>
+                          {showApplicability && (
+                            <Badge
+                              variant="outline"
+                              className={`shrink-0 text-xs ${applicabilityInfo.color}`}
+                            >
+                              {applicabilityInfo.label}
+                            </Badge>
+                          )}
+                          {requirementsCount > 0 && (
+                            <Badge variant="secondary" className="shrink-0 text-xs">
+                              <ListChecks className="h-3 w-3 mr-1" />
+                              {requirementsCount}
+                            </Badge>
+                          )}
+                          {isRevoked && (
+                            <Badge variant="destructive" className="shrink-0 text-xs">
+                              Revogado
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Number and title */}
+                        <Link to={`/legislacao/${leg.id}`}>
+                          <h3 className="font-semibold text-sm text-primary hover:underline mb-1">
+                            {leg.number}
+                          </h3>
+                        </Link>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                          {leg.title}
+                        </p>
+
+                        {/* Date and categories */}
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {leg.publication_date 
+                              ? format(new Date(leg.publication_date), "dd/MM/yyyy", { locale: pt })
+                              : "Sem data"
+                            }
+                          </div>
+                          {leg.categories.length > 0 && (
+                            <Badge variant="outline" className="text-xs h-5">
+                              {leg.categories[0].name}
+                              {leg.categories.length > 1 && ` +${leg.categories.length - 1}`}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2 mt-3 pt-3 border-t">
+                          <Link to={`/legislacao/${leg.id}`} className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full h-8 text-xs">
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver detalhes
+                            </Button>
+                          </Link>
+                          {leg.document_url && (
+                            <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="outline" size="sm" className="h-8 text-xs">
+                                <ExternalLink className="h-3 w-3" />
+                              </Button>
+                            </a>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+
+              {mobileListLegislation.length > 50 && (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  A mostrar 50 de {mobileListLegislation.length} diplomas. Use os filtros para refinar.
+                </div>
+              )}
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <img 
+                  src={emptySearchImage} 
+                  alt="Sem resultados" 
+                  className="w-20 h-20 object-contain mx-auto opacity-80 mb-3"
+                />
+                <p className="text-sm">Nenhuma legislação encontrada</p>
+                <p className="text-xs mt-1">Tente ajustar os filtros</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        /* Tree View - 2/3 column layout */
       <div
         className="flex gap-4 items-start overflow-x-auto pb-4 -mx-2 px-2 snap-x snap-mandatory overscroll-x-contain"
         style={{ touchAction: "pan-x pan-y" }}
@@ -1248,6 +1530,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   );
 }
