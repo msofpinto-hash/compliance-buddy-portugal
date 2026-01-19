@@ -723,10 +723,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       )}
 
       {/* Tree View - 2/3 column layout */}
-      <div className="flex gap-4 items-start overflow-x-auto pb-4 -mx-2 px-2 touch-pan-x">
-        {/* Theme selector */}
+      <div
+        className="flex gap-4 items-start overflow-x-auto pb-4 -mx-2 px-2 snap-x snap-mandatory overscroll-x-contain"
+        style={{ touchAction: "pan-x pan-y" }}
+      >
         {!hideThemesColumn && (
-          <Card className="w-72 flex-shrink-0">
+          <Card className="w-72 flex-shrink-0 snap-start">
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Tags className="h-4 w-4" />
@@ -778,7 +780,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
         {/* Category tree */}
         {selectedTheme ? (
-          <Card className={`w-96 min-w-[380px] flex-shrink-0 ${themeConfig?.border} border-2`}>
+          <Card className={`w-96 min-w-[380px] flex-shrink-0 snap-start ${themeConfig?.border} border-2`}>
             <CardHeader className={`py-3 px-4 ${themeConfig?.bg} rounded-t-lg`}>
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
@@ -821,7 +823,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             </CardContent>
           </Card>
         ) : hideThemesColumn ? (
-          <Card className="w-96 min-w-[380px] flex-shrink-0 overflow-hidden border-dashed">
+          <Card className="w-96 min-w-[380px] flex-shrink-0 snap-start overflow-hidden border-dashed">
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
                 <Tags className="h-4 w-4" />
@@ -843,7 +845,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         ) : null}
 
         {/* Legislation list */}
-        <Card className="flex-1 min-w-0">
+        <Card className="min-w-[320px] flex-shrink-0 snap-start md:flex-1 md:min-w-0">
           <CardHeader className="py-3 px-4 border-b">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <CardTitle className="text-sm flex items-center gap-2">
