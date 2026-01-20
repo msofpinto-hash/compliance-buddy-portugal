@@ -274,6 +274,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
+  const [diplomaTypeFilter, setDiplomaTypeFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -281,6 +282,57 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [listThemeFilter, setListThemeFilter] = useState<string | null>(null);
   const [listCategoryFilter, setListCategoryFilter] = useState<string | null>(null);
   const [listSubcategoryFilter, setListSubcategoryFilter] = useState<string | null>(null);
+
+  // Extract diploma types from legislation numbers
+  const extractDiplomaType = (number: string): string => {
+    if (!number) return "Outros";
+    
+    // Clean and normalize
+    const normalized = number.trim();
+    
+    // Common Portuguese diploma types
+    const typePatterns: [RegExp, string][] = [
+      [/^decreto[- ]lei/i, "Decreto-Lei"],
+      [/^lei\s/i, "Lei"],
+      [/^portaria/i, "Portaria"],
+      [/^despacho/i, "Despacho"],
+      [/^regulamento\s*\(ue\)/i, "Regulamento (UE)"],
+      [/^regulamento\s*\(ce\)/i, "Regulamento (CE)"],
+      [/^regulamento/i, "Regulamento"],
+      [/^diretiva/i, "Diretiva"],
+      [/^decisão/i, "Decisão"],
+      [/^resolução/i, "Resolução"],
+      [/^decreto\s+regulamentar/i, "Decreto Regulamentar"],
+      [/^decreto/i, "Decreto"],
+      [/^aviso/i, "Aviso"],
+      [/^declaração/i, "Declaração"],
+      [/^lei\s+orgânica/i, "Lei Orgânica"],
+      [/^lei\s+constitucional/i, "Lei Constitucional"],
+      [/^acórdão/i, "Acórdão"],
+    ];
+    
+    for (const [pattern, type] of typePatterns) {
+      if (pattern.test(normalized)) {
+        return type;
+      }
+    }
+    
+    return "Outros";
+  };
+
+  // Get unique diploma types from all legislation
+  const availableDiplomaTypes = useMemo(() => {
+    const types = new Map<string, number>();
+    legislation.forEach(leg => {
+      const type = extractDiplomaType(leg.number || "");
+      types.set(type, (types.get(type) || 0) + 1);
+    });
+    
+    // Sort by count (descending), then alphabetically
+    return Array.from(types.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({ type, count }));
+  }, [legislation]);
   
   // Use external search term if provided (from Biblioteca), otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
@@ -305,9 +357,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         (sourceFilter === "dre" && leg.source === "dre") ||
         (sourceFilter === "eurlex" && leg.source === "eurlex");
       
-      return matchesSearch && matchesSource;
+      const matchesDiplomaType = !diplomaTypeFilter || 
+        extractDiplomaType(leg.number || "") === diplomaTypeFilter;
+      
+      return matchesSearch && matchesSource && matchesDiplomaType;
     });
-  }, [legislation, searchTerm, sourceFilter]);
+  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter]);
 
   const legislationByCategory = useMemo(() => {
     const map = new Map<string, LegislationWithCategories[]>();
@@ -662,7 +717,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     return <div className="text-center py-8 text-muted-foreground">A carregar temas...</div>;
   }
 
-  const hasFilters = searchTerm || sourceFilter !== "all";
+  const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter;
 
   // List mode - filter legislation based on selected theme/category/subcategory
   const listFilteredLegislation = useMemo(() => {
@@ -786,6 +841,28 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 </Button>
               </div>
 
+              {/* Diploma Type Filter */}
+              <Select 
+                value={diplomaTypeFilter || "all"} 
+                onValueChange={(v) => {
+                  setDiplomaTypeFilter(v === "all" ? null : v);
+                  resetPage();
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs w-[160px]">
+                  <FileText className="h-3 w-3 mr-1" />
+                  <SelectValue placeholder="Tipo de diploma" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  {availableDiplomaTypes.map(({ type, count }) => (
+                    <SelectItem key={type} value={type}>
+                      {type} ({count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               {hasFilters && (
                 <Button
                   variant="ghost"
@@ -793,6 +870,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                   onClick={() => {
                     setSearchTerm("");
                     setSourceFilter("all");
+                    setDiplomaTypeFilter(null);
                   }}
                   className="text-muted-foreground"
                 >
