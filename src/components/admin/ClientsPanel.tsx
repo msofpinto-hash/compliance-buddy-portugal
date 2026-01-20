@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, FileText, Sparkles, Layers, Crown, BookOpen, BarChart3, Shield, FileCheck, Eye, Download, Copy, FolderTree, Search, X } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, FileText, Sparkles, Layers, Crown, BookOpen, BarChart3, Shield, FileCheck, Eye, Download, Copy, FolderTree, Search, X, AlertTriangle } from "lucide-react";
+import { ContractExpirationBadge } from "./ContractExpirationBadge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
@@ -481,6 +482,7 @@ export function ClientsPanel() {
                           {org.name}
                         </button>
                         {getServiceTypeBadge((org as any).service_type)}
+                        <ContractExpirationBadge contractEndDate={org.contract_end_date} compact />
                         <OrganizationThemesBadge organizationId={org.id} />
                         <OrganizationLegislationBadge organizationId={org.id} />
                       </div>
