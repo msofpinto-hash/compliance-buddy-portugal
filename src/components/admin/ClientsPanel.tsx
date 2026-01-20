@@ -21,6 +21,7 @@ import { CopyOrganizationSettingsDialog } from "./CopyOrganizationSettingsDialog
 import { ExportReportDialog } from "./ExportReportDialog";
 import { OrganizationLogoUpload } from "./OrganizationLogoUpload";
 import { ClientDetailView } from "./ClientDetailView";
+import { OrganizationComplianceProgress } from "./OrganizationComplianceProgress";
 
 type Organization = Tables<"organizations">;
 
@@ -459,15 +460,15 @@ export function ClientsPanel() {
               {filteredOrganizations.map((org) => (
                 <div
                   key={org.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors gap-4"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
                       <Building2 className="h-5 w-5" />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{org.name}</p>
+                        <p className="font-medium truncate">{org.name}</p>
                         {getServiceTypeBadge((org as any).service_type)}
                         <OrganizationThemesBadge organizationId={org.id} />
                         <OrganizationLegislationBadge organizationId={org.id} />
@@ -478,6 +479,11 @@ export function ClientsPanel() {
                         </p>
                       )}
                     </div>
+                  </div>
+                  
+                  {/* Compliance Progress Indicator */}
+                  <div className="hidden md:block w-32 shrink-0">
+                    <OrganizationComplianceProgress organizationId={org.id} compact />
                   </div>
                   <div className="flex items-center gap-1 flex-wrap">
                     <Button
