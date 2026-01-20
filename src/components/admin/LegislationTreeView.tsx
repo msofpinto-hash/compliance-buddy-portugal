@@ -1048,7 +1048,14 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     >
                       <CardContent className="p-4">
                         {/* Header with badges */}
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                          {/* Diploma Type Badge */}
+                          <Badge
+                            variant="secondary"
+                            className="shrink-0 text-xs bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                          >
+                            {extractDiplomaType(leg.number || "")}
+                          </Badge>
                           <Badge
                             variant="outline"
                             className={`shrink-0 text-xs ${
@@ -1058,9 +1065,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             }`}
                           >
                             {leg.origin === "PT" ? (
-                              <><Flag className="h-3 w-3 mr-1" />DRE</>
+                              <><Flag className="h-3 w-3 mr-1" />PT</>
                             ) : (
-                              <><Globe className="h-3 w-3 mr-1" />EU</>
+                              <><Globe className="h-3 w-3 mr-1" />UE</>
                             )}
                           </Badge>
                           {showApplicability && (
@@ -1401,6 +1408,13 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         {/* Header row */}
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            {/* Diploma Type Badge */}
+                            <Badge
+                              variant="secondary"
+                              className="shrink-0 text-xs px-2 py-0.5 bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                            >
+                              {extractDiplomaType(leg.number || "")}
+                            </Badge>
                             <Badge
                               variant="outline"
                               className={`shrink-0 text-xs px-2 py-0.5 ${
@@ -1410,9 +1424,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                               }`}
                             >
                               {leg.origin === "PT" ? (
-                                <><Flag className="h-3 w-3 mr-1" />DRE</>
+                                <><Flag className="h-3 w-3 mr-1" />PT</>
                               ) : (
-                                <><Globe className="h-3 w-3 mr-1" />EU</>
+                                <><Globe className="h-3 w-3 mr-1" />UE</>
                               )}
                             </Badge>
                             {showApplicability && (
