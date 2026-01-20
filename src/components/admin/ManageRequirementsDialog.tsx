@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ interface SortableRequirementCardProps {
   isUpdating: boolean;
   isDeleting: boolean;
   disableActions: boolean;
+  hasOrderMismatch?: boolean;
 }
 
 function SortableRequirementCard({
@@ -70,6 +71,7 @@ function SortableRequirementCard({
   isUpdating,
   isDeleting,
   disableActions,
+  hasOrderMismatch,
 }: SortableRequirementCardProps) {
   const {
     attributes,
@@ -156,11 +158,22 @@ function SortableRequirementCard({
               <GripVertical className="h-4 w-4" />
             </button>
             <div className="flex-1 space-y-1">
-              {requirement.article && (
-                <span className="inline-block rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  {requirement.article}
-                </span>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {requirement.article && (
+                  <span className="inline-block rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {requirement.article}
+                  </span>
+                )}
+                {hasOrderMismatch && (
+                  <span 
+                    className="inline-flex items-center gap-1 rounded bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+                    title="A ordem semântica deste requisito não corresponde ao display_order guardado. Clique em 'Recalcular Ordem' para corrigir."
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    Ordem incorreta
+                  </span>
+                )}
+              </div>
               <p className="text-sm">{requirement.requirement_text}</p>
               {requirement.notes && (
                 <p className="text-xs text-muted-foreground italic">{requirement.notes}</p>
@@ -222,6 +235,85 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
     },
     enabled: !!legislation && open,
   });
+
+  // Compute which requirements have order mismatch
+  const orderMismatchMap = useMemo(() => {
+    if (!requirements || requirements.length === 0) return new Set<string>();
+
+    // Semantic sort key extractor (same as recalculate logic)
+    const romanToInt = (roman: string) => {
+      const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+      let total = 0;
+      let prev = 0;
+      const s = roman.toUpperCase().replace(/[^IVXLCDM]/g, "");
+      for (let i = s.length - 1; i >= 0; i--) {
+        const val = map[s[i]] || 0;
+        if (val < prev) total -= val;
+        else {
+          total += val;
+          prev = val;
+        }
+      }
+      return total;
+    };
+
+    const getSortKey = (article: string | null) => {
+      const a = (article || "").trim();
+      const lower = a.toLowerCase();
+
+      let typeRank = 3;
+      let n1 = Number.POSITIVE_INFINITY;
+      let n2 = 0;
+
+      if (lower.startsWith("considerando")) {
+        typeRank = 0;
+        const m = a.match(/(\d+)/);
+        if (m) n1 = parseInt(m[1], 10);
+      } else if (lower.includes("art")) {
+        typeRank = 1;
+        const mArt = a.match(/art\.?\s*(\d+)/i);
+        if (mArt) n1 = parseInt(mArt[1], 10);
+        const mN = a.match(/n\.?\s*º\s*(\d+)/i) || a.match(/n\.\s*(\d+)/i);
+        if (mN) n2 = parseInt(mN[1], 10);
+      } else if (lower.includes("anexo")) {
+        typeRank = 2;
+        const mRoman = a.match(/anexo\s+([IVXLCDM]+)/i);
+        const mNum = a.match(/anexo\s+(\d+)/i);
+        if (mRoman) n1 = romanToInt(mRoman[1]);
+        else if (mNum) n1 = parseInt(mNum[1], 10);
+        else n1 = 0;
+      }
+
+      return { typeRank, n1, n2, raw: a };
+    };
+
+    // Create sorted copy
+    const sorted = [...requirements].sort((x, y) => {
+      const ax = getSortKey(x.article);
+      const ay = getSortKey(y.article);
+
+      if (ax.typeRank !== ay.typeRank) return ax.typeRank - ay.typeRank;
+      if (ax.n1 !== ay.n1) return ax.n1 - ay.n1;
+      if (ax.n2 !== ay.n2) return ax.n2 - ay.n2;
+      return ax.raw.localeCompare(ay.raw, "pt");
+    });
+
+    // Build expected order map: id -> expected position
+    const expectedOrder = new Map<string, number>();
+    sorted.forEach((req, idx) => expectedOrder.set(req.id, idx + 1));
+
+    // Find mismatches: current display_order != expected semantic order
+    const mismatches = new Set<string>();
+    requirements.forEach((req, idx) => {
+      const currentOrder = req.display_order ?? (idx + 1);
+      const expected = expectedOrder.get(req.id);
+      if (expected !== undefined && currentOrder !== expected) {
+        mismatches.add(req.id);
+      }
+    });
+
+    return mismatches;
+  }, [requirements]);
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -696,6 +788,7 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
                         isUpdating={updateMutation.isPending}
                         isDeleting={deleteMutation.isPending}
                         disableActions={editingId !== null && editingId !== req.id}
+                        hasOrderMismatch={orderMismatchMap.has(req.id)}
                       />
                     ))}
                   </div>
