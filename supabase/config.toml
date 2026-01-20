@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.import-requirements-from-source]
 verify_jwt = false
+
+[functions.lookup-nipc-vies]
+verify_jwt = false
