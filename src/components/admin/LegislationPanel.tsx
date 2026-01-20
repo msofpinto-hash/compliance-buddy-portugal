@@ -725,8 +725,8 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       {/* Progress Banner for All Active Jobs */}
       {!hideBanner && <ActiveJobsBanner />}
 
-      {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
+      {/* Stats - Apenas estatísticas de inventário (sem problemas/correções) */}
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
         <AnimatedStatCard
           label="Total de Legislação"
           value={legislation?.length || 0}
@@ -788,59 +788,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
             setFilterRevoked(false);
             setCurrentPage(1);
           }}
-        />
-        <AnimatedStatCard
-          label="Sem Categoria"
-          value={noCategoryCount}
-          previousValue={periodStats.previous.noCategory > 0 ? noCategoryCount - periodStats.current.noCategory + periodStats.previous.noCategory : undefined}
-          icon={noCategoryCount > 0 ? AlertCircle : undefined}
-          iconClassName="text-amber-600"
-          titleClassName={noCategoryCount > 0 ? "text-amber-600" : ""}
-          className={noCategoryCount > 0 ? "border-amber-300 bg-amber-50/50" : ""}
-          isActive={filterNoCategory}
-          activeRingColor="ring-amber-500"
-          onClick={() => toggleNoCategoryFilter()}
-        />
-        <AnimatedStatCard
-          label="Com Problemas"
-          value={problemsCount}
-          previousValue={periodStats.previous.problems > 0 ? problemsCount - periodStats.current.problems + periodStats.previous.problems : undefined}
-          icon={problemsCount > 0 ? AlertTriangle : undefined}
-          iconClassName="text-red-600"
-          titleClassName={problemsCount > 0 ? "text-red-600" : ""}
-          className={problemsCount > 0 ? "border-red-300 bg-red-50/50" : ""}
-          isActive={filterProblems}
-          activeRingColor="ring-red-500"
-          onClick={() => toggleProblemsFilter()}
-          tooltip={
-            <div className="text-xs">
-              <p className="font-medium mb-1">Problemas detetados:</p>
-              <ul className="space-y-0.5">
-                <li>• <strong>Título genérico</strong> – Título começa com "Documento" ou tem menos de 10 caracteres</li>
-                <li>• <strong>Origem em falta</strong> – Campo origem não é "PT" nem "EU"</li>
-                <li>• <strong>Datas em falta</strong> – Data de publicação ou vigência não preenchida</li>
-                <li>• <strong>Datas inválidas</strong> – Ano fora do intervalo 1900-{new Date().getFullYear() + 1}</li>
-              </ul>
-            </div>
-          }
-        />
-        <AnimatedStatCard
-          label="Importação Pendente"
-          value={genericTitleCount}
-          previousValue={periodStats.previous.genericTitle > 0 ? genericTitleCount - periodStats.current.genericTitle + periodStats.previous.genericTitle : undefined}
-          icon={genericTitleCount > 0 ? FileQuestion : undefined}
-          iconClassName="text-orange-600"
-          titleClassName={genericTitleCount > 0 ? "text-orange-600" : ""}
-          className={genericTitleCount > 0 ? "border-orange-300 bg-orange-50/50" : ""}
-          isActive={filterGenericTitle}
-          activeRingColor="ring-orange-500"
-          onClick={() => toggleGenericTitleFilter()}
-          tooltip={
-            <div className="text-xs">
-              <p className="font-medium mb-1">Diplomas com importação pendente:</p>
-              <p>Títulos genéricos como "Diploma referenciado - a aguardar importação completa" que precisam de ser completados.</p>
-            </div>
-          }
         />
         <AnimatedStatCard
           label="Revogados"
