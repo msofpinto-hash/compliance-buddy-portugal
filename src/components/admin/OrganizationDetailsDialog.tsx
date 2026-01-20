@@ -307,14 +307,21 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                     )}
                   </Label>
                   <div className="flex gap-2">
-                    <Input
-                      id="nipc"
-                      value={nipc}
-                      onChange={(e) => handleNipcChange(e.target.value)}
-                      placeholder="Ex: 123456789"
-                      maxLength={9}
-                      className={nipc && !nipcValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : nipc && nipcValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}
-                    />
+                    <div className="relative flex-1">
+                      <Input
+                        id="nipc"
+                        value={nipc}
+                        onChange={(e) => handleNipcChange(e.target.value)}
+                        placeholder="Ex: 123456789"
+                        maxLength={9}
+                        className={`pr-8 ${nipc && !nipcValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : nipc && nipcValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}`}
+                      />
+                      {isLookingUpNipc && (
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                          <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                        </div>
+                      )}
+                    </div>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -339,10 +346,16 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  {nipc && !nipcValidation.isValid && (
+                  {isLookingUpNipc && (
+                    <p className="text-xs text-amber-600 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      A consultar dados no sistema VIES...
+                    </p>
+                  )}
+                  {!isLookingUpNipc && nipc && !nipcValidation.isValid && (
                     <p className="text-xs text-red-500">{nipcValidation.message}</p>
                   )}
-                  {nipc && nipcValidation.isValid && (
+                  {!isLookingUpNipc && nipc && nipcValidation.isValid && (
                     <p className="text-xs text-emerald-600">{nipcValidation.message}</p>
                   )}
                 </div>
