@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check, GripVertical, RefreshCcw } from "lucide-react";
+import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check, GripVertical, RefreshCcw, Import } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +28,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { ImportRequirementsDialog } from "./ImportRequirementsDialog";
 
 interface LegalRequirement {
   id: string;
@@ -214,6 +215,7 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
   const [isExtracting, setIsExtracting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ article: "", requirement_text: "", notes: "" });
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -701,7 +703,7 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   onClick={() => addMutation.mutate()}
                   disabled={addMutation.isPending || !newRequirement.requirement_text.trim()}
@@ -723,6 +725,14 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
                     <Brain className="h-4 w-4" />
                   )}
                   Extrair via IA
+                </Button>
+                <Button
+                  onClick={() => setShowImportDialog(true)}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Import className="h-4 w-4" />
+                  Importar
                 </Button>
               </div>
             </CardContent>
@@ -805,6 +815,16 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
         </div>
       </DialogContent>
     </Dialog>
+    
+    {legislation && (
+      <ImportRequirementsDialog
+        legislationId={legislation.id}
+        legislationNumber={legislation.number}
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        existingRequirementsCount={requirements?.length || 0}
+      />
+    )}
     </>
   );
 }
