@@ -28,7 +28,15 @@ import {
   Clock,
   AlertCircle,
   XCircle,
-  ChevronDown
+  ChevronDown,
+  Leaf,
+  Shield,
+  Zap,
+  Award,
+  Heart,
+  Folder,
+  LayoutGrid,
+  X
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -38,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LegislationApplicabilitySelect } from "@/components/LegislationApplicabilitySelect";
 import { RequirementApplicabilitySelect } from "@/components/RequirementApplicabilitySelect";
+import { motion } from "framer-motion";
 
 type Organization = Tables<"organizations">;
 
@@ -68,6 +77,17 @@ const auditStatusConfig: Record<string, { label: string; color: string; icon: Re
   cancelled: { label: "Cancelada", color: "bg-slate-100 text-slate-500 border-slate-200", icon: XCircle },
 };
 
+// Theme config
+const themeConfig: Record<string, { icon: React.ElementType; color: string; bgLight: string; border: string }> = {
+  "Ambiente": { icon: Leaf, color: "text-emerald-600", bgLight: "bg-emerald-100", border: "border-emerald-300" },
+  "SST": { icon: Shield, color: "text-orange-600", bgLight: "bg-orange-100", border: "border-orange-300" },
+  "Segurança e Saúde no Trabalho": { icon: Shield, color: "text-orange-600", bgLight: "bg-orange-100", border: "border-orange-300" },
+  "Energia": { icon: Zap, color: "text-yellow-600", bgLight: "bg-yellow-100", border: "border-yellow-300" },
+  "Qualidade": { icon: Award, color: "text-blue-600", bgLight: "bg-blue-100", border: "border-blue-300" },
+  "Segurança": { icon: Shield, color: "text-red-600", bgLight: "bg-red-100", border: "border-red-300" },
+  "Conciliação Familiar e Profissional": { icon: Heart, color: "text-pink-600", bgLight: "bg-pink-100", border: "border-pink-300" },
+};
+
 // Navigation items for sidebar
 const navItems = [
   { id: "legislacao", label: "Legislação", icon: BookOpen },
@@ -84,6 +104,8 @@ export function ClientDetailView({ organization, onBack }: ClientDetailViewProps
   const [activeTab, setActiveTab] = useState("legislacao");
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedLegislation, setExpandedLegislation] = useState<Set<string>>(new Set());
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   // Fetch organization legislation with requirements
   const { data: orgLegislation, isLoading: loadingLegislation } = useQuery({
@@ -113,6 +135,72 @@ export function ClientDetailView({ organization, onBack }: ClientDetailViewProps
       return data;
     },
   });
+
+  // Fetch categories for assigned legislation
+  const { data: legislationCategories } = useQuery({
+    queryKey: ["client-detail-leg-categories", organization.id],
+    queryFn: async () => {
+      if (!orgLegislation?.length) return [];
+      
+      const legislationIds = orgLegislation.map(ol => ol.legislation_id);
+      
+      const { data, error } = await supabase
+        .from("legislation_category_mapping")
+        .select(`
+          legislation_id,
+          theme_categories(
+            id,
+            name,
+            parent_id,
+            theme_id,
+            themes(id, name)
+          )
+        `)
+        .in("legislation_id", legislationIds);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!orgLegislation?.length,
+  });
+
+  // Build themes and categories from legislation mapping
+  const { themesWithCategories, categoryMap } = useMemo(() => {
+    if (!legislationCategories) return { themesWithCategories: [], categoryMap: new Map() };
+    
+    const themeMap = new Map<string, { id: string; name: string; categories: Map<string, { id: string; name: string; count: number }> }>();
+    const catToLegMap = new Map<string, Set<string>>(); // category_id -> legislation_ids
+    
+    legislationCategories.forEach(lc => {
+      const cat = lc.theme_categories;
+      if (!cat || !cat.themes) return;
+      
+      const theme = cat.themes;
+      if (!themeMap.has(theme.id)) {
+        themeMap.set(theme.id, { id: theme.id, name: theme.name, categories: new Map() });
+      }
+      
+      const themeEntry = themeMap.get(theme.id)!;
+      if (!themeEntry.categories.has(cat.id)) {
+        themeEntry.categories.set(cat.id, { id: cat.id, name: cat.name, count: 0 });
+      }
+      themeEntry.categories.get(cat.id)!.count++;
+      
+      // Track legislation per category
+      if (!catToLegMap.has(cat.id)) {
+        catToLegMap.set(cat.id, new Set());
+      }
+      catToLegMap.get(cat.id)!.add(lc.legislation_id);
+    });
+    
+    const result = Array.from(themeMap.values()).map(t => ({
+      id: t.id,
+      name: t.name,
+      categories: Array.from(t.categories.values()),
+    }));
+    
+    return { themesWithCategories: result, categoryMap: catToLegMap };
+  }, [legislationCategories]);
 
   // Fetch requirements with applicabilities
   const { data: requirementsData, isLoading: loadingRequirements } = useQuery({
@@ -211,17 +299,33 @@ export function ClientDetailView({ organization, onBack }: ClientDetailViewProps
     },
   });
 
-  // Filter legislation by search
+  // Filter legislation by search and theme/category
   const filteredLegislation = useMemo(() => {
     if (!orgLegislation) return [];
-    if (!searchTerm) return orgLegislation;
     
-    const search = searchTerm.toLowerCase();
-    return orgLegislation.filter(ol => 
-      ol.legislation?.title?.toLowerCase().includes(search) ||
-      ol.legislation?.number?.toLowerCase().includes(search)
-    );
-  }, [orgLegislation, searchTerm]);
+    return orgLegislation.filter(ol => {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm || 
+        ol.legislation?.title?.toLowerCase().includes(search) ||
+        ol.legislation?.number?.toLowerCase().includes(search);
+      
+      // Filter by category
+      if (selectedCategoryId) {
+        const legIdsInCategory = categoryMap.get(selectedCategoryId);
+        if (!legIdsInCategory?.has(ol.legislation_id)) return false;
+      } else if (selectedThemeId) {
+        // Filter by theme (any category in this theme)
+        const theme = themesWithCategories.find(t => t.id === selectedThemeId);
+        if (theme) {
+          const themeCategories = theme.categories.map(c => c.id);
+          const hasTheme = themeCategories.some(catId => categoryMap.get(catId)?.has(ol.legislation_id));
+          if (!hasTheme) return false;
+        }
+      }
+      
+      return matchesSearch;
+    });
+  }, [orgLegislation, searchTerm, selectedThemeId, selectedCategoryId, categoryMap, themesWithCategories]);
 
   // Toggle legislation expansion
   const toggleLegislation = (id: string) => {
@@ -347,8 +451,97 @@ export function ClientDetailView({ organization, onBack }: ClientDetailViewProps
         {/* Legislação Content */}
         {activeTab === "legislacao" && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 max-w-sm">
+            {/* Theme Bar */}
+            {themesWithCategories.length > 0 && (
+              <Card className="bg-gradient-to-r from-amber-50/80 to-orange-50/50 dark:from-amber-900/20 dark:to-orange-900/15 border-amber-200/60">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {/* All button */}
+                    <motion.button
+                      onClick={() => { setSelectedThemeId(null); setSelectedCategoryId(null); }}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 shrink-0",
+                        !selectedThemeId 
+                          ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md" 
+                          : "bg-white/70 dark:bg-stone-800/50 text-muted-foreground hover:bg-amber-100/50"
+                      )}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                      <span className="text-sm font-medium">Todos</span>
+                    </motion.button>
+
+                    {/* Theme buttons */}
+                    {themesWithCategories.map((theme) => {
+                      const config = themeConfig[theme.name] || { icon: Folder, color: "text-slate-600", bgLight: "bg-slate-100", border: "border-slate-300" };
+                      const ThemeIcon = config.icon;
+                      const isSelected = selectedThemeId === theme.id;
+                      
+                      return (
+                        <motion.button
+                          key={theme.id}
+                          onClick={() => { 
+                            if (isSelected) {
+                              setSelectedThemeId(null);
+                              setSelectedCategoryId(null);
+                            } else {
+                              setSelectedThemeId(theme.id);
+                              setSelectedCategoryId(null);
+                            }
+                          }}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 shrink-0",
+                            isSelected 
+                              ? cn(config.bgLight, "border", config.border, "shadow-sm")
+                              : "bg-white/70 dark:bg-stone-800/50 text-muted-foreground hover:bg-muted/50"
+                          )}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <ThemeIcon className={cn("h-4 w-4", isSelected ? config.color : "")} />
+                          <span className={cn("text-sm font-medium", isSelected ? config.color : "")}>
+                            {theme.name}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Category Buttons (when theme selected) */}
+            {selectedThemeId && (() => {
+              const selectedTheme = themesWithCategories.find(t => t.id === selectedThemeId);
+              return selectedTheme && selectedTheme.categories.length > 0 ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant={!selectedCategoryId ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategoryId(null)}
+                    className={!selectedCategoryId ? "bg-amber-500 hover:bg-amber-600" : ""}
+                  >
+                    Todas ({selectedTheme.categories.reduce((a, c) => a + c.count, 0)})
+                  </Button>
+                  {selectedTheme.categories.map(cat => (
+                    <Button
+                      key={cat.id}
+                      variant={selectedCategoryId === cat.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedCategoryId(cat.id)}
+                      className={selectedCategoryId === cat.id ? "bg-amber-500 hover:bg-amber-600" : ""}
+                    >
+                      {cat.name} ({cat.count})
+                    </Button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
+
+            {/* Search and filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   placeholder="Pesquisar legislação..." 
@@ -357,6 +550,28 @@ export function ClientDetailView({ organization, onBack }: ClientDetailViewProps
                   className="pl-9"
                 />
               </div>
+              
+              {/* Active filters indicator */}
+              {(selectedThemeId || selectedCategoryId || searchTerm) && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {filteredLegislation.length} resultado{filteredLegislation.length !== 1 ? "s" : ""}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedThemeId(null);
+                      setSelectedCategoryId(null);
+                      setSearchTerm("");
+                    }}
+                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 gap-1"
+                  >
+                    <X className="h-3 w-3" />
+                    Limpar
+                  </Button>
+                </div>
+              )}
             </div>
 
             {loadingLegislation ? (
