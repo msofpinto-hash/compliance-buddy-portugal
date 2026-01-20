@@ -155,17 +155,51 @@ export function ManageRelationsDialog({
     }
   };
 
+  // Helper to extract CELEX from EUR-Lex URL
+  const extractCelexFromUrl = (url: string): string | null => {
+    // Pattern: https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:32019R0942
+    const celexMatch = url.match(/CELEX[:%](\d{5}[A-Z]\d+)/i);
+    if (celexMatch) return celexMatch[1];
+    
+    // Pattern: https://eur-lex.europa.eu/eli/reg/2019/942/oj
+    const eliMatch = url.match(/\/eli\/(\w+)\/(\d{4})\/(\d+)/);
+    if (eliMatch) {
+      const typeMap: { [key: string]: string } = {
+        'reg': 'R', 'dir': 'L', 'dec': 'D', 'rec': 'H'
+      };
+      const typeCode = typeMap[eliMatch[1]] || 'R';
+      return `3${eliMatch[2]}${typeCode}${eliMatch[3].padStart(4, '0')}`;
+    }
+    
+    return null;
+  };
+
+  // Helper to build readable title from CELEX
+  const buildTitleFromCelex = (celex: string): string => {
+    const match = celex.match(/^(\d)(\d{4})([A-Z])(\d+)/);
+    if (!match) return `Documento ${celex}`;
+    
+    const [, , year, type, number] = match;
+    
+    const typeNames: { [key: string]: string } = {
+      'R': 'Regulamento', 'L': 'Diretiva', 'D': 'Decisão', 'H': 'Recomendação'
+    };
+    
+    const typeName = typeNames[type] || 'Documento';
+    return `${typeName} (UE) ${year}/${parseInt(number, 10)}`;
+  };
+
   const handleCreateFromUrl = async () => {
     if (!urlInput.trim()) {
       toast.error("Insira uma URL válida");
       return;
     }
 
-    // Validate URL format
-    const validDomains = ['dre.pt', 'eur-lex.europa.eu'];
-    const isValidUrl = validDomains.some(domain => urlInput.toLowerCase().includes(domain));
+    const url = urlInput.trim();
+    const isDRE = url.toLowerCase().includes('dre.pt');
+    const isEurLex = url.toLowerCase().includes('eur-lex.europa.eu');
     
-    if (!isValidUrl) {
+    if (!isDRE && !isEurLex) {
       toast.error("URL inválida. Apenas URLs do DRE ou EUR-Lex são suportadas.");
       return;
     }
@@ -173,54 +207,142 @@ export function ManageRelationsDialog({
     setIsCreatingFromUrl(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('import-dre-links', {
-        body: {
-          links: [urlInput.trim()],
-          updateExisting: false,
-          extractRequirementsAI: false,
-        },
-      });
+      if (isDRE) {
+        // Use existing import-dre-links function for DRE
+        const { data, error } = await supabase.functions.invoke('import-dre-links', {
+          body: {
+            links: [url],
+            updateExisting: false,
+            extractRequirementsAI: false,
+          },
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data?.results?.length > 0) {
-        const result = data.results[0];
-        
-        if (result.success && result.legislationId) {
-          // Fetch the created legislation
-          const { data: createdLeg, error: fetchError } = await supabase
-            .from("legislation")
-            .select("id, number, title, origin")
-            .eq("id", result.legislationId)
-            .single();
-
-          if (fetchError) throw fetchError;
-
-          setFoundLegislation(createdLeg);
-          setUrlNotFound(false);
-          toast.success(`Diploma criado com sucesso: ${createdLeg.number}`);
+        if (data?.results?.length > 0) {
+          const result = data.results[0];
           
-          // Invalidate legislation queries
-          queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
-          queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
-        } else if (result.skipped) {
-          // Diploma already exists, fetch it
-          const { data: existingLeg } = await supabase
-            .from("legislation")
-            .select("id, number, title, origin")
-            .eq("document_url", urlInput.trim())
-            .maybeSingle();
+          if (result.success && result.legislationId) {
+            const { data: createdLeg, error: fetchError } = await supabase
+              .from("legislation")
+              .select("id, number, title, origin")
+              .eq("id", result.legislationId)
+              .single();
 
-          if (existingLeg) {
-            setFoundLegislation(existingLeg);
+            if (fetchError) throw fetchError;
+
+            setFoundLegislation(createdLeg);
             setUrlNotFound(false);
-            toast.info(`Diploma já existia: ${existingLeg.number}`);
+            toast.success(`Diploma criado com sucesso: ${createdLeg.number}`);
+            queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
+            queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+          } else if (result.skipped) {
+            const { data: existingLeg } = await supabase
+              .from("legislation")
+              .select("id, number, title, origin")
+              .eq("document_url", url)
+              .maybeSingle();
+
+            if (existingLeg) {
+              setFoundLegislation(existingLeg);
+              setUrlNotFound(false);
+              toast.info(`Diploma já existia: ${existingLeg.number}`);
+            }
+          } else {
+            toast.error(result.error || "Não foi possível extrair informações da URL.");
           }
         } else {
-          toast.error(result.error || "Não foi possível extrair informações da URL.");
+          toast.error("Nenhum resultado retornado. Verifique se a URL é válida.");
         }
-      } else {
-        toast.error("Nenhum resultado retornado. Verifique se a URL é válida.");
+      } else if (isEurLex) {
+        // Handle EUR-Lex URLs
+        const celex = extractCelexFromUrl(url);
+        
+        // Try to scrape with Firecrawl first
+        const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke('firecrawl-scrape', {
+          body: { 
+            url, 
+            options: { formats: ['markdown'], onlyMainContent: true } 
+          },
+        });
+
+        let title = '';
+        let summary = '';
+
+        if (!scrapeError && scrapeData?.success) {
+          const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
+          
+          // Extract title from markdown - look for first heading
+          const titleMatch = markdown.match(/^#\s+(.+)$/m);
+          if (titleMatch) {
+            title = titleMatch[1].replace(/\*+/g, '').trim().substring(0, 500);
+          }
+          
+          // Extract summary - first paragraph after title
+          const paragraphs = markdown.split(/\n\n+/).filter((p: string) => 
+            p.length > 50 && !p.startsWith('#') && !p.includes('|')
+          );
+          if (paragraphs.length > 0) {
+            summary = paragraphs[0].replace(/\*+/g, '').replace(/\[.*?\]\(.*?\)/g, '').trim().substring(0, 1000);
+          }
+        }
+
+        // Build number from CELEX or URL
+        let number = '';
+        if (celex) {
+          number = buildTitleFromCelex(celex);
+          if (!title) title = number;
+        } else {
+          // Fallback: extract from URL path
+          const pathMatch = url.match(/\/(\d{4})\/(\d+)/);
+          if (pathMatch) {
+            number = `Regulamento (UE) ${pathMatch[1]}/${pathMatch[2]}`;
+            if (!title) title = number;
+          } else {
+            number = `Documento EUR-Lex ${Date.now()}`;
+            title = title || number;
+          }
+        }
+
+        // Insert into database
+        const { data: insertedLeg, error: insertError } = await supabase
+          .from('legislation')
+          .insert({
+            external_id: celex ? `eurlex-${celex}` : `eurlex-${Date.now()}`,
+            source: 'eurlex-manual',
+            number,
+            title,
+            summary: summary || null,
+            origin: 'EU',
+            document_url: url,
+          })
+          .select('id, number, title, origin')
+          .single();
+
+        if (insertError) {
+          if (insertError.code === '23505') {
+            // Duplicate - try to fetch existing
+            const { data: existingLeg } = await supabase
+              .from("legislation")
+              .select("id, number, title, origin")
+              .eq("document_url", url)
+              .maybeSingle();
+
+            if (existingLeg) {
+              setFoundLegislation(existingLeg);
+              setUrlNotFound(false);
+              toast.info(`Diploma já existia: ${existingLeg.number}`);
+              return;
+            }
+          }
+          throw insertError;
+        }
+
+        setFoundLegislation(insertedLeg);
+        setUrlNotFound(false);
+        toast.success(`Diploma EUR-Lex criado: ${insertedLeg.number}`);
+        queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
+        queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
       }
     } catch (error: any) {
       console.error("Error creating from URL:", error);
