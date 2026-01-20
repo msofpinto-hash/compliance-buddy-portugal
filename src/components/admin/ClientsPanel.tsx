@@ -605,381 +605,158 @@ export function ClientsPanel() {
         </Dialog>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Organizations List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Organizações
-            </CardTitle>
-            <CardDescription>
-              {organizations?.length || 0} organizações registadas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {organizations?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma organização criada</p>
-                <p className="text-sm">Clique em "Nova Organização" para começar</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {organizations?.map((org) => (
-                  <div
-                    key={org.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedOrg?.id === org.id
-                        ? "border-primary bg-primary/5"
-                        : "hover:bg-muted/50"
-                    }`}
-                    onClick={() => setSelectedOrg(org)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Building2 className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium">{org.name}</p>
-                          {getServiceTypeBadge((org as any).service_type)}
-                          <OrganizationThemesBadge organizationId={org.id} />
-                          <OrganizationLegislationBadge organizationId={org.id} />
-                        </div>
-                        {org.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {org.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="h-8 gap-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm"
-                        title="Gerir Cliente"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDetailViewOrg(org);
-                        }}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Gerir
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Exportar Relatórios"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExportReportOrg(org);
-                        }}
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Copiar Configurações"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCopySettingsOrg(org);
-                        }}
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Atribuir Temas"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAssignThemesOrg(org);
-                        }}
-                      >
-                        <FolderTree className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Atribuir Diplomas"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAssignLegislationOrg(org);
-                        }}
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(org);
-                        }}
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Eliminar Organização</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem a certeza que deseja eliminar "{org.name}"? Esta ação não pode ser revertida.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => deleteOrgMutation.mutate(org.id)}
-                            >
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Organization Users */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Utilizadores
-                </CardTitle>
-                <CardDescription>
-                  {selectedOrg
-                    ? `Utilizadores de ${selectedOrg.name}`
-                    : "Selecione uma organização"}
-                </CardDescription>
-              </div>
-              {selectedOrg && (
-                <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="gap-2">
-                      <UserPlus className="h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Adicionar Utilizador</DialogTitle>
-                      <DialogDescription>
-                        Adicione um utilizador existente a {selectedOrg.name}.
-                        O utilizador deve já estar registado no sistema.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="user-name" className="flex items-center gap-1">
-                            <span className="text-destructive">*</span> Nome
-                          </Label>
-                          <Input
-                            id="user-name"
-                            placeholder="Nome completo"
-                            value={newUserName}
-                            onChange={(e) => setNewUserName(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="user-email" className="flex items-center gap-1">
-                            <span className="text-destructive">*</span> Login
-                          </Label>
-                          <Input
-                            id="user-email"
-                            type="email"
-                            placeholder="exemplo@empresa.pt"
-                            value={newUserEmail}
-                            onChange={(e) => setNewUserEmail(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="user-type" className="flex items-center gap-1">
-                            <span className="text-destructive">*</span> Tipo
-                          </Label>
-                          <Select value={newUserType} onValueChange={setNewUserType}>
-                            <SelectTrigger id="user-type">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {userTypes.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="user-language" className="flex items-center gap-1">
-                            <span className="text-destructive">*</span> Idioma
-                          </Label>
-                          <Select value={newUserLanguage} onValueChange={setNewUserLanguage}>
-                            <SelectTrigger id="user-language">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {languages.map((lang) => (
-                                <SelectItem key={lang.value} value={lang.value}>
-                                  {lang.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="user-calendar" className="flex items-center gap-1">
-                          <span className="text-destructive">*</span> Calendário
-                        </Label>
-                        <Select value={newUserCalendar} onValueChange={setNewUserCalendar}>
-                          <SelectTrigger id="user-calendar" className="w-1/2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {calendarTypes.map((cal) => (
-                              <SelectItem key={cal.value} value={cal.value}>
-                                {cal.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
-                        Cancelar
-                      </Button>
-                      <Button
-                        onClick={() => addUserMutation.mutate()}
-                        disabled={!newUserEmail.trim() || !newUserName.trim() || addUserMutation.isPending}
-                      >
-                        {addUserMutation.isPending ? "A adicionar..." : "Adicionar"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
+      {/* Organizations List - Full Width */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Organizações
+          </CardTitle>
+          <CardDescription>
+            {organizations?.length || 0} organizações registadas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {organizations?.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhuma organização criada</p>
+              <p className="text-sm">Clique em "Nova Organização" para começar</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            {!selectedOrg ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Selecione uma organização</p>
-                <p className="text-sm">para ver os seus utilizadores</p>
-              </div>
-            ) : isLoadingUsers ? (
-              <div className="space-y-3">
-                {[1, 2].map((i) => (
-                  <Skeleton key={i} className="h-16" />
-                ))}
-              </div>
-            ) : orgUsers?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum utilizador nesta organização</p>
-                <p className="text-sm">Clique em "Adicionar" para associar utilizadores</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {orgUsers?.map((userRole: any) => (
-                  <div
-                    key={userRole.id}
-                    className="flex items-center justify-between p-3 rounded-lg border"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-                        <Mail className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {userRole.profiles?.full_name || "Sem nome"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {userRole.profiles?.email}
-                        </p>
-                      </div>
+          ) : (
+            <div className="space-y-3">
+              {organizations?.map((org) => (
+                <div
+                  key={org.id}
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Building2 className="h-5 w-5" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {userTypes.find(t => t.value === userRole.profiles?.user_type)?.label || "Consulta"}
-                      </Badge>
-                      <Badge variant="secondary">{userRole.role}</Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditUser(userRole)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remover Utilizador</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem a certeza que deseja remover este utilizador de {selectedOrg.name}?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => removeUserMutation.mutate(userRole.id)}
-                            >
-                              Remover
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">{org.name}</p>
+                        {getServiceTypeBadge((org as any).service_type)}
+                        <OrganizationThemesBadge organizationId={org.id} />
+                        <OrganizationLegislationBadge organizationId={org.id} />
+                      </div>
+                      {org.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-1">
+                          {org.description}
+                        </p>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-8 gap-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm"
+                      title="Gerir Cliente"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailViewOrg(org);
+                      }}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Gerir
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Exportar Relatórios"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExportReportOrg(org);
+                      }}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Copiar Configurações"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCopySettingsOrg(org);
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Atribuir Temas"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAssignThemesOrg(org);
+                      }}
+                    >
+                      <FolderTree className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Atribuir Diplomas"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAssignLegislationOrg(org);
+                      }}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(org);
+                      }}
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Eliminar Organização</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem a certeza que deseja eliminar "{org.name}"? Esta ação não pode ser revertida.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => deleteOrgMutation.mutate(org.id)}
+                          >
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Edit Organization Dialog */}
       <Dialog open={!!editingOrg} onOpenChange={(open) => !open && setEditingOrg(null)}>
