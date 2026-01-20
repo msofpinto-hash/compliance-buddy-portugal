@@ -127,19 +127,81 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     };
     return colorMap[type] || colorMap["Outros"];
   };
-
-  // Get unique diploma types from all legislation
-  const availableDiplomaTypes = useMemo(() => {
+  // Base filtered data (before diploma type filter) for legend counts
+  const baseFilteredLegislation = useMemo(() => {
     if (!legislation) return [];
+
+    let result = legislation.filter(leg =>
+      leg.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leg.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leg.summary?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Filter by date range (publication_date)
+    if (filterStartDate) {
+      result = result.filter(leg => leg.publication_date && leg.publication_date >= filterStartDate);
+    }
+    if (filterEndDate) {
+      result = result.filter(leg => leg.publication_date && leg.publication_date <= filterEndDate);
+    }
+
+    // Filter by "problems"
+    if (filterProblems) {
+      if (filterProblemType === "all") {
+        result = result.filter(hasProblems);
+      } else {
+        result = result.filter(leg => getProblems(leg).includes(filterProblemType as ProblemType));
+      }
+    }
+
+    // Filter by "generic title"
+    if (filterGenericTitle) {
+      result = result.filter(leg => isGenericTitle(leg.title));
+    }
+
+    // Filter by "revoked"
+    if (filterRevoked) {
+      result = result.filter(leg => !!(leg as any).revocation_date);
+    }
+
+    // Filter by origin
+    if (filterOrigin !== "all") {
+      if (filterOrigin === "other") {
+        result = result.filter(leg => !leg.origin || (leg.origin !== "PT" && leg.origin !== "EU"));
+      } else {
+        result = result.filter(leg => leg.origin === filterOrigin);
+      }
+    }
+
+    // Filter by "no category"
+    if (filterNoCategory) {
+      result = result.filter(leg => leg.categories.length === 0);
+    }
+
+    // Filter by theme
+    if (!filterNoCategory && !filterProblems && !filterRevoked && filterTheme !== "all") {
+      result = result.filter(leg => leg.categories.some(cat => cat.theme_name === filterTheme));
+    }
+
+    // Filter by specific category
+    if (!filterNoCategory && !filterProblems && !filterRevoked && filterCategory !== "all") {
+      result = result.filter(leg => leg.categories.some(cat => cat.id === filterCategory));
+    }
+
+    return result;
+  }, [legislation, searchTerm, filterStartDate, filterEndDate, filterProblems, filterProblemType, filterGenericTitle, filterRevoked, filterOrigin, filterNoCategory, filterTheme, filterCategory]);
+
+  // Get unique diploma types from filtered legislation (excluding diploma type filter)
+  const availableDiplomaTypes = useMemo(() => {
     const types = new Map<string, number>();
-    legislation.forEach(leg => {
+    baseFilteredLegislation.forEach(leg => {
       const type = extractDiplomaType(leg.number || "");
       types.set(type, (types.get(type) || 0) + 1);
     });
     return Array.from(types.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([type, count]) => ({ type, count }));
-  }, [legislation]);
+  }, [baseFilteredLegislation]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
