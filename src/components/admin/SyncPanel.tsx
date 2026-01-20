@@ -12,11 +12,13 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
-import * as pdfjsLib from "pdfjs-dist";
+// Use the legacy PDF.js build + bundled worker to avoid cross-origin/module-worker issues
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Vite ?url import
+import pdfWorkerSrc from "pdfjs-dist/legacy/build/pdf.worker.min.js?url";
 
-// Configure PDF.js worker - use fixed version 3.11.174 for browser compatibility
-const PDF_WORKER_VERSION = '3.11.174';
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDF_WORKER_VERSION}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
 export function SyncPanel() {
   const { data: syncLogs, isLoading: logsLoading } = useSyncLogs();
