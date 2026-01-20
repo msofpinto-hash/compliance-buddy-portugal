@@ -320,6 +320,35 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     return "Outros";
   };
 
+  // Color mapping for diploma types
+  const getDiplomaTypeColors = (type: string): string => {
+    const colorMap: Record<string, string> = {
+      // Portuguese legislation - warmer tones
+      "Decreto-Lei": "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-300/50",
+      "Lei": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-300/50",
+      "Lei Orgânica": "bg-emerald-600/15 text-emerald-800 dark:text-emerald-300 border-emerald-400/50",
+      "Lei Constitucional": "bg-emerald-700/15 text-emerald-900 dark:text-emerald-200 border-emerald-500/50",
+      "Portaria": "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-300/50",
+      "Despacho": "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-300/50",
+      "Decreto": "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-300/50",
+      "Decreto Regulamentar": "bg-indigo-600/15 text-indigo-800 dark:text-indigo-300 border-indigo-400/50",
+      "Resolução": "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-300/50",
+      "Aviso": "bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-300/50",
+      "Declaração": "bg-gray-500/15 text-gray-700 dark:text-gray-400 border-gray-300/50",
+      "Acórdão": "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-300/50",
+      // EU legislation - cooler tones
+      "Regulamento": "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-300/50",
+      "Regulamento (UE)": "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-300/50",
+      "Regulamento (CE)": "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300 border-cyan-400/50",
+      "Diretiva": "bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-300/50",
+      "Decisão": "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-400 border-fuchsia-300/50",
+      // Default
+      "Outros": "bg-stone-500/15 text-stone-700 dark:text-stone-400 border-stone-300/50",
+    };
+    
+    return colorMap[type] || colorMap["Outros"];
+  };
+
   // Get unique diploma types from all legislation
   const availableDiplomaTypes = useMemo(() => {
     const types = new Map<string, number>();
@@ -1051,8 +1080,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                           {/* Diploma Type Badge */}
                           <Badge
-                            variant="secondary"
-                            className="shrink-0 text-xs bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                            variant="outline"
+                            className={`shrink-0 text-xs ${getDiplomaTypeColors(extractDiplomaType(leg.number || ""))}`}
                           >
                             {extractDiplomaType(leg.number || "")}
                           </Badge>
@@ -1410,8 +1439,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                             {/* Diploma Type Badge */}
                             <Badge
-                              variant="secondary"
-                              className="shrink-0 text-xs px-2 py-0.5 bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                              variant="outline"
+                              className={`shrink-0 text-xs px-2 py-0.5 ${getDiplomaTypeColors(extractDiplomaType(leg.number || ""))}`}
                             >
                               {extractDiplomaType(leg.number || "")}
                             </Badge>
