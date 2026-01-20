@@ -19,13 +19,17 @@ import {
   AlertTriangle,
   Loader2,
   RefreshCw,
+  AlertCircle,
+  FileQuestion,
+  Layers,
 } from "lucide-react";
 import { DataQualityPanel } from "./DataQualityPanel";
 import { UrlHealthPanel } from "./UrlHealthPanel";
 import { DateAnomaliesPanel } from "./DateAnomaliesPanel";
+import { AnimatedStatCard } from "./AnimatedStatCard";
 
 export function DataQualityConsolidatedPanel() {
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["quality"]));
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["issues"]));
 
   const toggleSection = (section: string) => {
     const newSet = new Set(openSections);
@@ -37,14 +41,16 @@ export function DataQualityConsolidatedPanel() {
     setOpenSections(newSet);
   };
 
-  // Fetch quick stats for badges
-  const { data: quickStats, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["quality-quick-stats"],
+  // Fetch comprehensive stats
+  const { data: stats, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["maintenance-stats"],
     queryFn: async () => {
       const [
         missingUrlData,
         dateAnomaliesData,
         noCategoriesData,
+        genericTitlesData,
+        problemsData,
       ] = await Promise.all([
         supabase
           .from("legislation")
@@ -56,20 +62,38 @@ export function DataQualityConsolidatedPanel() {
           .select("id", { count: "exact", head: true })
           .is("publication_date", null),
         supabase.rpc("get_legislation_without_categories_count"),
+        // Generic titles (pending import)
+        supabase
+          .from("legislation")
+          .select("id", { count: "exact", head: true })
+          .or("title.ilike.%Documento %,title.ilike.%Diploma referenciado%,title.ilike.%a aguardar importação%"),
+        // Problems: missing origin
+        supabase
+          .from("legislation")
+          .select("id", { count: "exact", head: true })
+          .or("origin.is.null,origin.not.in.(PT,EU)"),
       ]);
 
+      const noCategories = typeof noCategoriesData.data === 'number' ? noCategoriesData.data : 0;
+      const genericTitles = genericTitlesData.count || 0;
+      const missingOrigin = problemsData.count || 0;
+      const missingDates = dateAnomaliesData.count || 0;
+      
       return {
         missingUrls: missingUrlData.count || 0,
-        dateAnomalies: dateAnomaliesData.count || 0,
-        noCategories: typeof noCategoriesData.data === 'number' ? noCategoriesData.data : 0,
+        dateAnomalies: missingDates,
+        noCategories,
+        genericTitles,
+        // Total problems = generic titles + missing origin + missing dates
+        totalProblems: genericTitles + missingOrigin + missingDates,
       };
     },
     staleTime: 60000,
   });
 
-  const totalIssues = (quickStats?.missingUrls || 0) + 
-                      (quickStats?.dateAnomalies || 0) + 
-                      (quickStats?.noCategories || 0);
+  const totalIssues = (stats?.missingUrls || 0) + 
+                      (stats?.dateAnomalies || 0) + 
+                      (stats?.noCategories || 0);
 
   return (
     <div className="space-y-4">
@@ -80,10 +104,10 @@ export function DataQualityConsolidatedPanel() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
-                Qualidade de Dados
+                Manutenção de Dados
               </CardTitle>
               <CardDescription>
-                Monitorização e correção de problemas na base de dados
+                Correção de problemas e qualidade da base de dados
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -97,7 +121,7 @@ export function DataQualityConsolidatedPanel() {
               ) : (
                 <Badge variant="destructive" className="gap-1">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  {totalIssues} problemas
+                  {totalIssues} itens a corrigir
                 </Badge>
               )}
               <Button 
@@ -116,6 +140,50 @@ export function DataQualityConsolidatedPanel() {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Quick Stats Cards */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+        <AnimatedStatCard
+          label="Sem Categoria"
+          value={stats?.noCategories || 0}
+          icon={(stats?.noCategories || 0) > 0 ? Layers : undefined}
+          iconClassName="text-amber-600"
+          titleClassName={(stats?.noCategories || 0) > 0 ? "text-amber-600" : ""}
+          className={(stats?.noCategories || 0) > 0 ? "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20" : ""}
+        />
+        <AnimatedStatCard
+          label="Importação Pendente"
+          value={stats?.genericTitles || 0}
+          icon={(stats?.genericTitles || 0) > 0 ? FileQuestion : undefined}
+          iconClassName="text-orange-600"
+          titleClassName={(stats?.genericTitles || 0) > 0 ? "text-orange-600" : ""}
+          className={(stats?.genericTitles || 0) > 0 ? "border-orange-300 bg-orange-50/50 dark:bg-orange-950/20" : ""}
+        />
+        <AnimatedStatCard
+          label="Sem URL"
+          value={stats?.missingUrls || 0}
+          icon={(stats?.missingUrls || 0) > 0 ? Link2 : undefined}
+          iconClassName="text-blue-600"
+          titleClassName={(stats?.missingUrls || 0) > 0 ? "text-blue-600" : ""}
+          className={(stats?.missingUrls || 0) > 0 ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : ""}
+        />
+        <AnimatedStatCard
+          label="Sem Data"
+          value={stats?.dateAnomalies || 0}
+          icon={(stats?.dateAnomalies || 0) > 0 ? Calendar : undefined}
+          iconClassName="text-red-600"
+          titleClassName={(stats?.dateAnomalies || 0) > 0 ? "text-red-600" : ""}
+          className={(stats?.dateAnomalies || 0) > 0 ? "border-red-300 bg-red-50/50 dark:bg-red-950/20" : ""}
+        />
+        <AnimatedStatCard
+          label="Total Problemas"
+          value={stats?.totalProblems || 0}
+          icon={(stats?.totalProblems || 0) > 0 ? AlertTriangle : CheckCircle2}
+          iconClassName={(stats?.totalProblems || 0) > 0 ? "text-red-600" : "text-green-600"}
+          titleClassName={(stats?.totalProblems || 0) > 0 ? "text-red-600" : "text-green-600"}
+          className={(stats?.totalProblems || 0) > 0 ? "border-red-300 bg-red-50/50 dark:bg-red-950/20" : "border-green-300 bg-green-50/50 dark:bg-green-950/20"}
+        />
+      </div>
 
       {/* Collapsible Sections */}
       <div className="space-y-3">
@@ -136,14 +204,9 @@ export function DataQualityConsolidatedPanel() {
                     )}
                     <div className="flex items-center gap-2">
                       <Database className="h-5 w-5 text-primary" />
-                      <span className="font-semibold">Métricas Gerais</span>
+                      <span className="font-semibold">Métricas e Requisitos</span>
                     </div>
                   </div>
-                  {(quickStats?.noCategories || 0) > 0 && (
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      {quickStats?.noCategories} sem categoria
-                    </Badge>
-                  )}
                 </div>
               </CardHeader>
             </CollapsibleTrigger>
@@ -172,12 +235,12 @@ export function DataQualityConsolidatedPanel() {
                     )}
                     <div className="flex items-center gap-2">
                       <Link2 className="h-5 w-5 text-blue-500" />
-                      <span className="font-semibold">URLs de Documentos</span>
+                      <span className="font-semibold">Correção de URLs</span>
                     </div>
                   </div>
-                  {(quickStats?.missingUrls || 0) > 0 && (
+                  {(stats?.missingUrls || 0) > 0 && (
                     <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                      {quickStats?.missingUrls} sem URL
+                      {stats?.missingUrls} sem URL
                     </Badge>
                   )}
                 </div>
@@ -208,12 +271,12 @@ export function DataQualityConsolidatedPanel() {
                     )}
                     <div className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-orange-500" />
-                      <span className="font-semibold">Anomalias de Datas</span>
+                      <span className="font-semibold">Correção de Datas</span>
                     </div>
                   </div>
-                  {(quickStats?.dateAnomalies || 0) > 0 && (
+                  {(stats?.dateAnomalies || 0) > 0 && (
                     <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-                      {quickStats?.dateAnomalies} sem data
+                      {stats?.dateAnomalies} anomalias
                     </Badge>
                   )}
                 </div>
