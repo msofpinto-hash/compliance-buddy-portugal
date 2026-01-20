@@ -1109,6 +1109,8 @@ export type Database = {
           name: string
           nipc: string | null
           notes: string | null
+          proposal_url: string | null
+          purchase_order_url: string | null
           responsible_email: string | null
           responsible_name: string | null
           responsible_phone: string | null
@@ -1127,6 +1129,8 @@ export type Database = {
           name: string
           nipc?: string | null
           notes?: string | null
+          proposal_url?: string | null
+          purchase_order_url?: string | null
           responsible_email?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
@@ -1145,6 +1149,8 @@ export type Database = {
           name?: string
           nipc?: string | null
           notes?: string | null
+          proposal_url?: string | null
+          purchase_order_url?: string | null
           responsible_email?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
