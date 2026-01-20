@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy, FileSpreadsheet, Sparkles, Layers, Crown, Gem, BookOpen, BarChart3, Shield, FileCheck } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy, FileSpreadsheet, Sparkles, Layers, Crown, Gem, BookOpen, BarChart3, Shield, FileCheck, Eye } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
@@ -23,6 +23,7 @@ import { CopyOrganizationSettingsDialog } from "./CopyOrganizationSettingsDialog
 import { CopyRequirementsDialog } from "./CopyRequirementsDialog";
 import { ExportReportDialog } from "./ExportReportDialog";
 import { OrganizationLogoUpload } from "./OrganizationLogoUpload";
+import { ClientDetailView } from "./ClientDetailView";
 
 type Organization = Tables<"organizations">;
 
@@ -31,6 +32,7 @@ export function ClientsPanel() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [detailViewOrg, setDetailViewOrg] = useState<Organization | null>(null);
   const [assignLegislationOrg, setAssignLegislationOrg] = useState<Organization | null>(null);
   const [manageRequirementsOrg, setManageRequirementsOrg] = useState<Organization | null>(null);
   const [actionPlansOrg, setActionPlansOrg] = useState<Organization | null>(null);
@@ -436,6 +438,16 @@ export function ClientsPanel() {
     );
   }
 
+  // Show detail view if a client is selected for detailed management
+  if (detailViewOrg) {
+    return (
+      <ClientDetailView
+        organization={detailViewOrg}
+        onBack={() => setDetailViewOrg(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
@@ -643,6 +655,19 @@ export function ClientsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-8 gap-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm"
+                        title="Gerir Cliente"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDetailViewOrg(org);
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Gerir
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
