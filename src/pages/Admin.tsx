@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Building2, Users, ClipboardCheck, ListTodo, FolderOpen, Eye, ShieldCheck, BookOpen } from "lucide-react";
+import { Settings, Building2, Users, BookOpen } from "lucide-react";
 import { BibliotecaPanel } from "@/components/admin/BibliotecaPanel";
 import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
-import { AuditsPanel } from "@/components/admin/AuditsPanel";
-import { ActionPlansPanel } from "@/components/admin/ActionPlansPanel";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
-import { EvidenceTemplatesPanel } from "@/components/admin/EvidenceTemplatesPanel";
-import { EvidenceReviewPanel } from "@/components/admin/EvidenceReviewPanel";
-import { ComplianceRequestsPanel } from "@/components/admin/ComplianceRequestsPanel";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useBackgroundJobNotifications } from "@/hooks/useBackgroundJobNotifications";
 
-const validTabs = ["biblioteca", "audits", "actions", "evidence", "review", "compliance", "clients", "users"];
+const validTabs = ["biblioteca", "clients", "users"];
 
 const Admin = () => {
   const { user, signOut } = useAuth();
@@ -72,64 +67,24 @@ const Admin = () => {
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <div className="relative z-10">
-            <TabsList className="flex h-auto flex-wrap gap-1 bg-gradient-to-r from-amber-100/80 via-orange-100/60 to-yellow-100/50 dark:from-amber-900/40 dark:via-orange-900/30 dark:to-yellow-900/25 border border-amber-200/60 dark:border-amber-800/40 p-1.5 w-full max-w-7xl">
-              <TabsTrigger value="biblioteca" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
+            <TabsList className="flex h-auto gap-1 bg-gradient-to-r from-amber-100/80 via-orange-100/60 to-yellow-100/50 dark:from-amber-900/40 dark:via-orange-900/30 dark:to-yellow-900/25 border border-amber-200/60 dark:border-amber-800/40 p-1.5 w-fit">
+              <TabsTrigger value="biblioteca" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
                 <BookOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Biblioteca</span>
+                <span>Biblioteca</span>
               </TabsTrigger>
-              <TabsTrigger value="audits" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
-                <ClipboardCheck className="h-4 w-4" />
-                <span className="hidden sm:inline">Auditorias</span>
-              </TabsTrigger>
-              <TabsTrigger value="actions" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
-                <ListTodo className="h-4 w-4" />
-                <span className="hidden sm:inline">Ações</span>
-              </TabsTrigger>
-              <TabsTrigger value="evidence" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
-                <FolderOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Evidências</span>
-              </TabsTrigger>
-              <TabsTrigger value="review" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
-                <Eye className="h-4 w-4" />
-                <span className="hidden sm:inline">Revisão</span>
-              </TabsTrigger>
-              <TabsTrigger value="compliance" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
-                <ShieldCheck className="h-4 w-4" />
-                <span className="hidden sm:inline">Compliance</span>
-              </TabsTrigger>
-              <TabsTrigger value="clients" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
+              <TabsTrigger value="clients" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
                 <Building2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Clientes</span>
+                <span>Clientes</span>
               </TabsTrigger>
-              <TabsTrigger value="users" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
+              <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
                 <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">Utilizadores</span>
+                <span>Utilizadores</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="biblioteca">
             <BibliotecaPanel />
-          </TabsContent>
-
-          <TabsContent value="audits">
-            <AuditsPanel />
-          </TabsContent>
-
-          <TabsContent value="actions">
-            <ActionPlansPanel />
-          </TabsContent>
-
-          <TabsContent value="evidence">
-            <EvidenceTemplatesPanel />
-          </TabsContent>
-
-          <TabsContent value="review">
-            <EvidenceReviewPanel />
-          </TabsContent>
-
-          <TabsContent value="compliance">
-            <ComplianceRequestsPanel />
           </TabsContent>
 
           <TabsContent value="clients">
