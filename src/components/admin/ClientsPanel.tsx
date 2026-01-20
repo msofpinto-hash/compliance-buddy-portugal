@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, FileText, Sparkles, Layers, Crown, BookOpen, BarChart3, Shield, FileCheck, Eye, Download, Copy, FolderTree } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, FileText, Sparkles, Layers, Crown, BookOpen, BarChart3, Shield, FileCheck, Eye, Download, Copy, FolderTree, Search, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
@@ -39,6 +39,10 @@ export function ClientsPanel() {
   const [newOrgServiceType, setNewOrgServiceType] = useState<string>("");
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   const [editingThemes, setEditingThemes] = useState<string[]>([]);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>("all");
 
   const serviceTypes = [
     { value: "essencial", label: "Essencial", fullLabel: "Conformidade Legal Essencial", description: "Acesso básico à legislação", color: "bg-slate-100 text-slate-700 border-slate-200", icon: FileText },
@@ -87,6 +91,18 @@ export function ClientsPanel() {
       return data as Organization[];
     },
   });
+
+  // Filter organizations based on search and service type
+  const filteredOrganizations = organizations?.filter((org) => {
+    const matchesSearch = searchQuery === "" || 
+      org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (org.description?.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesServiceType = serviceTypeFilter === "all" || 
+      (org as any).service_type === serviceTypeFilter;
+    
+    return matchesSearch && matchesServiceType;
+  }) || [];
 
   // Create organization mutation
   const createOrgMutation = useMutation({
@@ -358,24 +374,89 @@ export function ClientsPanel() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Organizações
-          </CardTitle>
-          <CardDescription>
-            {organizations?.length || 0} organizações registadas
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Organizações
+              </CardTitle>
+              <CardDescription>
+                {filteredOrganizations.length} de {organizations?.length || 0} organizações
+              </CardDescription>
+            </div>
+            
+            {/* Search and Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar por nome..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue placeholder="Tipo de Serviço" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  {serviceTypes.map((type) => {
+                    const Icon = type.icon;
+                    return (
+                      <SelectItem key={type.value} value={type.value}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-3.5 w-3.5" />
+                          {type.label}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {organizations?.length === 0 ? (
+          {filteredOrganizations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhuma organização criada</p>
-              <p className="text-sm">Clique em "Nova Organização" para começar</p>
+              {organizations?.length === 0 ? (
+                <>
+                  <p>Nenhuma organização criada</p>
+                  <p className="text-sm">Clique em "Nova Organização" para começar</p>
+                </>
+              ) : (
+                <>
+                  <p>Nenhuma organização encontrada</p>
+                  <p className="text-sm">Tente ajustar os filtros de pesquisa</p>
+                  <Button 
+                    variant="link" 
+                    className="mt-2"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setServiceTypeFilter("all");
+                    }}
+                  >
+                    Limpar filtros
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
-              {organizations?.map((org) => (
+              {filteredOrganizations.map((org) => (
                 <div
                   key={org.id}
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
