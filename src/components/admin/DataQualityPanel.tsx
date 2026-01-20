@@ -161,11 +161,109 @@ export function DataQualityPanel() {
       );
       queryClient.invalidateQueries({ queryKey: ["legal-requirements"] });
       queryClient.invalidateQueries({ queryKey: ["legislation-requirements"] });
+      queryClient.invalidateQueries({ queryKey: ["order-mismatch-stats"] });
     },
     onError: (error) => {
       console.error("Bulk order recalculation error:", error);
       toast.error("Erro ao recalcular ordem em lote");
     },
+  });
+
+  // Helper functions for order mismatch detection (reused in query)
+  const romanToInt = (roman: string) => {
+    const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+    let total = 0;
+    let prev = 0;
+    const s = roman.toUpperCase().replace(/[^IVXLCDM]/g, "");
+    for (let i = s.length - 1; i >= 0; i--) {
+      const val = map[s[i]] || 0;
+      if (val < prev) total -= val;
+      else {
+        total += val;
+        prev = val;
+      }
+    }
+    return total;
+  };
+
+  const getSortKey = (article: string | null) => {
+    const a = (article || "").trim();
+    const lower = a.toLowerCase();
+    let typeRank = 3;
+    let n1 = Number.POSITIVE_INFINITY;
+    let n2 = 0;
+
+    if (lower.startsWith("considerando")) {
+      typeRank = 0;
+      const m = a.match(/(\d+)/);
+      if (m) n1 = parseInt(m[1], 10);
+    } else if (lower.includes("art")) {
+      typeRank = 1;
+      const mArt = a.match(/art\.?\s*(\d+)/i);
+      if (mArt) n1 = parseInt(mArt[1], 10);
+      const mN = a.match(/n\.?\s*º\s*(\d+)/i) || a.match(/n.\s*(\d+)/i);
+      if (mN) n2 = parseInt(mN[1], 10);
+    } else if (lower.includes("anexo")) {
+      typeRank = 2;
+      const mRoman = a.match(/anexo\s+([IVXLCDM]+)/i);
+      const mNum = a.match(/anexo\s+(\d+)/i);
+      if (mRoman) n1 = romanToInt(mRoman[1]);
+      else if (mNum) n1 = parseInt(mNum[1], 10);
+      else n1 = 0;
+    }
+
+    return { typeRank, n1, n2, raw: a };
+  };
+
+  // Query to count requirements with incorrect display_order
+  const { data: orderMismatchStats, isLoading: isLoadingMismatch } = useQuery({
+    queryKey: ["order-mismatch-stats"],
+    queryFn: async () => {
+      // Fetch all requirements grouped by legislation
+      const { data: allRequirements, error } = await supabase
+        .from("legal_requirements")
+        .select("id, legislation_id, article, display_order")
+        .order("legislation_id");
+
+      if (error) throw error;
+
+      // Group by legislation_id
+      const byLegislation = new Map<string, typeof allRequirements>();
+      for (const req of allRequirements || []) {
+        if (!byLegislation.has(req.legislation_id)) {
+          byLegislation.set(req.legislation_id, []);
+        }
+        byLegislation.get(req.legislation_id)!.push(req);
+      }
+
+      let mismatchCount = 0;
+      let legislationWithMismatch = 0;
+
+      for (const [, reqs] of byLegislation) {
+        const sorted = [...reqs].sort((x, y) => {
+          const ax = getSortKey(x.article);
+          const ay = getSortKey(y.article);
+          if (ax.typeRank !== ay.typeRank) return ax.typeRank - ay.typeRank;
+          if (ax.n1 !== ay.n1) return ax.n1 - ay.n1;
+          if (ax.n2 !== ay.n2) return ax.n2 - ay.n2;
+          return ax.raw.localeCompare(ay.raw, "pt");
+        });
+
+        let hasMismatch = false;
+        sorted.forEach((req, idx) => {
+          const expectedOrder = idx + 1;
+          if (req.display_order !== expectedOrder) {
+            mismatchCount++;
+            hasMismatch = true;
+          }
+        });
+
+        if (hasMismatch) legislationWithMismatch++;
+      }
+
+      return { mismatchCount, legislationWithMismatch, totalLegislation: byLegislation.size };
+    },
+    staleTime: 60000, // Cache for 1 minute
   });
 
   // Fetch comprehensive data quality statistics
@@ -337,22 +435,58 @@ export function DataQualityPanel() {
                       <ListOrdered className="h-4 w-4" />
                     )}
                     Recalcular Ordem em Lote
+                    {orderMismatchStats && orderMismatchStats.mismatchCount > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
+                        {orderMismatchStats.mismatchCount}
+                      </Badge>
+                    )}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Recalcular ordem de todos os requisitos?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta ação irá recalcular o <strong>display_order</strong> de todos os requisitos 
-                      de todos os diplomas na base de dados, ordenando-os semanticamente 
-                      (Considerandos → Artigos → Anexos). 
-                      <br /><br />
-                      Esta operação pode demorar alguns minutos dependendo do volume de dados.
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3">
+                        <p>
+                          Esta ação irá recalcular o <strong>display_order</strong> de todos os requisitos 
+                          de todos os diplomas na base de dados, ordenando-os semanticamente 
+                          (Considerandos → Artigos → Anexos).
+                        </p>
+                        
+                        {isLoadingMismatch ? (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            A calcular estatísticas...
+                          </div>
+                        ) : orderMismatchStats ? (
+                          <div className="rounded-lg border bg-muted/50 p-3 space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Requisitos com ordem incorreta:</span>
+                              <Badge variant={orderMismatchStats.mismatchCount > 0 ? "destructive" : "secondary"}>
+                                {orderMismatchStats.mismatchCount.toLocaleString("pt-PT")}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Diplomas afetados:</span>
+                              <Badge variant={orderMismatchStats.legislationWithMismatch > 0 ? "outline" : "secondary"}>
+                                {orderMismatchStats.legislationWithMismatch.toLocaleString("pt-PT")} / {orderMismatchStats.totalLegislation.toLocaleString("pt-PT")}
+                              </Badge>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <p className="text-xs text-muted-foreground">
+                          Esta operação pode demorar alguns minutos dependendo do volume de dados.
+                        </p>
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => recalculateAllOrdersMutation.mutate()}>
+                    <AlertDialogAction 
+                      onClick={() => recalculateAllOrdersMutation.mutate()}
+                      disabled={orderMismatchStats?.mismatchCount === 0}
+                    >
                       Confirmar Recálculo
                     </AlertDialogAction>
                   </AlertDialogFooter>
