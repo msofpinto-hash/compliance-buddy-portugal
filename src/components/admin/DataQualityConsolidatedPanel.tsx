@@ -19,17 +19,18 @@ import {
   AlertTriangle,
   Loader2,
   RefreshCw,
-  AlertCircle,
-  FileQuestion,
   Layers,
+  FileQuestion,
+  FolderTree,
 } from "lucide-react";
 import { DataQualityPanel } from "./DataQualityPanel";
 import { UrlHealthPanel } from "./UrlHealthPanel";
 import { DateAnomaliesPanel } from "./DateAnomaliesPanel";
 import { AnimatedStatCard } from "./AnimatedStatCard";
+import { MaintenanceThemeBrowser } from "./MaintenanceThemeBrowser";
 
 export function DataQualityConsolidatedPanel() {
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["issues"]));
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["browse"]));
 
   const toggleSection = (section: string) => {
     const newSet = new Set(openSections);
@@ -187,6 +188,41 @@ export function DataQualityConsolidatedPanel() {
 
       {/* Collapsible Sections */}
       <div className="space-y-3">
+        {/* Theme Browser Section */}
+        <Collapsible 
+          open={openSections.has("browse")} 
+          onOpenChange={() => toggleSection("browse")}
+        >
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {openSections.has("browse") ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <FolderTree className="h-5 w-5 text-primary" />
+                      <span className="font-semibold">Corrigir por Tema</span>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="gap-1">
+                    <Layers className="h-3 w-3" />
+                    Navegação
+                  </Badge>
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <MaintenanceThemeBrowser />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
         {/* Quality Section */}
         <Collapsible 
           open={openSections.has("quality")} 
