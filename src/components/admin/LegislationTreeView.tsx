@@ -278,8 +278,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<50 | 100>(50);
-  const [mobileThemeFilter, setMobileThemeFilter] = useState<string | null>(null);
-  const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string | null>(null);
+  const [listThemeFilter, setListThemeFilter] = useState<string | null>(null);
+  const [listCategoryFilter, setListCategoryFilter] = useState<string | null>(null);
+  const [listSubcategoryFilter, setListSubcategoryFilter] = useState<string | null>(null);
   
   // Use external search term if provided (from Biblioteca), otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
@@ -663,12 +664,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
   const hasFilters = searchTerm || sourceFilter !== "all";
 
-  // Mobile list mode - filter legislation based on selected theme/category
-  const mobileListLegislation = useMemo(() => {
+  // List mode - filter legislation based on selected theme/category/subcategory
+  const listFilteredLegislation = useMemo(() => {
     let result = filteredLegislation;
     
-    if (mobileThemeFilter) {
-      const theme = themesWithCategories?.find(t => t.id === mobileThemeFilter);
+    if (listThemeFilter) {
+      const theme = themesWithCategories?.find(t => t.id === listThemeFilter);
       if (theme) {
         const themeCategoryIds = new Set(theme.categories.map(c => c.id));
         result = result.filter(leg => 
@@ -677,21 +678,43 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       }
     }
     
-    if (mobileCategoryFilter) {
+    if (listSubcategoryFilter) {
+      // Filter by subcategory (most specific)
       result = result.filter(leg => 
-        leg.categories.some(cat => cat.id === mobileCategoryFilter)
+        leg.categories.some(cat => cat.id === listSubcategoryFilter)
       );
+    } else if (listCategoryFilter) {
+      // Filter by category and all its children
+      const theme = themesWithCategories?.find(t => t.id === listThemeFilter);
+      if (theme) {
+        // Get all child category IDs for this parent
+        const getChildIds = (parentId: string): string[] => {
+          const children = theme.categories.filter(c => c.parent_id === parentId);
+          return [parentId, ...children.flatMap(c => getChildIds(c.id))];
+        };
+        const categoryIds = new Set(getChildIds(listCategoryFilter));
+        result = result.filter(leg => 
+          leg.categories.some(cat => categoryIds.has(cat.id))
+        );
+      }
     }
     
     return result;
-  }, [filteredLegislation, mobileThemeFilter, mobileCategoryFilter, themesWithCategories]);
+  }, [filteredLegislation, listThemeFilter, listCategoryFilter, listSubcategoryFilter, themesWithCategories]);
 
-  // Get categories for selected theme in mobile mode
-  const mobileCategories = useMemo(() => {
-    if (!mobileThemeFilter || !themesWithCategories) return [];
-    const theme = themesWithCategories.find(t => t.id === mobileThemeFilter);
-    return theme?.categories.filter(c => !c.parent_id) || [];
-  }, [mobileThemeFilter, themesWithCategories]);
+  // Get root categories (no parent) for selected theme
+  const listCategories = useMemo(() => {
+    if (!listThemeFilter || !themesWithCategories) return [];
+    const theme = themesWithCategories.find(t => t.id === listThemeFilter);
+    return theme?.categories.filter(c => !c.parent_id).sort((a, b) => a.name.localeCompare(b.name, 'pt')) || [];
+  }, [listThemeFilter, themesWithCategories]);
+
+  // Get subcategories for selected category
+  const listSubcategories = useMemo(() => {
+    if (!listCategoryFilter || !listThemeFilter || !themesWithCategories) return [];
+    const theme = themesWithCategories.find(t => t.id === listThemeFilter);
+    return theme?.categories.filter(c => c.parent_id === listCategoryFilter).sort((a, b) => a.name.localeCompare(b.name, 'pt')) || [];
+  }, [listCategoryFilter, listThemeFilter, themesWithCategories]);
 
   // Check if we should show list mode (user chose list view)
   const showListView = viewMode === "list";
@@ -779,18 +802,20 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               )}
 
               <div className="text-sm text-muted-foreground ml-auto">
-                {showListView ? mobileListLegislation.length : filteredLegislation.length} diploma{(showListView ? mobileListLegislation.length : filteredLegislation.length) !== 1 ? "s" : ""}
+                {showListView ? listFilteredLegislation.length : filteredLegislation.length} diploma{(showListView ? listFilteredLegislation.length : filteredLegislation.length) !== 1 ? "s" : ""}
               </div>
             </div>
 
-            {/* Mobile List Mode Filters */}
+            {/* List Mode Filters - Hierarchical */}
             {showListView && (
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
+                {/* Theme filter */}
                 <Select 
-                  value={mobileThemeFilter || "all"} 
+                  value={listThemeFilter || "all"} 
                   onValueChange={(v) => {
-                    setMobileThemeFilter(v === "all" ? null : v);
-                    setMobileCategoryFilter(null);
+                    setListThemeFilter(v === "all" ? null : v);
+                    setListCategoryFilter(null);
+                    setListSubcategoryFilter(null);
                   }}
                 >
                   <SelectTrigger className="h-8 text-xs w-[150px]">
@@ -799,18 +824,27 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os temas</SelectItem>
-                    {themesWithCategories?.map(theme => (
-                      <SelectItem key={theme.id} value={theme.id}>
-                        {theme.name}
-                      </SelectItem>
-                    ))}
+                    {themesWithCategories?.map(theme => {
+                      const config = getThemeConfig(theme.name);
+                      return (
+                        <SelectItem key={theme.id} value={theme.id}>
+                          <span className={`flex items-center gap-1.5 ${config.text}`}>
+                            {theme.name}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
 
-                {mobileThemeFilter && mobileCategories.length > 0 && (
+                {/* Category filter (root level) */}
+                {listThemeFilter && listCategories.length > 0 && (
                   <Select 
-                    value={mobileCategoryFilter || "all"} 
-                    onValueChange={(v) => setMobileCategoryFilter(v === "all" ? null : v)}
+                    value={listCategoryFilter || "all"} 
+                    onValueChange={(v) => {
+                      setListCategoryFilter(v === "all" ? null : v);
+                      setListSubcategoryFilter(null);
+                    }}
                   >
                     <SelectTrigger className="h-8 text-xs w-[180px]">
                       <Folder className="h-3 w-3 mr-1" />
@@ -818,7 +852,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas as categorias</SelectItem>
-                      {mobileCategories.map(cat => (
+                      {listCategories.map(cat => (
                         <SelectItem key={cat.id} value={cat.id}>
                           {cat.name}
                         </SelectItem>
@@ -827,6 +861,28 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                   </Select>
                 )}
 
+                {/* Subcategory filter */}
+                {listCategoryFilter && listSubcategories.length > 0 && (
+                  <Select 
+                    value={listSubcategoryFilter || "all"} 
+                    onValueChange={(v) => setListSubcategoryFilter(v === "all" ? null : v)}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-[200px]">
+                      <FolderOpen className="h-3 w-3 mr-1" />
+                      <SelectValue placeholder="Subcategoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as subcategorias</SelectItem>
+                      {listSubcategories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Sort controls */}
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number")}>
                   <SelectTrigger className="h-8 text-xs w-[130px]">
                     <ArrowUpDown className="h-3 w-3 mr-1" />
@@ -851,6 +907,23 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     <ArrowDown className="h-3.5 w-3.5" />
                   )}
                 </Button>
+
+                {/* Clear filters button */}
+                {(listThemeFilter || listCategoryFilter || listSubcategoryFilter) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground"
+                    onClick={() => {
+                      setListThemeFilter(null);
+                      setListCategoryFilter(null);
+                      setListSubcategoryFilter(null);
+                    }}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Limpar filtros
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
@@ -860,10 +933,10 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       {/* List View */}
       {showListView ? (
         <div className="space-y-3">
-          {mobileListLegislation.length > 0 ? (
+          {listFilteredLegislation.length > 0 ? (
             <>
               {/* Sorted legislation list */}
-              {[...mobileListLegislation]
+              {[...listFilteredLegislation]
                 .sort((a, b) => {
                   let comparison = 0;
                   if (sortBy === "date") {
@@ -981,9 +1054,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                   );
                 })}
 
-              {mobileListLegislation.length > 50 && (
+              {listFilteredLegislation.length > 50 && (
                 <div className="text-center py-4 text-sm text-muted-foreground">
-                  A mostrar 50 de {mobileListLegislation.length} diplomas. Use os filtros para refinar.
+                  A mostrar 50 de {listFilteredLegislation.length} diplomas. Use os filtros para refinar.
                 </div>
               )}
             </>
