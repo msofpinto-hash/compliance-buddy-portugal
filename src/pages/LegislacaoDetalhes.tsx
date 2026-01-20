@@ -721,7 +721,7 @@ export default function LegislacaoDetalhes() {
             </Card>
 
             {/* Relations */}
-            {(relations?.outgoing.length > 0 || relations?.incoming.length > 0) && (
+            {((relations?.outgoing?.length ?? 0) > 0 || (relations?.incoming?.length ?? 0) > 0) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
@@ -732,7 +732,7 @@ export default function LegislacaoDetalhes() {
                 <CardContent>
                   <div className="space-y-3">
                     {/* Outgoing relations - this legislation affects others */}
-                    {relations?.outgoing.length > 0 && (
+                    {(relations?.outgoing?.length ?? 0) > 0 && (
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-2">Este diploma:</p>
                         <div className="space-y-2">
@@ -758,7 +758,7 @@ export default function LegislacaoDetalhes() {
                     )}
                     
                     {/* Incoming relations - others affect this legislation */}
-                    {relations?.incoming.length > 0 && (
+                    {(relations?.incoming?.length ?? 0) > 0 && (
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-2">Este diploma é afetado por:</p>
                         <div className="space-y-2">
