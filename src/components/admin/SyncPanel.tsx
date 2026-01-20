@@ -165,6 +165,22 @@ export function SyncPanel() {
       return;
     }
 
+    // Check file size - limit is 2MB for direct processing
+    const maxSizeMB = 2;
+    const fileSizeMB = file.size / (1024 * 1024);
+
+    if (fileSizeMB > maxSizeMB) {
+      toast({
+        title: "Ficheiro demasiado grande",
+        description: `O PDF tem ${fileSizeMB.toFixed(1)}MB (limite: ${maxSizeMB}MB). Por favor extraia o texto do PDF e cole-o na área de texto abaixo.`,
+        variant: "destructive",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     setIsImporting(true);
     setImportStats(null);
 
