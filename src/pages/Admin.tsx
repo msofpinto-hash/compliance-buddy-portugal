@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Palette, Settings, Building2, Users, ClipboardCheck, ListTodo, FolderOpen, Eye, ShieldCheck, BookOpen } from "lucide-react";
-import { SyncPanel } from "@/components/admin/SyncPanel";
-import { ThemesPanel } from "@/components/admin/ThemesPanel";
+import { Settings, Building2, Users, ClipboardCheck, ListTodo, FolderOpen, Eye, ShieldCheck, BookOpen } from "lucide-react";
 import { BibliotecaPanel } from "@/components/admin/BibliotecaPanel";
 import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
@@ -18,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useBackgroundJobNotifications } from "@/hooks/useBackgroundJobNotifications";
 
-const validTabs = ["biblioteca", "audits", "actions", "evidence", "review", "compliance", "clients", "users", "sync", "themes"];
+const validTabs = ["biblioteca", "audits", "actions", "evidence", "review", "compliance", "clients", "users"];
 
 const Admin = () => {
   const { user, signOut } = useAuth();
@@ -107,14 +105,6 @@ const Admin = () => {
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Utilizadores</span>
               </TabsTrigger>
-              <TabsTrigger value="sync" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
-                <RefreshCw className="h-4 w-4" />
-                <span className="hidden sm:inline">Sync</span>
-              </TabsTrigger>
-              <TabsTrigger value="themes" className="gap-2 flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/25">
-                <Palette className="h-4 w-4" />
-                <span className="hidden sm:inline">Temas</span>
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -148,14 +138,6 @@ const Admin = () => {
 
           <TabsContent value="users">
             <UsersApprovalPanel />
-          </TabsContent>
-
-          <TabsContent value="sync">
-            <SyncPanel />
-          </TabsContent>
-
-          <TabsContent value="themes">
-            <ThemesPanel />
           </TabsContent>
         </Tabs>
       </main>
