@@ -1146,9 +1146,13 @@ export type Database = {
       organizations: {
         Row: {
           address: string | null
+          cae_principal: string | null
+          cae_secundarios: string[] | null
+          city: string | null
           contract_end_date: string | null
           contract_reference: string | null
           contract_start_date: string | null
+          country: string | null
           created_at: string
           description: string | null
           id: string
@@ -1156,6 +1160,8 @@ export type Database = {
           name: string
           nipc: string | null
           notes: string | null
+          objeto_social: string | null
+          postal_code: string | null
           proposal_url: string | null
           purchase_order_url: string | null
           responsible_email: string | null
@@ -1166,9 +1172,13 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cae_principal?: string | null
+          cae_secundarios?: string[] | null
+          city?: string | null
           contract_end_date?: string | null
           contract_reference?: string | null
           contract_start_date?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1176,6 +1186,8 @@ export type Database = {
           name: string
           nipc?: string | null
           notes?: string | null
+          objeto_social?: string | null
+          postal_code?: string | null
           proposal_url?: string | null
           purchase_order_url?: string | null
           responsible_email?: string | null
@@ -1186,9 +1198,13 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cae_principal?: string | null
+          cae_secundarios?: string[] | null
+          city?: string | null
           contract_end_date?: string | null
           contract_reference?: string | null
           contract_start_date?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1196,6 +1212,8 @@ export type Database = {
           name?: string
           nipc?: string | null
           notes?: string | null
+          objeto_social?: string | null
+          postal_code?: string | null
           proposal_url?: string | null
           purchase_order_url?: string | null
           responsible_email?: string | null

@@ -81,6 +81,12 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [contractStartDate, setContractStartDate] = useState("");
   const [contractEndDate, setContractEndDate] = useState("");
   const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("Portugal");
+  const [caePrincipal, setCaePrincipal] = useState("");
+  const [caeSecundarios, setCaeSecundarios] = useState("");
+  const [objetoSocial, setObjetoSocial] = useState("");
   const [responsibleName, setResponsibleName] = useState("");
   const [responsibleEmail, setResponsibleEmail] = useState("");
   const [responsiblePhone, setResponsiblePhone] = useState("");
@@ -179,6 +185,12 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
       setContractStartDate(org.contract_start_date || "");
       setContractEndDate(org.contract_end_date || "");
       setAddress(org.address || "");
+      setPostalCode(org.postal_code || "");
+      setCity(org.city || "");
+      setCountry(org.country || "Portugal");
+      setCaePrincipal(org.cae_principal || "");
+      setCaeSecundarios(org.cae_secundarios?.join(", ") || "");
+      setObjetoSocial(org.objeto_social || "");
       setResponsibleName(org.responsible_name || "");
       setResponsibleEmail(org.responsible_email || "");
       setResponsiblePhone(org.responsible_phone || "");
@@ -223,6 +235,12 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
     mutationFn: async () => {
       if (!organization) return;
       
+      // Parse CAE secundários from comma-separated string to array
+      const caeSecundariosArray = caeSecundarios
+        .split(",")
+        .map(c => c.trim())
+        .filter(c => c.length > 0);
+      
       const { error } = await supabase
         .from("organizations")
         .update({
@@ -233,6 +251,12 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
           contract_start_date: contractStartDate || null,
           contract_end_date: contractEndDate || null,
           address: address || null,
+          postal_code: postalCode || null,
+          city: city || null,
+          country: country || null,
+          cae_principal: caePrincipal || null,
+          cae_secundarios: caeSecundariosArray.length > 0 ? caeSecundariosArray : null,
+          objeto_social: objetoSocial || null,
           responsible_name: responsibleName || null,
           responsible_email: responsibleEmail || null,
           responsible_phone: responsiblePhone || null,
@@ -368,27 +392,101 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="address" className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
                   Morada
-                </Label>
-                <Textarea
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Morada completa"
-                  rows={2}
-                />
+                </h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Rua / Endereço</Label>
+                    <Textarea
+                      id="address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Rua, número, andar..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="postal-code">Código Postal</Label>
+                      <Input
+                        id="postal-code"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        placeholder="0000-000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Localidade</Label>
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="Ex: Lisboa"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="country">País</Label>
+                      <Input
+                        id="country"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        placeholder="Portugal"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Atividade Económica
+                </h4>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cae-principal">CAE Principal</Label>
+                      <Input
+                        id="cae-principal"
+                        value={caePrincipal}
+                        onChange={(e) => setCaePrincipal(e.target.value)}
+                        placeholder="Ex: 62010"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cae-secundarios">CAE Secundários</Label>
+                      <Input
+                        id="cae-secundarios"
+                        value={caeSecundarios}
+                        onChange={(e) => setCaeSecundarios(e.target.value)}
+                        placeholder="Separados por vírgula"
+                      />
+                      <p className="text-xs text-muted-foreground">Ex: 62020, 70220</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="objeto-social">Objeto Social</Label>
+                    <Textarea
+                      id="objeto-social"
+                      value={objetoSocial}
+                      onChange={(e) => setObjetoSocial(e.target.value)}
+                      placeholder="Descrição da atividade económica da empresa..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
+                <Label htmlFor="description">Notas / Descrição</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Descrição da organização"
+                  placeholder="Notas internas sobre a organização"
                   rows={2}
                 />
               </div>
