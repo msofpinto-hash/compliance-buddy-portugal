@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Link2, Plus, Trash2, ExternalLink, Search, Globe, Flag } from "lucide-react";
+import { Loader2, Link2, Plus, Trash2, ExternalLink, Search, Globe, Flag, Sparkles, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -64,7 +64,9 @@ export function ManageRelationsDialog({
   const [addMode, setAddMode] = useState<"select" | "url">("select");
   const [urlInput, setUrlInput] = useState("");
   const [isSearchingUrl, setIsSearchingUrl] = useState(false);
+  const [isCreatingFromUrl, setIsCreatingFromUrl] = useState(false);
   const [foundLegislation, setFoundLegislation] = useState<FoundLegislation | null>(null);
+  const [urlNotFound, setUrlNotFound] = useState(false);
 
   // Fetch all legislation for the dropdown
   const { data: allLegislation } = useQuery({
@@ -111,6 +113,7 @@ export function ManageRelationsDialog({
 
     setIsSearchingUrl(true);
     setFoundLegislation(null);
+    setUrlNotFound(false);
 
     try {
       // Normalize URL for comparison
@@ -139,14 +142,91 @@ export function ManageRelationsDialog({
 
       if (data) {
         setFoundLegislation(data);
+        setUrlNotFound(false);
         toast.success(`Diploma encontrado: ${data.number}`);
       } else {
-        toast.error("Nenhum diploma encontrado com esta URL. Verifique se a URL está correta ou se o diploma existe na base de dados.");
+        setUrlNotFound(true);
+        toast.info("Diploma não encontrado. Pode criar automaticamente via scraping.");
       }
     } catch (error: any) {
       toast.error("Erro ao procurar diploma: " + error.message);
     } finally {
       setIsSearchingUrl(false);
+    }
+  };
+
+  const handleCreateFromUrl = async () => {
+    if (!urlInput.trim()) {
+      toast.error("Insira uma URL válida");
+      return;
+    }
+
+    // Validate URL format
+    const validDomains = ['dre.pt', 'eur-lex.europa.eu'];
+    const isValidUrl = validDomains.some(domain => urlInput.toLowerCase().includes(domain));
+    
+    if (!isValidUrl) {
+      toast.error("URL inválida. Apenas URLs do DRE ou EUR-Lex são suportadas.");
+      return;
+    }
+
+    setIsCreatingFromUrl(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('import-dre-links', {
+        body: {
+          links: [urlInput.trim()],
+          updateExisting: false,
+          extractRequirementsAI: false,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.results?.length > 0) {
+        const result = data.results[0];
+        
+        if (result.success && result.legislationId) {
+          // Fetch the created legislation
+          const { data: createdLeg, error: fetchError } = await supabase
+            .from("legislation")
+            .select("id, number, title, origin")
+            .eq("id", result.legislationId)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          setFoundLegislation(createdLeg);
+          setUrlNotFound(false);
+          toast.success(`Diploma criado com sucesso: ${createdLeg.number}`);
+          
+          // Invalidate legislation queries
+          queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
+          queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+        } else if (result.skipped) {
+          // Diploma already exists, fetch it
+          const { data: existingLeg } = await supabase
+            .from("legislation")
+            .select("id, number, title, origin")
+            .eq("document_url", urlInput.trim())
+            .maybeSingle();
+
+          if (existingLeg) {
+            setFoundLegislation(existingLeg);
+            setUrlNotFound(false);
+            toast.info(`Diploma já existia: ${existingLeg.number}`);
+          }
+        } else {
+          toast.error(result.error || "Não foi possível extrair informações da URL.");
+        }
+      } else {
+        toast.error("Nenhum resultado retornado. Verifique se a URL é válida.");
+      }
+    } catch (error: any) {
+      console.error("Error creating from URL:", error);
+      toast.error("Erro ao criar diploma: " + error.message);
+    } finally {
+      setIsCreatingFromUrl(false);
     }
   };
 
@@ -359,13 +439,17 @@ export function ManageRelationsDialog({
                 <Input
                   placeholder="Cole a URL do diploma (DRE ou EUR-Lex)..."
                   value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
+                  onChange={(e) => {
+                    setUrlInput(e.target.value);
+                    setFoundLegislation(null);
+                    setUrlNotFound(false);
+                  }}
                   className="flex-1"
                 />
                 <Button
                   variant="secondary"
                   onClick={handleSearchByUrl}
-                  disabled={isSearchingUrl || !urlInput.trim()}
+                  disabled={isSearchingUrl || isCreatingFromUrl || !urlInput.trim()}
                   className="gap-2"
                 >
                   {isSearchingUrl ? (
@@ -423,9 +507,45 @@ export function ManageRelationsDialog({
                   </div>
                 </div>
               )}
+
+              {/* URL not found - offer to create */}
+              {urlNotFound && !foundLegislation && (
+                <div className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm text-amber-800 dark:text-amber-200">
+                        Diploma não encontrado na base de dados.
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Pode criar o diploma automaticamente extraindo os metadados da URL.
+                      </p>
+                      <Button
+                        onClick={handleCreateFromUrl}
+                        disabled={isCreatingFromUrl}
+                        size="sm"
+                        variant="outline"
+                        className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                      >
+                        {isCreatingFromUrl ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            A extrair metadados...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            Criar diploma via scraping
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <p className="text-xs text-muted-foreground">
-                Cole a URL completa do diploma no DRE ou EUR-Lex. O sistema irá procurar na base de dados.
+                Cole a URL completa do diploma no DRE ou EUR-Lex. Se não existir na base de dados, pode criar automaticamente.
               </p>
             </TabsContent>
           </Tabs>
