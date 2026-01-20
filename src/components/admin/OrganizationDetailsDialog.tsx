@@ -68,6 +68,58 @@ function validateNIPC(nipc: string): { isValid: boolean; message: string } {
   return { isValid: true, message: "NIPC válido" };
 }
 
+/**
+ * Validates a Portuguese CAE (Classificação das Atividades Económicas)
+ * CAE codes have exactly 5 digits
+ */
+function validateCAE(cae: string): { isValid: boolean; message: string } {
+  const cleanCae = cae.replace(/\s/g, '').replace(/\D/g, '');
+  
+  if (!cleanCae) {
+    return { isValid: true, message: "" };
+  }
+  
+  if (cleanCae.length !== 5) {
+    return { isValid: false, message: "O CAE deve ter exatamente 5 dígitos" };
+  }
+  
+  return { isValid: true, message: "CAE válido" };
+}
+
+/**
+ * Validates a Portuguese postal code format (XXXX-XXX)
+ */
+function validatePostalCode(postalCode: string): { isValid: boolean; message: string } {
+  const cleanPostal = postalCode.replace(/\s/g, '');
+  
+  if (!cleanPostal) {
+    return { isValid: true, message: "" };
+  }
+  
+  // Portuguese postal code format: 4 digits, hyphen, 3 digits
+  const postalRegex = /^\d{4}-\d{3}$/;
+  
+  if (!postalRegex.test(cleanPostal)) {
+    return { isValid: false, message: "Formato: XXXX-XXX" };
+  }
+  
+  return { isValid: true, message: "Código postal válido" };
+}
+
+/**
+ * Formats postal code input to XXXX-XXX format
+ */
+function formatPostalCode(value: string): string {
+  // Remove non-digits
+  const digits = value.replace(/\D/g, '').slice(0, 7);
+  
+  if (digits.length <= 4) {
+    return digits;
+  }
+  
+  return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+}
+
 export function OrganizationDetailsDialog({ organization, open, onOpenChange }: OrganizationDetailsDialogProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("dados");
@@ -82,10 +134,13 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [contractEndDate, setContractEndDate] = useState("");
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [postalCodeValidation, setPostalCodeValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("Portugal");
   const [caePrincipal, setCaePrincipal] = useState("");
+  const [caePrincipalValidation, setCaePrincipalValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
   const [caeSecundarios, setCaeSecundarios] = useState("");
+  const [caeSecundariosValidation, setCaeSecundariosValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
   const [objetoSocial, setObjetoSocial] = useState("");
   const [responsibleName, setResponsibleName] = useState("");
   const [responsibleEmail, setResponsibleEmail] = useState("");
@@ -95,6 +150,40 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [purchaseOrderUrl, setPurchaseOrderUrl] = useState<string | null>(null);
   const [isLookingUpNipc, setIsLookingUpNipc] = useState(false);
   const [lastLookedUpNipc, setLastLookedUpNipc] = useState<string | null>(null);
+
+  // Validation handlers
+  const handlePostalCodeChange = (value: string) => {
+    const formatted = formatPostalCode(value);
+    setPostalCode(formatted);
+    setPostalCodeValidation(validatePostalCode(formatted));
+  };
+
+  const handleCaePrincipalChange = (value: string) => {
+    const cleanValue = value.replace(/\D/g, '').slice(0, 5);
+    setCaePrincipal(cleanValue);
+    setCaePrincipalValidation(validateCAE(cleanValue));
+  };
+
+  const handleCaeSecundariosChange = (value: string) => {
+    setCaeSecundarios(value);
+    // Validate each CAE in the comma-separated list
+    const caes = value.split(',').map(c => c.trim()).filter(c => c.length > 0);
+    if (caes.length === 0) {
+      setCaeSecundariosValidation({ isValid: true, message: "" });
+      return;
+    }
+    
+    const invalidCaes = caes.filter(c => {
+      const validation = validateCAE(c);
+      return !validation.isValid;
+    });
+    
+    if (invalidCaes.length > 0) {
+      setCaeSecundariosValidation({ isValid: false, message: `CAE inválido: ${invalidCaes.join(', ')}` });
+    } else {
+      setCaeSecundariosValidation({ isValid: true, message: `${caes.length} CAE(s) válido(s)` });
+    }
+  };
 
   // Lookup NIPC via VIES
   const lookupNipcVies = async (nipcToLookup: string, silent = false) => {
@@ -410,13 +499,27 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="postal-code">Código Postal</Label>
+                      <Label htmlFor="postal-code" className="flex items-center gap-1.5">
+                        Código Postal
+                        {postalCode && (
+                          postalCodeValidation.isValid ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                          )
+                        )}
+                      </Label>
                       <Input
                         id="postal-code"
                         value={postalCode}
-                        onChange={(e) => setPostalCode(e.target.value)}
+                        onChange={(e) => handlePostalCodeChange(e.target.value)}
                         placeholder="0000-000"
+                        maxLength={8}
+                        className={postalCode && !postalCodeValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : postalCode && postalCodeValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}
                       />
+                      {postalCode && !postalCodeValidation.isValid && (
+                        <p className="text-xs text-red-500">{postalCodeValidation.message}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="city">Localidade</Label>
@@ -448,23 +551,55 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cae-principal">CAE Principal</Label>
+                      <Label htmlFor="cae-principal" className="flex items-center gap-1.5">
+                        CAE Principal
+                        {caePrincipal && (
+                          caePrincipalValidation.isValid ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                          )
+                        )}
+                      </Label>
                       <Input
                         id="cae-principal"
                         value={caePrincipal}
-                        onChange={(e) => setCaePrincipal(e.target.value)}
+                        onChange={(e) => handleCaePrincipalChange(e.target.value)}
                         placeholder="Ex: 62010"
+                        maxLength={5}
+                        className={caePrincipal && !caePrincipalValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : caePrincipal && caePrincipalValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}
                       />
+                      {caePrincipal && !caePrincipalValidation.isValid && (
+                        <p className="text-xs text-red-500">{caePrincipalValidation.message}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="cae-secundarios">CAE Secundários</Label>
+                      <Label htmlFor="cae-secundarios" className="flex items-center gap-1.5">
+                        CAE Secundários
+                        {caeSecundarios && (
+                          caeSecundariosValidation.isValid ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                          )
+                        )}
+                      </Label>
                       <Input
                         id="cae-secundarios"
                         value={caeSecundarios}
-                        onChange={(e) => setCaeSecundarios(e.target.value)}
+                        onChange={(e) => handleCaeSecundariosChange(e.target.value)}
                         placeholder="Separados por vírgula"
+                        className={caeSecundarios && !caeSecundariosValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : caeSecundarios && caeSecundariosValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}
                       />
-                      <p className="text-xs text-muted-foreground">Ex: 62020, 70220</p>
+                      {caeSecundarios && !caeSecundariosValidation.isValid && (
+                        <p className="text-xs text-red-500">{caeSecundariosValidation.message}</p>
+                      )}
+                      {caeSecundarios && caeSecundariosValidation.isValid && caeSecundariosValidation.message && (
+                        <p className="text-xs text-emerald-600">{caeSecundariosValidation.message}</p>
+                      )}
+                      {!caeSecundarios && (
+                        <p className="text-xs text-muted-foreground">Ex: 62020, 70220</p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
