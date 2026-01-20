@@ -12,15 +12,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, Plus, Edit, Trash2, Users, Mail, UserPlus, FileText, ClipboardCheck, ClipboardList, Download, Loader2, CheckCircle2, FolderTree, Copy, FileSpreadsheet, Sparkles, Layers, Crown, Gem, BookOpen, BarChart3, Shield, FileCheck, Eye } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, FileText, Sparkles, Layers, Crown, BookOpen, BarChart3, Shield, FileCheck, Eye, Download, Copy, FolderTree } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tables } from "@/integrations/supabase/types";
 import { AssignLegislationDialog, OrganizationLegislationBadge } from "./AssignLegislationDialog";
-import { ManageOrganizationRequirementsDialog } from "./ManageOrganizationRequirementsDialog";
-import { ManageActionPlansDialog } from "./ManageActionPlansDialog";
 import { AssignThemesDialog, OrganizationThemesBadge } from "./AssignThemesDialog";
 import { CopyOrganizationSettingsDialog } from "./CopyOrganizationSettingsDialog";
-import { CopyRequirementsDialog } from "./CopyRequirementsDialog";
 import { ExportReportDialog } from "./ExportReportDialog";
 import { OrganizationLogoUpload } from "./OrganizationLogoUpload";
 import { ClientDetailView } from "./ClientDetailView";
@@ -31,47 +28,17 @@ export function ClientsPanel() {
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [detailViewOrg, setDetailViewOrg] = useState<Organization | null>(null);
   const [assignLegislationOrg, setAssignLegislationOrg] = useState<Organization | null>(null);
-  const [manageRequirementsOrg, setManageRequirementsOrg] = useState<Organization | null>(null);
-  const [actionPlansOrg, setActionPlansOrg] = useState<Organization | null>(null);
   const [assignThemesOrg, setAssignThemesOrg] = useState<Organization | null>(null);
   const [copySettingsOrg, setCopySettingsOrg] = useState<Organization | null>(null);
-  const [copyRequirementsOrg, setCopyRequirementsOrg] = useState<Organization | null>(null);
   const [exportReportOrg, setExportReportOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
   const [newOrgLogoUrl, setNewOrgLogoUrl] = useState<string | null>(null);
   const [newOrgServiceType, setNewOrgServiceType] = useState<string>("");
-  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserName, setNewUserName] = useState("");
-  const [newUserType, setNewUserType] = useState("consulta");
-  const [newUserLanguage, setNewUserLanguage] = useState("pt");
-  const [newUserCalendar, setNewUserCalendar] = useState("generico");
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
-  const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [editingThemes, setEditingThemes] = useState<string[]>([]);
-  const [editingModules, setEditingModules] = useState<string[]>([]);
-
-  const userTypes = [
-    { value: "consulta", label: "Consulta" },
-    { value: "editor", label: "Editor" },
-    { value: "admin_org", label: "Administrador Org." },
-  ];
-
-  const languages = [
-    { value: "pt", label: "Português" },
-    { value: "en", label: "English" },
-    { value: "es", label: "Español" },
-  ];
-
-  const calendarTypes = [
-    { value: "generico", label: "Genérico" },
-    { value: "personalizado", label: "Personalizado" },
-  ];
 
   const serviceTypes = [
     { value: "essencial", label: "Essencial", fullLabel: "Conformidade Legal Essencial", description: "Acesso básico à legislação", color: "bg-slate-100 text-slate-700 border-slate-200", icon: FileText },
@@ -92,14 +59,6 @@ export function ClientsPanel() {
       </Badge>
     );
   };
-
-  const availableModules = [
-    { value: "legislacao", label: "Legislação", icon: BookOpen },
-    { value: "planos_acao", label: "Planos de Ação", icon: ClipboardList },
-    { value: "auditorias", label: "Auditorias", icon: Shield },
-    { value: "documentos", label: "Evidências Documentais", icon: FileCheck },
-    { value: "indicadores", label: "Indicadores", icon: BarChart3 },
-  ];
 
   // Fetch themes
   const { data: themes } = useQuery({
@@ -129,43 +88,9 @@ export function ClientsPanel() {
     },
   });
 
-  // Fetch users for selected organization
-  const { data: orgUsers, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["org-users", selectedOrg?.id],
-    queryFn: async () => {
-      if (!selectedOrg) return [];
-      
-      // First get user roles for the organization
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("id, user_id, role, created_at")
-        .eq("organization_id", selectedOrg.id);
-      
-      if (rolesError) throw rolesError;
-      if (!roles || roles.length === 0) return [];
-      
-      // Then get profiles for those users
-      const userIds = roles.map(r => r.user_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, email, full_name, user_type, language, calendar_type")
-        .in("id", userIds);
-      
-      if (profilesError) throw profilesError;
-      
-      // Combine the data
-      return roles.map(role => ({
-        ...role,
-        profiles: profiles?.find(p => p.id === role.user_id) || null
-      }));
-    },
-    enabled: !!selectedOrg,
-  });
-
   // Create organization mutation
   const createOrgMutation = useMutation({
     mutationFn: async () => {
-      // Create organization
       const { data: org, error } = await supabase
         .from("organizations")
         .insert({
@@ -178,7 +103,6 @@ export function ClientsPanel() {
       
       if (error) throw error;
 
-      // Assign selected themes
       if (selectedThemes.length > 0) {
         const themeInserts = selectedThemes.map(themeId => ({
           organization_id: org.id,
@@ -203,7 +127,6 @@ export function ClientsPanel() {
       setNewOrgDescription("");
       setNewOrgServiceType("");
       setSelectedThemes([]);
-      setSelectedModules([]);
     },
     onError: (error) => {
       toast.error("Erro ao criar organização: " + error.message);
@@ -215,7 +138,6 @@ export function ClientsPanel() {
     mutationFn: async () => {
       if (!editingOrg) return;
       
-      // Update organization
       const { error } = await supabase
         .from("organizations")
         .update({
@@ -227,7 +149,6 @@ export function ClientsPanel() {
       
       if (error) throw error;
 
-      // Update themes: remove old ones and add new ones
       await supabase
         .from("organization_themes")
         .delete()
@@ -253,7 +174,6 @@ export function ClientsPanel() {
       setNewOrgDescription("");
       setNewOrgLogoUrl(null);
       setEditingThemes([]);
-      setEditingModules([]);
     },
     onError: (error) => {
       toast.error("Erro ao atualizar organização: " + error.message);
@@ -273,141 +193,11 @@ export function ClientsPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
       toast.success("Organização eliminada com sucesso");
-      if (selectedOrg) setSelectedOrg(null);
     },
     onError: (error) => {
       toast.error("Erro ao eliminar organização: " + error.message);
     },
   });
-
-  // Add user to organization mutation
-  const addUserMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedOrg || !newUserEmail || !newUserName) return;
-      
-      // First, find the user by email in profiles
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", newUserEmail)
-        .single();
-      
-      if (profileError) {
-        throw new Error("Utilizador não encontrado. Verifique se o email está correto e se o utilizador já se registou.");
-      }
-      
-      // Check if user already has a role in this organization
-      const { data: existingRole } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", profile.id)
-        .eq("organization_id", selectedOrg.id)
-        .single();
-      
-      if (existingRole) {
-        throw new Error("Este utilizador já pertence a esta organização.");
-      }
-
-      // Update profile with additional info
-      await supabase
-        .from("profiles")
-        .update({
-          full_name: newUserName,
-          user_type: newUserType,
-          language: newUserLanguage,
-          calendar_type: newUserCalendar,
-        } as any)
-        .eq("id", profile.id);
-      
-      // Add user role
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: profile.id,
-          organization_id: selectedOrg.id,
-          role: "client",
-        });
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-users", selectedOrg?.id] });
-      toast.success("Utilizador adicionado à organização");
-      setIsAddUserOpen(false);
-      setNewUserEmail("");
-      setNewUserName("");
-      setNewUserType("consulta");
-      setNewUserLanguage("pt");
-      setNewUserCalendar("generico");
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-
-  // Remove user from organization mutation
-  const removeUserMutation = useMutation({
-    mutationFn: async (roleId: string) => {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("id", roleId);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-users", selectedOrg?.id] });
-      toast.success("Utilizador removido da organização");
-    },
-    onError: (error) => {
-      toast.error("Erro ao remover utilizador: " + error.message);
-    },
-  });
-
-  // Update user mutation
-  const updateUserMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingUser) return;
-      
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: newUserName,
-          user_type: newUserType,
-          language: newUserLanguage,
-          calendar_type: newUserCalendar,
-        } as any)
-        .eq("id", editingUser.user_id);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-users", selectedOrg?.id] });
-      toast.success("Utilizador atualizado com sucesso");
-      setEditingUser(null);
-      resetUserForm();
-    },
-    onError: (error) => {
-      toast.error("Erro ao atualizar utilizador: " + error.message);
-    },
-  });
-
-  const resetUserForm = () => {
-    setNewUserEmail("");
-    setNewUserName("");
-    setNewUserType("consulta");
-    setNewUserLanguage("pt");
-    setNewUserCalendar("generico");
-  };
-
-  const handleEditUser = (userRole: any) => {
-    setEditingUser(userRole);
-    setNewUserName(userRole.profiles?.full_name || "");
-    setNewUserEmail(userRole.profiles?.email || "");
-    setNewUserType(userRole.profiles?.user_type || "consulta");
-    setNewUserLanguage(userRole.profiles?.language || "pt");
-    setNewUserCalendar(userRole.profiles?.calendar_type || "generico");
-  };
 
   const handleEdit = async (org: Organization) => {
     setEditingOrg(org);
@@ -415,14 +205,12 @@ export function ClientsPanel() {
     setNewOrgDescription(org.description || "");
     setNewOrgLogoUrl((org as any).logo_url || null);
     
-    // Load current themes for the organization
     const { data: orgThemes } = await supabase
       .from("organization_themes")
       .select("theme_id")
       .eq("organization_id", org.id);
     
     setEditingThemes(orgThemes?.map(t => t.theme_id) || []);
-    setEditingModules([]); // Will implement module loading later
   };
 
   if (isLoading) {
@@ -438,7 +226,6 @@ export function ClientsPanel() {
     );
   }
 
-  // Show detail view if a client is selected for detailed management
   if (detailViewOrg) {
     return (
       <ClientDetailView
@@ -511,7 +298,6 @@ export function ClientsPanel() {
                 </Select>
               </div>
 
-              {/* Themes Selection */}
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
                   <FolderTree className="h-4 w-4" />
@@ -545,41 +331,6 @@ export function ClientsPanel() {
                 </div>
               </div>
 
-              {/* Modules Selection */}
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2">
-                  <Layers className="h-4 w-4" />
-                  Módulos
-                </Label>
-                <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/30">
-                  {availableModules.map((mod) => {
-                    const Icon = mod.icon;
-                    return (
-                      <div key={mod.value} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`module-${mod.value}`}
-                          checked={selectedModules.includes(mod.value)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedModules(prev => [...prev, mod.value]);
-                            } else {
-                              setSelectedModules(prev => prev.filter(id => id !== mod.value));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`module-${mod.value}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-1.5"
-                        >
-                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                          {mod.label}
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição (opcional)</Label>
                 <Textarea
@@ -605,7 +356,6 @@ export function ClientsPanel() {
         </Dialog>
       </div>
 
-      {/* Organizations List - Full Width */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -784,7 +534,6 @@ export function ClientsPanel() {
               />
             </div>
 
-            {/* Themes Selection */}
             <div className="space-y-3">
               <Label className="flex items-center gap-2">
                 <FolderTree className="h-4 w-4" />
@@ -815,41 +564,6 @@ export function ClientsPanel() {
                 {(!themes || themes.length === 0) && (
                   <p className="text-sm text-muted-foreground col-span-2">Nenhum tema configurado</p>
                 )}
-              </div>
-            </div>
-
-            {/* Modules Selection */}
-            <div className="space-y-3">
-              <Label className="flex items-center gap-2">
-                <Layers className="h-4 w-4" />
-                Módulos
-              </Label>
-              <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/30">
-                {availableModules.map((mod) => {
-                  const Icon = mod.icon;
-                  return (
-                    <div key={mod.value} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`edit-module-${mod.value}`}
-                        checked={editingModules.includes(mod.value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setEditingModules(prev => [...prev, mod.value]);
-                          } else {
-                            setEditingModules(prev => prev.filter(id => id !== mod.value));
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor={`edit-module-${mod.value}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-1.5"
-                      >
-                        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                        {mod.label}
-                      </label>
-                    </div>
-                  );
-                })}
               </div>
             </div>
 
@@ -885,20 +599,6 @@ export function ClientsPanel() {
         />
       )}
 
-      {/* Manage Requirements Dialog */}
-      <ManageOrganizationRequirementsDialog
-        organization={manageRequirementsOrg}
-        open={!!manageRequirementsOrg}
-        onOpenChange={(open) => !open && setManageRequirementsOrg(null)}
-      />
-
-      {/* Action Plans Dialog */}
-      <ManageActionPlansDialog
-        organization={actionPlansOrg}
-        open={!!actionPlansOrg}
-        onOpenChange={(open) => !open && setActionPlansOrg(null)}
-      />
-
       {/* Assign Themes Dialog */}
       {assignThemesOrg && (
         <AssignThemesDialog
@@ -915,13 +615,6 @@ export function ClientsPanel() {
         onOpenChange={(open) => !open && setCopySettingsOrg(null)}
       />
 
-      {/* Copy Requirements Dialog */}
-      <CopyRequirementsDialog
-        sourceOrganization={copyRequirementsOrg}
-        open={!!copyRequirementsOrg}
-        onOpenChange={(open) => !open && setCopyRequirementsOrg(null)}
-      />
-
       {/* Export Report Dialog */}
       {exportReportOrg && (
         <ExportReportDialog
@@ -931,111 +624,6 @@ export function ClientsPanel() {
           onOpenChange={(open) => !open && setExportReportOrg(null)}
         />
       )}
-
-      {/* Edit User Dialog */}
-      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Editar Utilizador</DialogTitle>
-            <DialogDescription>
-              Altere os dados do utilizador.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-user-name" className="flex items-center gap-1">
-                  <span className="text-destructive">*</span> Nome
-                </Label>
-                <Input
-                  id="edit-user-name"
-                  placeholder="Nome completo"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-user-email" className="flex items-center gap-1">
-                  <span className="text-destructive">*</span> Login
-                </Label>
-                <Input
-                  id="edit-user-email"
-                  type="email"
-                  value={newUserEmail}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-user-type" className="flex items-center gap-1">
-                  <span className="text-destructive">*</span> Tipo
-                </Label>
-                <Select value={newUserType} onValueChange={setNewUserType}>
-                  <SelectTrigger id="edit-user-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-user-language" className="flex items-center gap-1">
-                  <span className="text-destructive">*</span> Idioma
-                </Label>
-                <Select value={newUserLanguage} onValueChange={setNewUserLanguage}>
-                  <SelectTrigger id="edit-user-language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {languages.map((lang) => (
-                      <SelectItem key={lang.value} value={lang.value}>
-                        {lang.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="edit-user-calendar" className="flex items-center gap-1">
-                <span className="text-destructive">*</span> Calendário
-              </Label>
-              <Select value={newUserCalendar} onValueChange={setNewUserCalendar}>
-                <SelectTrigger id="edit-user-calendar" className="w-1/2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {calendarTypes.map((cal) => (
-                    <SelectItem key={cal.value} value={cal.value}>
-                      {cal.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => updateUserMutation.mutate()}
-              disabled={!newUserName.trim() || updateUserMutation.isPending}
-            >
-              {updateUserMutation.isPending ? "A guardar..." : "Guardar Alterações"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
