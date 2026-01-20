@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Database, Brain, Clock, Link, CalendarX } from "lucide-react";
+import { FileText, Wrench, Bot } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
-import { DataQualityPanel } from "./DataQualityPanel";
-import { RequirementsExtractionPanel } from "./RequirementsExtractionPanel";
-import { CronJobsMonitorPanel } from "./CronJobsMonitorPanel";
+import { DataMaintenancePanel } from "./DataMaintenancePanel";
+import { AutomationPanel } from "./AutomationPanel";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
-import { UrlHealthPanel } from "./UrlHealthPanel";
-import { DateAnomaliesPanel } from "./DateAnomaliesPanel";
 
 export function BibliotecaPanel() {
   const [activeSubTab, setActiveSubTab] = useState("legislacao");
@@ -17,32 +14,20 @@ export function BibliotecaPanel() {
       {/* Banner de jobs activos no topo - visível em todas as sub-tabs */}
       <ActiveJobsBanner />
 
-      {/* Sub-tabs internas */}
+      {/* Sub-tabs internas - consolidadas em 3 grupos */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
         <TabsList className="bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
           <TabsTrigger value="legislacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <FileText className="h-4 w-4" />
             Legislação
           </TabsTrigger>
-          <TabsTrigger value="qualidade" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Database className="h-4 w-4" />
-            Qualidade
+          <TabsTrigger value="manutencao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+            <Wrench className="h-4 w-4" />
+            Manutenção
           </TabsTrigger>
-          <TabsTrigger value="urls" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Link className="h-4 w-4" />
-            URLs
-          </TabsTrigger>
-          <TabsTrigger value="datas" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <CalendarX className="h-4 w-4" />
-            Datas
-          </TabsTrigger>
-          <TabsTrigger value="extracao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Brain className="h-4 w-4" />
-            Extração IA
-          </TabsTrigger>
-          <TabsTrigger value="cron" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Clock className="h-4 w-4" />
-            Cron Jobs
+          <TabsTrigger value="automacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+            <Bot className="h-4 w-4" />
+            Automação
           </TabsTrigger>
         </TabsList>
 
@@ -50,24 +35,12 @@ export function BibliotecaPanel() {
           <LegislationPanelWithoutBanner />
         </TabsContent>
 
-        <TabsContent value="qualidade" className="mt-0">
-          <DataQualityPanel />
+        <TabsContent value="manutencao" className="mt-0">
+          <DataMaintenancePanel />
         </TabsContent>
 
-        <TabsContent value="urls" className="mt-0">
-          <UrlHealthPanel />
-        </TabsContent>
-
-        <TabsContent value="datas" className="mt-0">
-          <DateAnomaliesPanel />
-        </TabsContent>
-
-        <TabsContent value="extracao" className="mt-0">
-          <RequirementsExtractionPanel />
-        </TabsContent>
-
-        <TabsContent value="cron" className="mt-0">
-          <CronJobsMonitorPanel />
+        <TabsContent value="automacao" className="mt-0">
+          <AutomationPanel />
         </TabsContent>
       </Tabs>
     </div>
