@@ -1098,29 +1098,56 @@ export type Database = {
       }
       organizations: {
         Row: {
+          address: string | null
+          contract_end_date: string | null
+          contract_reference: string | null
+          contract_start_date: string | null
           created_at: string
           description: string | null
           id: string
           logo_url: string | null
           name: string
+          nipc: string | null
+          notes: string | null
+          responsible_email: string | null
+          responsible_name: string | null
+          responsible_phone: string | null
           service_type: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          contract_end_date?: string | null
+          contract_reference?: string | null
+          contract_start_date?: string | null
           created_at?: string
           description?: string | null
           id?: string
           logo_url?: string | null
           name: string
+          nipc?: string | null
+          notes?: string | null
+          responsible_email?: string | null
+          responsible_name?: string | null
+          responsible_phone?: string | null
           service_type?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          contract_end_date?: string | null
+          contract_reference?: string | null
+          contract_start_date?: string | null
           created_at?: string
           description?: string | null
           id?: string
           logo_url?: string | null
           name?: string
+          nipc?: string | null
+          notes?: string | null
+          responsible_email?: string | null
+          responsible_name?: string | null
+          responsible_phone?: string | null
           service_type?: string | null
           updated_at?: string
         }

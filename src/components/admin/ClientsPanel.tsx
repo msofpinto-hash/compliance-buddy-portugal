@@ -22,6 +22,7 @@ import { ExportReportDialog } from "./ExportReportDialog";
 import { OrganizationLogoUpload } from "./OrganizationLogoUpload";
 import { ClientDetailView } from "./ClientDetailView";
 import { OrganizationComplianceProgress } from "./OrganizationComplianceProgress";
+import { OrganizationDetailsDialog } from "./OrganizationDetailsDialog";
 
 type Organization = Tables<"organizations">;
 
@@ -34,6 +35,7 @@ export function ClientsPanel() {
   const [assignThemesOrg, setAssignThemesOrg] = useState<Organization | null>(null);
   const [copySettingsOrg, setCopySettingsOrg] = useState<Organization | null>(null);
   const [exportReportOrg, setExportReportOrg] = useState<Organization | null>(null);
+  const [detailsOrg, setDetailsOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDescription, setNewOrgDescription] = useState("");
   const [newOrgLogoUrl, setNewOrgLogoUrl] = useState<string | null>(null);
@@ -468,7 +470,16 @@ export function ClientsPanel() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium truncate">{org.name}</p>
+                        <button
+                          className="font-medium truncate hover:text-amber-600 hover:underline cursor-pointer transition-colors text-left"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailsOrg(org);
+                          }}
+                          title="Clique para ver/editar dados da organização"
+                        >
+                          {org.name}
+                        </button>
                         {getServiceTypeBadge((org as any).service_type)}
                         <OrganizationThemesBadge organizationId={org.id} />
                         <OrganizationLegislationBadge organizationId={org.id} />
@@ -711,6 +722,13 @@ export function ClientsPanel() {
           onOpenChange={(open) => !open && setExportReportOrg(null)}
         />
       )}
+
+      {/* Organization Details Dialog */}
+      <OrganizationDetailsDialog
+        organization={detailsOrg}
+        open={!!detailsOrg}
+        onOpenChange={(open) => !open && setDetailsOrg(null)}
+      />
     </div>
   );
 }
