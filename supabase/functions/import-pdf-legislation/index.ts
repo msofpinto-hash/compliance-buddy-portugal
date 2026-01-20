@@ -353,12 +353,27 @@ serve(async (req) => {
     let textToProcess: string;
     
     if (textContent) {
-      // Direct text content provided
+      // Direct text content provided - preferred method
       textToProcess = textContent;
       console.log(`Text content length: ${textToProcess.length} characters`);
     } else {
-      // PDF content provided - extract text using basic extraction
-      console.log(`PDF content length: ${pdfContent.length} base64 characters`);
+      // PDF content provided - check size limits
+      const pdfSizeBytes = pdfContent.length * 0.75; // base64 to bytes approximation
+      const maxSizeMB = 2; // Max 2MB for PDF processing
+      const maxSizeBytes = maxSizeMB * 1024 * 1024;
+      
+      console.log(`PDF content length: ${pdfContent.length} base64 characters (~${(pdfSizeBytes / 1024 / 1024).toFixed(1)}MB)`);
+      
+      if (pdfSizeBytes > maxSizeBytes) {
+        return new Response(
+          JSON.stringify({ 
+            error: `O ficheiro PDF é demasiado grande (${(pdfSizeBytes / 1024 / 1024).toFixed(1)}MB). Limite: ${maxSizeMB}MB. Por favor, use o campo "textContent" enviando o texto já extraído do PDF, ou divida o documento em partes menores.`,
+            suggestion: 'Use uma ferramenta externa para extrair o texto do PDF e envie-o no campo textContent.'
+          }),
+          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       console.log('Extracting text from PDF...');
       
       // Decode base64 to Uint8Array
