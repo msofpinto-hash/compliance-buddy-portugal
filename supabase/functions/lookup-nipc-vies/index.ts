@@ -98,7 +98,26 @@ serve(async (req) => {
     }
 
     // Format the address - VIES returns addresses with newlines
-    const formattedAddress = address ? address.replace(/\n+/g, ', ').replace(/,\s*,/g, ',').trim() : null;
+    // Improve formatting: normalize spaces, clean up line breaks, capitalize properly
+    let formattedAddress = null;
+    if (address) {
+      formattedAddress = address
+        // Decode HTML entities
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        // Clean up whitespace and newlines
+        .replace(/\s+/g, ' ')
+        .replace(/\n+/g, ', ')
+        .replace(/,\s*,/g, ',')
+        .replace(/\s*,\s*/g, ', ')
+        // Remove trailing/leading commas
+        .replace(/^,\s*/, '')
+        .replace(/,\s*$/, '')
+        .trim();
+    }
 
     console.log(`Found: ${name} - ${formattedAddress}`);
 
