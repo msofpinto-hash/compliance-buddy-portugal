@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Settings2, RefreshCw, Palette } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
 import { OperationsPanel } from "./OperationsPanel";
-import { SyncPanel } from "./SyncPanel";
+import { SyncPanelWithExtras } from "./SyncPanelWithExtras";
 import { ThemesPanel } from "./ThemesPanel";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
 
@@ -24,7 +24,7 @@ export function BibliotecaPanel() {
           </TabsTrigger>
           <TabsTrigger value="operacoes" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <Settings2 className="h-4 w-4" />
-            Operações
+            Qualidade
           </TabsTrigger>
           <TabsTrigger value="sync" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <RefreshCw className="h-4 w-4" />
@@ -45,7 +45,7 @@ export function BibliotecaPanel() {
         </TabsContent>
 
         <TabsContent value="sync" className="mt-0">
-          <SyncPanel />
+          <SyncPanelWithExtras />
         </TabsContent>
 
         <TabsContent value="temas" className="mt-0">
