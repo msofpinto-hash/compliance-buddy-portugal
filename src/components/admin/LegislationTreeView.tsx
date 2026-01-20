@@ -1033,8 +1033,64 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 )}
               </div>
             )}
+
+            {/* Diploma Types Legend */}
+            {diplomaTypeFilter && (
+              <div className="mt-3 pt-3 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Filtrado por: <span className="font-medium">{diplomaTypeFilter}</span></p>
+              </div>
+            )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Diploma Types Legend - Collapsible */}
+      {!hideFilters && (
+        <div className="flex flex-wrap gap-1.5 px-1">
+          <span className="text-xs text-muted-foreground mr-1 self-center">Tipos:</span>
+          {[
+            { type: "Lei", short: "Lei" },
+            { type: "Decreto-Lei", short: "DL" },
+            { type: "Portaria", short: "Port" },
+            { type: "Despacho", short: "Desp" },
+            { type: "Regulamento (UE)", short: "Reg UE" },
+            { type: "Diretiva", short: "Dir" },
+            { type: "Decisão", short: "Dec" },
+            { type: "Resolução", short: "Res" },
+          ].map(({ type, short }) => (
+            <TooltipProvider key={type} delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => {
+                      setDiplomaTypeFilter(diplomaTypeFilter === type ? null : type);
+                      resetPage();
+                    }}
+                    className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-all ${getDiplomaTypeColors(type)} ${
+                      diplomaTypeFilter === type ? "ring-2 ring-offset-1 ring-primary" : "hover:opacity-80"
+                    }`}
+                  >
+                    {short}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">{type}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))}
+          {diplomaTypeFilter && (
+            <button
+              onClick={() => {
+                setDiplomaTypeFilter(null);
+                resetPage();
+              }}
+              className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground ml-1"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       )}
 
       {/* List View */}
