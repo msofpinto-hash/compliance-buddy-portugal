@@ -6,6 +6,17 @@ import { Progress } from "@/components/ui/progress";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { 
   Database, 
   AlertTriangle, 
@@ -312,20 +323,41 @@ export function DataQualityPanel() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => recalculateAllOrdersMutation.mutate()}
-                disabled={recalculateAllOrdersMutation.isPending}
-                className="gap-2"
-              >
-                {recalculateAllOrdersMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ListOrdered className="h-4 w-4" />
-                )}
-                Recalcular Ordem em Lote
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={recalculateAllOrdersMutation.isPending}
+                    className="gap-2"
+                  >
+                    {recalculateAllOrdersMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ListOrdered className="h-4 w-4" />
+                    )}
+                    Recalcular Ordem em Lote
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Recalcular ordem de todos os requisitos?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá recalcular o <strong>display_order</strong> de todos os requisitos 
+                      de todos os diplomas na base de dados, ordenando-os semanticamente 
+                      (Considerandos → Artigos → Anexos). 
+                      <br /><br />
+                      Esta operação pode demorar alguns minutos dependendo do volume de dados.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => recalculateAllOrdersMutation.mutate()}>
+                      Confirmar Recálculo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
                 {isFetching ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
