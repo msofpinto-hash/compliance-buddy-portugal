@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check, GripVertical, RefreshCcw, Import } from "lucide-react";
+import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check, GripVertical, RefreshCcw, Import, CheckCircle2, CloudOff } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -737,6 +737,14 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
               </div>
             </CardContent>
           </Card>
+
+          {/* Auto-save indicator */}
+          {requirements && requirements.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span>Alterações guardadas automaticamente</span>
+            </div>
+          )}
 
           {/* Existing requirements */}
           <div className="space-y-3">
