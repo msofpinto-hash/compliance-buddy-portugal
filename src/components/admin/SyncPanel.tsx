@@ -79,6 +79,15 @@ export function SyncPanel() {
   const [reimportType, setReimportType] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
+  const [isImportingPreloaded, setIsImportingPreloaded] = useState<string | null>(null);
+  const [preloadedImportStats, setPreloadedImportStats] = useState<{
+    file: string;
+    totalParsed: number;
+    created: number;
+    skipped: number;
+    mappingsCreated: number;
+    errors: number;
+  } | null>(null);
   
   // Metadata fix states
   const [isFixingEurlexTitles, setIsFixingEurlexTitles] = useState(false);
@@ -450,6 +459,69 @@ export function SyncPanel() {
       });
     } finally {
       setIsImportingExcel(false);
+    }
+  };
+
+  // Import pre-loaded Excel files from public/data
+  const handlePreloadedExcelImport = async (fileName: string, themeName: string) => {
+    setIsImportingPreloaded(fileName);
+    setPreloadedImportStats(null);
+
+    try {
+      toast({
+        title: "A carregar ficheiro",
+        description: `A importar ${fileName}...`,
+      });
+
+      // Fetch the file from public/data
+      const response = await fetch(`/data/${fileName}`);
+      if (!response.ok) {
+        throw new Error(`Ficheiro não encontrado: ${fileName}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // Convert to base64
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64Content = btoa(binary);
+
+      toast({
+        title: "Processamento iniciado",
+        description: `A analisar ${fileName}... Isto pode demorar alguns minutos.`,
+      });
+
+      // Call edge function with XLSX content and theme name
+      const { data, error } = await supabase.functions.invoke('import-excel-legislation', {
+        body: { xlsxContent: base64Content, themeName }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setPreloadedImportStats({
+          file: fileName,
+          ...data.stats
+        });
+        toast({
+          title: "Importação concluída!",
+          description: `${data.stats.created} diplomas criados de ${fileName}`,
+        });
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Preloaded Excel import error:', error);
+      toast({
+        title: "Erro na importação",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImportingPreloaded(null);
     }
   };
 
@@ -1131,10 +1203,90 @@ Exemplo:
               </div>
             </div>
           )}
+          {preloadedImportStats && (
+            <div className="rounded-lg border bg-white p-4 space-y-2">
+              <h4 className="font-medium text-sm">Resultado da Importação ({preloadedImportStats.file}):</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Diplomas analisados:</span>
+                  <span className="font-medium">{preloadedImportStats.totalParsed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Novos criados:</span>
+                  <span className="font-medium text-green-600">{preloadedImportStats.created}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Já existentes:</span>
+                  <span className="font-medium text-muted-foreground">{preloadedImportStats.skipped}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Categorias associadas:</span>
+                  <span className="font-medium text-blue-600">{preloadedImportStats.mappingsCreated}</span>
+                </div>
+                {preloadedImportStats.errors > 0 && (
+                  <div className="flex justify-between col-span-2">
+                    <span className="text-muted-foreground">Erros:</span>
+                    <span className="font-medium text-destructive">{preloadedImportStats.errors}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Text Import (PDF) */}
+      {/* Pre-loaded Excel Files Import */}
+      <Card className="border-amber-200 bg-amber-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5 text-amber-600" />
+            Importar Ficheiros Pré-carregados
+          </CardTitle>
+          <CardDescription>
+            Importe legislação dos ficheiros Excel pré-configurados com temas e categorias mapeadas
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button
+              onClick={() => handlePreloadedExcelImport('Requisitos_legais_S.xlsx', 'Segurança')}
+              disabled={isImportingPreloaded !== null}
+              className="bg-amber-600 hover:bg-amber-700 h-auto py-4"
+            >
+              {isImportingPreloaded === 'Requisitos_legais_S.xlsx' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+              )}
+              <div className="text-left">
+                <div className="font-medium">Segurança (S)</div>
+                <div className="text-xs opacity-80">Requisitos_legais_S.xlsx</div>
+              </div>
+            </Button>
+            
+            <Button
+              onClick={() => handlePreloadedExcelImport('Requisitos_legais_S2.xlsx', 'Segurança')}
+              disabled={isImportingPreloaded !== null}
+              className="bg-amber-600 hover:bg-amber-700 h-auto py-4"
+            >
+              {isImportingPreloaded === 'Requisitos_legais_S2.xlsx' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+              )}
+              <div className="text-left">
+                <div className="font-medium">Segurança 2 (S2)</div>
+                <div className="text-xs opacity-80">Requisitos_legais_S2.xlsx</div>
+              </div>
+            </Button>
+          </div>
+          
+          <p className="text-xs text-muted-foreground">
+            💡 Diplomas já existentes serão ignorados automaticamente (verificação por número do diploma)
+          </p>
+        </CardContent>
+      </Card>
+
       <Card className="border-indigo-200 bg-indigo-50/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
