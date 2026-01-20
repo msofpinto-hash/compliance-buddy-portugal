@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Wrench, RefreshCw, Palette } from "lucide-react";
+import { RefreshCw, Palette, BookOpen } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
-import { DataQualityConsolidatedPanel } from "./DataQualityConsolidatedPanel";
 import { SyncPanelWithExtras } from "./SyncPanelWithExtras";
 import { ThemesPanel } from "./ThemesPanel";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
@@ -15,16 +14,12 @@ export function BibliotecaPanel() {
       {/* Banner de jobs activos no topo - visível em todas as sub-tabs */}
       <ActiveJobsBanner />
 
-      {/* Sub-tabs internas - 4 grupos: Legislação, Manutenção, Sync, Temas */}
+      {/* Sub-tabs internas - 3 grupos: Legislação (unificada com manutenção), Sync, Temas */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
         <TabsList className="flex flex-wrap gap-1 bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
           <TabsTrigger value="legislacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <FileText className="h-4 w-4" />
+            <BookOpen className="h-4 w-4" />
             Legislação
-          </TabsTrigger>
-          <TabsTrigger value="manutencao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Wrench className="h-4 w-4" />
-            Manutenção
           </TabsTrigger>
           <TabsTrigger value="sync" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <RefreshCw className="h-4 w-4" />
@@ -38,10 +33,6 @@ export function BibliotecaPanel() {
 
         <TabsContent value="legislacao" className="mt-0">
           <LegislationPanelWithoutBanner />
-        </TabsContent>
-
-        <TabsContent value="manutencao" className="mt-0">
-          <DataQualityConsolidatedPanel />
         </TabsContent>
 
         <TabsContent value="sync" className="mt-0">

@@ -815,11 +815,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Legislação Importada
-                </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-base">
                   Gerencie categorias e requisitos legais ({filteredAndSortedLegislation.length} resultados)
                 </CardDescription>
               </div>
