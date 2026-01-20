@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,6 +112,81 @@ export default function LegislacaoDetalhes() {
     },
     enabled: !!id,
   });
+
+  // Robust ordering for requirements (guards against bad display_order coming from extraction)
+  const sortedRequirements = useMemo(() => {
+    const list = (requirements || []) as Array<{
+      id: string;
+      article: string | null;
+      requirement_text: string;
+      notes: string | null;
+      display_order: number | null;
+      created_at?: string;
+    }>;
+
+    const romanToInt = (roman: string) => {
+      const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+      let total = 0;
+      let prev = 0;
+      const s = roman.toUpperCase().replace(/[^IVXLCDM]/g, "");
+      for (let i = s.length - 1; i >= 0; i--) {
+        const val = map[s[i]] || 0;
+        if (val < prev) total -= val;
+        else {
+          total += val;
+          prev = val;
+        }
+      }
+      return total;
+    };
+
+    const getSortKey = (article: string | null, displayOrder: number | null) => {
+      const a = (article || "").trim();
+      const lower = a.toLowerCase();
+
+      // 0: considerandos, 1: artigos, 2: anexos, 3: outros
+      let typeRank = 3;
+      let n1 = Number.POSITIVE_INFINITY;
+      let n2 = 0;
+
+      if (lower.startsWith("considerando")) {
+        typeRank = 0;
+        const m = a.match(/(\d+)/);
+        if (m) n1 = parseInt(m[1], 10);
+      } else if (lower.includes("art")) {
+        typeRank = 1;
+        const mArt = a.match(/art\.?\s*(\d+)/i);
+        if (mArt) n1 = parseInt(mArt[1], 10);
+        const mN = a.match(/n\.?\s*º\s*(\d+)/i) || a.match(/n\.\s*(\d+)/i);
+        if (mN) n2 = parseInt(mN[1], 10);
+      } else if (lower.includes("anexo")) {
+        typeRank = 2;
+        // Anexo I / II / 1
+        const mRoman = a.match(/anexo\s+([IVXLCDM]+)/i);
+        const mNum = a.match(/anexo\s+(\d+)/i);
+        if (mRoman) n1 = romanToInt(mRoman[1]);
+        else if (mNum) n1 = parseInt(mNum[1], 10);
+        else n1 = 0;
+      }
+
+      const safeDisplay = displayOrder ?? Number.POSITIVE_INFINITY;
+      return { typeRank, n1, n2, safeDisplay, raw: a };
+    };
+
+    return [...list].sort((x, y) => {
+      const ax = getSortKey(x.article, x.display_order);
+      const ay = getSortKey(y.article, y.display_order);
+
+      if (ax.typeRank !== ay.typeRank) return ax.typeRank - ay.typeRank;
+      if (ax.n1 !== ay.n1) return ax.n1 - ay.n1;
+      if (ax.n2 !== ay.n2) return ax.n2 - ay.n2;
+
+      // If extraction produced a bad display_order, keep it only as tie-breaker
+      if (ax.safeDisplay !== ay.safeDisplay) return ax.safeDisplay - ay.safeDisplay;
+
+      return ax.raw.localeCompare(ay.raw, "pt");
+    });
+  }, [requirements]);
 
   // Fetch applicabilities for the user's organization (requirements)
   const { data: applicabilities } = useQuery({
@@ -511,7 +586,7 @@ export default function LegislacaoDetalhes() {
                       Obrigações e requisitos extraídos deste diploma
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">{requirements?.length || 0} requisitos</Badge>
+                  <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
                 </div>
                 {userOrganization && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-2">
@@ -527,9 +602,9 @@ export default function LegislacaoDetalhes() {
                       <Skeleton key={i} className="h-20 w-full" />
                     ))}
                   </div>
-                ) : requirements && requirements.length > 0 ? (
+                ) : sortedRequirements.length > 0 ? (
                   <div className="space-y-4">
-                    {requirements.map((req, index) => (
+                    {sortedRequirements.map((req, index) => (
                       <div key={req.id}>
                         <div className="rounded-lg border p-4 hover:bg-muted/50 transition-colors">
                           <div className="flex items-start gap-3">
@@ -540,9 +615,7 @@ export default function LegislacaoDetalhes() {
                               <div className="flex items-start justify-between gap-3 mb-1">
                                 <div className="flex-1">
                                   {req.article && (
-                                    <p className="text-sm font-medium text-primary">
-                                      {req.article}
-                                    </p>
+                                    <p className="text-sm font-medium text-primary">{req.article}</p>
                                   )}
                                 </div>
                                 {userOrganization ? (
