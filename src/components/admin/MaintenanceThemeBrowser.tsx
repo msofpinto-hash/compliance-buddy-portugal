@@ -109,6 +109,7 @@ export function MaintenanceThemeBrowser() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [extractConfirmOpen, setExtractConfirmOpen] = useState(false);
+  const [deleteAndExtractConfirmOpen, setDeleteAndExtractConfirmOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Dialogs
@@ -393,6 +394,96 @@ export function MaintenanceThemeBrowser() {
       toast({
         title: "Erro na extração",
         description: error.message || "Não foi possível extrair os requisitos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Bulk delete and then extract requirements (combined action)
+  const handleBulkDeleteAndExtractRequirements = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsProcessing(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+
+      // Step 1: Delete all requirements for selected legislation
+      const { error: deleteError } = await supabase
+        .from("legal_requirements")
+        .delete()
+        .in("legislation_id", idsArray);
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: "Requisitos eliminados",
+        description: `Requisitos de ${idsArray.length} diploma(s) eliminados. A iniciar reimportação...`,
+      });
+
+      // Step 2: Create a sync log for tracking extraction
+      const { data: syncLog, error: logError } = await supabase
+        .from("sync_logs")
+        .insert({
+          sync_type: "bulk_delete_and_extract",
+          status: "running",
+          items_processed: 0,
+          items_added: 0,
+        })
+        .select()
+        .single();
+
+      if (logError) throw logError;
+
+      // Step 3: Process each legislation (call extract-requirements for each)
+      let processed = 0;
+      let added = 0;
+      const errors: string[] = [];
+
+      for (const legislationId of idsArray) {
+        try {
+          const { data, error } = await supabase.functions.invoke("extract-requirements", {
+            body: { legislationId, forceReplace: true },
+          });
+
+          if (error) {
+            errors.push(`${legislationId}: ${error.message}`);
+          } else {
+            processed++;
+            added += data?.requirementsCount || 0;
+          }
+        } catch (err: any) {
+          errors.push(`${legislationId}: ${err.message}`);
+        }
+      }
+
+      // Update sync log
+      await supabase
+        .from("sync_logs")
+        .update({
+          status: errors.length > 0 ? "completed_with_errors" : "completed",
+          completed_at: new Date().toISOString(),
+          items_processed: processed,
+          items_added: added,
+          error_message: errors.length > 0 ? errors.slice(0, 5).join("; ") : null,
+        })
+        .eq("id", syncLog.id);
+
+      toast({
+        title: "Reimportação concluída",
+        description: `${processed} diploma(s) processados, ${added} requisitos extraídos.${errors.length > 0 ? ` ${errors.length} erros.` : ""}`,
+      });
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+      setDeleteAndExtractConfirmOpen(false);
+      clearSelection();
+    } catch (error: any) {
+      console.error("Error in delete and extract:", error);
+      toast({
+        title: "Erro na operação",
+        description: error.message || "Não foi possível completar a operação.",
         variant: "destructive",
       });
     } finally {
@@ -685,11 +776,20 @@ export function MaintenanceThemeBrowser() {
                 <Button
                   variant="default"
                   size="sm"
+                  onClick={() => setDeleteAndExtractConfirmOpen(true)}
+                  className="gap-1 bg-amber-600 hover:bg-amber-700"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Eliminar e Reimportar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setExtractConfirmOpen(true)}
                   className="gap-1"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  Reimportar Requisitos
+                  Reimportar
                 </Button>
               </div>
             )}
@@ -923,6 +1023,43 @@ export function MaintenanceThemeBrowser() {
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
                   Reimportar
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete AND Extract Requirements Confirmation Dialog */}
+      <AlertDialog open={deleteAndExtractConfirmOpen} onOpenChange={setDeleteAndExtractConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+              <RefreshCw className="h-5 w-5" />
+              Eliminar e Reimportar Requisitos
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação vai <strong>eliminar todos os requisitos existentes</strong> dos {selectedIds.size} diploma(s) selecionado(s) e depois <strong>reimportar novos requisitos</strong> via IA.
+              <br /><br />
+              <span className="text-destructive font-medium">⚠️ Aviso:</span> As aplicabilidades e planos de ação associados aos requisitos existentes serão perdidos. Este processo pode demorar alguns minutos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteAndExtractRequirements}
+              disabled={isProcessing}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  A processar...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Confirmar
                 </>
               )}
             </AlertDialogAction>
