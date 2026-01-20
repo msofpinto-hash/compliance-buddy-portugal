@@ -70,8 +70,76 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [filterRevoked, setFilterRevoked] = useState<boolean>(false);
   const [filterGenericTitle, setFilterGenericTitle] = useState<boolean>(false);
   const [filterOrigin, setFilterOrigin] = useState<string>("all");
+  const [filterDiplomaType, setFilterDiplomaType] = useState<string | null>(null);
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
+
+  // Extract diploma type from number
+  const extractDiplomaType = (number: string): string => {
+    if (!number) return "Outros";
+    const normalized = number.trim();
+    const typePatterns: [RegExp, string][] = [
+      [/^decreto[- ]lei/i, "Decreto-Lei"],
+      [/^lei\s/i, "Lei"],
+      [/^portaria/i, "Portaria"],
+      [/^despacho/i, "Despacho"],
+      [/^regulamento\s*\(ue\)/i, "Regulamento (UE)"],
+      [/^regulamento\s*\(ce\)/i, "Regulamento (CE)"],
+      [/^regulamento/i, "Regulamento"],
+      [/^diretiva/i, "Diretiva"],
+      [/^decisão/i, "Decisão"],
+      [/^resolução/i, "Resolução"],
+      [/^decreto\s+regulamentar/i, "Decreto Regulamentar"],
+      [/^decreto/i, "Decreto"],
+      [/^aviso/i, "Aviso"],
+      [/^declaração/i, "Declaração"],
+      [/^lei\s+orgânica/i, "Lei Orgânica"],
+      [/^lei\s+constitucional/i, "Lei Constitucional"],
+      [/^acórdão/i, "Acórdão"],
+    ];
+    for (const [pattern, type] of typePatterns) {
+      if (pattern.test(normalized)) return type;
+    }
+    return "Outros";
+  };
+
+  // Color mapping for diploma types
+  const getDiplomaTypeColors = (type: string): string => {
+    const colorMap: Record<string, string> = {
+      "Decreto-Lei": "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-300/50",
+      "Lei": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-300/50",
+      "Lei Orgânica": "bg-emerald-600/15 text-emerald-800 dark:text-emerald-300 border-emerald-400/50",
+      "Lei Constitucional": "bg-emerald-700/15 text-emerald-900 dark:text-emerald-200 border-emerald-500/50",
+      "Portaria": "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-300/50",
+      "Despacho": "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-300/50",
+      "Decreto": "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-300/50",
+      "Decreto Regulamentar": "bg-indigo-600/15 text-indigo-800 dark:text-indigo-300 border-indigo-400/50",
+      "Resolução": "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-300/50",
+      "Aviso": "bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-300/50",
+      "Declaração": "bg-gray-500/15 text-gray-700 dark:text-gray-400 border-gray-300/50",
+      "Acórdão": "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-300/50",
+      "Regulamento": "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-300/50",
+      "Regulamento (UE)": "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-300/50",
+      "Regulamento (CE)": "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300 border-cyan-400/50",
+      "Diretiva": "bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-300/50",
+      "Decisão": "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-400 border-fuchsia-300/50",
+      "Outros": "bg-stone-500/15 text-stone-700 dark:text-stone-400 border-stone-300/50",
+    };
+    return colorMap[type] || colorMap["Outros"];
+  };
+
+  // Get unique diploma types from all legislation
+  const availableDiplomaTypes = useMemo(() => {
+    if (!legislation) return [];
+    const types = new Map<string, number>();
+    legislation.forEach(leg => {
+      const type = extractDiplomaType(leg.number || "");
+      types.set(type, (types.get(type) || 0) + 1);
+    });
+    return Array.from(types.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({ type, count }));
+  }, [legislation]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedLegislation, setSelectedLegislation] = useState<LegislationWithCategories | null>(null);
@@ -267,6 +335,11 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       }
     }
 
+    // Filter by diploma type
+    if (filterDiplomaType) {
+      result = result.filter(leg => extractDiplomaType(leg.number || "") === filterDiplomaType);
+    }
+
     // Filter by "no category"
     if (filterNoCategory) {
       result = result.filter(leg => leg.categories.length === 0);
@@ -316,7 +389,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterGenericTitle, filterRevoked, filterOrigin, filterStartDate, filterEndDate, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterGenericTitle, filterRevoked, filterOrigin, filterDiplomaType, filterStartDate, filterEndDate, sortField, sortOrder]);
 
   // Count items without category
   const noCategoryCount = useMemo(() => {
@@ -943,6 +1016,40 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Diploma Types Legend - Dynamic */}
+            {availableDiplomaTypes.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-xs text-muted-foreground mr-1">Tipos:</span>
+                {availableDiplomaTypes.map(({ type, count }) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setFilterDiplomaType(filterDiplomaType === type ? null : type);
+                      setCurrentPage(1);
+                    }}
+                    className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-all ${getDiplomaTypeColors(type)} ${
+                      filterDiplomaType === type ? "ring-2 ring-offset-1 ring-primary shadow-sm" : "hover:opacity-80"
+                    }`}
+                  >
+                    {type}
+                    <span className="ml-1 opacity-60">({count})</span>
+                  </button>
+                ))}
+                {filterDiplomaType && (
+                  <button
+                    onClick={() => {
+                      setFilterDiplomaType(null);
+                      setCurrentPage(1);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-2 px-2 py-0.5 rounded border border-dashed hover:border-solid transition-all"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Limpar tipo
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Problem Type Actions Bar - Only shows when filtering by problems */}
             {filterProblems && (
