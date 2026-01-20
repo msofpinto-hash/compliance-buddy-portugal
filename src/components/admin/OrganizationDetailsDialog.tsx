@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Building2, FileText, User, Phone, Mail, MapPin, Calendar, Users, Loader2 } from "lucide-react";
+import { Building2, FileText, User, Phone, Mail, MapPin, Calendar, Users, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -23,6 +23,49 @@ interface OrganizationDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * Validates a Portuguese NIPC (Número de Identificação de Pessoa Coletiva)
+ * The NIPC has 9 digits where the last digit is a check digit calculated using modulo 11
+ */
+function validateNIPC(nipc: string): { isValid: boolean; message: string } {
+  // Remove spaces and non-numeric characters
+  const cleanNipc = nipc.replace(/\s/g, '').replace(/\D/g, '');
+  
+  // Empty is valid (optional field)
+  if (!cleanNipc) {
+    return { isValid: true, message: "" };
+  }
+  
+  // Must have exactly 9 digits
+  if (cleanNipc.length !== 9) {
+    return { isValid: false, message: "O NIPC deve ter exatamente 9 dígitos" };
+  }
+  
+  // First digit must be 1, 2, 3, 5, 6, 8 or 9
+  const firstDigit = cleanNipc.charAt(0);
+  if (!['1', '2', '3', '5', '6', '8', '9'].includes(firstDigit)) {
+    return { isValid: false, message: "O primeiro dígito do NIPC não é válido" };
+  }
+  
+  // Calculate check digit using modulo 11 algorithm
+  const weights = [9, 8, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+  
+  for (let i = 0; i < 8; i++) {
+    sum += parseInt(cleanNipc.charAt(i), 10) * weights[i];
+  }
+  
+  const remainder = sum % 11;
+  const expectedCheckDigit = remainder < 2 ? 0 : 11 - remainder;
+  const actualCheckDigit = parseInt(cleanNipc.charAt(8), 10);
+  
+  if (expectedCheckDigit !== actualCheckDigit) {
+    return { isValid: false, message: "O dígito de controlo do NIPC é inválido" };
+  }
+  
+  return { isValid: true, message: "NIPC válido" };
+}
+
 export function OrganizationDetailsDialog({ organization, open, onOpenChange }: OrganizationDetailsDialogProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("dados");
@@ -31,6 +74,7 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [nipc, setNipc] = useState("");
+  const [nipcValidation, setNipcValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
   const [contractReference, setContractReference] = useState("");
   const [contractStartDate, setContractStartDate] = useState("");
   const [contractEndDate, setContractEndDate] = useState("");
@@ -40,13 +84,23 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [responsiblePhone, setResponsiblePhone] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Validate NIPC on change
+  const handleNipcChange = (value: string) => {
+    // Allow only digits and format with spaces for readability
+    const cleanValue = value.replace(/\D/g, '').slice(0, 9);
+    setNipc(cleanValue);
+    setNipcValidation(validateNIPC(cleanValue));
+  };
+
   // Load organization data
   useEffect(() => {
     if (organization) {
       const org = organization as any;
       setName(org.name || "");
       setDescription(org.description || "");
-      setNipc(org.nipc || "");
+      const nipcValue = org.nipc || "";
+      setNipc(nipcValue);
+      setNipcValidation(validateNIPC(nipcValue));
       setContractReference(org.contract_reference || "");
       setContractStartDate(org.contract_start_date || "");
       setContractEndDate(org.contract_end_date || "");
@@ -171,13 +225,30 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nipc">NIPC</Label>
+                  <Label htmlFor="nipc" className="flex items-center gap-1.5">
+                    NIPC
+                    {nipc && (
+                      nipcValidation.isValid ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-red-500" />
+                      )
+                    )}
+                  </Label>
                   <Input
                     id="nipc"
                     value={nipc}
-                    onChange={(e) => setNipc(e.target.value)}
-                    placeholder="Número de Identificação"
+                    onChange={(e) => handleNipcChange(e.target.value)}
+                    placeholder="Ex: 123456789"
+                    maxLength={9}
+                    className={nipc && !nipcValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : nipc && nipcValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}
                   />
+                  {nipc && !nipcValidation.isValid && (
+                    <p className="text-xs text-red-500">{nipcValidation.message}</p>
+                  )}
+                  {nipc && nipcValidation.isValid && (
+                    <p className="text-xs text-emerald-600">{nipcValidation.message}</p>
+                  )}
                 </div>
               </div>
               
@@ -360,7 +431,7 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
           </Button>
           <Button
             onClick={() => updateMutation.mutate()}
-            disabled={!name.trim() || updateMutation.isPending}
+            disabled={!name.trim() || !nipcValidation.isValid || updateMutation.isPending}
             className="gap-2"
           >
             {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
