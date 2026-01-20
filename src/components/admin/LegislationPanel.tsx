@@ -1113,6 +1113,39 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
               </div>
             )}
 
+            {/* Filter Results Counter */}
+            {legislation && filteredAndSortedLegislation.length !== legislation.length && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg">
+                <FileText className="h-4 w-4 text-primary" />
+                <span className="text-sm">
+                  Mostrando <span className="font-semibold text-primary">{filteredAndSortedLegislation.length}</span> de{" "}
+                  <span className="font-semibold">{legislation.length}</span> diplomas
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs ml-auto"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setFilterTheme("all");
+                    setFilterCategory("all");
+                    setFilterNoCategory(false);
+                    setFilterProblems(false);
+                    setFilterProblemType("all");
+                    setFilterRevoked(false);
+                    setFilterGenericTitle(false);
+                    setFilterOrigin("all");
+                    setFilterDiplomaType(null);
+                    setFilterStartDate(null);
+                    setFilterEndDate(null);
+                    setCurrentPage(1);
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              </div>
+            )}
+
             {/* Problem Type Actions Bar - Only shows when filtering by problems */}
             {filterProblems && (
               <div className="flex flex-wrap gap-2 items-center p-3 bg-red-50 border border-red-200 rounded-lg">
