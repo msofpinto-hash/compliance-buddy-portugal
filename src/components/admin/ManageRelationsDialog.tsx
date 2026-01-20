@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,9 +8,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Link2, Plus, Trash2, ExternalLink } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Link2, Plus, Trash2, ExternalLink, Search, Globe, Flag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -43,6 +45,13 @@ interface Relation {
   };
 }
 
+interface FoundLegislation {
+  id: string;
+  number: string;
+  title: string;
+  origin: string | null;
+}
+
 export function ManageRelationsDialog({
   legislation,
   open,
@@ -52,6 +61,10 @@ export function ManageRelationsDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedType, setSelectedType] = useState<string>("");
   const [selectedTargetId, setSelectedTargetId] = useState<string>("");
+  const [addMode, setAddMode] = useState<"select" | "url">("select");
+  const [urlInput, setUrlInput] = useState("");
+  const [isSearchingUrl, setIsSearchingUrl] = useState(false);
+  const [foundLegislation, setFoundLegislation] = useState<FoundLegislation | null>(null);
 
   // Fetch all legislation for the dropdown
   const { data: allLegislation } = useQuery({
@@ -90,8 +103,56 @@ export function ManageRelationsDialog({
     enabled: open && !!legislation?.id,
   });
 
-  const handleAddRelation = async () => {
-    if (!legislation || !selectedType || !selectedTargetId) return;
+  const handleSearchByUrl = async () => {
+    if (!urlInput.trim()) {
+      toast.error("Insira uma URL válida");
+      return;
+    }
+
+    setIsSearchingUrl(true);
+    setFoundLegislation(null);
+
+    try {
+      // Normalize URL for comparison
+      const normalizedUrl = urlInput.trim().toLowerCase();
+      
+      // Search by exact URL match first
+      let { data, error } = await supabase
+        .from("legislation")
+        .select("id, number, title, origin")
+        .eq("document_url", urlInput.trim())
+        .maybeSingle();
+
+      // If not found, try with lowercase comparison
+      if (!data) {
+        const { data: allData, error: allError } = await supabase
+          .from("legislation")
+          .select("id, number, title, origin, document_url");
+        
+        if (allError) throw allError;
+        
+        // Find by URL match (case insensitive)
+        data = allData?.find(leg => 
+          leg.document_url?.toLowerCase() === normalizedUrl
+        ) || null;
+      }
+
+      if (data) {
+        setFoundLegislation(data);
+        toast.success(`Diploma encontrado: ${data.number}`);
+      } else {
+        toast.error("Nenhum diploma encontrado com esta URL. Verifique se a URL está correta ou se o diploma existe na base de dados.");
+      }
+    } catch (error: any) {
+      toast.error("Erro ao procurar diploma: " + error.message);
+    } finally {
+      setIsSearchingUrl(false);
+    }
+  };
+
+  const handleAddRelation = async (targetId?: string) => {
+    const finalTargetId = targetId || selectedTargetId;
+    if (!legislation || !selectedType || !finalTargetId) return;
 
     setIsLoading(true);
     try {
@@ -99,7 +160,7 @@ export function ManageRelationsDialog({
         .from("legislation_relations")
         .insert({
           source_legislation_id: legislation.id,
-          target_legislation_id: selectedTargetId,
+          target_legislation_id: finalTargetId,
           relation_type: selectedType,
         } as any);
 
@@ -108,8 +169,11 @@ export function ManageRelationsDialog({
       toast.success("Relação adicionada com sucesso");
       setSelectedType("");
       setSelectedTargetId("");
+      setUrlInput("");
+      setFoundLegislation(null);
       refetchRelations();
       queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation-relations"] });
     } catch (error: any) {
       if (error.code === "23505") {
         toast.error("Esta relação já existe");
@@ -134,6 +198,7 @@ export function ManageRelationsDialog({
       toast.success("Relação removida");
       refetchRelations();
       queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation-relations"] });
     } catch (error: any) {
       toast.error("Erro ao remover relação: " + error.message);
     } finally {
@@ -226,52 +291,144 @@ export function ManageRelationsDialog({
         {/* Add New Relation */}
         <div className="space-y-3 pt-4 border-t">
           <Label>Adicionar nova relação</Label>
-          <div className="grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de relação" />
-              </SelectTrigger>
-              <SelectContent>
-                {RELATION_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded ${type.color}`} />
-                      {type.label}
+          
+          {/* Relation Type Selector - Always visible */}
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Tipo de relação" />
+            </SelectTrigger>
+            <SelectContent>
+              {RELATION_TYPES.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded ${type.color}`} />
+                    {type.label}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Tabs for different add modes */}
+          <Tabs value={addMode} onValueChange={(v) => setAddMode(v as "select" | "url")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="select" className="gap-2">
+                <Search className="h-4 w-4" />
+                Selecionar
+              </TabsTrigger>
+              <TabsTrigger value="url" className="gap-2">
+                <Globe className="h-4 w-4" />
+                Por URL
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="select" className="space-y-3">
+              <div className="flex gap-2">
+                <Select value={selectedTargetId} onValueChange={setSelectedTargetId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecionar diploma..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableLegislation?.map((leg) => (
+                      <SelectItem key={leg.id} value={leg.id}>
+                        <span className="font-mono">{leg.number}</span>
+                        <span className="text-muted-foreground ml-2 truncate">
+                          {leg.title.substring(0, 50)}...
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={() => handleAddRelation()}
+                  disabled={isLoading || !selectedType || !selectedTargetId}
+                  className="gap-2"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  Adicionar
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="url" className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Cole a URL do diploma (DRE ou EUR-Lex)..."
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={handleSearchByUrl}
+                  disabled={isSearchingUrl || !urlInput.trim()}
+                  className="gap-2"
+                >
+                  {isSearchingUrl ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  Procurar
+                </Button>
+              </div>
+              
+              {/* Found legislation display */}
+              {foundLegislation && (
+                <div className="p-3 border rounded-lg bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge 
+                        variant="outline"
+                        className={
+                          foundLegislation.origin === 'PT' 
+                            ? 'bg-green-500/10 text-green-700 border-green-300' 
+                            : foundLegislation.origin === 'EU'
+                              ? 'bg-blue-500/10 text-blue-700 border-blue-300'
+                              : 'bg-gray-500/10'
+                        }
+                      >
+                        {foundLegislation.origin === 'PT' ? (
+                          <><Flag className="h-3 w-3 mr-1" />DRE</>
+                        ) : foundLegislation.origin === 'EU' ? (
+                          <><Globe className="h-3 w-3 mr-1" />EUR-Lex</>
+                        ) : (
+                          'Outro'
+                        )}
+                      </Badge>
+                      <span className="font-mono text-sm font-medium">
+                        {foundLegislation.number}
+                      </span>
+                      <span className="text-sm text-muted-foreground truncate">
+                        {foundLegislation.title.substring(0, 60)}...
+                      </span>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedTargetId} onValueChange={setSelectedTargetId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar diploma..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableLegislation?.map((leg) => (
-                  <SelectItem key={leg.id} value={leg.id}>
-                    <span className="font-mono">{leg.number}</span>
-                    <span className="text-muted-foreground ml-2 truncate">
-                      {leg.title.substring(0, 50)}...
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button
-              onClick={handleAddRelation}
-              disabled={isLoading || !selectedType || !selectedTargetId}
-              className="gap-2"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
+                    <Button
+                      onClick={() => handleAddRelation(foundLegislation.id)}
+                      disabled={isLoading || !selectedType}
+                      size="sm"
+                      className="gap-2 shrink-0"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Adicionar
+                    </Button>
+                  </div>
+                </div>
               )}
-              Adicionar
-            </Button>
-          </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Cole a URL completa do diploma no DRE ou EUR-Lex. O sistema irá procurar na base de dados.
+              </p>
+            </TabsContent>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>
