@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check, GripVertical } from "lucide-react";
+import { Loader2, Plus, Trash2, FileText, Brain, AlertTriangle, Pencil, X, Check, GripVertical, RefreshCcw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -278,6 +278,99 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
     },
   });
 
+  // Recalculate display_order based on article parsing (Considerandos > Artigos > Anexos)
+  const recalculateOrderMutation = useMutation({
+    mutationFn: async () => {
+      if (!requirements || requirements.length === 0) return;
+
+      // Roman numeral to integer converter
+      const romanToInt = (roman: string) => {
+        const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+        let total = 0;
+        let prev = 0;
+        const s = roman.toUpperCase().replace(/[^IVXLCDM]/g, "");
+        for (let i = s.length - 1; i >= 0; i--) {
+          const val = map[s[i]] || 0;
+          if (val < prev) total -= val;
+          else {
+            total += val;
+            prev = val;
+          }
+        }
+        return total;
+      };
+
+      // Sort key extractor
+      const getSortKey = (article: string | null) => {
+        const a = (article || "").trim();
+        const lower = a.toLowerCase();
+
+        // 0: considerandos, 1: artigos, 2: anexos, 3: outros
+        let typeRank = 3;
+        let n1 = Number.POSITIVE_INFINITY;
+        let n2 = 0;
+
+        if (lower.startsWith("considerando")) {
+          typeRank = 0;
+          const m = a.match(/(\d+)/);
+          if (m) n1 = parseInt(m[1], 10);
+        } else if (lower.includes("art")) {
+          typeRank = 1;
+          const mArt = a.match(/art\.?\s*(\d+)/i);
+          if (mArt) n1 = parseInt(mArt[1], 10);
+          const mN = a.match(/n\.?\s*º\s*(\d+)/i) || a.match(/n\.\s*(\d+)/i);
+          if (mN) n2 = parseInt(mN[1], 10);
+        } else if (lower.includes("anexo")) {
+          typeRank = 2;
+          const mRoman = a.match(/anexo\s+([IVXLCDM]+)/i);
+          const mNum = a.match(/anexo\s+(\d+)/i);
+          if (mRoman) n1 = romanToInt(mRoman[1]);
+          else if (mNum) n1 = parseInt(mNum[1], 10);
+          else n1 = 0;
+        }
+
+        return { typeRank, n1, n2, raw: a };
+      };
+
+      // Sort requirements by semantic order
+      const sorted = [...requirements].sort((x, y) => {
+        const ax = getSortKey(x.article);
+        const ay = getSortKey(y.article);
+
+        if (ax.typeRank !== ay.typeRank) return ax.typeRank - ay.typeRank;
+        if (ax.n1 !== ay.n1) return ax.n1 - ay.n1;
+        if (ax.n2 !== ay.n2) return ax.n2 - ay.n2;
+        return ax.raw.localeCompare(ay.raw, "pt");
+      });
+
+      // Update each requirement with its new display_order
+      const updates = sorted.map((req, index) =>
+        supabase
+          .from("legal_requirements")
+          .update({ display_order: index + 1 })
+          .eq("id", req.id)
+      );
+
+      const results = await Promise.all(updates);
+      const error = results.find((r) => r.error)?.error;
+      if (error) throw error;
+
+      return sorted.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["legal-requirements", legislation?.id] });
+      queryClient.invalidateQueries({ queryKey: ["legislation-requirements", legislation?.id] });
+      toast({ title: "Ordem recalculada", description: `${count} requisitos reordenados.` });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao recalcular ordem",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (requirementId: string) => {
       const { error } = await supabase
@@ -545,15 +638,33 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
 
           {/* Existing requirements */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h4 className="font-medium">
                 Requisitos Existentes ({requirements?.length || 0})
               </h4>
-              {requirements && requirements.length > 1 && (
-                <span className="text-xs text-muted-foreground">
-                  Arraste para reordenar
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {requirements && requirements.length > 1 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => recalculateOrderMutation.mutate()}
+                      disabled={recalculateOrderMutation.isPending}
+                      className="h-7 text-xs gap-1"
+                    >
+                      {recalculateOrderMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCcw className="h-3 w-3" />
+                      )}
+                      Recalcular Ordem
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      ou arraste para reordenar
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
 
             {isLoading ? (
