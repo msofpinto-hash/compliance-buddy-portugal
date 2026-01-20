@@ -460,6 +460,53 @@ export type Database = {
           },
         ]
       }
+      contract_document_versions: {
+        Row: {
+          created_at: string
+          document_type: string
+          file_name: string | null
+          file_size: number | null
+          file_url: string
+          id: string
+          notes: string | null
+          organization_id: string
+          uploaded_by: string | null
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          uploaded_by?: string | null
+          version_number?: number
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          uploaded_by?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_document_versions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           category: string | null
