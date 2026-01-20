@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { Building2, FileText, User, Phone, Mail, MapPin, Calendar, Users, Loader2, CheckCircle2, XCircle, Search } from "lucide-react";
+import { ContractDocumentUpload } from "./ContractDocumentUpload";
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -84,6 +85,8 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [responsibleEmail, setResponsibleEmail] = useState("");
   const [responsiblePhone, setResponsiblePhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [proposalUrl, setProposalUrl] = useState<string | null>(null);
+  const [purchaseOrderUrl, setPurchaseOrderUrl] = useState<string | null>(null);
   const [isLookingUpNipc, setIsLookingUpNipc] = useState(false);
   const [lastLookedUpNipc, setLastLookedUpNipc] = useState<string | null>(null);
 
@@ -180,6 +183,8 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
       setResponsibleEmail(org.responsible_email || "");
       setResponsiblePhone(org.responsible_phone || "");
       setNotes(org.notes || "");
+      setProposalUrl(org.proposal_url || null);
+      setPurchaseOrderUrl(org.purchase_order_url || null);
     }
   }, [organization]);
 
@@ -232,6 +237,8 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
           responsible_email: responsibleEmail || null,
           responsible_phone: responsiblePhone || null,
           notes: notes || null,
+          proposal_url: proposalUrl,
+          purchase_order_url: purchaseOrderUrl,
         } as any)
         .eq("id", organization.id);
       
@@ -466,6 +473,30 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                     type="date"
                     value={contractEndDate}
                     onChange={(e) => setContractEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Contract Documents */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Documentos
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <ContractDocumentUpload
+                    organizationId={organization.id}
+                    label="Proposta"
+                    currentUrl={proposalUrl}
+                    onUrlChange={setProposalUrl}
+                    documentType="proposal"
+                  />
+                  <ContractDocumentUpload
+                    organizationId={organization.id}
+                    label="Nota de Encomenda"
+                    currentUrl={purchaseOrderUrl}
+                    onUrlChange={setPurchaseOrderUrl}
+                    documentType="purchase_order"
                   />
                 </div>
               </div>
