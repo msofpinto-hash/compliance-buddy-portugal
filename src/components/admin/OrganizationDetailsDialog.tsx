@@ -85,18 +85,27 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [responsiblePhone, setResponsiblePhone] = useState("");
   const [notes, setNotes] = useState("");
   const [isLookingUpNipc, setIsLookingUpNipc] = useState(false);
+  const [lastLookedUpNipc, setLastLookedUpNipc] = useState<string | null>(null);
 
   // Lookup NIPC via VIES
-  const lookupNipcVies = async () => {
-    if (!nipc || nipc.length !== 9 || !nipcValidation.isValid) {
-      toast.error("Introduza um NIPC válido de 9 dígitos");
+  const lookupNipcVies = async (nipcToLookup: string, silent = false) => {
+    const validation = validateNIPC(nipcToLookup);
+    if (!nipcToLookup || nipcToLookup.length !== 9 || !validation.isValid) {
+      if (!silent) toast.error("Introduza um NIPC válido de 9 dígitos");
+      return;
+    }
+
+    // Avoid duplicate lookups for the same NIPC
+    if (nipcToLookup === lastLookedUpNipc) {
       return;
     }
 
     setIsLookingUpNipc(true);
+    setLastLookedUpNipc(nipcToLookup);
+    
     try {
       const { data, error } = await supabase.functions.invoke('lookup-nipc-vies', {
-        body: { nipc }
+        body: { nipc: nipcToLookup }
       });
 
       if (error) {
@@ -104,12 +113,12 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
       }
 
       if (data.error) {
-        toast.error(data.error);
+        if (!silent) toast.error(data.error);
         return;
       }
 
       if (!data.valid) {
-        toast.warning(data.message || "NIPC não encontrado no sistema VIES");
+        if (!silent) toast.warning(data.message || "NIPC não encontrado no sistema VIES");
         return;
       }
 
@@ -128,24 +137,30 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
 
       if (fieldsUpdated > 0) {
         toast.success(`Dados obtidos do VIES: ${fieldsUpdated} campo(s) preenchido(s)`);
-      } else {
+      } else if (!silent) {
         toast.info("NIPC válido, mas os campos já estão preenchidos");
       }
 
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Erro ao consultar VIES";
-      toast.error(message);
+      if (!silent) toast.error(message);
     } finally {
       setIsLookingUpNipc(false);
     }
   };
 
-  // Validate NIPC on change
+  // Validate NIPC on change and auto-lookup when valid
   const handleNipcChange = (value: string) => {
     // Allow only digits and format with spaces for readability
     const cleanValue = value.replace(/\D/g, '').slice(0, 9);
     setNipc(cleanValue);
-    setNipcValidation(validateNIPC(cleanValue));
+    const validation = validateNIPC(cleanValue);
+    setNipcValidation(validation);
+    
+    // Auto-lookup when NIPC reaches 9 valid digits
+    if (cleanValue.length === 9 && validation.isValid && cleanValue !== lastLookedUpNipc) {
+      lookupNipcVies(cleanValue, false);
+    }
   };
 
   // Load organization data
@@ -307,7 +322,7 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                             type="button"
                             variant="outline"
                             size="icon"
-                            onClick={lookupNipcVies}
+                            onClick={() => lookupNipcVies(nipc, false)}
                             disabled={!nipc || nipc.length !== 9 || !nipcValidation.isValid || isLookingUpNipc}
                             className="shrink-0"
                           >
