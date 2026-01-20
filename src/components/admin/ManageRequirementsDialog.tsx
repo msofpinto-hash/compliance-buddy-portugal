@@ -165,15 +165,6 @@ function SortableRequirementCard({
                     {requirement.article}
                   </span>
                 )}
-                {hasOrderMismatch && (
-                  <span 
-                    className="inline-flex items-center gap-1 rounded bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
-                    title="A ordem semântica deste requisito não corresponde ao display_order guardado. Clique em 'Recalcular Ordem' para corrigir."
-                  >
-                    <AlertTriangle className="h-3 w-3" />
-                    Ordem incorreta
-                  </span>
-                )}
               </div>
               <p className="text-sm">{requirement.requirement_text}</p>
               {requirement.notes && (
