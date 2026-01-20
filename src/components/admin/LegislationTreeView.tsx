@@ -267,7 +267,7 @@ interface CategoryNode {
 
 export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, externalSearchTerm }: LegislationTreeViewProps) {
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
-  const isMobile = useIsMobile();
+  
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
   const [internalSelectedThemeId, setInternalSelectedThemeId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -693,36 +693,34 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     return theme?.categories.filter(c => !c.parent_id) || [];
   }, [mobileThemeFilter, themesWithCategories]);
 
-  // Check if we should show list mode (mobile + user chose list OR mobile by default)
-  const showMobileListView = isMobile && viewMode === "list";
+  // Check if we should show list mode (user chose list view)
+  const showListView = viewMode === "list";
 
   return (
     <div className="space-y-4">
-      {/* Mobile View Mode Toggle */}
-      {isMobile && (
-        <div className="flex justify-end">
-          <div className="inline-flex rounded-lg border bg-muted p-0.5">
-            <Button
-              variant={viewMode === "tree" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-3 text-xs"
-              onClick={() => setViewMode("tree")}
-            >
-              <LayoutGrid className="h-3.5 w-3.5 mr-1" />
-              Colunas
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-3 text-xs"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-3.5 w-3.5 mr-1" />
-              Lista
-            </Button>
-          </div>
+      {/* View Mode Toggle */}
+      <div className="flex justify-end">
+        <div className="inline-flex rounded-lg border bg-muted p-0.5">
+          <Button
+            variant={viewMode === "tree" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 px-3 text-xs"
+            onClick={() => setViewMode("tree")}
+          >
+            <LayoutGrid className="h-3.5 w-3.5 mr-1" />
+            Colunas
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 px-3 text-xs"
+            onClick={() => setViewMode("list")}
+          >
+            <List className="h-3.5 w-3.5 mr-1" />
+            Lista
+          </Button>
         </div>
-      )}
+      </div>
 
       {/* Search and Filters */}
       {!hideFilters && (
@@ -781,12 +779,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               )}
 
               <div className="text-sm text-muted-foreground ml-auto">
-                {showMobileListView ? mobileListLegislation.length : filteredLegislation.length} diploma{(showMobileListView ? mobileListLegislation.length : filteredLegislation.length) !== 1 ? "s" : ""}
+                {showListView ? mobileListLegislation.length : filteredLegislation.length} diploma{(showListView ? mobileListLegislation.length : filteredLegislation.length) !== 1 ? "s" : ""}
               </div>
             </div>
 
             {/* Mobile List Mode Filters */}
-            {showMobileListView && (
+            {showListView && (
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
                 <Select 
                   value={mobileThemeFilter || "all"} 
@@ -859,8 +857,8 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         </Card>
       )}
 
-      {/* Mobile List View */}
-      {showMobileListView ? (
+      {/* List View */}
+      {showListView ? (
         <div className="space-y-3">
           {mobileListLegislation.length > 0 ? (
             <>
