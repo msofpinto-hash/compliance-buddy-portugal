@@ -12,6 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export function SyncPanel() {
   const { data: syncLogs, isLoading: logsLoading } = useSyncLogs();
@@ -165,14 +169,14 @@ export function SyncPanel() {
       return;
     }
 
-    // Check file size - limit is 2MB for direct processing
-    const maxSizeMB = 2;
+    // Check file size - limit is 20MB for client-side processing
+    const maxSizeMB = 20;
     const fileSizeMB = file.size / (1024 * 1024);
 
     if (fileSizeMB > maxSizeMB) {
       toast({
         title: "Ficheiro demasiado grande",
-        description: `O PDF tem ${fileSizeMB.toFixed(1)}MB (limite: ${maxSizeMB}MB). Por favor extraia o texto do PDF e cole-o na área de texto abaixo.`,
+        description: `O PDF tem ${fileSizeMB.toFixed(1)}MB (limite: ${maxSizeMB}MB). Por favor divida o documento em partes menores.`,
         variant: "destructive",
       });
       if (fileInputRef.current) {
@@ -185,68 +189,76 @@ export function SyncPanel() {
     setImportStats(null);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const arrayBuffer = e.target?.result as ArrayBuffer;
-          
-          // Convert to base64
-          const base64 = btoa(
-            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-          );
+      toast({
+        title: "Processamento iniciado",
+        description: `A extrair texto do PDF (${fileSizeMB.toFixed(1)}MB)... Isto pode demorar alguns minutos.`,
+      });
 
-          toast({
-            title: "Processamento iniciado",
-            description: "A extrair texto do PDF... Isto pode demorar alguns minutos.",
-          });
+      // Read file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Use PDF.js to extract text on the client side
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdf.numPages;
+      const textParts: string[] = [];
 
-          // Call the edge function with PDF content
-          const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
-            body: { pdfContent: base64 }
-          });
+      toast({
+        title: "A processar páginas",
+        description: `Extraindo texto de ${numPages} páginas...`,
+      });
 
-          if (error) throw error;
+      for (let i = 1; i <= numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        textParts.push(pageText);
+      }
 
-          if (data.success) {
-            setImportStats(data.stats);
-            toast({
-              title: "Importação concluída!",
-              description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
-            });
-          } else {
-            throw new Error(data.error || 'Erro desconhecido');
-          }
-        } catch (err) {
-          console.error('PDF processing error:', err);
-          toast({
-            title: "Erro no processamento",
-            description: err instanceof Error ? err.message : "Erro desconhecido",
-            variant: "destructive",
-          });
-        } finally {
-          setIsImporting(false);
-        }
-      };
+      const extractedText = textParts.join('\n');
+      console.log(`Extracted ${extractedText.length} characters from ${numPages} pages`);
 
-      reader.onerror = () => {
+      if (extractedText.length < 100) {
         toast({
-          title: "Erro ao ler ficheiro",
-          description: "Não foi possível ler o ficheiro PDF",
+          title: "PDF sem texto extraível",
+          description: "O PDF parece ser baseado em imagens. Por favor extraia o texto manualmente e use a opção de importar texto.",
           variant: "destructive",
         });
         setIsImporting(false);
-      };
+        return;
+      }
 
-      reader.readAsArrayBuffer(file);
-    } catch (error) {
-      console.error('Import error:', error);
       toast({
-        title: "Erro na importação",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        title: "Texto extraído",
+        description: `${extractedText.length} caracteres extraídos. A importar legislação...`,
+      });
+
+      // Send extracted text to edge function
+      const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
+        body: { textContent: extractedText }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setImportStats(data.stats);
+        toast({
+          title: "Importação concluída!",
+          description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
+        });
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (err) {
+      console.error('PDF processing error:', err);
+      toast({
+        title: "Erro no processamento",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
         variant: "destructive",
       });
-      setIsImporting(false);
     } finally {
+      setIsImporting(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
