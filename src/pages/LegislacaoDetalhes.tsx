@@ -253,7 +253,7 @@ export default function LegislacaoDetalhes() {
   });
 
   // Fetch relations (this legislation affects or is affected by)
-  const { data: relations } = useQuery({
+  const { data: relations, isLoading: loadingRelations } = useQuery({
     queryKey: ["legislation-relations", id],
     queryFn: async () => {
       if (!id) return { outgoing: [], incoming: [] };
@@ -721,7 +721,25 @@ export default function LegislacaoDetalhes() {
             </Card>
 
             {/* Relations */}
-            {((relations?.outgoing?.length ?? 0) > 0 || (relations?.incoming?.length ?? 0) > 0) && (
+            {loadingRelations ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Relações com outros diplomas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-24" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-full" />
+                      <Skeleton className="h-6 w-3/4" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : ((relations?.outgoing?.length ?? 0) > 0 || (relations?.incoming?.length ?? 0) > 0) ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
@@ -785,7 +803,7 @@ export default function LegislacaoDetalhes() {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
             {/* Timeline */}
             <Card>
