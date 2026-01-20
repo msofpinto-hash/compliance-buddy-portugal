@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Wrench, Bot, RefreshCw, Palette } from "lucide-react";
+import { FileText, Settings2, RefreshCw, Palette } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
-import { DataMaintenancePanel } from "./DataMaintenancePanel";
-import { AutomationPanel } from "./AutomationPanel";
+import { OperationsPanel } from "./OperationsPanel";
 import { SyncPanel } from "./SyncPanel";
 import { ThemesPanel } from "./ThemesPanel";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
@@ -16,20 +15,16 @@ export function BibliotecaPanel() {
       {/* Banner de jobs activos no topo - visível em todas as sub-tabs */}
       <ActiveJobsBanner />
 
-      {/* Sub-tabs internas - 5 grupos: Legislação, Manutenção, Automação, Sync, Temas */}
+      {/* Sub-tabs internas - 4 grupos: Legislação, Operações, Sync, Temas */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
         <TabsList className="flex flex-wrap gap-1 bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
           <TabsTrigger value="legislacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <FileText className="h-4 w-4" />
             Legislação
           </TabsTrigger>
-          <TabsTrigger value="manutencao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Wrench className="h-4 w-4" />
-            Manutenção
-          </TabsTrigger>
-          <TabsTrigger value="automacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Bot className="h-4 w-4" />
-            Automação
+          <TabsTrigger value="operacoes" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+            <Settings2 className="h-4 w-4" />
+            Operações
           </TabsTrigger>
           <TabsTrigger value="sync" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <RefreshCw className="h-4 w-4" />
@@ -45,12 +40,8 @@ export function BibliotecaPanel() {
           <LegislationPanelWithoutBanner />
         </TabsContent>
 
-        <TabsContent value="manutencao" className="mt-0">
-          <DataMaintenancePanel />
-        </TabsContent>
-
-        <TabsContent value="automacao" className="mt-0">
-          <AutomationPanel />
+        <TabsContent value="operacoes" className="mt-0">
+          <OperationsPanel />
         </TabsContent>
 
         <TabsContent value="sync" className="mt-0">
