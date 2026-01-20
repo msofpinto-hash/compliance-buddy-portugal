@@ -230,6 +230,8 @@ export function SyncPanel() {
 
       const extractedText = textParts.join('\n');
       console.log(`Extracted ${extractedText.length} characters from ${numPages} pages`);
+      // Log a sample of the extracted text for debugging format issues
+      console.log('PDF text sample (first 2000 chars):', extractedText.substring(0, 2000));
 
       if (extractedText.length < 100) {
         toast({
