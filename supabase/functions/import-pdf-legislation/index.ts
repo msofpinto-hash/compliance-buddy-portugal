@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// @ts-ignore - PDF.js for Deno
-import * as pdfjs from "https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,42 +60,73 @@ function parseDateFromDiploma(diploma: string): string | null {
   return null;
 }
 
-// Extract text from PDF using PDF.js
-async function extractTextFromPdf(base64Content: string): Promise<string> {
-  try {
-    // Decode base64 to Uint8Array
-    const binaryString = atob(base64Content);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Load the PDF document
-    const loadingTask = pdfjs.getDocument({ data: bytes });
-    const pdf = await loadingTask.promise;
-    
-    console.log(`PDF loaded with ${pdf.numPages} pages`);
-    
-    let fullText = '';
-    
-    // Extract text from each page
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      
-      // Concatenate text items
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      
-      fullText += `\n## Page ${pageNum}\n${pageText}\n`;
+// Simple PDF text extraction using regex on raw PDF content
+// This works for text-based PDFs (not scanned images)
+function extractTextFromPdfBasic(bytes: Uint8Array): string {
+  const decoder = new TextDecoder('latin1');
+  const pdfContent = decoder.decode(bytes);
+  
+  const textParts: string[] = [];
+  
+  // Extract text from BT...ET blocks (PDF text objects)
+  const textObjectPattern = /BT[\s\S]*?ET/g;
+  const textObjects = pdfContent.match(textObjectPattern) || [];
+  
+  for (const textObj of textObjects) {
+    // Extract text from Tj and TJ operators
+    const tjPattern = /\(([^)]*)\)\s*Tj/g;
+    let match;
+    while ((match = tjPattern.exec(textObj)) !== null) {
+      const text = match[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .replace(/\\\(/g, '(')
+        .replace(/\\\)/g, ')')
+        .replace(/\\\\/g, '\\');
+      if (text.trim()) {
+        textParts.push(text);
+      }
     }
     
-    return fullText;
-  } catch (error) {
-    console.error('PDF extraction error:', error);
-    throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Extract from TJ arrays
+    const tjArrayPattern = /\[((?:[^[\]]*|\[[^\]]*\])*)\]\s*TJ/gi;
+    while ((match = tjArrayPattern.exec(textObj)) !== null) {
+      const arrayContent = match[1];
+      const stringPattern = /\(([^)]*)\)/g;
+      let strMatch;
+      while ((strMatch = stringPattern.exec(arrayContent)) !== null) {
+        const text = strMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\');
+        if (text.trim()) {
+          textParts.push(text);
+        }
+      }
+    }
   }
+  
+  // Also try to extract stream content that might contain readable text
+  const streamPattern = /stream\s*([\s\S]*?)\s*endstream/g;
+  let streamMatch;
+  while ((streamMatch = streamPattern.exec(pdfContent)) !== null) {
+    const streamContent = streamMatch[1];
+    // Look for readable text patterns in streams
+    const readableText = streamContent.match(/[A-Za-zÀ-ÿ0-9\s\.\,\;\:\-\(\)\/]{10,}/g);
+    if (readableText) {
+      for (const text of readableText) {
+        if (text.trim().length > 15 && !/^[0-9\s\.]+$/.test(text)) {
+          textParts.push(text.trim());
+        }
+      }
+    }
+  }
+  
+  const result = textParts.join(' ').replace(/\s+/g, ' ').trim();
+  console.log(`Extracted ${result.length} characters from PDF using basic extraction`);
+  return result;
 }
 
 // Parse the PDF text content to extract legislation entries
@@ -328,10 +357,18 @@ serve(async (req) => {
       textToProcess = textContent;
       console.log(`Text content length: ${textToProcess.length} characters`);
     } else {
-      // PDF content provided - extract text
+      // PDF content provided - extract text using basic extraction
       console.log(`PDF content length: ${pdfContent.length} base64 characters`);
       console.log('Extracting text from PDF...');
-      textToProcess = await extractTextFromPdf(pdfContent);
+      
+      // Decode base64 to Uint8Array
+      const binaryString = atob(pdfContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      textToProcess = extractTextFromPdfBasic(bytes);
       console.log(`Extracted text length: ${textToProcess.length} characters`);
     }
     
