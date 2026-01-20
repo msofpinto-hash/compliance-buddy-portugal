@@ -1044,20 +1044,11 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         </Card>
       )}
 
-      {/* Diploma Types Legend - Collapsible */}
-      {!hideFilters && (
-        <div className="flex flex-wrap gap-1.5 px-1">
-          <span className="text-xs text-muted-foreground mr-1 self-center">Tipos:</span>
-          {[
-            { type: "Lei", short: "Lei" },
-            { type: "Decreto-Lei", short: "DL" },
-            { type: "Portaria", short: "Port" },
-            { type: "Despacho", short: "Desp" },
-            { type: "Regulamento (UE)", short: "Reg UE" },
-            { type: "Diretiva", short: "Dir" },
-            { type: "Decisão", short: "Dec" },
-            { type: "Resolução", short: "Res" },
-          ].map(({ type, short }) => (
+      {/* Diploma Types Legend - Dynamic from database */}
+      {!hideFilters && availableDiplomaTypes.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-1 items-center">
+          <span className="text-xs text-muted-foreground mr-1">Tipos:</span>
+          {availableDiplomaTypes.map(({ type, count }) => (
             <TooltipProvider key={type} delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1067,14 +1058,15 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                       resetPage();
                     }}
                     className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-all ${getDiplomaTypeColors(type)} ${
-                      diplomaTypeFilter === type ? "ring-2 ring-offset-1 ring-primary" : "hover:opacity-80"
+                      diplomaTypeFilter === type ? "ring-2 ring-offset-1 ring-primary shadow-sm" : "hover:opacity-80"
                     }`}
                   >
-                    {short}
+                    {type}
+                    <span className="ml-1 opacity-60">({count})</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p className="text-xs">{type}</p>
+                  <p className="text-xs">{count} diploma{count !== 1 ? 's' : ''} do tipo {type}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -1085,9 +1077,10 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 setDiplomaTypeFilter(null);
                 resetPage();
               }}
-              className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground ml-1"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-2 px-2 py-0.5 rounded border border-dashed hover:border-solid transition-all"
             >
               <X className="h-3 w-3" />
+              Limpar
             </button>
           )}
         </div>
