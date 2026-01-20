@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Building2, FileText, User, Phone, Mail, MapPin, Calendar, Users, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Building2, FileText, User, Phone, Mail, MapPin, Calendar, Users, Loader2, CheckCircle2, XCircle, Search } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -83,6 +84,61 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
   const [responsibleEmail, setResponsibleEmail] = useState("");
   const [responsiblePhone, setResponsiblePhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [isLookingUpNipc, setIsLookingUpNipc] = useState(false);
+
+  // Lookup NIPC via VIES
+  const lookupNipcVies = async () => {
+    if (!nipc || nipc.length !== 9 || !nipcValidation.isValid) {
+      toast.error("Introduza um NIPC válido de 9 dígitos");
+      return;
+    }
+
+    setIsLookingUpNipc(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('lookup-nipc-vies', {
+        body: { nipc }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      if (!data.valid) {
+        toast.warning(data.message || "NIPC não encontrado no sistema VIES");
+        return;
+      }
+
+      // Auto-fill fields
+      let fieldsUpdated = 0;
+      
+      if (data.name && !name) {
+        setName(data.name);
+        fieldsUpdated++;
+      }
+      
+      if (data.address) {
+        setAddress(data.address);
+        fieldsUpdated++;
+      }
+
+      if (fieldsUpdated > 0) {
+        toast.success(`Dados obtidos do VIES: ${fieldsUpdated} campo(s) preenchido(s)`);
+      } else {
+        toast.info("NIPC válido, mas os campos já estão preenchidos");
+      }
+
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Erro ao consultar VIES";
+      toast.error(message);
+    } finally {
+      setIsLookingUpNipc(false);
+    }
+  };
 
   // Validate NIPC on change
   const handleNipcChange = (value: string) => {
@@ -235,14 +291,39 @@ export function OrganizationDetailsDialog({ organization, open, onOpenChange }: 
                       )
                     )}
                   </Label>
-                  <Input
-                    id="nipc"
-                    value={nipc}
-                    onChange={(e) => handleNipcChange(e.target.value)}
-                    placeholder="Ex: 123456789"
-                    maxLength={9}
-                    className={nipc && !nipcValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : nipc && nipcValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="nipc"
+                      value={nipc}
+                      onChange={(e) => handleNipcChange(e.target.value)}
+                      placeholder="Ex: 123456789"
+                      maxLength={9}
+                      className={nipc && !nipcValidation.isValid ? "border-red-500 focus-visible:ring-red-500" : nipc && nipcValidation.isValid ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}
+                    />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={lookupNipcVies}
+                            disabled={!nipc || nipc.length !== 9 || !nipcValidation.isValid || isLookingUpNipc}
+                            className="shrink-0"
+                          >
+                            {isLookingUpNipc ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Search className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Pesquisar dados da empresa no VIES (UE)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   {nipc && !nipcValidation.isValid && (
                     <p className="text-xs text-red-500">{nipcValidation.message}</p>
                   )}
