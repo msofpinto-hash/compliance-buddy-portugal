@@ -4,15 +4,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   ExternalLink, 
-  FileEdit, 
-  CalendarDays, 
   Tags, 
-  Link2, 
   Eye, 
   Flag, 
   Globe, 
   Building2,
-  Pencil,
   AlertCircle,
   Sparkles,
   AlertTriangle
@@ -206,92 +202,85 @@ export function LegislationCard({
           )}
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex flex-col gap-1.5 shrink-0">
-          <Button
-            variant={!hasCategories ? "default" : "outline"}
-            size="sm"
-            onClick={() => onOpenCategories(leg)}
-            className={cn(
-              "h-8 gap-1.5 justify-start",
-              !hasCategories && "bg-amber-600 hover:bg-amber-700"
-            )}
-          >
-            <Tags className="h-4 w-4" />
-            Categorias
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenAISuggestions(leg)}
-            className="h-8 gap-1.5 justify-start text-amber-600 border-amber-300 hover:bg-amber-50"
-          >
-            <Sparkles className="h-4 w-4" />
-            Sugerir (IA)
-          </Button>
-          <Button
-            variant={hasProblems ? "default" : "outline"}
-            size="sm"
-            onClick={() => onOpenEdit(leg)}
-            className={cn(
-              "h-8 gap-1.5 justify-start",
-              hasProblems && "bg-red-600 hover:bg-red-700"
-            )}
-          >
-            <Pencil className="h-4 w-4" />
-            Editar
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenDates(leg)}
-            className="h-8 gap-1.5 justify-start"
-          >
-            <CalendarDays className="h-4 w-4" />
-            Datas
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenRequirements(leg)}
-            className="h-8 gap-1.5 justify-start"
-          >
-            <FileEdit className="h-4 w-4" />
-            Requisitos
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenRelations(leg)}
-            className="h-8 gap-1.5 justify-start"
-          >
-            <Link2 className="h-4 w-4" />
-            Relações
-          </Button>
-          <div className="flex gap-1 mt-1">
+        {/* Right: Quick Actions (simplified - full actions available on detail page) */}
+        <div className="flex flex-col gap-1.5 shrink-0 items-end">
+          {/* Primary action: Categories (if missing) */}
+          {!hasCategories && (
             <Button
-              variant="ghost"
+              variant="default"
               size="sm"
-              className="h-7 w-7 p-0"
-              asChild
-              title="Ver detalhes"
+              onClick={() => onOpenCategories(leg)}
+              className="h-8 gap-1.5 bg-amber-600 hover:bg-amber-700"
             >
-              <Link to={`/legislacao/${leg.id}`}>
-                <Eye className="h-4 w-4" />
-              </Link>
+              <Tags className="h-4 w-4" />
+              Categorizar
             </Button>
+          )}
+          
+          {/* Show AI suggestion only if no categories */}
+          {!hasCategories && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenAISuggestions(leg)}
+              className="h-8 gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              Sugerir (IA)
+            </Button>
+          )}
+
+          {/* Problem indicator with edit action */}
+          {hasProblems && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => onOpenEdit(leg)}
+              className="h-8 gap-1.5 bg-red-600 hover:bg-red-700"
+            >
+              <AlertCircle className="h-4 w-4" />
+              Corrigir
+            </Button>
+          )}
+
+          {/* Icon actions row */}
+          <div className="flex gap-1 mt-auto">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    asChild
+                  >
+                    <Link to={`/legislacao/${leg.id}`}>
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Ver detalhes</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
             {leg.document_url && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                asChild
-                title="Abrir documento"
-              >
-                <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      asChild
+                    >
+                      <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Abrir documento</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>
