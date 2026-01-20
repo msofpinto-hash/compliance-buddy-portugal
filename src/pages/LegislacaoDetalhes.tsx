@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { RequirementApplicabilitySelect, ApplicabilityBadge } from "@/components/RequirementApplicabilitySelect";
 import { LegislationApplicabilitySelect, LegislationApplicabilityBadge } from "@/components/LegislationApplicabilitySelect";
 import { EditLegislationDialog } from "@/components/admin/EditLegislationDialog";
+import { EditLegislationDatesDialog } from "@/components/admin/EditLegislationDatesDialog";
 import { ManageRelationsDialog } from "@/components/admin/ManageRelationsDialog";
 import { ManageRequirementsDialog } from "@/components/admin/ManageRequirementsDialog";
 import { AssignCategoriesDialog } from "@/components/admin/AssignCategoriesDialog";
@@ -44,6 +45,30 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
+// Format requirement text with line breaks between numbered items/paragraphs
+function formatRequirementText(text: string): string {
+  if (!text) return "";
+  
+  // Add line break before numbered patterns like "1.", "2.", "a)", "b)", "i)", "ii)", etc.
+  let formatted = text
+    // Before numbers followed by dot/parenthesis: "1.", "2)", etc.
+    .replace(/\s+(\d+[\.\)]\s)/g, "\n$1")
+    // Before letters followed by parenthesis: "a)", "b)", etc.
+    .replace(/\s+([a-z][\)]\s)/gi, "\n$1")
+    // Before roman numerals followed by parenthesis: "i)", "ii)", "iii)", "iv)", etc.
+    .replace(/\s+((?:i{1,3}|iv|vi{0,3}|ix|x{1,3})[\)]\s)/gi, "\n$1")
+    // Before dash or bullet points
+    .replace(/\s+([-–—•]\s)/g, "\n$1")
+    // Before "Artigo", "Anexo", "Considerando" keywords
+    .replace(/\s+(Art(?:igo)?\.?\s*\d+)/gi, "\n$1")
+    .replace(/\s+(Anexo\s+[IVX\d]+)/gi, "\n$1");
+  
+  // Clean up: remove leading newlines and multiple consecutive newlines
+  formatted = formatted.replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");
+  
+  return formatted;
+}
+
 export default function LegislacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin } = useAuth();
@@ -51,6 +76,7 @@ export default function LegislacaoDetalhes() {
 
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [datesDialogOpen, setDatesDialogOpen] = useState(false);
   const [relationsDialogOpen, setRelationsDialogOpen] = useState(false);
   const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
@@ -433,6 +459,10 @@ export default function LegislacaoDetalhes() {
                     <Pencil className="h-4 w-4 mr-2" />
                     Dados Gerais
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDatesDialogOpen(true)}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Datas
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setCategoriesDialogOpen(true)}>
                     <Tags className="h-4 w-4 mr-2" />
                     Categorias
@@ -628,7 +658,7 @@ export default function LegislacaoDetalhes() {
                                   <ApplicabilityBadge value="nao_avaliado" />
                                 )}
                               </div>
-                              <p className="text-sm">{req.requirement_text}</p>
+                              <div className="text-sm whitespace-pre-line">{formatRequirementText(req.requirement_text)}</div>
                               {req.notes && (
                                 <p className="text-sm text-muted-foreground mt-2 italic">
                                   Nota: {req.notes}
@@ -891,6 +921,11 @@ export default function LegislacaoDetalhes() {
             }}
             open={categoriesDialogOpen}
             onOpenChange={setCategoriesDialogOpen}
+          />
+          <EditLegislationDatesDialog
+            legislation={legislation as any}
+            open={datesDialogOpen}
+            onOpenChange={setDatesDialogOpen}
           />
         </>
       )}
