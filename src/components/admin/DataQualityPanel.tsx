@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { 
   Database, 
   AlertTriangle, 
@@ -15,10 +16,146 @@ import {
   RefreshCw,
   Flag,
   Globe,
+  ListOrdered,
 } from "lucide-react";
 
 export function DataQualityPanel() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const queryClient = useQueryClient();
+
+  // Bulk recalculate display_order for all legislation requirements
+  const recalculateAllOrdersMutation = useMutation({
+    mutationFn: async () => {
+      // Helper: roman numeral to integer
+      const romanToInt = (roman: string) => {
+        const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+        let total = 0;
+        let prev = 0;
+        const s = roman.toUpperCase().replace(/[^IVXLCDM]/g, "");
+        for (let i = s.length - 1; i >= 0; i--) {
+          const val = map[s[i]] || 0;
+          if (val < prev) total -= val;
+          else {
+            total += val;
+            prev = val;
+          }
+        }
+        return total;
+      };
+
+      // Helper: get sort key from article
+      const getSortKey = (article: string | null) => {
+        const a = (article || "").trim();
+        const lower = a.toLowerCase();
+        let typeRank = 3; // 0: considerandos, 1: artigos, 2: anexos, 3: outros
+        let n1 = Number.POSITIVE_INFINITY;
+        let n2 = 0;
+
+        if (lower.startsWith("considerando")) {
+          typeRank = 0;
+          const m = a.match(/(\d+)/);
+          if (m) n1 = parseInt(m[1], 10);
+        } else if (lower.includes("art")) {
+          typeRank = 1;
+          const mArt = a.match(/art\.?\s*(\d+)/i);
+          if (mArt) n1 = parseInt(mArt[1], 10);
+          const mN = a.match(/n\.?\s*º\s*(\d+)/i) || a.match(/n.\s*(\d+)/i);
+          if (mN) n2 = parseInt(mN[1], 10);
+        } else if (lower.includes("anexo")) {
+          typeRank = 2;
+          const mRoman = a.match(/anexo\s+([IVXLCDM]+)/i);
+          const mNum = a.match(/anexo\s+(\d+)/i);
+          if (mRoman) n1 = romanToInt(mRoman[1]);
+          else if (mNum) n1 = parseInt(mNum[1], 10);
+          else n1 = 0;
+        }
+
+        return { typeRank, n1, n2, raw: a };
+      };
+
+      // Fetch all legislation IDs that have requirements
+      const { data: legislationIds, error: legError } = await supabase
+        .from("legislation")
+        .select("id, legal_requirements!inner(id)")
+        .limit(10000);
+
+      if (legError) throw legError;
+
+      const uniqueLegIds = [...new Set(legislationIds?.map((l) => l.id) || [])];
+      let updatedCount = 0;
+      let legislationProcessed = 0;
+
+      // Process in batches of 50 legislation
+      const batchSize = 50;
+      for (let i = 0; i < uniqueLegIds.length; i += batchSize) {
+        const batchIds = uniqueLegIds.slice(i, i + batchSize);
+
+        // Fetch requirements for this batch
+        const { data: requirements, error: reqError } = await supabase
+          .from("legal_requirements")
+          .select("id, legislation_id, article, display_order")
+          .in("legislation_id", batchIds);
+
+        if (reqError) throw reqError;
+
+        // Group by legislation_id
+        const byLegislation = new Map<string, typeof requirements>();
+        for (const req of requirements || []) {
+          if (!byLegislation.has(req.legislation_id)) {
+            byLegislation.set(req.legislation_id, []);
+          }
+          byLegislation.get(req.legislation_id)!.push(req);
+        }
+
+        // For each legislation, sort and update display_order
+        for (const [legId, reqs] of byLegislation) {
+          const sorted = [...reqs].sort((x, y) => {
+            const ax = getSortKey(x.article);
+            const ay = getSortKey(y.article);
+            if (ax.typeRank !== ay.typeRank) return ax.typeRank - ay.typeRank;
+            if (ax.n1 !== ay.n1) return ax.n1 - ay.n1;
+            if (ax.n2 !== ay.n2) return ax.n2 - ay.n2;
+            return ax.raw.localeCompare(ay.raw, "pt");
+          });
+
+          // Check if any order needs updating
+          const updates: { id: string; display_order: number }[] = [];
+          sorted.forEach((req, idx) => {
+            const newOrder = idx + 1;
+            if (req.display_order !== newOrder) {
+              updates.push({ id: req.id, display_order: newOrder });
+            }
+          });
+
+          // Batch update
+          if (updates.length > 0) {
+            for (const upd of updates) {
+              await supabase
+                .from("legal_requirements")
+                .update({ display_order: upd.display_order })
+                .eq("id", upd.id);
+            }
+            updatedCount += updates.length;
+          }
+
+          legislationProcessed++;
+        }
+      }
+
+      return { legislationProcessed, updatedCount };
+    },
+    onSuccess: (result) => {
+      toast.success(
+        `Ordem recalculada: ${result.legislationProcessed} diplomas processados, ${result.updatedCount} requisitos atualizados`
+      );
+      queryClient.invalidateQueries({ queryKey: ["legal-requirements"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation-requirements"] });
+    },
+    onError: (error) => {
+      console.error("Bulk order recalculation error:", error);
+      toast.error("Erro ao recalcular ordem em lote");
+    },
+  });
 
   // Fetch comprehensive data quality statistics
   // Check for running jobs to enable auto-refresh
@@ -175,6 +312,20 @@ export function DataQualityPanel() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => recalculateAllOrdersMutation.mutate()}
+                disabled={recalculateAllOrdersMutation.isPending}
+                className="gap-2"
+              >
+                {recalculateAllOrdersMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ListOrdered className="h-4 w-4" />
+                )}
+                Recalcular Ordem em Lote
+              </Button>
               <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
                 {isFetching ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
