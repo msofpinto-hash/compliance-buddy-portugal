@@ -58,6 +58,29 @@ function extractLegislationParts(number: string): { type: string; num: string; y
   return null;
 }
 
+// Timeout wrapper for fetch operations - CRITICAL to prevent blocking
+const ITEM_TIMEOUT_MS = 25000; // 25 seconds max per external call
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = ITEM_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
 // Search DRE for a legislation URL using Firecrawl
 async function searchDREUrl(number: string, firecrawlKey: string): Promise<string | null> {
   try {
@@ -73,7 +96,7 @@ async function searchDREUrl(number: string, firecrawlKey: string): Promise<strin
     
     console.log(`Searching DRE: ${searchQuery}`);
     
-    const response = await fetch('https://api.firecrawl.dev/v1/search', {
+    const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlKey}`,
@@ -103,17 +126,17 @@ async function searchDREUrl(number: string, firecrawlKey: string): Promise<strin
     
     return null;
   } catch (error) {
-    console.error(`Search error: ${error}`);
+    console.error(`Search error (timeout?): ${error}`);
     return null;
   }
 }
 
-// Scrape URL content using Firecrawl
+// Scrape URL content using Firecrawl with timeout
 async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | null> {
   try {
     console.log('Scraping URL:', url);
     
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlKey}`,
@@ -123,7 +146,7 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
         url,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,
+        waitFor: 2000, // Reduced from 3000
       }),
     });
     
@@ -135,7 +158,7 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
     const data = await response.json();
     return data.data?.markdown || data.markdown || null;
   } catch (error) {
-    console.error('Scrape error:', error);
+    console.error('Scrape error (timeout?):', error);
     return null;
   }
 }
@@ -287,12 +310,12 @@ function extractCelexNumber(url: string | null, number: string): string | null {
   return null;
 }
 
-// Scrape EUR-Lex metadata
+// Scrape EUR-Lex metadata with timeout
 async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<LegislationUpdate | null> {
   try {
     console.log('Scraping EUR-Lex:', url);
     
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlKey}`,
@@ -302,7 +325,7 @@ async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<
         url,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,
+        waitFor: 2000, // Reduced from 3000
       }),
     });
     
