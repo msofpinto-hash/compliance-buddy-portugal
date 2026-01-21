@@ -127,6 +127,53 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     };
     return colorMap[type] || colorMap["Outros"];
   };
+
+  // ---------------------------------------------------------------------------
+  // Problems / data quality helpers (MUST be defined before useMemo blocks below)
+  // ---------------------------------------------------------------------------
+  type ProblemType = "generic_title" | "missing_origin" | "missing_dates" | "invalid_dates";
+
+  const genericTitlePatterns = [
+    "Documento ",
+    "Diploma referenciado",
+    "a aguardar importação",
+  ];
+
+  const isGenericTitle = (title: string): boolean => {
+    return genericTitlePatterns.some((pattern) =>
+      title.toLowerCase().includes(pattern.toLowerCase())
+    ) || title.length < 10;
+  };
+
+  const getProblems = (leg: LegislationWithCategories): ProblemType[] => {
+    const problems: ProblemType[] = [];
+
+    if (isGenericTitle(leg.title)) problems.push("generic_title");
+
+    if (!leg.origin || (leg.origin !== "PT" && leg.origin !== "EU")) {
+      problems.push("missing_origin");
+    }
+
+    if (!leg.publication_date || !leg.effective_date) {
+      problems.push("missing_dates");
+    }
+
+    if (isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date)) {
+      problems.push("invalid_dates");
+    }
+
+    return problems;
+  };
+
+  const hasProblems = (leg: LegislationWithCategories) => getProblems(leg).length > 0;
+
+  const problemLabels: Record<ProblemType, string> = {
+    generic_title: "Título genérico",
+    missing_origin: "Origem em falta",
+    missing_dates: "Datas em falta",
+    invalid_dates: "Datas inválidas",
+  };
+
   // Base filtered data (before diploma type filter) for legend counts
   const baseFilteredLegislation = useMemo(() => {
     if (!legislation) return [];
@@ -254,7 +301,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   }, [legislation, filterTheme]);
 
   // Helper to check if a date is invalid (future year > current + 1)
-  const isInvalidDate = (dateStr: string | null | undefined): boolean => {
+  function isInvalidDate(dateStr: string | null | undefined): boolean {
     if (!dateStr) return false;
     try {
       const year = new Date(dateStr).getFullYear();
@@ -263,62 +310,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     } catch {
       return false;
     }
-  };
-
-  // Problem types for transparency
-  type ProblemType = "generic_title" | "missing_origin" | "missing_dates" | "invalid_dates";
-
-  // Generic title patterns (auto-imported placeholders)
-  const genericTitlePatterns = [
-    "Documento ",
-    "Diploma referenciado",
-    "a aguardar importação",
-  ];
-
-  // Helper to check if a title is generic
-  const isGenericTitle = (title: string): boolean => {
-    return genericTitlePatterns.some(pattern => 
-      title.toLowerCase().includes(pattern.toLowerCase())
-    ) || title.length < 10;
-  };
-
-  // Helper to get all problems for a legislation item
-  const getProblems = (leg: LegislationWithCategories): ProblemType[] => {
-    const problems: ProblemType[] = [];
-    
-    // Generic or too short title (includes auto-imported placeholders)
-    if (isGenericTitle(leg.title)) {
-      problems.push("generic_title");
-    }
-    
-    // Missing or invalid origin
-    if (!leg.origin || (leg.origin !== "PT" && leg.origin !== "EU")) {
-      problems.push("missing_origin");
-    }
-    
-    // Missing publication or effective date
-    if (!leg.publication_date || !leg.effective_date) {
-      problems.push("missing_dates");
-    }
-    
-    // Invalid dates (year > current + 1 or < 1900)
-    if (isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date)) {
-      problems.push("invalid_dates");
-    }
-    
-    return problems;
-  };
-
-  // Helper to check if legislation has problems (for filtering)
-  const hasProblems = (leg: LegislationWithCategories) => getProblems(leg).length > 0;
-
-  // Problem labels for display
-  const problemLabels: Record<ProblemType, string> = {
-    generic_title: "Título genérico",
-    missing_origin: "Origem em falta",
-    missing_dates: "Datas em falta",
-    invalid_dates: "Datas inválidas",
-  };
+  }
 
   // Count items with problems
   const problemsCount = useMemo(() => {
