@@ -406,19 +406,60 @@ async function scrapeEurLexMetadata(url: string, firecrawlKey: string): Promise<
   }
 }
 
-function fixPublicationDate(leg: { publication_date?: string | null; number: string }): string | null {
+// Extract the CORRECT year from a diploma number
+// Format examples: "Aviso n.º 9890/2025/2" -> year is 2025 (after first /)
+//                  "Decreto-Lei n.º 55/2024" -> year is 2024
+//                  "Portaria n.º 987/93" -> year is 1993
+function extractYearFromNumber(number: string): number | null {
+  const currentYear = new Date().getFullYear();
+  
+  // Pattern 1: Look for /YYYY format (most reliable for PT legislation)
+  // This handles "n.º XXXX/2025" where XXXX can be any number
+  const slashYearMatch = number.match(/\/(\d{4})(?:\/|\s|$)/);
+  if (slashYearMatch) {
+    const year = parseInt(slashYearMatch[1]);
+    if (year >= 1950 && year <= currentYear + 1) {
+      return year;
+    }
+  }
+  
+  // Pattern 2: Look for /YY format (2 digit year)
+  const shortYearMatch = number.match(/\/(\d{2})(?:\/|\s|$)/);
+  if (shortYearMatch) {
+    const shortYear = parseInt(shortYearMatch[1]);
+    // Convert 2-digit to 4-digit year: 00-30 -> 2000-2030, 31-99 -> 1931-1999
+    const year = shortYear <= 30 ? 2000 + shortYear : 1900 + shortYear;
+    if (year >= 1950 && year <= currentYear + 1) {
+      return year;
+    }
+  }
+  
+  // Pattern 3: Look for "de YYYY" in title
+  const deYearMatch = number.match(/de\s+(\d{4})/i);
+  if (deYearMatch) {
+    const year = parseInt(deYearMatch[1]);
+    if (year >= 1950 && year <= currentYear + 1) {
+      return year;
+    }
+  }
+  
+  return null;
+}
+
+function fixPublicationDate(leg: { publication_date?: string | null; number: string; title?: string }): string | null {
   const currentYear = new Date().getFullYear();
   
   if (leg.publication_date) {
     const year = parseInt(leg.publication_date.substring(0, 4));
     
     if (year < 1950 || year > currentYear + 1) {
-      const yearMatch = leg.number.match(/(\d{4})\//);
-      if (yearMatch) {
-        const correctYear = parseInt(yearMatch[1]);
-        if (correctYear >= 1950 && correctYear <= currentYear + 1) {
-          return `${correctYear}-01-01`;
-        }
+      // Invalid year - try to extract correct year from number or title
+      const correctYear = extractYearFromNumber(leg.number) || extractYearFromNumber(leg.title || '');
+      if (correctYear) {
+        // Keep original month and day, just fix year
+        const origMonth = leg.publication_date.substring(5, 7);
+        const origDay = leg.publication_date.substring(8, 10);
+        return `${correctYear}-${origMonth}-${origDay}`;
       }
       return null;
     }
@@ -613,23 +654,20 @@ async function runBackgroundCompletion(params: {
           const currentYear = new Date().getFullYear();
           
           if (year < 1950 || year > currentYear + 1) {
-            // Try to extract correct year from the number
-            const yearMatch = leg.number.match(/(\d{4})/);
-            if (yearMatch) {
-              const correctYear = parseInt(yearMatch[1]);
-              if (correctYear >= 1950 && correctYear <= currentYear + 1) {
-                // Extract day and month from original date
-                const origMonth = leg.publication_date.substring(5, 7);
-                const origDay = leg.publication_date.substring(8, 10);
-                updates.publication_date = `${correctYear}-${origMonth}-${origDay}`;
-                hasUpdates = true;
-                console.log(`Fixed invalid date: ${leg.publication_date} -> ${updates.publication_date}`);
-              }
+            // Try to extract correct year from number or title using smart parser
+            const correctYear = extractYearFromNumber(leg.number) || extractYearFromNumber(leg.title || '');
+            if (correctYear) {
+              // Extract day and month from original date
+              const origMonth = leg.publication_date.substring(5, 7);
+              const origDay = leg.publication_date.substring(8, 10);
+              updates.publication_date = `${correctYear}-${origMonth}-${origDay}`;
+              hasUpdates = true;
+              console.log(`Fixed invalid date: ${leg.publication_date} -> ${updates.publication_date} (year from number: ${correctYear})`);
             } else {
               // Set to null if we can't determine correct year
               updates.publication_date = undefined;
               hasUpdates = true;
-              console.log(`Cleared invalid date: ${leg.publication_date}`);
+              console.log(`Cleared invalid date: ${leg.publication_date} (couldn't extract year from: ${leg.number})`);
             }
           }
         } else if (fixDates && leg.publication_date) {
