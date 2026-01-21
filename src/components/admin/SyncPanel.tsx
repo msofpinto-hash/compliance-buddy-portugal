@@ -5,13 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar, Rocket } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar, Rocket, StopCircle } from "lucide-react";
 import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 // Use the legacy PDF.js build + bundled worker to avoid cross-origin/module-worker issues
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -117,6 +127,10 @@ export function SyncPanel() {
   const [autoFixWave, setAutoFixWave] = useState<{ current: number; max: number } | null>(null);
   const [runningPdfFixJobsCount, setRunningPdfFixJobsCount] = useState<number | null>(null);
   const [maxRunningPdfFixJobs, setMaxRunningPdfFixJobs] = useState<number>(60);
+  const [stuckPdfFixThresholdMinutes, setStuckPdfFixThresholdMinutes] = useState<number>(45);
+  const [stuckPdfFixJobsCount, setStuckPdfFixJobsCount] = useState<number | null>(null);
+  const [isTerminatingStuckPdfFixJobs, setIsTerminatingStuckPdfFixJobs] = useState(false);
+  const [confirmTerminateStuckPdfFixJobs, setConfirmTerminateStuckPdfFixJobs] = useState(false);
 
   const LEGISLATION_TYPES = [
     { value: "all", label: "Todos os tipos" },
@@ -803,13 +817,18 @@ export function SyncPanel() {
     fetchPdfIncompleteCounts();
   }, [reimportDateFrom, reimportDateTo, reimportType]);
 
-  // Keep a lightweight polling of running pdf fix jobs (so we can block safely)
+  // Keep a lightweight polling of running/stuck pdf fix jobs (so we can block safely)
   useEffect(() => {
     let cancelled = false;
 
     const tick = async () => {
-      const n = await fetchRunningPdfFixJobsCount();
-      if (!cancelled) setRunningPdfFixJobsCount(n);
+      const [running, stuck] = await Promise.all([
+        fetchRunningPdfFixJobsCount(),
+        fetchStuckPdfFixJobsCount(stuckPdfFixThresholdMinutes),
+      ]);
+      if (cancelled) return;
+      setRunningPdfFixJobsCount(running);
+      setStuckPdfFixJobsCount(stuck);
     };
 
     tick();
@@ -818,7 +837,7 @@ export function SyncPanel() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [maxRunningPdfFixJobs]);
+  }, [maxRunningPdfFixJobs, stuckPdfFixThresholdMinutes]);
 
   // Fetch metadata counts
   const fetchMetadataCounts = async () => {
@@ -869,6 +888,79 @@ export function SyncPanel() {
     } catch (e) {
       console.error("fetchRunningPdfFixJobsCount error:", e);
       return 0;
+    }
+  };
+
+  const fetchStuckPdfFixJobsCount = async (thresholdMinutes: number): Promise<number> => {
+    try {
+      const cutoffIso = new Date(Date.now() - thresholdMinutes * 60 * 1000).toISOString();
+      const { count, error } = await supabase
+        .from("sync_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "running")
+        .eq("sync_type", "fix_pdf_import")
+        .lt("started_at", cutoffIso);
+
+      if (error) throw error;
+      return count ?? 0;
+    } catch (e) {
+      console.error("fetchStuckPdfFixJobsCount error:", e);
+      return 0;
+    }
+  };
+
+  const terminateStuckPdfFixJobs = async (thresholdMinutes: number) => {
+    setIsTerminatingStuckPdfFixJobs(true);
+    try {
+      const cutoffIso = new Date(Date.now() - thresholdMinutes * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("id")
+        .eq("status", "running")
+        .eq("sync_type", "fix_pdf_import")
+        .lt("started_at", cutoffIso)
+        .limit(200);
+
+      if (error) throw error;
+      const ids = (data || []).map((r: any) => r.id).filter(Boolean);
+
+      if (ids.length === 0) {
+        toast({
+          title: "Sem jobs presos",
+          description: `Não existem jobs fix_pdf_import com mais de ${thresholdMinutes} minutos.`,
+        });
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from("sync_logs")
+        .update({
+          status: "completed_timeout",
+          completed_at: new Date().toISOString(),
+          error_message: `Marcado como timeout pelo utilizador - job preso (>${thresholdMinutes}m)`,
+        })
+        .in("id", ids);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Jobs marcados como timeout",
+        description: `${ids.length} job(s) fix_pdf_import marcados como completed_timeout.`,
+      });
+    } catch (e) {
+      console.error("terminateStuckPdfFixJobs error:", e);
+      toast({
+        title: "Erro ao terminar jobs",
+        description: e instanceof Error ? e.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTerminatingStuckPdfFixJobs(false);
+      setConfirmTerminateStuckPdfFixJobs(false);
+      // refresh counters
+      fetchRunningPdfFixJobsCount().then(setRunningPdfFixJobsCount);
+      fetchStuckPdfFixJobsCount(stuckPdfFixThresholdMinutes).then(setStuckPdfFixJobsCount);
     }
   };
 
@@ -2225,6 +2317,43 @@ https://dre.pt/application/file/..."
                   />
                 </div>
               </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                  <span>Jobs presos:</span>
+                  <Badge variant="outline" className="border-orange-200">
+                    <span className="font-medium text-orange-700">{stuckPdfFixJobsCount ?? "—"}</span>
+                  </Badge>
+                  <span className="text-muted-foreground">(&gt;{stuckPdfFixThresholdMinutes} min)</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>N (min):</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    step={5}
+                    value={stuckPdfFixThresholdMinutes}
+                    onChange={(e) => setStuckPdfFixThresholdMinutes(Math.max(1, Number(e.target.value || 1)))}
+                    className="h-8 w-24"
+                    disabled={isFixingPdfImport || isAutoFixingPdfToZero || isTerminatingStuckPdfFixJobs}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                    disabled={(stuckPdfFixJobsCount ?? 0) === 0 || isTerminatingStuckPdfFixJobs}
+                    onClick={() => setConfirmTerminateStuckPdfFixJobs(true)}
+                  >
+                    {isTerminatingStuckPdfFixJobs ? (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : (
+                      <StopCircle className="mr-2 h-3 w-3" />
+                    )}
+                    Terminar jobs presos
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2241,6 +2370,36 @@ https://dre.pt/application/file/..."
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmTerminateStuckPdfFixJobs} onOpenChange={setConfirmTerminateStuckPdfFixJobs}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Terminar jobs presos (PDF fix)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vou marcar como <strong>completed_timeout</strong> todos os jobs <strong>fix_pdf_import</strong> em
+              estado <strong>running</strong> com mais de <strong>{stuckPdfFixThresholdMinutes} minutos</strong>.
+              <br />
+              <br />
+              <strong>Nota:</strong> isto apenas marca o estado na base de dados; o processo em segundo plano pode
+              ainda estar a executar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isTerminatingStuckPdfFixJobs}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => terminateStuckPdfFixJobs(stuckPdfFixThresholdMinutes)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isTerminatingStuckPdfFixJobs ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <StopCircle className="mr-2 h-4 w-4" />
+              )}
+              Terminar como Timeout
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* DRE Sync */}
       <Card>
