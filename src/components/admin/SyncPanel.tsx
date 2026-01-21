@@ -107,6 +107,10 @@ export function SyncPanel() {
   } | null>(null);
   const [genericTitlesCount, setGenericTitlesCount] = useState<number | null>(null);
   const [missingDatesCount, setMissingDatesCount] = useState<number | null>(null);
+  
+  // PDF Import fix states
+  const [isFixingPdfImport, setIsFixingPdfImport] = useState(false);
+  const [pdfImportIssuesCount, setPdfImportIssuesCount] = useState<number | null>(null);
 
   const LEGISLATION_TYPES = [
     { value: "all", label: "Todos os tipos" },
@@ -815,6 +819,17 @@ export function SyncPanel() {
     if (dreCount !== null) {
       setMissingDatesCount(dreCount);
     }
+    
+    // Count PDF imports with issues (invalid dates, missing URLs, missing summaries)
+    const { count: pdfCount } = await supabase
+      .from("legislation")
+      .select("*", { count: "exact", head: true })
+      .eq("source", "pdf-import")
+      .or("document_url.is.null,summary.is.null");
+    
+    if (pdfCount !== null) {
+      setPdfImportIssuesCount(pdfCount);
+    }
   };
 
   const handleFixEurlexTitles = async () => {
@@ -966,6 +981,56 @@ export function SyncPanel() {
       });
     } finally {
       setIsFixingDreMetadata(false);
+    }
+  };
+
+  // Handle PDF Import data fix
+  const handleFixPdfImportData = async () => {
+    setIsFixingPdfImport(true);
+
+    try {
+      toast({
+        title: "Correção iniciada em segundo plano",
+        description: "A corrigir dados importados do PDF (datas, URLs, sumários)...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('complete-auto-imported-legislation', {
+        body: { 
+          mode: 'pdf_import_fix',
+          limit: 200,
+          includePT: true,
+          includeEU: true,
+          fixDates: true,
+          background: true
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.background) {
+        toast({
+          title: "Correção em segundo plano",
+          description: `A processar ${data.pendingCount || 'vários'} diplomas. Receberá uma notificação quando terminar.`,
+        });
+      } else {
+        toast({
+          title: "Correção concluída!",
+          description: data.message || "Dados corrigidos com sucesso",
+        });
+        fetchMetadataCounts();
+      }
+
+    } catch (error) {
+      console.error('Fix PDF import error:', error);
+      toast({
+        title: "Erro na correção",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingPdfImport(false);
     }
   };
 
@@ -1854,6 +1919,41 @@ https://dre.pt/application/file/..."
                   )}
                 </div>
               )}
+            </div>
+
+            {/* PDF Import Data Fix */}
+            <div className="rounded-lg border bg-white p-4 space-y-3 border-orange-200">
+              <div className="flex items-center gap-2">
+                <FileUp className="h-4 w-4 text-orange-600" />
+                <h4 className="font-medium text-sm">Correção de Dados PDF</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Corrige dados incompletos/inválidos da importação PDF: datas, URLs e sumários
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">
+                  {pdfImportIssuesCount !== null ? (
+                    <span>
+                      <span className="font-medium text-orange-600">{pdfImportIssuesCount}</span> com problemas
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">A verificar...</span>
+                  )}
+                </span>
+                <Button
+                  onClick={handleFixPdfImportData}
+                  disabled={isFixingPdfImport || pdfImportIssuesCount === 0}
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {isFixingPdfImport ? (
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Wrench className="mr-2 h-3 w-3" />
+                  )}
+                  {isFixingPdfImport ? 'A corrigir...' : 'Corrigir Dados'}
+                </Button>
+              </div>
             </div>
           </div>
 

@@ -447,10 +447,13 @@ async function runBackgroundCompletion(params: {
   
   let syncLogId: string | null = null;
   if (!dryRun) {
+    const syncType = mode === 'pdf_import_fix' ? 'fix_pdf_import' 
+                   : mode === 'missing_dates' ? 'fix_missing_dates' 
+                   : 'complete_auto_imported';
     const { data: syncLog } = await supabase
       .from('sync_logs')
       .insert({
-        sync_type: mode === 'missing_dates' ? 'fix_missing_dates' : 'complete_auto_imported',
+        sync_type: syncType,
         status: 'running',
         items_processed: 0,
         items_added: 0,
@@ -484,9 +487,12 @@ async function runBackgroundCompletion(params: {
   try {
     let query = supabase
       .from('legislation')
-      .select('id, number, title, summary, entity, document_url, publication_date, effective_date, origin');
+      .select('id, number, title, summary, entity, document_url, publication_date, effective_date, origin, source');
     
-    if (mode === 'missing_dates') {
+    if (mode === 'pdf_import_fix') {
+      // Fix PDF imports: invalid dates, missing URLs, missing summaries
+      query = query.eq('source', 'pdf-import');
+    } else if (mode === 'missing_dates') {
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
       query = query.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
@@ -525,9 +531,24 @@ async function runBackgroundCompletion(params: {
       return;
     }
     
+    const currentYear = new Date().getFullYear();
+    
     const toProcess = legislation
       .filter(leg => {
-        if (mode === 'missing_dates') {
+        if (mode === 'pdf_import_fix') {
+          // Process PDF imports that need fixing:
+          // 1. Invalid dates (year < 1950 or > current+1)
+          // 2. Missing URLs
+          // 3. Missing or very short summaries
+          const hasInvalidDate = leg.publication_date && (() => {
+            const year = parseInt(leg.publication_date.substring(0, 4));
+            return year < 1950 || year > currentYear + 1;
+          })();
+          const missingUrl = !leg.document_url;
+          const missingSummary = !leg.summary || leg.summary.length < 30;
+          
+          if (!hasInvalidDate && !missingUrl && !missingSummary) return false;
+        } else if (mode === 'missing_dates') {
           if (leg.publication_date && leg.effective_date) return false;
         } else if (mode === 'generic_titles') {
           const hasGenericTitle = leg.title?.toLowerCase().includes('diploma referenciado') ||
@@ -586,7 +607,32 @@ async function runBackgroundCompletion(params: {
         const updates: LegislationUpdate = {};
         let hasUpdates = false;
         
-        if (fixDates && leg.publication_date) {
+        // For PDF imports or when fixDates is enabled, always check and fix invalid dates
+        if ((fixDates || mode === 'pdf_import_fix') && leg.publication_date) {
+          const year = parseInt(leg.publication_date.substring(0, 4));
+          const currentYear = new Date().getFullYear();
+          
+          if (year < 1950 || year > currentYear + 1) {
+            // Try to extract correct year from the number
+            const yearMatch = leg.number.match(/(\d{4})/);
+            if (yearMatch) {
+              const correctYear = parseInt(yearMatch[1]);
+              if (correctYear >= 1950 && correctYear <= currentYear + 1) {
+                // Extract day and month from original date
+                const origMonth = leg.publication_date.substring(5, 7);
+                const origDay = leg.publication_date.substring(8, 10);
+                updates.publication_date = `${correctYear}-${origMonth}-${origDay}`;
+                hasUpdates = true;
+                console.log(`Fixed invalid date: ${leg.publication_date} -> ${updates.publication_date}`);
+              }
+            } else {
+              // Set to null if we can't determine correct year
+              updates.publication_date = undefined;
+              hasUpdates = true;
+              console.log(`Cleared invalid date: ${leg.publication_date}`);
+            }
+          }
+        } else if (fixDates && leg.publication_date) {
           const fixedDate = fixPublicationDate(leg);
           if (fixedDate !== leg.publication_date) {
             updates.publication_date = fixedDate || undefined;
@@ -834,7 +880,9 @@ Deno.serve(async (req) => {
     // Quick check for pending items
     let countQuery = supabase.from('legislation').select('id', { count: 'exact', head: true });
     
-    if (mode === 'missing_dates') {
+    if (mode === 'pdf_import_fix') {
+      countQuery = countQuery.eq('source', 'pdf-import');
+    } else if (mode === 'missing_dates') {
       countQuery = countQuery.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
       countQuery = countQuery.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');

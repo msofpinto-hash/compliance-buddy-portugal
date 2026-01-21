@@ -20,6 +20,10 @@ const SYNC_TYPE_LABELS: Record<string, string> = {
   "reimport-dre-metadata": "Reimportação de Metadados DRE",
   "dre-sync": "Sincronização DRE",
   "eurlex-sync": "Sincronização EUR-Lex",
+  "pdf-import": "Importação de PDF",
+  "fix_pdf_import": "Correção de Dados PDF",
+  "fix_missing_dates": "Correção de Datas",
+  "complete_auto_imported": "Completar Metadados",
 };
 
 export function useBackgroundJobNotifications() {
