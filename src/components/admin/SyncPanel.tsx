@@ -243,33 +243,101 @@ export function SyncPanel() {
         return;
       }
 
-      toast({
-        title: "Texto extraído",
-        description: `${extractedText.length} caracteres extraídos. A importar legislação...`,
-      });
-
-      // Send extracted text to edge function (runs in background)
-      const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
-        body: { textContent: extractedText }
-      });
-
-      if (error) throw error;
-
-      if (data.background) {
-        // Background job started - user will get notification via useBackgroundJobNotifications
+      // Check if text is too large - need to split into chunks
+      const MAX_CHUNK_SIZE = 2 * 1024 * 1024; // 2MB per chunk to be safe
+      
+      if (extractedText.length > MAX_CHUNK_SIZE) {
         toast({
-          title: "Importação iniciada em segundo plano",
-          description: `A processar ${Math.round(extractedText.length / 1000)}K caracteres. Receberá uma notificação quando terminar.`,
+          title: "Ficheiro grande detectado",
+          description: `A dividir ${Math.round(extractedText.length / 1024 / 1024)}MB em partes para processamento...`,
         });
-        setImportStats(null);
-      } else if (data.success) {
-        setImportStats(data.stats);
+
+        // Split text into chunks at logical boundaries (newlines or multiple spaces)
+        const chunks: string[] = [];
+        let currentPos = 0;
+        
+        while (currentPos < extractedText.length) {
+          let endPos = Math.min(currentPos + MAX_CHUNK_SIZE, extractedText.length);
+          
+          // Try to find a good break point (newline or multiple spaces)
+          if (endPos < extractedText.length) {
+            const searchStart = Math.max(endPos - 1000, currentPos);
+            const searchText = extractedText.substring(searchStart, endPos);
+            const lastBreak = Math.max(
+              searchText.lastIndexOf('\n'),
+              searchText.lastIndexOf('    ') // Multiple spaces often separate entries
+            );
+            if (lastBreak > 0) {
+              endPos = searchStart + lastBreak;
+            }
+          }
+          
+          chunks.push(extractedText.substring(currentPos, endPos));
+          currentPos = endPos;
+        }
+
+        console.log(`Split into ${chunks.length} chunks`);
+        
+        let totalCreated = 0;
+        let totalSkipped = 0;
+        let totalMappings = 0;
+
+        for (let i = 0; i < chunks.length; i++) {
+          toast({
+            title: `A processar parte ${i + 1}/${chunks.length}`,
+            description: `Chunk de ${Math.round(chunks[i].length / 1024)}KB...`,
+          });
+
+          const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
+            body: { textContent: chunks[i] }
+          });
+
+          if (error) {
+            console.error(`Chunk ${i + 1} error:`, error);
+            continue;
+          }
+
+          if (data.background) {
+            toast({
+              title: `Parte ${i + 1}/${chunks.length} em processamento`,
+              description: 'A processar em segundo plano...',
+            });
+          }
+        }
+
         toast({
-          title: "Importação concluída!",
-          description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
+          title: "Importação iniciada",
+          description: `${chunks.length} partes enviadas para processamento em segundo plano.`,
         });
+        
       } else {
-        throw new Error(data.error || 'Erro desconhecido');
+        toast({
+          title: "Texto extraído",
+          description: `${extractedText.length} caracteres extraídos. A importar legislação...`,
+        });
+
+        // Send extracted text to edge function (runs in background)
+        const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
+          body: { textContent: extractedText }
+        });
+
+        if (error) throw error;
+
+        if (data.background) {
+          toast({
+            title: "Importação iniciada em segundo plano",
+            description: `A processar ${Math.round(extractedText.length / 1000)}K caracteres. Receberá uma notificação quando terminar.`,
+          });
+          setImportStats(null);
+        } else if (data.success) {
+          setImportStats(data.stats);
+          toast({
+            title: "Importação concluída!",
+            description: `${data.stats.created} diplomas criados, ${data.stats.mappingsCreated} associações a categorias`,
+          });
+        } else {
+          throw new Error(data.error || 'Erro desconhecido');
+        }
       }
     } catch (err) {
       console.error('PDF processing error:', err);
