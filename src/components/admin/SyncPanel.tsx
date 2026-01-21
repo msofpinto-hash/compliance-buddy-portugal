@@ -248,14 +248,21 @@ export function SyncPanel() {
         description: `${extractedText.length} caracteres extraídos. A importar legislação...`,
       });
 
-      // Send extracted text to edge function
+      // Send extracted text to edge function (runs in background)
       const { data, error } = await supabase.functions.invoke('import-pdf-legislation', {
         body: { textContent: extractedText }
       });
 
       if (error) throw error;
 
-      if (data.success) {
+      if (data.background) {
+        // Background job started - user will get notification via useBackgroundJobNotifications
+        toast({
+          title: "Importação iniciada em segundo plano",
+          description: `A processar ${Math.round(extractedText.length / 1000)}K caracteres. Receberá uma notificação quando terminar.`,
+        });
+        setImportStats(null);
+      } else if (data.success) {
         setImportStats(data.stats);
         toast({
           title: "Importação concluída!",
