@@ -390,12 +390,39 @@ serve(async (req) => {
       );
     }
 
-    // Get existing legislation to avoid duplicates
-    const { data: existingLegislation } = await supabase
+    // Get existing legislation to avoid duplicates - fetch all for comparison
+    const { data: existingLegislation, error: fetchError } = await supabase
       .from('legislation')
-      .select('number');
+      .select('number, title');
     
-    const existingNumbers = new Set((existingLegislation || []).map(l => l.number.toLowerCase().trim()));
+    if (fetchError) {
+      console.error('Error fetching existing legislation:', fetchError);
+    }
+    
+    // Normalize function for consistent comparison
+    const normalizeForComparison = (text: string): string => {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/n\.º\s*/g, 'n.º ')
+        .replace(/nº\s*/g, 'n.º ')
+        .replace(/\(\s*ue\s*\)/gi, '(UE)')
+        .replace(/\(\s*ce\s*\)/gi, '(CE)');
+    };
+    
+    const existingNumbers = new Set(
+      (existingLegislation || []).map(l => normalizeForComparison(l.number))
+    );
+    
+    // Also check by title for EU legislation that might have different number formats
+    const existingTitles = new Set(
+      (existingLegislation || [])
+        .filter(l => l.title)
+        .map(l => normalizeForComparison(l.title))
+    );
+    
+    console.log(`Found ${existingNumbers.size} existing legislation entries for duplicate check`);
 
     // Cache for categories
     const categoriesCache = new Map<string, any[]>();
@@ -404,12 +431,18 @@ serve(async (req) => {
     let skipped = 0;
     let mappingsCreated = 0;
     const errors: string[] = [];
+    const skippedDuplicates: string[] = [];
 
     for (const leg of parsedLegislation) {
-      // Skip if already exists (check with some normalization)
-      const normalizedNumber = leg.number.toLowerCase().trim().replace(/\s+/g, ' ');
-      if (existingNumbers.has(normalizedNumber)) {
+      // Skip if already exists (check with normalization)
+      const normalizedNumber = normalizeForComparison(leg.number);
+      const normalizedTitle = normalizeForComparison(leg.title);
+      
+      if (existingNumbers.has(normalizedNumber) || existingTitles.has(normalizedTitle)) {
         skipped++;
+        if (skippedDuplicates.length < 10) {
+          skippedDuplicates.push(leg.number.substring(0, 60));
+        }
         continue;
       }
 
@@ -452,7 +485,10 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Import complete: ${created} created, ${skipped} skipped, ${mappingsCreated} mappings, ${errors.length} errors`);
+    console.log(`Import complete: ${created} created, ${skipped} skipped (duplicates), ${mappingsCreated} mappings, ${errors.length} errors`);
+    if (skippedDuplicates.length > 0) {
+      console.log(`Sample duplicates skipped: ${skippedDuplicates.join(', ')}`);
+    }
 
     return new Response(
       JSON.stringify({
@@ -462,7 +498,8 @@ serve(async (req) => {
           created,
           skipped,
           mappingsCreated,
-          errors: errors.slice(0, 10) // Return first 10 errors
+          errors: errors.slice(0, 10),
+          skippedDuplicates: skippedDuplicates
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
