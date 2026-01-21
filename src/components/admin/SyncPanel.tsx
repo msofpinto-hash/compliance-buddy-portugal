@@ -125,6 +125,8 @@ export function SyncPanel() {
   const [pdfIncompleteEuCount, setPdfIncompleteEuCount] = useState<number | null>(null);
   const [isAutoFixingPdfToZero, setIsAutoFixingPdfToZero] = useState(false);
   const [autoFixWave, setAutoFixWave] = useState<{ current: number; max: number } | null>(null);
+  const [autoFixCooldownSeconds, setAutoFixCooldownSeconds] = useState<number>(30);
+  const [autoFixCooldown, setAutoFixCooldown] = useState<{ remaining: number; total: number } | null>(null);
   const [runningPdfFixJobsCount, setRunningPdfFixJobsCount] = useState<number | null>(null);
   const [maxRunningPdfFixJobs, setMaxRunningPdfFixJobs] = useState<number>(60);
   const [stuckPdfFixThresholdMinutes, setStuckPdfFixThresholdMinutes] = useState<number>(45);
@@ -1272,6 +1274,7 @@ export function SyncPanel() {
     setIsAutoFixingPdfToZero(true);
     const maxWaves = 6;
     setAutoFixWave({ current: 0, max: maxWaves });
+    setAutoFixCooldown(null);
 
     try {
       toast({
@@ -1287,12 +1290,41 @@ export function SyncPanel() {
         const currentTotal = counts.pt + counts.eu;
         if (currentTotal === 0) break;
 
-        const runningNow = await fetchRunningPdfFixJobsCount();
+        // Smart cool-down: if limit reached, wait N seconds and retry
+        let runningNow = await fetchRunningPdfFixJobsCount();
         setRunningPdfFixJobsCount(runningNow);
+        let cooldownAttempts = 0;
+        const maxCooldownAttempts = 5;
+
+        while (runningNow >= maxRunningPdfFixJobs && cooldownAttempts < maxCooldownAttempts) {
+          cooldownAttempts += 1;
+          const total = Math.max(0, Math.floor(autoFixCooldownSeconds));
+
+          if (total === 0) break;
+
+          toast({
+            title: "Limite atingido",
+            description: `Vou aguardar ${total}s e voltar a tentar lançar a vaga (jobs a correr: ${runningNow}/${maxRunningPdfFixJobs}).`,
+          });
+
+          for (let remaining = total; remaining > 0; remaining -= 1) {
+            setAutoFixCooldown({ remaining, total });
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((r) => setTimeout(r, 1000));
+          }
+          setAutoFixCooldown(null);
+
+          // Re-check
+          // eslint-disable-next-line no-await-in-loop
+          runningNow = await fetchRunningPdfFixJobsCount();
+          setRunningPdfFixJobsCount(runningNow);
+        }
+
         if (runningNow >= maxRunningPdfFixJobs) {
           toast({
-            title: "A aguardar jobs ativos",
-            description: `Já existem ${runningNow} jobs a correr (limite: ${maxRunningPdfFixJobs}). Vou parar por agora.`,
+            title: "Ainda no limite",
+            description: `Mantém-se ${runningNow} jobs a correr (limite: ${maxRunningPdfFixJobs}). Parei a automação por agora.`,
+            variant: "destructive",
           });
           break;
         }
@@ -1321,6 +1353,7 @@ export function SyncPanel() {
     } finally {
       setIsAutoFixingPdfToZero(false);
       setAutoFixWave(null);
+      setAutoFixCooldown(null);
     }
   };
 
@@ -2290,6 +2323,9 @@ https://dre.pt/application/file/..."
                 {autoFixWave && (
                   <span className="ml-auto">Vaga {autoFixWave.current}/{autoFixWave.max}</span>
                 )}
+                {autoFixCooldown && (
+                  <span className="ml-auto">Cool-down: {autoFixCooldown.remaining}s</span>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -2312,6 +2348,27 @@ https://dre.pt/application/file/..."
                     step={10}
                     value={maxRunningPdfFixJobs}
                     onChange={(e) => setMaxRunningPdfFixJobs(Math.max(0, Number(e.target.value || 0)))}
+                    className="h-8 w-24"
+                    disabled={isFixingPdfImport || isAutoFixingPdfToZero}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                  <span>Cool-down:</span>
+                  <Badge variant="outline" className="border-orange-200">
+                    <span className="font-medium text-orange-700">{autoFixCooldownSeconds}s</span>
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>N (s):</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={autoFixCooldownSeconds}
+                    onChange={(e) => setAutoFixCooldownSeconds(Math.max(0, Number(e.target.value || 0)))}
                     className="h-8 w-24"
                     disabled={isFixingPdfImport || isAutoFixingPdfToZero}
                   />
