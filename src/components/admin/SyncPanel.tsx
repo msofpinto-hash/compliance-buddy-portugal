@@ -181,8 +181,8 @@ export function SyncPanel() {
       return;
     }
 
-    // Check file size - limit is 20MB for client-side processing
-    const maxSizeMB = 20;
+    // Check file size - limit is 30MB for client-side processing
+    const maxSizeMB = 30;
     const fileSizeMB = file.size / (1024 * 1024);
 
     if (fileSizeMB > maxSizeMB) {
