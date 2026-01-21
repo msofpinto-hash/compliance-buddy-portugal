@@ -1,9 +1,13 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Declare EdgeRuntime for background tasks
+declare const EdgeRuntime: {
+  waitUntil: (promise: Promise<unknown>) => void;
 };
 
 interface ParsedLegislation {
@@ -274,7 +278,152 @@ async function findMatchingCategory(
   return rootCategory?.id || themeCategories[0]?.id || null;
 }
 
-serve(async (req) => {
+// Background processing function
+async function processImportInBackground(
+  supabase: any,
+  textContent: string,
+  logId: string,
+  userId: string
+): Promise<void> {
+  try {
+    console.log(`[BG Job ${logId}] Starting background import...`);
+    
+    const parsedLegislation = parsePdfContent(textContent);
+    console.log(`[BG Job ${logId}] Parsed ${parsedLegislation.length} legislation entries`);
+
+    if (parsedLegislation.length === 0) {
+      await supabase
+        .from('sync_logs')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          items_processed: 0,
+          items_added: 0,
+          error_message: 'Não foram encontrados diplomas no texto.'
+        })
+        .eq('id', logId);
+      return;
+    }
+
+    // Get existing legislation to avoid duplicates
+    const { data: existingLegislation } = await supabase
+      .from('legislation')
+      .select('number, title');
+    
+    const normalizeForComparison = (text: string): string => {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/n\.º\s*/g, 'n.º ')
+        .replace(/nº\s*/g, 'n.º ')
+        .replace(/\(\s*ue\s*\)/gi, '(UE)')
+        .replace(/\(\s*ce\s*\)/gi, '(CE)');
+    };
+    
+    const existingNumbers = new Set(
+      (existingLegislation || []).map((l: any) => normalizeForComparison(l.number))
+    );
+    const existingTitles = new Set(
+      (existingLegislation || []).filter((l: any) => l.title).map((l: any) => normalizeForComparison(l.title))
+    );
+    
+    console.log(`[BG Job ${logId}] Found ${existingNumbers.size} existing legislation entries`);
+
+    const categoriesCache = new Map<string, any[]>();
+    let created = 0;
+    let skipped = 0;
+    let mappingsCreated = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < parsedLegislation.length; i++) {
+      const leg = parsedLegislation[i];
+      
+      // Update progress every 50 items
+      if (i % 50 === 0) {
+        await supabase
+          .from('sync_logs')
+          .update({
+            items_processed: i,
+            items_added: created
+          })
+          .eq('id', logId);
+      }
+      
+      const normalizedNumber = normalizeForComparison(leg.number);
+      const normalizedTitle = normalizeForComparison(leg.title);
+      
+      if (existingNumbers.has(normalizedNumber) || existingTitles.has(normalizedTitle)) {
+        skipped++;
+        continue;
+      }
+
+      const { data: newLeg, error: legError } = await supabase
+        .from('legislation')
+        .insert({
+          number: leg.number,
+          title: leg.title,
+          summary: leg.summary,
+          publication_date: leg.publicationDate,
+          origin: leg.origin,
+          source: 'pdf-import'
+        })
+        .select('id')
+        .single();
+
+      if (legError) {
+        errors.push(`${leg.number}: ${legError.message}`);
+        continue;
+      }
+
+      created++;
+      existingNumbers.add(normalizedNumber);
+
+      const categoryId = await findMatchingCategory(supabase, leg.categoryPath, categoriesCache);
+      
+      if (categoryId) {
+        const { error: mapError } = await supabase
+          .from('legislation_category_mapping')
+          .insert({
+            legislation_id: newLeg.id,
+            category_id: categoryId
+          });
+        
+        if (!mapError) {
+          mappingsCreated++;
+        }
+      }
+    }
+
+    console.log(`[BG Job ${logId}] Import complete: ${created} created, ${skipped} skipped, ${mappingsCreated} mappings`);
+
+    // Final update
+    await supabase
+      .from('sync_logs')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        items_processed: parsedLegislation.length,
+        items_added: created,
+        items_updated: mappingsCreated,
+        error_message: errors.length > 0 ? `${errors.length} erros: ${errors.slice(0, 5).join('; ')}` : null
+      })
+      .eq('id', logId);
+
+  } catch (error) {
+    console.error(`[BG Job ${logId}] Error:`, error);
+    await supabase
+      .from('sync_logs')
+      .update({
+        status: 'error',
+        completed_at: new Date().toISOString(),
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      })
+      .eq('id', logId);
+  }
+}
+
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -306,7 +455,7 @@ serve(async (req) => {
       );
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = claimsData.claims.sub as string;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Only admins can import legislation
@@ -326,164 +475,49 @@ serve(async (req) => {
 
     console.log(`Authenticated admin user: ${userId}`);
 
-    const { pdfContent, textContent } = await req.json();
+    const { textContent } = await req.json();
 
-    if (!pdfContent && !textContent) {
+    if (!textContent) {
       return new Response(
-        JSON.stringify({ error: 'pdfContent or textContent is required' }),
+        JSON.stringify({ error: 'textContent is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Starting PDF import...');
+    console.log(`Starting background PDF import (${textContent.length} characters)...`);
 
-    let textToProcess: string;
-    
-    if (textContent) {
-      // Direct text content provided - preferred method
-      textToProcess = textContent;
-      console.log(`Text content length: ${textToProcess.length} characters`);
-    } else {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Por favor forneça o texto já extraído do PDF no campo textContent.',
-          suggestion: 'A extração de PDF é feita no lado do cliente para melhor performance.'
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const parsedLegislation = parsePdfContent(textToProcess);
-    console.log(`Parsed ${parsedLegislation.length} legislation entries`);
+    // Create sync log for tracking
+    const { data: logEntry, error: logError } = await supabase
+      .from('sync_logs')
+      .insert({
+        sync_type: 'pdf-import',
+        status: 'running',
+        created_by: userId,
+        items_processed: 0,
+        items_added: 0
+      })
+      .select('id')
+      .single();
 
-    if (parsedLegislation.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Não foram encontrados diplomas no texto. Verifique se o formato é compatível.',
-          stats: {
-            totalParsed: 0,
-            created: 0,
-            skipped: 0,
-            mappingsCreated: 0,
-            errors: []
-          }
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (logError || !logEntry) {
+      throw new Error('Failed to create sync log');
     }
 
-    // Get existing legislation to avoid duplicates - fetch all for comparison
-    const { data: existingLegislation, error: fetchError } = await supabase
-      .from('legislation')
-      .select('number, title');
-    
-    if (fetchError) {
-      console.error('Error fetching existing legislation:', fetchError);
-    }
-    
-    // Normalize function for consistent comparison
-    const normalizeForComparison = (text: string): string => {
-      return text
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, ' ')
-        .replace(/n\.º\s*/g, 'n.º ')
-        .replace(/nº\s*/g, 'n.º ')
-        .replace(/\(\s*ue\s*\)/gi, '(UE)')
-        .replace(/\(\s*ce\s*\)/gi, '(CE)');
-    };
-    
-    const existingNumbers = new Set(
-      (existingLegislation || []).map(l => normalizeForComparison(l.number))
+    const logId = logEntry.id;
+    console.log(`Created sync log: ${logId}`);
+
+    // Start background processing
+    EdgeRuntime.waitUntil(
+      processImportInBackground(supabase, textContent, logId, userId)
     );
-    
-    // Also check by title for EU legislation that might have different number formats
-    const existingTitles = new Set(
-      (existingLegislation || [])
-        .filter(l => l.title)
-        .map(l => normalizeForComparison(l.title))
-    );
-    
-    console.log(`Found ${existingNumbers.size} existing legislation entries for duplicate check`);
 
-    // Cache for categories
-    const categoriesCache = new Map<string, any[]>();
-    
-    let created = 0;
-    let skipped = 0;
-    let mappingsCreated = 0;
-    const errors: string[] = [];
-    const skippedDuplicates: string[] = [];
-
-    for (const leg of parsedLegislation) {
-      // Skip if already exists (check with normalization)
-      const normalizedNumber = normalizeForComparison(leg.number);
-      const normalizedTitle = normalizeForComparison(leg.title);
-      
-      if (existingNumbers.has(normalizedNumber) || existingTitles.has(normalizedTitle)) {
-        skipped++;
-        if (skippedDuplicates.length < 10) {
-          skippedDuplicates.push(leg.number.substring(0, 60));
-        }
-        continue;
-      }
-
-      // Create legislation
-      const { data: newLeg, error: legError } = await supabase
-        .from('legislation')
-        .insert({
-          number: leg.number,
-          title: leg.title,
-          summary: leg.summary,
-          publication_date: leg.publicationDate,
-          origin: leg.origin,
-          source: 'pdf-import'
-        })
-        .select('id')
-        .single();
-
-      if (legError) {
-        errors.push(`Error creating ${leg.number}: ${legError.message}`);
-        continue;
-      }
-
-      created++;
-      existingNumbers.add(normalizedNumber);
-
-      // Find and create category mapping
-      const categoryId = await findMatchingCategory(supabase, leg.categoryPath, categoriesCache);
-      
-      if (categoryId) {
-        const { error: mapError } = await supabase
-          .from('legislation_category_mapping')
-          .insert({
-            legislation_id: newLeg.id,
-            category_id: categoryId
-          });
-        
-        if (!mapError) {
-          mappingsCreated++;
-        }
-      }
-    }
-
-    console.log(`Import complete: ${created} created, ${skipped} skipped (duplicates), ${mappingsCreated} mappings, ${errors.length} errors`);
-    if (skippedDuplicates.length > 0) {
-      console.log(`Sample duplicates skipped: ${skippedDuplicates.join(', ')}`);
-    }
-
+    // Return immediately with job ID
     return new Response(
       JSON.stringify({
         success: true,
-        stats: {
-          totalParsed: parsedLegislation.length,
-          created,
-          skipped,
-          mappingsCreated,
-          errors: errors.slice(0, 10),
-          skippedDuplicates: skippedDuplicates
-        }
+        background: true,
+        jobId: logId,
+        message: 'Importação iniciada em segundo plano. Receberá uma notificação quando terminar.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
