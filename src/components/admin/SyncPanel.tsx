@@ -111,6 +111,10 @@ export function SyncPanel() {
   // PDF Import fix states
   const [isFixingPdfImport, setIsFixingPdfImport] = useState(false);
   const [pdfImportIssuesCount, setPdfImportIssuesCount] = useState<number | null>(null);
+  const [pdfIncompletePtCount, setPdfIncompletePtCount] = useState<number | null>(null);
+  const [pdfIncompleteEuCount, setPdfIncompleteEuCount] = useState<number | null>(null);
+  const [isAutoFixingPdfToZero, setIsAutoFixingPdfToZero] = useState(false);
+  const [autoFixWave, setAutoFixWave] = useState<{ current: number; max: number } | null>(null);
 
   const LEGISLATION_TYPES = [
     { value: "all", label: "Todos os tipos" },
@@ -794,6 +798,7 @@ export function SyncPanel() {
   useEffect(() => {
     fetchIncompleteCount();
     fetchMetadataCounts();
+    fetchPdfIncompleteCounts();
   }, [reimportDateFrom, reimportDateTo, reimportType]);
 
   // Fetch metadata counts
@@ -830,6 +835,61 @@ export function SyncPanel() {
     if (pdfCount !== null) {
       setPdfImportIssuesCount(pdfCount);
     }
+  };
+
+  const fetchPdfIncompleteCounts = async (): Promise<{ pt: number; eu: number }> => {
+    try {
+      // Incompletos PDF = registos source='pdf-import' com campos essenciais em falta.
+      const base = () =>
+        supabase
+          .from("legislation")
+          .select("id", { count: "exact", head: true })
+          .eq("source", "pdf-import")
+          .or(
+            [
+              "document_url.is.null",
+              "summary.is.null",
+              "publication_date.is.null",
+              "effective_date.is.null",
+              "origin.is.null",
+            ].join(",")
+          );
+
+      const [{ count: ptCount }, { count: euCount }] = await Promise.all([
+        base().eq("origin", "PT"),
+        base().eq("origin", "EU"),
+      ]);
+
+      setPdfIncompletePtCount(ptCount ?? 0);
+      setPdfIncompleteEuCount(euCount ?? 0);
+      return { pt: ptCount ?? 0, eu: euCount ?? 0 };
+    } catch (e) {
+      console.error("fetchPdfIncompleteCounts error:", e);
+      return { pt: 0, eu: 0 };
+    }
+  };
+
+  const launchPdfFixJobs = async (parallelJobs: number) => {
+    const perJobLimit = 50;
+
+    const results = await Promise.allSettled(
+      Array.from({ length: parallelJobs }).map(() =>
+        supabase.functions.invoke("complete-auto-imported-legislation", {
+          body: {
+            mode: "pdf_import_fix",
+            limit: perJobLimit,
+            includePT: true,
+            includeEU: true,
+            fixDates: true,
+            background: true,
+          },
+        })
+      )
+    );
+
+    const ok = results.filter((r) => r.status === "fulfilled" && !(r.value as any)?.error).length;
+    const failed = results.length - ok;
+    return { ok, failed };
   };
 
   const handleFixEurlexTitles = async () => {
@@ -1043,25 +1103,7 @@ export function SyncPanel() {
         description: "Isto acelera a correção (cada job tem timeout por item e não deve ficar preso).",
       });
 
-      const perJobLimit = 50;
-
-      const results = await Promise.allSettled(
-        Array.from({ length: parallelJobs }).map(() =>
-          supabase.functions.invoke("complete-auto-imported-legislation", {
-            body: {
-              mode: "pdf_import_fix",
-              limit: perJobLimit,
-              includePT: true,
-              includeEU: true,
-              fixDates: true,
-              background: true,
-            },
-          })
-        )
-      );
-
-      const ok = results.filter((r) => r.status === "fulfilled" && !(r.value as any)?.error).length;
-      const failed = results.length - ok;
+      const { ok, failed } = await launchPdfFixJobs(parallelJobs);
 
       toast({
         title: "Jobs lançados",
@@ -1072,6 +1114,7 @@ export function SyncPanel() {
       // Refresh counts soon (the jobs will update data asynchronously)
       setTimeout(() => {
         fetchMetadataCounts();
+        fetchPdfIncompleteCounts();
       }, 1500);
     } catch (error) {
       console.error("Fix PDF import burst error:", error);
@@ -1082,6 +1125,54 @@ export function SyncPanel() {
       });
     } finally {
       setIsFixingPdfImport(false);
+    }
+  };
+
+  const handleFixPdfImportToZero = async () => {
+    if (isAutoFixingPdfToZero || isFixingPdfImport) return;
+
+    setIsAutoFixingPdfToZero(true);
+    const maxWaves = 6;
+    setAutoFixWave({ current: 0, max: maxWaves });
+
+    try {
+      toast({
+        title: "Auto-correção iniciada",
+        description: "Vou lançar vagas e reavaliar contagens. O processamento continua em segundo plano.",
+      });
+
+      let counts = await fetchPdfIncompleteCounts();
+
+      for (let wave = 1; wave <= maxWaves; wave++) {
+        setAutoFixWave({ current: wave, max: maxWaves });
+
+        const currentTotal = counts.pt + counts.eu;
+        if (currentTotal === 0) break;
+
+        await launchPdfFixJobs(20);
+
+        // Pausa para evitar demasiada concorrência e dar tempo aos jobs
+        await new Promise((r) => setTimeout(r, 12000));
+        counts = await fetchPdfIncompleteCounts();
+
+        const newTotal = counts.pt + counts.eu;
+        if (newTotal === 0) break;
+      }
+
+      toast({
+        title: "Vagas lançadas",
+        description: "Atualiza as contagens em 1-2 minutos para confirmar que chegou a zero.",
+      });
+    } catch (e) {
+      console.error("handleFixPdfImportToZero error:", e);
+      toast({
+        title: "Erro na auto-correção",
+        description: e instanceof Error ? e.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAutoFixingPdfToZero(false);
+      setAutoFixWave(null);
     }
   };
 
@@ -1993,6 +2084,21 @@ https://dre.pt/application/file/..."
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
+                    onClick={handleFixPdfImportToZero}
+                    disabled={isFixingPdfImport || isAutoFixingPdfToZero || pdfImportIssuesCount === 0}
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    {(isAutoFixingPdfToZero || isFixingPdfImport) ? (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Rocket className="mr-2 h-3 w-3" />
+                    )}
+                    {isAutoFixingPdfToZero ? "A lançar vagas..." : "Corrigir até zero"}
+                  </Button>
+
+                  <Button
                     onClick={() => handleFixPdfImportDataBurst(20)}
                     disabled={isFixingPdfImport || pdfImportIssuesCount === 0}
                     size="sm"
@@ -2021,6 +2127,19 @@ https://dre.pt/application/file/..."
                     {isFixingPdfImport ? "A corrigir..." : "Corrigir Dados"}
                   </Button>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>Incompletos (PDF):</span>
+                <Badge variant="outline" className="border-orange-200">
+                  PT: <span className="ml-1 font-medium text-orange-700">{pdfIncompletePtCount ?? "—"}</span>
+                </Badge>
+                <Badge variant="outline" className="border-orange-200">
+                  EU: <span className="ml-1 font-medium text-orange-700">{pdfIncompleteEuCount ?? "—"}</span>
+                </Badge>
+                {autoFixWave && (
+                  <span className="ml-auto">Vaga {autoFixWave.current}/{autoFixWave.max}</span>
+                )}
               </div>
             </div>
           </div>
