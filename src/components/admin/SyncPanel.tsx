@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar, Rocket, StopCircle } from "lucide-react";
 import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
@@ -2324,7 +2325,21 @@ https://dre.pt/application/file/..."
                   <span className="ml-auto">Vaga {autoFixWave.current}/{autoFixWave.max}</span>
                 )}
                 {autoFixCooldown && (
-                  <span className="ml-auto">Cool-down: {autoFixCooldown.remaining}s</span>
+                  <span className="ml-auto flex items-center gap-2 animate-fade-in">
+                    <span>Cool-down: {autoFixCooldown.remaining}s</span>
+                    <Progress
+                      value={
+                        autoFixCooldown.total > 0
+                          ? Math.round(
+                              ((autoFixCooldown.total - autoFixCooldown.remaining) /
+                                autoFixCooldown.total) *
+                                100
+                            )
+                          : 0
+                      }
+                      className="h-2 w-24"
+                    />
+                  </span>
                 )}
               </div>
 
