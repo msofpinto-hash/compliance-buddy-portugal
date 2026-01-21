@@ -75,157 +75,140 @@ function parseDateFromDiploma(diploma: string): string | null {
 }
 
 // Parse the SIAWISE PDF text content to extract legislation entries
-// Format example:
-// "Portugal  Regulamento Delegado (UE) 2025/2003 de 8 de setembro de 2025     que altera o Regulamento..."
+// SIAWISE format has diplomas separated by multiple spaces, with format:
+// "Portaria n.º 481/2025/1 de 31 de dezembro     Estabelece o regime de apoio..."
 function parsePdfContent(content: string): ParsedLegislation[] {
   const legislation: ParsedLegislation[] = [];
   
-  // Normalize content - replace multiple spaces with single space, but keep structure hints
-  const normalizedContent = content
-    .replace(/\s{4,}/g, '\n') // Multiple spaces (4+) become newlines (separators)
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n');
+  console.log('Content length:', content.length);
+  console.log('Content sample (first 2000 chars):', content.substring(0, 2000));
   
-  console.log('Normalized content sample (first 3000 chars):', normalizedContent.substring(0, 3000));
+  // Clean noise patterns from content
+  let cleanedContent = content
+    .replace(/©\s*SIAWISE[^]*?(?=Portaria|Lei|Decreto|Despacho|Regulamento|Aviso|Declaração|Diretiva|Decisão|Resolução|Acórdão|Deliberação|\d+\/\d+|$)/gi, ' ')
+    .replace(/Mariana\s+Pinto[^]*?\d+\/\d+/gi, ' ')
+    .replace(/RELATÓRIO\s+LEGISLAÇÃO/gi, ' ')
+    .replace(/\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}/g, ' ')
+    .replace(/\d+\/\d{4,}\s+/g, ' '); // Page numbers like "1/2435"
   
-  // Skip patterns for noise
-  const skipPatterns = [
-    /^©\s*SIAWISE/i,
-    /^\d+\/\d+$/, // Page numbers like "1/425"
-    /^Mariana\s+Pinto/i,
-    /^RELATÓRIO\s+LEGISLAÇÃO/i,
-    /qualidade\s+comunitário/i,
-    /^\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}/, // Date timestamps
-  ];
-  
-  // Diploma pattern - matches EU and PT legislation types
-  // Examples:
-  // - "Regulamento Delegado (UE) 2025/2003 de 8 de setembro de 2025"
-  // - "Regulamento de Execução (UE) 2025/1197 de 19 de junho de 2025"
-  // - "Retificação do Regulamento (UE) 2021/821 de 20 de maio de 2021, de 2 de abril de 2025"
-  // - "Lei n.º 123/2024 de 15 de março"
-  // - "Decreto-Lei n.º 45/2024 de 10 de janeiro"
-  const euDiplomaPattern = /^(Regulamento(?:\s+(?:Delegado|de\s+Execução))?|Retificação\s+d[oa]\s+Regulamento|Diretiva|Decisão|Recomendação|Parecer)\s*\((?:UE|CE|CEE)\)\s*(?:n\.?º?\s*)?(\d{4}\/\d+|\d+\/\d{4})/i;
-  
-  const ptDiplomaPattern = /^(Lei|Decreto-Lei|Decreto|Portaria|Despacho|Resolução|Regulamento|Declaração|Aviso|Acórdão|Deliberação)\s+(?:n\.?º?\s*)?([\w\-\.\/]+)/i;
-  
-  // Country markers
-  const countryPatterns = {
-    'Portugal': 'PT',
-    'União Europeia': 'EU',
-    'Comunitário': 'EU',
-    'Europa': 'EU',
-  };
-  
-  // Category/theme markers
+  // Theme markers to track current category
   const themeMarkers = ['Qualidade', 'Ambiente', 'Segurança', 'Energia', 'Alimentar', 'SST', 'Geral'];
+  let currentCategory = 'Geral';
   
-  // Split by newlines for processing
-  const lines = normalizedContent.split('\n');
-  
-  let currentCategory = '';
-  let currentOrigin: 'PT' | 'EU' = 'PT';
-  let currentDiploma = '';
-  let currentSummary = '';
-  let entriesFound = 0;
-  
-  const saveCurrent = () => {
-    if (currentDiploma) {
-      const cleanDiploma = currentDiploma.trim();
-      const cleanSummary = currentSummary.trim();
-      
-      // Skip if summary starts with lowercase (continuation of number, not real summary)
-      // A real summary starts with lowercase "que", "para", "relativo", etc.
-      const validSummary = cleanSummary && 
-        (cleanSummary.match(/^(que|para|relativ|sobre|referente|estabelece|altera|cria|institui|aprova|fixa|define|determina|transpõe|regulament)/i) ||
-         cleanSummary.length > 30);
-      
-      legislation.push({
-        number: cleanDiploma,
-        title: cleanDiploma,
-        summary: validSummary ? cleanSummary : null,
-        publicationDate: parseDateFromDiploma(cleanDiploma),
-        categoryPath: currentCategory || 'Geral',
-        origin: currentOrigin
-      });
-      entriesFound++;
-      
-      if (entriesFound <= 5) {
-        console.log(`Found diploma ${entriesFound}: "${cleanDiploma.substring(0, 80)}..." origin=${currentOrigin}`);
-      }
-    }
-    currentDiploma = '';
-    currentSummary = '';
-  };
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    let trimmedLine = line.trim();
-    
-    // Skip empty lines and noise
-    if (!trimmedLine) continue;
-    if (skipPatterns.some(p => p.test(trimmedLine))) continue;
-    
-    // Check for country marker at start of line
-    let foundCountry = false;
-    for (const [countryName, origin] of Object.entries(countryPatterns)) {
-      if (trimmedLine.startsWith(countryName)) {
-        currentOrigin = origin as 'PT' | 'EU';
-        // Remove the country prefix from the line
-        trimmedLine = trimmedLine.substring(countryName.length).trim();
-        foundCountry = true;
-        break;
-      }
-    }
-    
-    // Check for theme/category marker
-    for (const theme of themeMarkers) {
-      if (trimmedLine.toLowerCase().startsWith(theme.toLowerCase()) && trimmedLine.length < 50) {
-        currentCategory = theme;
-        continue;
-      }
-    }
-    
-    // Check if this is an EU diploma
-    const euMatch = trimmedLine.match(euDiplomaPattern);
-    if (euMatch) {
-      saveCurrent();
-      currentDiploma = trimmedLine;
-      currentOrigin = 'EU';
-      continue;
-    }
-    
-    // Check if this is a PT diploma
-    const ptMatch = trimmedLine.match(ptDiplomaPattern);
-    if (ptMatch) {
-      saveCurrent();
-      currentDiploma = trimmedLine;
-      if (currentOrigin !== 'EU') {
-        currentOrigin = 'PT';
-      }
-      continue;
-    }
-    
-    // If we have a current diploma and this line starts with lowercase, it's likely the summary
-    if (currentDiploma && trimmedLine.length > 10) {
-      // Starts with lowercase = summary continuation
-      const startsWithLower = /^[a-zàáâãéêíóôõúç]/.test(trimmedLine);
-      // Or starts with known summary starters
-      const isSummary = startsWithLower || 
-        /^(que|para|relativ|sobre|referente|estabelece|altera|cria|institui)/i.test(trimmedLine);
-      
-      if (isSummary) {
-        if (currentSummary) {
-          currentSummary += ' ' + trimmedLine;
-        } else {
-          currentSummary = trimmedLine;
-        }
-      }
+  // Check for theme at the start
+  for (const theme of themeMarkers) {
+    if (cleanedContent.toLowerCase().includes(theme.toLowerCase())) {
+      currentCategory = theme;
+      break;
     }
   }
   
-  // Don't forget the last entry
-  saveCurrent();
+  // PT Diploma types
+  const ptTypes = [
+    'Portaria', 'Lei', 'Decreto-Lei', 'Decreto', 'Despacho', 
+    'Resolução', 'Declaração', 'Aviso', 'Acórdão', 'Deliberação',
+    'Declaração de Retificação'
+  ];
+  
+  // EU Diploma types  
+  const euTypes = [
+    'Regulamento Delegado \\(UE\\)',
+    'Regulamento de Execução \\(UE\\)',
+    'Regulamento \\(UE\\)',
+    'Regulamento \\(CE\\)',
+    'Retificação do Regulamento \\(UE\\)',
+    'Retificação do Regulamento \\(CE\\)',
+    'Diretiva \\(UE\\)',
+    'Diretiva',
+    'Decisão \\(UE\\)',
+    'Decisão de Execução \\(UE\\)',
+    'Recomendação \\(UE\\)'
+  ];
+  
+  // Combined regex to find all diplomas
+  const allTypes = [...euTypes, ...ptTypes.map(t => t.replace('-', '\\-'))];
+  const diplomaRegex = new RegExp(
+    `(${allTypes.join('|')})\\s+(?:n\\.?º?\\s*)?([\\w\\-\\.\\/]+(?:\\/\\d+)?)\\s+de\\s+(\\d{1,2})\\s+de\\s+(\\w+)(?:\\s+de\\s+(\\d{4}))?`,
+    'gi'
+  );
+  
+  console.log('Searching for diplomas with pattern...');
+  
+  let match;
+  let count = 0;
+  const seenNumbers = new Set<string>();
+  
+  while ((match = diplomaRegex.exec(cleanedContent)) !== null) {
+    const type = match[1];
+    const number = match[2];
+    const day = match[3];
+    const month = match[4];
+    const yearFromDate = match[5];
+    
+    // Extract year from number if not in date
+    const yearMatch = number.match(/(\d{4})/);
+    const year = yearFromDate || (yearMatch ? yearMatch[1] : null);
+    
+    // Build diploma string
+    const diplomaStr = `${type} n.º ${number} de ${day} de ${month}${yearFromDate ? ' de ' + yearFromDate : ''}`;
+    
+    // Skip duplicates
+    const normalizedNum = diplomaStr.toLowerCase().replace(/\s+/g, ' ');
+    if (seenNumbers.has(normalizedNum)) {
+      continue;
+    }
+    seenNumbers.add(normalizedNum);
+    
+    // Determine origin
+    const isEU = /regulamento|diretiva|decisão|recomendação/i.test(type) && /\(ue\)|\(ce\)/i.test(type);
+    
+    // Try to extract summary (text after the diploma until next diploma or end)
+    const afterMatch = cleanedContent.substring(match.index + match[0].length);
+    const nextDiplomaMatch = afterMatch.match(new RegExp(`(${allTypes.join('|')})\\s+(?:n\\.?º?\\s*)?`, 'i'));
+    let summary = '';
+    if (nextDiplomaMatch) {
+      summary = afterMatch.substring(0, nextDiplomaMatch.index).trim();
+    } else {
+      summary = afterMatch.substring(0, 500).trim(); // Take up to 500 chars
+    }
+    
+    // Clean summary
+    summary = summary
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s\.,;]+/, '')
+      .trim();
+    
+    // Only use summary if it looks valid
+    const validSummary = summary.length > 15 && 
+      summary.length < 1000 &&
+      /^[A-Za-zÀ-ÿ]/.test(summary);
+    
+    // Parse date
+    const months: Record<string, string> = {
+      'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+      'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+      'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+    };
+    
+    let publicationDate: string | null = null;
+    if (year && months[month.toLowerCase()]) {
+      publicationDate = `${year}-${months[month.toLowerCase()]}-${day.padStart(2, '0')}`;
+    }
+    
+    legislation.push({
+      number: diplomaStr,
+      title: diplomaStr,
+      summary: validSummary ? summary : null,
+      publicationDate,
+      categoryPath: currentCategory,
+      origin: isEU ? 'EU' : 'PT'
+    });
+    
+    count++;
+    if (count <= 5) {
+      console.log(`Found diploma ${count}: "${diplomaStr}" origin=${isEU ? 'EU' : 'PT'}`);
+    }
+  }
   
   console.log(`Total entries parsed: ${legislation.length}`);
   
