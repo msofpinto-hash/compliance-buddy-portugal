@@ -115,6 +115,8 @@ export function SyncPanel() {
   const [pdfIncompleteEuCount, setPdfIncompleteEuCount] = useState<number | null>(null);
   const [isAutoFixingPdfToZero, setIsAutoFixingPdfToZero] = useState(false);
   const [autoFixWave, setAutoFixWave] = useState<{ current: number; max: number } | null>(null);
+  const [runningPdfFixJobsCount, setRunningPdfFixJobsCount] = useState<number | null>(null);
+  const [maxRunningPdfFixJobs, setMaxRunningPdfFixJobs] = useState<number>(60);
 
   const LEGISLATION_TYPES = [
     { value: "all", label: "Todos os tipos" },
@@ -801,6 +803,23 @@ export function SyncPanel() {
     fetchPdfIncompleteCounts();
   }, [reimportDateFrom, reimportDateTo, reimportType]);
 
+  // Keep a lightweight polling of running pdf fix jobs (so we can block safely)
+  useEffect(() => {
+    let cancelled = false;
+
+    const tick = async () => {
+      const n = await fetchRunningPdfFixJobsCount();
+      if (!cancelled) setRunningPdfFixJobsCount(n);
+    };
+
+    tick();
+    const id = window.setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [maxRunningPdfFixJobs]);
+
   // Fetch metadata counts
   const fetchMetadataCounts = async () => {
     // Count EUR-Lex with generic titles
@@ -837,6 +856,22 @@ export function SyncPanel() {
     }
   };
 
+  const fetchRunningPdfFixJobsCount = async (): Promise<number> => {
+    try {
+      const { count, error } = await supabase
+        .from("sync_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "running")
+        .eq("sync_type", "fix_pdf_import");
+
+      if (error) throw error;
+      return count ?? 0;
+    } catch (e) {
+      console.error("fetchRunningPdfFixJobsCount error:", e);
+      return 0;
+    }
+  };
+
   const fetchPdfIncompleteCounts = async (): Promise<{ pt: number; eu: number }> => {
     try {
       // Incompletos PDF = registos source='pdf-import' com campos essenciais em falta.
@@ -870,6 +905,17 @@ export function SyncPanel() {
   };
 
   const launchPdfFixJobs = async (parallelJobs: number) => {
+    const runningNow = await fetchRunningPdfFixJobsCount();
+    setRunningPdfFixJobsCount(runningNow);
+    if (runningNow >= maxRunningPdfFixJobs) {
+      toast({
+        title: "Demasiados jobs em execução",
+        description: `Já existem ${runningNow} jobs a correr (limite: ${maxRunningPdfFixJobs}). Aguarde ou aumente o limite.`,
+        variant: "destructive",
+      });
+      return { ok: 0, failed: parallelJobs };
+    }
+
     const perJobLimit = 50;
 
     const results = await Promise.allSettled(
@@ -1149,6 +1195,16 @@ export function SyncPanel() {
         const currentTotal = counts.pt + counts.eu;
         if (currentTotal === 0) break;
 
+        const runningNow = await fetchRunningPdfFixJobsCount();
+        setRunningPdfFixJobsCount(runningNow);
+        if (runningNow >= maxRunningPdfFixJobs) {
+          toast({
+            title: "A aguardar jobs ativos",
+            description: `Já existem ${runningNow} jobs a correr (limite: ${maxRunningPdfFixJobs}). Vou parar por agora.`,
+          });
+          break;
+        }
+
         await launchPdfFixJobs(20);
 
         // Pausa para evitar demasiada concorrência e dar tempo aos jobs
@@ -1322,6 +1378,8 @@ export function SyncPanel() {
     if (syncType.includes('monthly')) return 'Mensal';
     return syncType.replace('eurlex-', '').replace('dre-', '');
   };
+
+  const pdfFixBlocked = (runningPdfFixJobsCount ?? 0) >= maxRunningPdfFixJobs;
 
   return (
     <div className="space-y-6">
@@ -2085,7 +2143,7 @@ https://dre.pt/application/file/..."
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={handleFixPdfImportToZero}
-                    disabled={isFixingPdfImport || isAutoFixingPdfToZero || pdfImportIssuesCount === 0}
+                    disabled={isFixingPdfImport || isAutoFixingPdfToZero || pdfImportIssuesCount === 0 || pdfFixBlocked}
                     size="sm"
                     variant="outline"
                     className="border-orange-300 text-orange-700 hover:bg-orange-50"
@@ -2100,7 +2158,7 @@ https://dre.pt/application/file/..."
 
                   <Button
                     onClick={() => handleFixPdfImportDataBurst(20)}
-                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0}
+                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0 || pdfFixBlocked}
                     size="sm"
                     variant="outline"
                     className="border-orange-300 text-orange-700 hover:bg-orange-50"
@@ -2115,7 +2173,7 @@ https://dre.pt/application/file/..."
 
                   <Button
                     onClick={handleFixPdfImportData}
-                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0}
+                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0 || pdfFixBlocked}
                     size="sm"
                     className="bg-orange-600 hover:bg-orange-700"
                   >
@@ -2140,6 +2198,32 @@ https://dre.pt/application/file/..."
                 {autoFixWave && (
                   <span className="ml-auto">Vaga {autoFixWave.current}/{autoFixWave.max}</span>
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                  <span>Jobs ativos (PDF fix):</span>
+                  <Badge variant="outline" className="border-orange-200">
+                    <span className="font-medium text-orange-700">{runningPdfFixJobsCount ?? "—"}</span>
+                  </Badge>
+                  {pdfFixBlocked && (
+                    <Badge variant="outline" className="border-orange-200">
+                      Limite atingido
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>Limite:</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={10}
+                    value={maxRunningPdfFixJobs}
+                    onChange={(e) => setMaxRunningPdfFixJobs(Math.max(0, Number(e.target.value || 0)))}
+                    className="h-8 w-24"
+                    disabled={isFixingPdfImport || isAutoFixingPdfToZero}
+                  />
+                </div>
               </div>
             </div>
           </div>
