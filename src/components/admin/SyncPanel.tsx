@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar, Rocket } from "lucide-react";
 import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
@@ -1034,6 +1034,57 @@ export function SyncPanel() {
     }
   };
 
+  const handleFixPdfImportDataBurst = async (parallelJobs: number = 20) => {
+    setIsFixingPdfImport(true);
+
+    try {
+      toast({
+        title: `A lançar ${parallelJobs} jobs em paralelo`,
+        description: "Isto acelera a correção (cada job tem timeout por item e não deve ficar preso).",
+      });
+
+      const perJobLimit = 50;
+
+      const results = await Promise.allSettled(
+        Array.from({ length: parallelJobs }).map(() =>
+          supabase.functions.invoke("complete-auto-imported-legislation", {
+            body: {
+              mode: "pdf_import_fix",
+              limit: perJobLimit,
+              includePT: true,
+              includeEU: true,
+              fixDates: true,
+              background: true,
+            },
+          })
+        )
+      );
+
+      const ok = results.filter((r) => r.status === "fulfilled" && !(r.value as any)?.error).length;
+      const failed = results.length - ok;
+
+      toast({
+        title: "Jobs lançados",
+        description: `${ok}/${parallelJobs} iniciados${failed ? ` (${failed} falharam)` : ""}. Acompanhe no banner de jobs e no histórico.`,
+        variant: failed ? "destructive" : undefined,
+      });
+
+      // Refresh counts soon (the jobs will update data asynchronously)
+      setTimeout(() => {
+        fetchMetadataCounts();
+      }, 1500);
+    } catch (error) {
+      console.error("Fix PDF import burst error:", error);
+      toast({
+        title: "Erro ao lançar jobs",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingPdfImport(false);
+    }
+  };
+
   const handleReimportIncomplete = async () => {
     setIsReimportingIncomplete(true);
     setReimportStats(null);
@@ -1930,7 +1981,7 @@ https://dre.pt/application/file/..."
               <p className="text-xs text-muted-foreground">
                 Corrige dados incompletos/inválidos da importação PDF: datas, URLs e sumários
               </p>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm">
                   {pdfImportIssuesCount !== null ? (
                     <span>
@@ -1940,19 +1991,36 @@ https://dre.pt/application/file/..."
                     <span className="text-muted-foreground">A verificar...</span>
                   )}
                 </span>
-                <Button
-                  onClick={handleFixPdfImportData}
-                  disabled={isFixingPdfImport || pdfImportIssuesCount === 0}
-                  size="sm"
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  {isFixingPdfImport ? (
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  ) : (
-                    <Wrench className="mr-2 h-3 w-3" />
-                  )}
-                  {isFixingPdfImport ? 'A corrigir...' : 'Corrigir Dados'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => handleFixPdfImportDataBurst(20)}
+                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0}
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    {isFixingPdfImport ? (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Rocket className="mr-2 h-3 w-3" />
+                    )}
+                    {isFixingPdfImport ? "A lançar..." : "Lançar 20 jobs"}
+                  </Button>
+
+                  <Button
+                    onClick={handleFixPdfImportData}
+                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0}
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    {isFixingPdfImport ? (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Wrench className="mr-2 h-3 w-3" />
+                    )}
+                    {isFixingPdfImport ? "A corrigir..." : "Corrigir Dados"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
