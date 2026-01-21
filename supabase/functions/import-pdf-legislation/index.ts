@@ -12,6 +12,7 @@ interface ParsedLegislation {
   summary: string | null;
   publicationDate: string | null;
   categoryPath: string;
+  origin: 'PT' | 'EU';
 }
 
 // Validate and sanitize dates - reject invalid years (> current+1 or < 1900)
@@ -36,6 +37,7 @@ function sanitizeDate(dateStr: string | null): string | null {
 }
 
 // Parse date from diploma number like "Portaria n.º 481/2025/1 de 31 de dezembro"
+// or "Regulamento Delegado (UE) 2025/2003 de 8 de setembro de 2025"
 function parseDateFromDiploma(diploma: string): string | null {
   const months: Record<string, string> = {
     'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
@@ -43,7 +45,19 @@ function parseDateFromDiploma(diploma: string): string | null {
     'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
   };
 
-  // Match patterns like "de 31 de dezembro" or "de 9 de maio"
+  // Match patterns like "de 31 de dezembro de 2025" or "de 9 de maio"
+  const dateMatchFull = diploma.match(/de\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+  if (dateMatchFull) {
+    const day = dateMatchFull[1].padStart(2, '0');
+    const monthName = dateMatchFull[2].toLowerCase();
+    const year = dateMatchFull[3];
+    const month = months[monthName];
+    if (month) {
+      return sanitizeDate(`${year}-${month}-${day}`);
+    }
+  }
+
+  // Match patterns like "de 31 de dezembro" and extract year from number
   const dateMatch = diploma.match(/de\s+(\d{1,2})\s+de\s+(\w+)$/i);
   if (dateMatch) {
     const day = dateMatch[1].padStart(2, '0');
@@ -51,7 +65,7 @@ function parseDateFromDiploma(diploma: string): string | null {
     const month = months[monthName];
     
     // Try to extract year from the diploma number
-    const yearMatch = diploma.match(/\/(\d{4})/);
+    const yearMatch = diploma.match(/(\d{4})/);
     if (yearMatch && month) {
       const result = `${yearMatch[1]}-${month}-${day}`;
       return sanitizeDate(result);
@@ -60,149 +74,147 @@ function parseDateFromDiploma(diploma: string): string | null {
   return null;
 }
 
-// Simple PDF text extraction using regex on raw PDF content
-// This works for text-based PDFs (not scanned images)
-function extractTextFromPdfBasic(bytes: Uint8Array): string {
-  const decoder = new TextDecoder('latin1');
-  const pdfContent = decoder.decode(bytes);
-  
-  const textParts: string[] = [];
-  
-  // Extract text from BT...ET blocks (PDF text objects)
-  const textObjectPattern = /BT[\s\S]*?ET/g;
-  const textObjects = pdfContent.match(textObjectPattern) || [];
-  
-  for (const textObj of textObjects) {
-    // Extract text from Tj and TJ operators
-    const tjPattern = /\(([^)]*)\)\s*Tj/g;
-    let match;
-    while ((match = tjPattern.exec(textObj)) !== null) {
-      const text = match[1]
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '')
-        .replace(/\\\(/g, '(')
-        .replace(/\\\)/g, ')')
-        .replace(/\\\\/g, '\\');
-      if (text.trim()) {
-        textParts.push(text);
-      }
-    }
-    
-    // Extract from TJ arrays
-    const tjArrayPattern = /\[((?:[^[\]]*|\[[^\]]*\])*)\]\s*TJ/gi;
-    while ((match = tjArrayPattern.exec(textObj)) !== null) {
-      const arrayContent = match[1];
-      const stringPattern = /\(([^)]*)\)/g;
-      let strMatch;
-      while ((strMatch = stringPattern.exec(arrayContent)) !== null) {
-        const text = strMatch[1]
-          .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '')
-          .replace(/\\\(/g, '(')
-          .replace(/\\\)/g, ')')
-          .replace(/\\\\/g, '\\');
-        if (text.trim()) {
-          textParts.push(text);
-        }
-      }
-    }
-  }
-  
-  // Also try to extract stream content that might contain readable text
-  const streamPattern = /stream\s*([\s\S]*?)\s*endstream/g;
-  let streamMatch;
-  while ((streamMatch = streamPattern.exec(pdfContent)) !== null) {
-    const streamContent = streamMatch[1];
-    // Look for readable text patterns in streams
-    const readableText = streamContent.match(/[A-Za-zÀ-ÿ0-9\s\.\,\;\:\-\(\)\/]{10,}/g);
-    if (readableText) {
-      for (const text of readableText) {
-        if (text.trim().length > 15 && !/^[0-9\s\.]+$/.test(text)) {
-          textParts.push(text.trim());
-        }
-      }
-    }
-  }
-  
-  const result = textParts.join(' ').replace(/\s+/g, ' ').trim();
-  console.log(`Extracted ${result.length} characters from PDF using basic extraction`);
-  return result;
-}
-
-// Parse the PDF text content to extract legislation entries
+// Parse the SIAWISE PDF text content to extract legislation entries
+// Format example:
+// "Portugal  Regulamento Delegado (UE) 2025/2003 de 8 de setembro de 2025     que altera o Regulamento..."
 function parsePdfContent(content: string): ParsedLegislation[] {
   const legislation: ParsedLegislation[] = [];
-  const lines = content.split('\n');
   
-  let currentCategory = '';
-  let currentDiploma = '';
-  let currentSummary = '';
+  // Normalize content - replace multiple spaces with single space, but keep structure hints
+  const normalizedContent = content
+    .replace(/\s{4,}/g, '\n') // Multiple spaces (4+) become newlines (separators)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
   
-  // Patterns to identify different elements
-  const categoryPattern = /^#?\s*(Ambiente|Segurança|Qualidade|Energia|Alimentar)\s*[\/\|]\s*(.+)$/i;
-  const diplomaPattern = /^(?:#\s*)?(Lei|Decreto-Lei|Decreto|Portaria|Despacho|Resolução|Regulamento|Declaração|Aviso|Acórdão|Deliberação|Diretiva|Decisão)\s+(?:n\.º\s*)?[\w\-\.\/]+.*(?:de\s+\d{1,2}\s+de\s+\w+)?/i;
+  console.log('Normalized content sample (first 3000 chars):', normalizedContent.substring(0, 3000));
+  
+  // Skip patterns for noise
   const skipPatterns = [
-    /^##\s*Page\s+\d+/i,
-    /^###\s*Images/i,
-    /^-\s*`parsed-documents/,
-    /^SAWISE/i,
-    /^QUALIDADE\s*I\s*AMBIENTE/i,
-    /^OUALIDADE\s*I\s*AMBIENTE/i,
-    /^Incredible and Dynamic/i,
     /^©\s*SIAWISE/i,
-    /^\d+\/\d+$/,
-    /^Mariana Pinto/i,
-    /^#\s*Legislação$/i,
-    /^#\s*Retificações/i,
-    /^#\s*Portarias$/i,
-    /^#\s*Resoluções$/i,
-    /^#\s*Despachos$/i,
+    /^\d+\/\d+$/, // Page numbers like "1/425"
+    /^Mariana\s+Pinto/i,
+    /^RELATÓRIO\s+LEGISLAÇÃO/i,
+    /qualidade\s+comunitário/i,
+    /^\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}/, // Date timestamps
   ];
   
+  // Diploma pattern - matches EU and PT legislation types
+  // Examples:
+  // - "Regulamento Delegado (UE) 2025/2003 de 8 de setembro de 2025"
+  // - "Regulamento de Execução (UE) 2025/1197 de 19 de junho de 2025"
+  // - "Retificação do Regulamento (UE) 2021/821 de 20 de maio de 2021, de 2 de abril de 2025"
+  // - "Lei n.º 123/2024 de 15 de março"
+  // - "Decreto-Lei n.º 45/2024 de 10 de janeiro"
+  const euDiplomaPattern = /^(Regulamento(?:\s+(?:Delegado|de\s+Execução))?|Retificação\s+d[oa]\s+Regulamento|Diretiva|Decisão|Recomendação|Parecer)\s*\((?:UE|CE|CEE)\)\s*(?:n\.?º?\s*)?(\d{4}\/\d+|\d+\/\d{4})/i;
+  
+  const ptDiplomaPattern = /^(Lei|Decreto-Lei|Decreto|Portaria|Despacho|Resolução|Regulamento|Declaração|Aviso|Acórdão|Deliberação)\s+(?:n\.?º?\s*)?([\w\-\.\/]+)/i;
+  
+  // Country markers
+  const countryPatterns = {
+    'Portugal': 'PT',
+    'União Europeia': 'EU',
+    'Comunitário': 'EU',
+    'Europa': 'EU',
+  };
+  
+  // Category/theme markers
+  const themeMarkers = ['Qualidade', 'Ambiente', 'Segurança', 'Energia', 'Alimentar', 'SST', 'Geral'];
+  
+  // Split by newlines for processing
+  const lines = normalizedContent.split('\n');
+  
+  let currentCategory = '';
+  let currentOrigin: 'PT' | 'EU' = 'PT';
+  let currentDiploma = '';
+  let currentSummary = '';
+  let entriesFound = 0;
+  
   const saveCurrent = () => {
-    if (currentDiploma && currentCategory) {
-      // Clean up the diploma text
-      const cleanDiploma = currentDiploma.replace(/^#\s*/, '').trim();
+    if (currentDiploma) {
+      const cleanDiploma = currentDiploma.trim();
       const cleanSummary = currentSummary.trim();
+      
+      // Skip if summary starts with lowercase (continuation of number, not real summary)
+      // A real summary starts with lowercase "que", "para", "relativo", etc.
+      const validSummary = cleanSummary && 
+        (cleanSummary.match(/^(que|para|relativ|sobre|referente|estabelece|altera|cria|institui|aprova|fixa|define|determina|transpõe|regulament)/i) ||
+         cleanSummary.length > 30);
       
       legislation.push({
         number: cleanDiploma,
         title: cleanDiploma,
-        summary: cleanSummary || null,
+        summary: validSummary ? cleanSummary : null,
         publicationDate: parseDateFromDiploma(cleanDiploma),
-        categoryPath: currentCategory
+        categoryPath: currentCategory || 'Geral',
+        origin: currentOrigin
       });
+      entriesFound++;
+      
+      if (entriesFound <= 5) {
+        console.log(`Found diploma ${entriesFound}: "${cleanDiploma.substring(0, 80)}..." origin=${currentOrigin}`);
+      }
     }
     currentDiploma = '';
     currentSummary = '';
   };
   
-  for (const line of lines) {
-    const trimmedLine = line.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let trimmedLine = line.trim();
     
     // Skip empty lines and noise
     if (!trimmedLine) continue;
     if (skipPatterns.some(p => p.test(trimmedLine))) continue;
     
-    // Check if it's a category header
-    const categoryMatch = trimmedLine.match(categoryPattern);
-    if (categoryMatch) {
-      saveCurrent();
-      currentCategory = trimmedLine.replace(/^#\s*/, '').trim();
-      continue;
+    // Check for country marker at start of line
+    let foundCountry = false;
+    for (const [countryName, origin] of Object.entries(countryPatterns)) {
+      if (trimmedLine.startsWith(countryName)) {
+        currentOrigin = origin as 'PT' | 'EU';
+        // Remove the country prefix from the line
+        trimmedLine = trimmedLine.substring(countryName.length).trim();
+        foundCountry = true;
+        break;
+      }
     }
     
-    // Check if it's a diploma entry
-    if (diplomaPattern.test(trimmedLine)) {
+    // Check for theme/category marker
+    for (const theme of themeMarkers) {
+      if (trimmedLine.toLowerCase().startsWith(theme.toLowerCase()) && trimmedLine.length < 50) {
+        currentCategory = theme;
+        continue;
+      }
+    }
+    
+    // Check if this is an EU diploma
+    const euMatch = trimmedLine.match(euDiplomaPattern);
+    if (euMatch) {
       saveCurrent();
       currentDiploma = trimmedLine;
+      currentOrigin = 'EU';
       continue;
     }
     
-    // If we have a current diploma and this line is text, it's probably the summary
+    // Check if this is a PT diploma
+    const ptMatch = trimmedLine.match(ptDiplomaPattern);
+    if (ptMatch) {
+      saveCurrent();
+      currentDiploma = trimmedLine;
+      if (currentOrigin !== 'EU') {
+        currentOrigin = 'PT';
+      }
+      continue;
+    }
+    
+    // If we have a current diploma and this line starts with lowercase, it's likely the summary
     if (currentDiploma && trimmedLine.length > 10) {
-      // Skip if it looks like another category or noise
-      if (!trimmedLine.startsWith('#') && !trimmedLine.startsWith('-')) {
+      // Starts with lowercase = summary continuation
+      const startsWithLower = /^[a-zàáâãéêíóôõúç]/.test(trimmedLine);
+      // Or starts with known summary starters
+      const isSummary = startsWithLower || 
+        /^(que|para|relativ|sobre|referente|estabelece|altera|cria|institui)/i.test(trimmedLine);
+      
+      if (isSummary) {
         if (currentSummary) {
           currentSummary += ' ' + trimmedLine;
         } else {
@@ -215,6 +227,8 @@ function parsePdfContent(content: string): ParsedLegislation[] {
   // Don't forget the last entry
   saveCurrent();
   
+  console.log(`Total entries parsed: ${legislation.length}`);
+  
   return legislation;
 }
 
@@ -224,13 +238,10 @@ async function findMatchingCategory(
   categoryPath: string,
   categoriesCache: Map<string, { id: string; theme_id: string; name: string; parent_id: string | null }[]>
 ): Promise<string | null> {
-  // Split the category path: "Ambiente / Legislação Nacional / Água / Mar, Oceanos e Orla Costeira"
-  const parts = categoryPath.split(/[\/\|]/).map(p => p.trim()).filter(p => p);
+  // Simple theme name mapping
+  const themeName = categoryPath.split(/[\/\|]/)[0].trim();
   
-  if (parts.length < 2) return null;
-  
-  const themeName = parts[0]; // e.g., "Ambiente"
-  const subCategories = parts.slice(1); // Rest of the path
+  if (!themeName) return null;
   
   // Get all categories for this theme
   let themeCategories = categoriesCache.get(themeName);
@@ -238,10 +249,31 @@ async function findMatchingCategory(
     const { data: theme } = await supabase
       .from('themes')
       .select('id')
-      .ilike('name', themeName)
+      .ilike('name', `%${themeName}%`)
       .maybeSingle();
     
-    if (!theme) return null;
+    if (!theme) {
+      // Try to find any theme with a similar name
+      const { data: anyTheme } = await supabase
+        .from('themes')
+        .select('id, name')
+        .limit(1)
+        .single();
+      
+      if (!anyTheme) return null;
+      
+      const { data: categories } = await supabase
+        .from('theme_categories')
+        .select('id, name, parent_id, theme_id')
+        .eq('theme_id', anyTheme.id)
+        .is('parent_id', null) // Get root categories
+        .limit(1);
+      
+      if (categories && categories.length > 0) {
+        return categories[0].id;
+      }
+      return null;
+    }
     
     const { data: categories } = await supabase
       .from('theme_categories')
@@ -254,37 +286,9 @@ async function findMatchingCategory(
   
   if (!themeCategories || themeCategories.length === 0) return null;
   
-  // Try to find the deepest matching category
-  // Start from the last subcategory and work backwards
-  for (let i = subCategories.length - 1; i >= 0; i--) {
-    const searchTerm = subCategories[i].toLowerCase();
-    
-    // Try exact match first
-    let match = themeCategories.find(c => 
-      c.name.toLowerCase() === searchTerm
-    );
-    
-    // Try partial match
-    if (!match) {
-      match = themeCategories.find(c => 
-        c.name.toLowerCase().includes(searchTerm) ||
-        searchTerm.includes(c.name.toLowerCase())
-      );
-    }
-    
-    // Try fuzzy match on key words
-    if (!match) {
-      const keywords = searchTerm.split(/\s+/).filter(w => w.length > 3);
-      match = themeCategories.find(c => {
-        const catName = c.name.toLowerCase();
-        return keywords.some(kw => catName.includes(kw));
-      });
-    }
-    
-    if (match) return match.id;
-  }
-  
-  return null;
+  // Return the first root category for this theme
+  const rootCategory = themeCategories.find(c => !c.parent_id);
+  return rootCategory?.id || themeCategories[0]?.id || null;
 }
 
 serve(async (req) => {
@@ -357,38 +361,34 @@ serve(async (req) => {
       textToProcess = textContent;
       console.log(`Text content length: ${textToProcess.length} characters`);
     } else {
-      // PDF content provided - check size limits
-      const pdfSizeBytes = pdfContent.length * 0.75; // base64 to bytes approximation
-      const maxSizeMB = 2; // Max 2MB for PDF processing
-      const maxSizeBytes = maxSizeMB * 1024 * 1024;
-      
-      console.log(`PDF content length: ${pdfContent.length} base64 characters (~${(pdfSizeBytes / 1024 / 1024).toFixed(1)}MB)`);
-      
-      if (pdfSizeBytes > maxSizeBytes) {
-        return new Response(
-          JSON.stringify({ 
-            error: `O ficheiro PDF é demasiado grande (${(pdfSizeBytes / 1024 / 1024).toFixed(1)}MB). Limite: ${maxSizeMB}MB. Por favor, use o campo "textContent" enviando o texto já extraído do PDF, ou divida o documento em partes menores.`,
-            suggestion: 'Use uma ferramenta externa para extrair o texto do PDF e envie-o no campo textContent.'
-          }),
-          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      console.log('Extracting text from PDF...');
-      
-      // Decode base64 to Uint8Array
-      const binaryString = atob(pdfContent);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      textToProcess = extractTextFromPdfBasic(bytes);
-      console.log(`Extracted text length: ${textToProcess.length} characters`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Por favor forneça o texto já extraído do PDF no campo textContent.',
+          suggestion: 'A extração de PDF é feita no lado do cliente para melhor performance.'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     const parsedLegislation = parsePdfContent(textToProcess);
     console.log(`Parsed ${parsedLegislation.length} legislation entries`);
+
+    if (parsedLegislation.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Não foram encontrados diplomas no texto. Verifique se o formato é compatível.',
+          stats: {
+            totalParsed: 0,
+            created: 0,
+            skipped: 0,
+            mappingsCreated: 0,
+            errors: []
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get existing legislation to avoid duplicates
     const { data: existingLegislation } = await supabase
@@ -406,20 +406,11 @@ serve(async (req) => {
     const errors: string[] = [];
 
     for (const leg of parsedLegislation) {
-      // Skip if already exists
-      if (existingNumbers.has(leg.number.toLowerCase().trim())) {
+      // Skip if already exists (check with some normalization)
+      const normalizedNumber = leg.number.toLowerCase().trim().replace(/\s+/g, ' ');
+      if (existingNumbers.has(normalizedNumber)) {
         skipped++;
         continue;
-      }
-
-      // Determine origin
-      let origin = 'PT';
-      const lowerNumber = leg.number.toLowerCase();
-      if (lowerNumber.includes('regulamento (ue)') || 
-          lowerNumber.includes('diretiva') ||
-          lowerNumber.includes('decisão (ue)') ||
-          lowerNumber.includes('regulamento de execução')) {
-        origin = 'EU';
       }
 
       // Create legislation
@@ -430,7 +421,7 @@ serve(async (req) => {
           title: leg.title,
           summary: leg.summary,
           publication_date: leg.publicationDate,
-          origin: origin,
+          origin: leg.origin,
           source: 'pdf-import'
         })
         .select('id')
@@ -442,7 +433,7 @@ serve(async (req) => {
       }
 
       created++;
-      existingNumbers.add(leg.number.toLowerCase().trim());
+      existingNumbers.add(normalizedNumber);
 
       // Find and create category mapping
       const categoryId = await findMatchingCategory(supabase, leg.categoryPath, categoriesCache);
