@@ -186,54 +186,128 @@ function extractLegislationParts(number: string): { type: string; num: string; y
   return null;
 }
 
+// Build simpler search queries for better results
+function buildSearchQueries(number: string, parts: { type: string; num: string; year: string } | null): string[] {
+  const queries: string[] = [];
+  
+  if (parts) {
+    // Strategy 1: Simple type + number/year (most effective)
+    const simpleType = parts.type.replace(/-/g, ' ');
+    queries.push(`${simpleType} ${parts.num}/${parts.year} site:dre.pt`);
+    
+    // Strategy 2: Use "decreto lei" format without hyphens
+    queries.push(`${simpleType} ${parts.num} ${parts.year} diariodarepublica.pt`);
+    
+    // Strategy 3: Quoted full reference
+    queries.push(`"${simpleType} n.º ${parts.num}/${parts.year}" site:dre.pt`);
+    
+    // Strategy 4: Just the core reference on DRE
+    queries.push(`${parts.num}/${parts.year} ${simpleType} site:diariodarepublica.pt`);
+  }
+  
+  // Fallback: use cleaned number
+  const cleanNumber = number.split(',')[0].trim()
+    .replace(/n\.º\s*/gi, '')
+    .replace(/\s+de\s+\d+.*$/, ''); // Remove date suffix
+  
+  if (!queries.some(q => q.includes(cleanNumber))) {
+    queries.push(`${cleanNumber} site:dre.pt`);
+  }
+  
+  return queries;
+}
+
+// Validate that URL matches the legislation we're looking for
+function validateUrlMatch(url: string, parts: { type: string; num: string; year: string } | null): boolean {
+  if (!url.includes('/dr/detalhe/') && !url.includes('dre.pt/')) {
+    return false;
+  }
+  
+  // Extract the last part of the URL to check the type
+  const urlLower = url.toLowerCase();
+  
+  if (parts) {
+    // Check if the type appears in the URL
+    const typeInUrl = urlLower.includes(parts.type.toLowerCase()) ||
+                      urlLower.includes(parts.type.replace(/-/g, ''));
+    
+    // Check if the number appears in the URL  
+    const numInUrl = urlLower.includes(parts.num.toLowerCase());
+    
+    // If both type and number are in URL, it's likely a good match
+    if (typeInUrl && numInUrl) {
+      return true;
+    }
+    
+    // At minimum, the URL should be from DRE
+    if (urlLower.includes('diariodarepublica.pt') || urlLower.includes('dre.pt')) {
+      return true;
+    }
+  }
+  
+  return urlLower.includes('diariodarepublica.pt') || urlLower.includes('dre.pt');
+}
+
 async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string): Promise<string | null> {
   try {
-    // Use Firecrawl's search API to find the legislation on DRE
     const parts = extractLegislationParts(number);
-    let searchQuery: string;
+    const queries = buildSearchQueries(number, parts);
     
-    if (parts) {
-      searchQuery = `site:diariodarepublica.pt/dr/detalhe ${parts.type} ${parts.num}/${parts.year}`;
-    } else {
-      // Fallback to simple search
-      const cleanNumber = number.split(',')[0].trim();
-      searchQuery = `site:diariodarepublica.pt/dr/detalhe "${cleanNumber}"`;
-    }
-    
-    console.log(`Searching with Firecrawl: ${searchQuery}`);
-    
-    const response = await fetch('https://api.firecrawl.dev/v1/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        limit: 5,
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log(`Search failed: ${response.status} - ${errorText}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    const results = data.data || [];
-    
-    console.log(`Found ${results.length} search results`);
-    
-    // Find the best matching result
-    for (const result of results) {
-      const url = result.url || '';
-      if (url.includes('/dr/detalhe/') && url.includes('diariodarepublica.pt')) {
-        console.log(`Found DRE link: ${url}`);
-        return url;
+    // Try each query strategy until we find a result
+    for (const searchQuery of queries) {
+      console.log(`Trying search: ${searchQuery}`);
+      
+      const response = await fetch('https://api.firecrawl.dev/v1/search', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${firecrawlKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          limit: 5,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log(`Search failed: ${response.status} - ${errorText}`);
+        continue; // Try next query
       }
+      
+      const data = await response.json();
+      const results = data.data || [];
+      
+      console.log(`Query returned ${results.length} results`);
+      
+      // Find the best matching result
+      for (const result of results) {
+        const url = result.url || '';
+        
+        // Prefer /dr/detalhe/ URLs
+        if (url.includes('/dr/detalhe/')) {
+          if (validateUrlMatch(url, parts)) {
+            console.log(`Found DRE detail link: ${url}`);
+            return url;
+          }
+        }
+      }
+      
+      // Secondary pass: accept any DRE URL
+      for (const result of results) {
+        const url = result.url || '';
+        if ((url.includes('diariodarepublica.pt') || url.includes('dre.pt')) && 
+            validateUrlMatch(url, parts)) {
+          console.log(`Found DRE link: ${url}`);
+          return url;
+        }
+      }
+      
+      // Small delay between query attempts
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
+    console.log(`No URL found for: ${number} after trying ${queries.length} queries`);
     return null;
   } catch (error) {
     console.error(`Error in search: ${error}`);
