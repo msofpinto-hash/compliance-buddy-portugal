@@ -142,35 +142,42 @@ export function DataFixPanel() {
   const { data: stats, isLoading, refetch } = useQuery({
     queryKey: ["data-fix-stats-unified"],
     queryFn: async (): Promise<FixStats> => {
-      // Count duplicate groups by fetching legislation and grouping by normalized number
-      const { data: legNumbers } = await supabase
-        .from("legislation")
-        .select("id, number");
-      
-      // Count duplicates using normalized number logic
-      const normalizeNumber = (num: string): string => {
-        return num
-          .toLowerCase()
-          .replace(/\s+/g, "")
-          .replace(/n\.?º?\s*/gi, "")
-          .replace(/[–—−]/g, "-")
-          .replace(/,/g, "")
-          .trim();
-      };
-      
-      const groups = new Map<string, string[]>();
-      for (const item of legNumbers || []) {
-        const normalized = normalizeNumber(item.number);
-        if (!groups.has(normalized)) {
-          groups.set(normalized, []);
-        }
-        groups.get(normalized)!.push(item.id);
-      }
+      // For duplicates: check if there's a running/recent job with count info
+      // If so, use that. Otherwise, do a quick sample-based estimate
+      const { data: recentDupJob } = await supabase
+        .from("sync_logs")
+        .select("items_added, items_processed, status")
+        .eq("sync_type", "duplicate_cleanup")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       
       let duplicateCount = 0;
-      for (const [, ids] of groups) {
-        if (ids.length > 1) {
-          duplicateCount += ids.length - 1; // Count redundant records
+      if (recentDupJob && recentDupJob.items_added) {
+        // items_added = total groups found, items_processed = groups already merged
+        const totalGroups = recentDupJob.items_added || 0;
+        const processed = recentDupJob.items_processed || 0;
+        duplicateCount = Math.max(0, totalGroups - processed);
+      } else {
+        // Do a quick sample-based count (fetch first 3000 records)
+        const { data: legNumbers } = await supabase
+          .from("legislation")
+          .select("number")
+          .limit(3000);
+        
+        const normalizeNumber = (num: string): string => {
+          return num.toLowerCase().replace(/\s+/g, "").replace(/n\.?º?\s*/gi, "")
+            .replace(/[–—−]/g, "-").replace(/,/g, "").trim();
+        };
+        
+        const groups = new Map<string, number>();
+        for (const item of legNumbers || []) {
+          const normalized = normalizeNumber(item.number);
+          groups.set(normalized, (groups.get(normalized) || 0) + 1);
+        }
+        
+        for (const [, count] of groups) {
+          if (count > 1) duplicateCount += count - 1;
         }
       }
 
