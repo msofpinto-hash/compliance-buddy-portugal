@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Plus, Copy } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { Theme, ThemeCategory } from "@/hooks/useThemes";
+import { useThemes, type Theme, type ThemeCategory } from "@/hooks/useThemes";
 
 interface CreateCategoryDialogProps {
   theme: Theme | null;
@@ -30,8 +32,13 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
   const [parentId, setParentId] = useState<string | null>(initialParentId || null);
   const [keywords, setKeywords] = useState("");
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [cloneToThemes, setCloneToThemes] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Get all themes for clone selection
+  const { data: allThemes } = useThemes();
+  const otherThemes = allThemes?.filter(t => t.id !== theme?.id) || [];
 
   // Check for duplicate category at the same level
   const checkDuplicate = (categoryName: string, parent: string | null): boolean => {
@@ -66,6 +73,14 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
     }
   };
 
+  const toggleCloneTheme = (themeId: string) => {
+    setCloneToThemes(prev => 
+      prev.includes(themeId) 
+        ? prev.filter(id => id !== themeId)
+        : [...prev, themeId]
+    );
+  };
+
   // Reset form when dialog opens with new initial parent
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
@@ -73,6 +88,7 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
       setName("");
       setKeywords("");
       setDuplicateError(null);
+      setCloneToThemes([]);
     }
     onOpenChange(newOpen);
   };
@@ -86,12 +102,6 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
       if (!cat) return "";
       if (!cat.parent_id) return cat.name;
       return `${buildPath(cat.parent_id)} > ${cat.name}`;
-    };
-
-    const getLevel = (catId: string): number => {
-      const cat = categories.find(c => c.id === catId);
-      if (!cat || !cat.parent_id) return 0;
-      return 1 + getLevel(cat.parent_id);
     };
 
     const addCategoryAndChildren = (parentId: string | null, level: number) => {
@@ -124,27 +134,62 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
         .map(k => k.trim())
         .filter(k => k.length > 0);
 
-      const { error } = await supabase
+      // Create in main theme
+      const { data: mainCategory, error } = await supabase
         .from("theme_categories")
         .insert({
           theme_id: theme.id,
           name,
           parent_id: parentId,
           keywords: keywordsArray.length > 0 ? keywordsArray : null,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Add link to main theme
+      await supabase
+        .from("category_theme_links")
+        .insert({ category_id: mainCategory.id, theme_id: theme.id });
+
+      // Create clones in other themes if selected
+      for (const cloneThemeId of cloneToThemes) {
+        const { data: cloneCat, error: cloneError } = await supabase
+          .from("theme_categories")
+          .insert({
+            theme_id: cloneThemeId,
+            name,
+            parent_id: null, // Clones are top-level in their themes
+            keywords: keywordsArray.length > 0 ? keywordsArray : null,
+          })
+          .select()
+          .single();
+
+        if (cloneError) throw cloneError;
+
+        // Add link to clone theme
+        await supabase
+          .from("category_theme_links")
+          .insert({ category_id: cloneCat.id, theme_id: cloneThemeId });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["theme-categories"] });
       queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories-with-theme-links"] });
+      
+      const cloneCount = cloneToThemes.length;
       toast({
         title: "Categoria criada",
-        description: `A categoria "${name}" foi criada com sucesso`,
+        description: cloneCount > 0 
+          ? `A categoria "${name}" foi criada com ${cloneCount} clone(s)`
+          : `A categoria "${name}" foi criada com sucesso`,
       });
       setName("");
       setParentId(null);
       setKeywords("");
+      setCloneToThemes([]);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -221,6 +266,43 @@ export function CreateCategoryDialog({ theme, categories, initialParentId, open,
               Separadas por vírgula. Usadas para categorização automática.
             </p>
           </div>
+
+          {/* Clone to other themes */}
+          {otherThemes.length > 0 && !parentId && (
+            <div className="space-y-2 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200/50 dark:border-blue-800/30">
+              <Label className="flex items-center gap-2">
+                <Copy className="h-4 w-4 text-blue-600" />
+                Criar clone noutros temas
+              </Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Cria uma cópia independente desta categoria nos temas selecionados
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {otherThemes.map(t => (
+                  <div 
+                    key={t.id}
+                    onClick={() => toggleCloneTheme(t.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
+                      cloneToThemes.includes(t.id)
+                        ? "bg-blue-100 dark:bg-blue-900/40 border-blue-400 dark:border-blue-600"
+                        : "bg-muted/30 border-transparent hover:border-muted"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={cloneToThemes.includes(t.id)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="text-sm">{t.name}</span>
+                  </div>
+                ))}
+              </div>
+              {cloneToThemes.length > 0 && (
+                <Badge variant="secondary" className="mt-2">
+                  {cloneToThemes.length} clone(s) serão criados
+                </Badge>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
