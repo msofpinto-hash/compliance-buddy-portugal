@@ -21,20 +21,43 @@ interface UrlFixResult {
 
 // Generate DRE URL from legislation number
 function generateDreUrl(number: string): string | null {
-  // Pattern: Lei n.º 123/2020, Decreto-Lei n.º 456/99, etc.
-  const match = number.match(/(\d+)\/(\d{2,4})/);
-  if (!match) return null;
-
-  const num = match[1];
-  let year = match[2];
+  const text = number.toUpperCase();
   
-  // Convert 2-digit year to 4-digit
-  if (year.length === 2) {
-    const yearNum = parseInt(year);
-    year = yearNum <= 30 ? `20${year}` : `19${year}`;
+  // Try to extract document type and number/year
+  // Pattern 1: Lei n.º 123/2020, Decreto-Lei n.º 456/99, Portaria n.º 1102-G/2000
+  const modernMatch = text.match(/(\d+)(?:-[A-Z]+)?\/(\d{2,4})/);
+  if (modernMatch) {
+    const num = modernMatch[1];
+    let year = modernMatch[2];
+    
+    // Convert 2-digit year to 4-digit
+    if (year.length === 2) {
+      const yearNum = parseInt(year);
+      year = yearNum <= 30 ? `20${year}` : `19${year}`;
+    }
+    
+    // Determine document type for URL
+    let docType = "lei";
+    if (/DECRETO-LEI/i.test(text)) docType = "decreto-lei";
+    else if (/DECRETO\s+REGULAMENTAR/i.test(text)) docType = "decreto-regulamentar";
+    else if (/DECRETO/i.test(text)) docType = "decreto";
+    else if (/PORTARIA/i.test(text)) docType = "portaria";
+    else if (/DESPACHO/i.test(text)) docType = "despacho";
+    else if (/RESOLUÇÃO/i.test(text)) docType = "resolucao-do-conselho-de-ministros";
+    
+    // Try detailed page format first
+    return `https://diariodarepublica.pt/dr/detalhe/${docType}/${num}-${year}`;
   }
-
-  return `https://diariodarepublica.pt/dr/legislacao-consolidada/legislacao-consolidada/${year}/${num}`;
+  
+  // Pattern 2: Old format - Decreto n.º 45458 (number without year separator)
+  const oldMatch = text.match(/(?:DECRETO|LEI)\s+(?:N\.?[º°]?\s*)?(\d{5,})/i);
+  if (oldMatch) {
+    const num = oldMatch[1];
+    // Old decrees are typically pre-1974
+    return `https://diariodarepublica.pt/dr/detalhe/decreto/${num}`;
+  }
+  
+  return null;
 }
 
 // Generate EUR-Lex URL from legislation number
