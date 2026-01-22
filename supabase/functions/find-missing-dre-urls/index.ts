@@ -82,8 +82,8 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     'decreto': 'decreto',
   };
   
-  // PATTERN 1: NUMBER/YEAR/SERIES format (e.g., "Aviso n.º 5324/2025/2")
-  // This is priority because it's a common format that was being missed
+  // PATTERN 1: NUMBER/YEAR/SERIES format (e.g., "Aviso n.º 5324/2025/2" or "Aviso n.º 1046/2026/2 de 20 de janeiro")
+  // This is priority because it's a common format - handles optional date suffix
   const seriesPatterns = [
     /^(Aviso|Av)\s+n?\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
