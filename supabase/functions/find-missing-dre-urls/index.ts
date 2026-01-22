@@ -248,14 +248,17 @@ function validateUrlMatch(url: string, parts: { type: string; num: string; year:
   return urlLower.includes('diariodarepublica.pt') || urlLower.includes('dre.pt');
 }
 
-async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string): Promise<string | null> {
+async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string, retryCount = 0): Promise<string | null> {
+  const MAX_RETRIES = 3;
+  
   try {
     const parts = extractLegislationParts(number);
     const queries = buildSearchQueries(number, parts);
     
     // Try each query strategy until we find a result
-    for (const searchQuery of queries) {
-      console.log(`Trying search: ${searchQuery}`);
+    for (let i = 0; i < queries.length; i++) {
+      const searchQuery = queries[i];
+      console.log(`[${i+1}/${queries.length}] Searching: ${searchQuery}`);
       
       const response = await fetch('https://api.firecrawl.dev/v1/search', {
         method: 'POST',
@@ -269,16 +272,31 @@ async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string
         }),
       });
       
+      // Handle rate limiting with exponential backoff
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('retry-after') || '30', 10);
+        const waitTime = Math.min(retryAfter * 1000, 60000); // Max 60 seconds
+        
+        if (retryCount < MAX_RETRIES) {
+          console.log(`Rate limited. Waiting ${waitTime/1000}s before retry ${retryCount + 1}/${MAX_RETRIES}...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          return searchDREWithFirecrawlSearch(number, firecrawlKey, retryCount + 1);
+        } else {
+          console.log(`Rate limited. Max retries (${MAX_RETRIES}) reached for ${number}`);
+          return null;
+        }
+      }
+      
       if (!response.ok) {
         const errorText = await response.text();
-        console.log(`Search failed: ${response.status} - ${errorText}`);
+        console.log(`Search failed: ${response.status} - ${errorText.substring(0, 100)}`);
         continue; // Try next query
       }
       
       const data = await response.json();
       const results = data.data || [];
       
-      console.log(`Query returned ${results.length} results`);
+      console.log(`Got ${results.length} results`);
       
       // Find the best matching result
       for (const result of results) {
@@ -287,7 +305,7 @@ async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string
         // Prefer /dr/detalhe/ URLs
         if (url.includes('/dr/detalhe/')) {
           if (validateUrlMatch(url, parts)) {
-            console.log(`Found DRE detail link: ${url}`);
+            console.log(`✓ Found: ${url}`);
             return url;
           }
         }
@@ -298,19 +316,19 @@ async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string
         const url = result.url || '';
         if ((url.includes('diariodarepublica.pt') || url.includes('dre.pt')) && 
             validateUrlMatch(url, parts)) {
-          console.log(`Found DRE link: ${url}`);
+          console.log(`✓ Found (secondary): ${url}`);
           return url;
         }
       }
       
-      // Small delay between query attempts
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Delay between query attempts (1.5s to respect rate limits)
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
     
-    console.log(`No URL found for: ${number} after trying ${queries.length} queries`);
+    console.log(`✗ No URL for: ${number}`);
     return null;
   } catch (error) {
-    console.error(`Error in search: ${error}`);
+    console.error(`Error searching ${number}: ${error}`);
     return null;
   }
 }
@@ -402,9 +420,10 @@ async function processInBackground(
     
     console.log(`[Batch ${batchNum}/${totalBatches}] Done. Total: ${found} found, ${failed} failed`);
     
-    // Small delay between batches to avoid rate limiting (500ms instead of 2s per item)
+    // Delay between batches to respect rate limits (3s between batches)
     if (batchStart + concurrency < legislation.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log(`Waiting 3s before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
   
@@ -429,7 +448,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 100, dryRun = false, stream = false, background = false, concurrency = 5 } = await req.json().catch(() => ({}));
+    const { limit = 50, dryRun = false, stream = false, background = false, concurrency = 2 } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
