@@ -413,12 +413,14 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get PT legislation without valid DRE URLs
+    // Get PT legislation without valid DRE URLs (order by most recent first)
     const { data: legislation, error: fetchError } = await supabase
       .from('legislation')
-      .select('id, number, title, document_url, origin')
-      .or('origin.eq.PT,origin.eq.dre')
-      .limit(1000);
+      .select('id, number, title, document_url, origin, no_digital_version')
+      .in('origin', ['PT', 'dre'])
+      .or('document_url.is.null,document_url.eq.')
+      .order('created_at', { ascending: false })
+      .limit(2000);
     
     if (fetchError) {
       throw fetchError;
@@ -429,6 +431,9 @@ Deno.serve(async (req) => {
       .filter(leg => {
         // Must be PT origin
         if (!leg.origin || !['PT', 'dre'].includes(leg.origin)) return false;
+        
+        // Skip if already marked as no digital version
+        if (leg.no_digital_version === true) return false;
         
         // Must NOT have a valid DRE detail URL
         const hasValidUrl = leg.document_url && leg.document_url.includes('/dr/detalhe/');
