@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Link, Calendar, Type, FileText, Building2, ListChecks, GitBranch,
-  ChevronDown, Loader2, Wrench, RefreshCw, Zap, Play
+  ChevronDown, Loader2, Wrench, RefreshCw, Zap, Play, Pause, CheckCircle2
 } from "lucide-react";
 
 // Import existing panels
@@ -16,17 +17,31 @@ import { UrlHealthPanel } from "./UrlHealthPanel";
 import { DateAnomaliesPanel } from "./DateAnomaliesPanel";
 import { PdfDataFixPanel } from "./PdfDataFixPanel";
 import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
+import { ActiveJobsBanner } from "./ActiveJobsBanner";
+
+interface FixStats {
+  urls: number;
+  dates: number;
+  titles: number;
+  summaries: number;
+  entities: number;
+  requirements: number;
+  relations: number;
+}
+
+type FixType = "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations";
 
 export function DataFixPanel() {
-  const queryClient = useQueryClient();
+  const [isAutoFixing, setIsAutoFixing] = useState(false);
+  const [currentFix, setCurrentFix] = useState<FixType | null>(null);
 
-  // Fetch quick stats
+  // Fetch quick stats with auto-refresh when auto-fixing
   const { data: stats, isLoading, refetch } = useQuery({
     queryKey: ["data-fix-stats"],
-    queryFn: async () => {
+    queryFn: async (): Promise<FixStats> => {
       const [urlsResult, datesResult, titlesResult, summariesResult, entitiesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
-          .is("document_url", null).eq("no_digital_version", false),
+          .is("document_url", null).or("no_digital_version.is.null,no_digital_version.eq.false"),
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .is("publication_date", null),
         supabase.from("legislation").select("id, title, number").limit(1000),
@@ -62,13 +77,15 @@ export function DataFixPanel() {
         relations: Math.max(0, (totalLegResult.count || 0) - (processedRelationsResult.count || 0)),
       };
     },
-    staleTime: 60000,
+    staleTime: 10000,
+    refetchInterval: isAutoFixing ? 5000 : false,
   });
 
   const total = (stats?.urls || 0) + (stats?.dates || 0) + (stats?.titles || 0) + 
                 (stats?.summaries || 0) + (stats?.entities || 0);
 
-  const handleQuickFix = async (type: string) => {
+  // Execute a single fix
+  const executeFix = useCallback(async (type: FixType): Promise<boolean> => {
     try {
       let functionName = "";
       let body = {};
@@ -92,7 +109,7 @@ export function DataFixPanel() {
           break;
         case "requirements":
           functionName = "extract-requirements-background";
-          body = { batchSize: 50, maxBatches: 5 };
+          body = { batchSize: 50, maxBatches: 3 };
           break;
         case "relations":
           functionName = "extract-legislation-relations";
@@ -102,33 +119,103 @@ export function DataFixPanel() {
 
       const { error } = await supabase.functions.invoke(functionName, { body });
       if (error) throw error;
-
-      toast.success(`Correção de ${type} iniciada em segundo plano`);
-      queryClient.invalidateQueries({ queryKey: ["data-fix-stats"] });
+      return true;
     } catch (err: any) {
-      toast.error(`Erro: ${err.message}`);
+      console.error(`Fix ${type} failed:`, err);
+      return false;
+    }
+  }, []);
+
+  // Auto-fix loop
+  useEffect(() => {
+    if (!isAutoFixing || !stats) return;
+
+    const runNextFix = async () => {
+      const fixes: { type: FixType; count: number }[] = [
+        { type: "urls", count: stats.urls },
+        { type: "dates", count: stats.dates },
+        { type: "titles", count: stats.titles },
+        { type: "summaries", count: stats.summaries },
+        { type: "requirements", count: stats.requirements },
+        { type: "relations", count: stats.relations },
+      ];
+
+      const nextFix = fixes.find(f => f.count > 0);
+
+      if (!nextFix) {
+        setIsAutoFixing(false);
+        setCurrentFix(null);
+        toast.success("Todas as correções automáticas concluídas!");
+        return;
+      }
+
+      setCurrentFix(nextFix.type);
+      await executeFix(nextFix.type);
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      refetch();
+    };
+
+    const interval = setInterval(runNextFix, 10000);
+    runNextFix();
+
+    return () => clearInterval(interval);
+  }, [isAutoFixing, stats, executeFix, refetch]);
+
+  const toggleAutoFix = () => {
+    if (isAutoFixing) {
+      setIsAutoFixing(false);
+      setCurrentFix(null);
+      toast.info("Correção automática pausada");
+    } else {
+      setIsAutoFixing(true);
+      toast.success("Correção automática iniciada");
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Quick Stats Overview */}
-      <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200/50 dark:border-amber-800/30">
+      <ActiveJobsBanner />
+
+      <Card className={`bg-gradient-to-r ${isAutoFixing 
+        ? "from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-300 dark:border-green-800" 
+        : "from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200/50 dark:border-amber-800/30"}`}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-amber-600" />
-              <CardTitle className="text-lg">Problemas Detectados</CardTitle>
+              <Wrench className={`h-5 w-5 ${isAutoFixing ? "text-green-600 animate-pulse" : "text-amber-600"}`} />
+              <CardTitle className="text-lg">Correção Automática de Dados</CardTitle>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
-                <RefreshCw className="h-4 w-4" />
+              <Button 
+                variant={isAutoFixing ? "destructive" : "default"}
+                size="sm" 
+                onClick={toggleAutoFix}
+                className="gap-2"
+              >
+                {isAutoFixing ? (
+                  <>
+                    <Pause className="h-4 w-4" />
+                    Pausar
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4" />
+                    Iniciar Correção
+                  </>
+                )}
               </Button>
-              <Badge variant={total > 100 ? "destructive" : total > 0 ? "secondary" : "default"}>
-                {total} total
-              </Badge>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              </Button>
             </div>
           </div>
+          {isAutoFixing && currentFix && (
+            <div className="flex items-center gap-2 mt-2 text-sm text-green-700 dark:text-green-300">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>A corrigir: <strong>{currentFix}</strong></span>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -136,163 +223,79 @@ export function DataFixPanel() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-              <QuickFixCard 
-                label="URLs" 
-                count={stats?.urls || 0} 
-                icon={<Link className="h-4 w-4" />}
-                onFix={() => handleQuickFix("urls")}
-              />
-              <QuickFixCard 
-                label="Datas" 
-                count={stats?.dates || 0} 
-                icon={<Calendar className="h-4 w-4" />}
-                onFix={() => handleQuickFix("dates")}
-              />
-              <QuickFixCard 
-                label="Títulos" 
-                count={stats?.titles || 0} 
-                icon={<Type className="h-4 w-4" />}
-                onFix={() => handleQuickFix("titles")}
-              />
-              <QuickFixCard 
-                label="Sumários" 
-                count={stats?.summaries || 0} 
-                icon={<FileText className="h-4 w-4" />}
-                onFix={() => handleQuickFix("summaries")}
-              />
-              <QuickFixCard 
-                label="Entidades" 
-                count={stats?.entities || 0} 
-                icon={<Building2 className="h-4 w-4" />}
-                onFix={() => handleQuickFix("titles")} // Uses same function
-              />
-              <QuickFixCard 
-                label="Requisitos" 
-                count={stats?.requirements || 0} 
-                icon={<ListChecks className="h-4 w-4" />}
-                onFix={() => handleQuickFix("requirements")}
-              />
-              <QuickFixCard 
-                label="Relações" 
-                count={stats?.relations || 0} 
-                icon={<GitBranch className="h-4 w-4" />}
-                onFix={() => handleQuickFix("relations")}
-              />
-            </div>
+            <>
+              {isAutoFixing && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">Progresso global</span>
+                    <span className="font-medium">{total} pendentes</span>
+                  </div>
+                  <Progress value={100 - (total / Math.max(total + 10, 1) * 100)} className="h-2" />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                <StatCard label="URLs" count={stats?.urls || 0} icon={<Link className="h-4 w-4" />} isActive={currentFix === "urls"} />
+                <StatCard label="Datas" count={stats?.dates || 0} icon={<Calendar className="h-4 w-4" />} isActive={currentFix === "dates"} />
+                <StatCard label="Títulos" count={stats?.titles || 0} icon={<Type className="h-4 w-4" />} isActive={currentFix === "titles"} />
+                <StatCard label="Sumários" count={stats?.summaries || 0} icon={<FileText className="h-4 w-4" />} isActive={currentFix === "summaries"} />
+                <StatCard label="Entidades" count={stats?.entities || 0} icon={<Building2 className="h-4 w-4" />} isActive={false} />
+                <StatCard label="Requisitos" count={stats?.requirements || 0} icon={<ListChecks className="h-4 w-4" />} isActive={currentFix === "requirements"} />
+                <StatCard label="Relações" count={stats?.relations || 0} icon={<GitBranch className="h-4 w-4" />} isActive={currentFix === "relations"} />
+              </div>
+
+              {total === 0 && !isAutoFixing && (
+                <div className="mt-4 p-3 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <span className="text-green-800 dark:text-green-200 font-medium">Todos os dados estão corrigidos!</span>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Collapsible Sections for Detailed Tools */}
-      <CollapsibleSection
-        title="Saúde de URLs"
-        description="Validar e recuperar URLs de documentos oficiais"
-        icon={<Link className="h-5 w-5 text-blue-600" />}
-        badge={stats?.urls}
-        defaultOpen={false}
-      >
+      <CollapsibleSection title="Saúde de URLs" description="Validar e recuperar URLs de documentos oficiais" icon={<Link className="h-5 w-5 text-blue-600" />} badge={stats?.urls}>
         <UrlHealthPanel />
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Anomalias de Datas"
-        description="Corrigir datas de publicação e vigência suspeitas"
-        icon={<Calendar className="h-5 w-5 text-amber-600" />}
-        badge={stats?.dates}
-        defaultOpen={false}
-      >
+      <CollapsibleSection title="Anomalias de Datas" description="Corrigir datas de publicação e vigência suspeitas" icon={<Calendar className="h-5 w-5 text-amber-600" />} badge={stats?.dates}>
         <DateAnomaliesPanel />
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Metadados de PDF"
-        description="Completar informação de diplomas importados via PDF"
-        icon={<FileText className="h-5 w-5 text-green-600" />}
-        defaultOpen={false}
-      >
+      <CollapsibleSection title="Metadados de PDF" description="Completar informação de diplomas importados via PDF" icon={<FileText className="h-5 w-5 text-green-600" />}>
         <PdfDataFixPanel />
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Limpeza de Duplicados"
-        description="Identificar e remover entradas duplicadas"
-        icon={<Zap className="h-5 w-5 text-purple-600" />}
-        defaultOpen={false}
-      >
+      <CollapsibleSection title="Limpeza de Duplicados" description="Identificar e remover entradas duplicadas" icon={<Zap className="h-5 w-5 text-purple-600" />}>
         <DuplicateCleanupPanel />
       </CollapsibleSection>
     </div>
   );
 }
 
-// Quick Fix Card with action button
-function QuickFixCard({ 
-  label, 
-  count, 
-  icon, 
-  onFix 
-}: { 
-  label: string; 
-  count: number; 
-  icon: React.ReactNode;
-  onFix: () => void;
-}) {
-  const [isFixing, setIsFixing] = useState(false);
-
-  const handleFix = () => {
-    if (count === 0) return;
-    setIsFixing(true);
-    onFix();
-    // Reset after a short delay (the actual job is async)
-    setTimeout(() => setIsFixing(false), 2000);
-  };
-
+function StatCard({ label, count, icon, isActive }: { label: string; count: number; icon: React.ReactNode; isActive: boolean }) {
   return (
-    <div 
-      className={`relative p-3 rounded-lg cursor-pointer transition-all hover:scale-105 ${
-        count === 0 
-          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" 
-          : count > 50 
-            ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
-            : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
-      }`}
-      onClick={handleFix}
-    >
+    <div className={`relative p-3 rounded-lg transition-all ${
+      isActive ? "bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500 animate-pulse" 
+        : count === 0 ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" 
+        : count > 50 ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+        : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+    }`}>
       <div className="flex items-center gap-2 mb-1">
-        {icon}
+        {isActive ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
         <span className="text-xs font-medium">{label}</span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-lg font-bold">{count}</span>
-        {count > 0 && !isFixing && (
-          <Play className="h-3 w-3 opacity-50" />
-        )}
-        {isFixing && (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        )}
+        {count === 0 && <CheckCircle2 className="h-4 w-4 text-green-600" />}
       </div>
     </div>
   );
 }
 
-// Reusable collapsible section
-function CollapsibleSection({ 
-  title, 
-  description, 
-  icon, 
-  badge,
-  children, 
-  defaultOpen = false 
-}: { 
-  title: string; 
-  description: string; 
-  icon: React.ReactNode; 
-  badge?: number;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
+function CollapsibleSection({ title, description, icon, badge, children }: { title: string; description: string; icon: React.ReactNode; badge?: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -308,20 +311,14 @@ function CollapsibleSection({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {badge !== undefined && badge > 0 && (
-                  <Badge variant={badge > 50 ? "destructive" : "secondary"}>
-                    {badge}
-                  </Badge>
-                )}
+                {badge !== undefined && badge > 0 && <Badge variant={badge > 50 ? "destructive" : "secondary"}>{badge}</Badge>}
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
               </div>
             </div>
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="pt-0">
-            {children}
-          </CardContent>
+          <CardContent className="pt-0">{children}</CardContent>
         </CollapsibleContent>
       </Card>
     </Collapsible>

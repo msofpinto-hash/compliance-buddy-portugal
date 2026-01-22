@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Download, Wrench, Palette } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
 import { ThemesPanel } from "./ThemesPanel";
-import { ActiveJobsBanner } from "./ActiveJobsBanner";
 import { ImportPanel } from "./ImportPanel";
 import { DataFixPanel } from "./DataFixPanel";
 
@@ -12,9 +11,6 @@ export function BibliotecaPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Banner de jobs activos no topo - visível em todas as sub-tabs */}
-      <ActiveJobsBanner />
-
       {/* Sub-tabs simplificadas: Legislação, Importação, Correção, Temas */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
         <TabsList className="flex flex-wrap gap-1 bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
@@ -37,7 +33,7 @@ export function BibliotecaPanel() {
         </TabsList>
 
         <TabsContent value="legislacao" className="mt-0">
-          <LegislationPanelWithoutBanner />
+          <LegislationPanel />
         </TabsContent>
 
         <TabsContent value="importacao" className="mt-0">
@@ -54,9 +50,4 @@ export function BibliotecaPanel() {
       </Tabs>
     </div>
   );
-}
-
-// Versão do LegislationPanel sem o ActiveJobsBanner (já está no topo)
-function LegislationPanelWithoutBanner() {
-  return <LegislationPanel hideBanner />;
 }
