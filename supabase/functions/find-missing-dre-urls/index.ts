@@ -33,68 +33,108 @@ function sendSSE(controller: ReadableStreamDefaultController<Uint8Array>, event:
 function extractLegislationParts(number: string): { type: string; num: string; year: string } | null {
   const cleanNumber = number.trim();
   
-  // Patterns now support both 2-digit and 4-digit years
-  const patterns = [
+  // Month names for date parsing
+  const months: Record<string, string> = {
+    'janeiro': '01', 'fevereiro': '02', 'março': '03', 'marco': '03', 'abril': '04',
+    'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+    'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+  };
+  
+  // Patterns with NUMBER/YEAR format (e.g., 97/2008, 555/99)
+  const slashPatterns = [
     // Decreto-Lei n.º 97/2008 or 555/99
-    /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    // Portaria n.º 98/2025/1 or 989/93
-    /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'decreto-lei' },
+    // Portaria n.º 98/2025 or 989/93 or 1102-G/2000
+    { regex: /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'portaria' },
     // Lei Constitucional n.º 1/2005
-    /^(Lei\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Lei\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'lei-constitucional' },
     // Lei n.º 13/2025 or 11/90
-    /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'lei' },
     // Despacho n.º 3495-C/2025 or 16140/2009
-    /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    // Resolução do Conselho de Ministros n.º 10/2025 or RCM n.º 45/2015
-    /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    /^(RCM)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'despacho' },
+    // Resolução do Conselho de Ministros n.º 10/2025
+    { regex: /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'resolucao-do-conselho-de-ministros' },
+    { regex: /^(RCM)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'resolucao-do-conselho-de-ministros' },
     // Resolução da Assembleia da República n.º 67/98
-    /^(Resolução\s+da\s+Assembleia\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Resolução\s+da\s+Assembleia\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'resolucao-da-assembleia-da-republica' },
     // Resolução n.º 2/2025
-    /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'resolucao' },
     // Declaração de Retificação n.º X/YYYY
-    /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'declaracao-de-retificacao' },
     // Deliberação n.º 1024/2025
-    /^(Deliberação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    // Aviso n.º X/YYYY
-    /^(Aviso)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Deliberação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'deliberacao' },
+    // Aviso n.º X/YYYY or Av X/YYYY
+    { regex: /^(Aviso|Av)\s+n?\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'aviso' },
     // Regulamento n.º X/YYYY
-    /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'regulamento' },
     // Acórdão do Tribunal Constitucional n.º X/YYYY
-    /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'acordao-do-tribunal-constitucional' },
     // Decreto do Presidente da República n.º 57/98
-    /^(Decreto\s+do\s+Presidente\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    // Decreto Legislativo Regional n.º 17/2025/A or 17/2025
-    /^(Decreto\s+Legislativo\s+Regional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?:\/[A-Z])?/i,
+    { regex: /^(Decreto\s+do\s+Presidente\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'decreto-do-presidente-da-republica' },
+    // Decreto Legislativo Regional n.º 17/2025/A
+    { regex: /^(Decreto\s+Legislativo\s+Regional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?:\/[A-Z])?/i, type: 'decreto-legislativo-regional' },
     // Decreto Regulamentar n.º X/YYYY
-    /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
-    // Decreto n.º X/YYYY or X/80
-    /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i,
+    { regex: /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'decreto-regulamentar' },
+    // Decreto n.º X/YYYY
+    { regex: /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})/i, type: 'decreto' },
   ];
   
-  for (const pattern of patterns) {
-    const match = cleanNumber.match(pattern);
+  // Try slash patterns first (NUMBER/YEAR)
+  for (const { regex, type } of slashPatterns) {
+    const match = cleanNumber.match(regex);
     if (match) {
       let year = match[3];
-      // Convert 2-digit year to 4-digit
       if (year.length === 2) {
         const yearNum = parseInt(year, 10);
-        // Assume 00-30 is 2000s, 31-99 is 1900s
         year = yearNum <= 30 ? `20${year}` : `19${year}`;
       }
-      
-      // Normalize type for search query
-      let type = match[1].toLowerCase().replace(/\s+/g, '-');
-      // Map RCM abbreviation to full name for search
-      if (type === 'rcm') {
-        type = 'resolução-do-conselho-de-ministros';
+      return { type, num: match[2], year };
+    }
+  }
+  
+  // Patterns with "de [day] de [month] de [year]" format
+  const datePatterns = [
+    // Portaria n.º 1102-G de 22 de novembro de 2000
+    { regex: /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)\s+de\s+\d+\s+de\s+\w+\s+de\s+(\d{4})/i, type: 'portaria' },
+    // Decreto-Lei n.º 45458 de 23 de Dezembro de 1963
+    { regex: /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)\s+de\s+\d+\s+de\s+\w+\s+de\s+(\d{4})/i, type: 'decreto-lei' },
+    { regex: /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)\s+de\s+\d+\s+de\s+\w+/i, type: 'decreto-lei' }, // Without year
+    // Decreto n.º 29034 de 1 de Outubro de 1938
+    { regex: /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)\s+de\s+\d+\s+de\s+\w+\s+de\s+(\d{4})/i, type: 'decreto' },
+    // Lei n.º 123 de 15 de março de 2020
+    { regex: /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)\s+de\s+\d+\s+de\s+\w+\s+de\s+(\d{4})/i, type: 'lei' },
+    // Despacho n.º 123 de 15 de março de 2020
+    { regex: /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)\s+de\s+\d+\s+de\s+\w+\s+de\s+(\d{4})/i, type: 'despacho' },
+    // Declaração de Retificação n.º 101/94 de 30 de julho
+    { regex: /^(Declaração\s+de\s+Retificação)\s+n\.?º?\s*(\d+)[\/\-](\d{2,4})\s+de\s+/i, type: 'declaracao-de-retificacao' },
+  ];
+  
+  for (const { regex, type } of datePatterns) {
+    const match = cleanNumber.match(regex);
+    if (match) {
+      let year = match[3];
+      if (!year) {
+        // Try to extract year from the full string
+        const yearMatch = cleanNumber.match(/de\s+(\d{4})$/);
+        if (yearMatch) year = yearMatch[1];
+        else continue; // Skip if no year found
       }
-      
-      return {
-        type: type,
-        num: match[2],
-        year: year
-      };
+      if (year.length === 2) {
+        const yearNum = parseInt(year, 10);
+        year = yearNum <= 30 ? `20${year}` : `19${year}`;
+      }
+      return { type, num: match[2], year };
+    }
+  }
+  
+  // Old format - 5-digit decree numbers (e.g., Decreto n.º 45458)
+  const oldDecreeMatch = cleanNumber.match(/^(Decreto(?:-Lei)?)\s+n\.?º?\s*(\d{5,})/i);
+  if (oldDecreeMatch) {
+    // Try to extract year from the text
+    const yearMatch = cleanNumber.match(/de\s+(\d{4})/);
+    if (yearMatch) {
+      const type = oldDecreeMatch[1].toLowerCase().includes('lei') ? 'decreto-lei' : 'decreto';
+      return { type, num: oldDecreeMatch[2], year: yearMatch[1] };
     }
   }
   
