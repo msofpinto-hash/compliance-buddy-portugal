@@ -5,15 +5,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Patterns for invalid data that should be cleaned
-const INVALID_TITLE_PATTERNS = [
-  "# Diário%",
-  "Publicação:%",
-  "## %",
-  "**%",
-  "Pesquisar%",
-  "%Texto integral%",
-  "%Versão PDF%",
+// Regex patterns for title validation
+const INVALID_TITLE_REGEXES = [
+  /^#\s*Diário/i,
+  /^Publicação:/i,
+  /^##\s+/,
+  /^\*\*[^*]/,
+  /^Pesquisar/i,
+  /Texto integral/i,
+  /Versão PDF/i,
 ];
 
 const INVALID_ENTITY_VALUES = [
@@ -24,14 +24,15 @@ const INVALID_ENTITY_VALUES = [
   "Texto",
 ];
 
-const INVALID_SUMMARY_PATTERNS = [
-  "%Enviar por email%",
-  "%Facebook%",
-  "%LinkedIn%",
-  "%Twitter%",
-  "%Partilhar%",
-  "%Diploma referenciado%",
-  "%[![%",
+// Regex patterns for summary validation
+const INVALID_SUMMARY_REGEXES = [
+  /Enviar por email/i,
+  /Facebook/i,
+  /LinkedIn/i,
+  /Twitter/i,
+  /Partilhar/i,
+  /Diploma referenciado/i,
+  /\[!\[/,
 ];
 
 Deno.serve(async (req) => {
@@ -50,15 +51,22 @@ Deno.serve(async (req) => {
 
     console.log(`[scheduled-data-cleanup] Starting cleanup, dryRun=${dryRun}, origin=${origin}`);
 
-    // Build the query for invalid records
+    // Fetch records with potential issues using SQL LIKE patterns
     let query = supabase
       .from("legislation")
       .select("id, number, title, entity, summary, origin")
       .or(
-        INVALID_TITLE_PATTERNS.map(p => `title.like.${p}`).join(",") + "," +
-        INVALID_ENTITY_VALUES.map(v => `entity.eq.${v}`).join(",") + "," +
-        INVALID_SUMMARY_PATTERNS.map(p => `summary.like.${p}`).join(",") + "," +
-        "title.eq.number" // title equals the number field
+        "title.like.# Diário%," +
+        "title.like.Publicação:%," +
+        "title.like.## %," +
+        "title.like.Pesquisar%," +
+        "entity.eq.Pesquisar," +
+        "entity.eq.Pesquisa Avançada," +
+        "entity.eq.Diploma referenciado," +
+        "summary.like.%Enviar por email%," +
+        "summary.like.%Facebook%," +
+        "summary.like.%LinkedIn%," +
+        "summary.like.%Partilhar%"
       );
 
     if (origin !== "all") {
@@ -85,7 +93,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[scheduled-data-cleanup] Found ${invalidRecords.length} invalid records`);
+    console.log(`[scheduled-data-cleanup] Found ${invalidRecords.length} potential invalid records`);
 
     // Categorize the issues
     const issues = {
@@ -100,11 +108,8 @@ Deno.serve(async (req) => {
     for (const record of invalidRecords) {
       const updates: Record<string, unknown> = {};
 
-      // Check title issues
-      const hasInvalidTitle = INVALID_TITLE_PATTERNS.some(pattern => {
-        const regex = new RegExp("^" + pattern.replace(/%/g, ".*"), "i");
-        return regex.test(record.title || "");
-      });
+      // Check title issues using regex
+      const hasInvalidTitle = INVALID_TITLE_REGEXES.some(regex => regex.test(record.title || ""));
 
       if (hasInvalidTitle || record.title === record.number) {
         updates.title = record.number; // Reset to number
@@ -118,11 +123,8 @@ Deno.serve(async (req) => {
         issues.invalidEntities++;
       }
 
-      // Check summary issues
-      const hasInvalidSummary = INVALID_SUMMARY_PATTERNS.some(pattern => {
-        const regex = new RegExp(pattern.replace(/%/g, ".*"), "i");
-        return regex.test(record.summary || "");
-      });
+      // Check summary issues using regex
+      const hasInvalidSummary = INVALID_SUMMARY_REGEXES.some(regex => regex.test(record.summary || ""));
 
       if (hasInvalidSummary) {
         updates.summary = null;
