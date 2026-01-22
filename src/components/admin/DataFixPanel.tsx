@@ -106,10 +106,14 @@ export function DataFixPanel() {
   const { data: stats, isLoading, refetch } = useQuery({
     queryKey: ["data-fix-stats-unified"],
     queryFn: async (): Promise<FixStats> => {
-      const [urlsResult, datesResult, titlesResult, summariesResult] = await Promise.all([
-        supabase.from("legislation").select("id", { count: "exact", head: true })
-          .is("document_url", null)
-          .or("no_digital_version.is.null,no_digital_version.eq.false"),
+      // URLs: document_url is null AND (no_digital_version is null OR no_digital_version is false)
+      const urlsResult = await supabase
+        .from("legislation")
+        .select("id", { count: "exact", head: true })
+        .is("document_url", null)
+        .or("no_digital_version.is.null,no_digital_version.eq.false");
+
+      const [datesResult, titlesResult, summariesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .is("publication_date", null),
         supabase.from("legislation").select("id, title, number").limit(2000),
