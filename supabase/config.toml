@@ -101,3 +101,9 @@ verify_jwt = false
 
 [functions.lookup-nipc-vies]
 verify_jwt = false
+
+[functions.scheduled-data-cleanup]
+verify_jwt = false
+
+[functions.full-data-fix]
+verify_jwt = false
