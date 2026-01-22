@@ -134,6 +134,14 @@ export function SyncPanel() {
   const [stuckPdfFixJobsCount, setStuckPdfFixJobsCount] = useState<number | null>(null);
   const [isTerminatingStuckPdfFixJobs, setIsTerminatingStuckPdfFixJobs] = useState(false);
   const [confirmTerminateStuckPdfFixJobs, setConfirmTerminateStuckPdfFixJobs] = useState(false);
+  const [autoFixWaveHistory, setAutoFixWaveHistory] = useState<Array<{
+    wave: number;
+    timestamp: string;
+    status: 'ok' | 'fail' | 'skipped';
+    jobsLaunched: number;
+    pendingBefore: number;
+    message?: string;
+  }>>([]);
 
   const LEGISLATION_TYPES = [
     { value: "all", label: "Todos os tipos" },
@@ -1276,6 +1284,20 @@ export function SyncPanel() {
     const maxWaves = 6;
     setAutoFixWave({ current: 0, max: maxWaves });
     setAutoFixCooldown(null);
+    setAutoFixWaveHistory([]); // Reset history
+
+    const addHistoryEntry = (entry: {
+      wave: number;
+      status: 'ok' | 'fail' | 'skipped';
+      jobsLaunched: number;
+      pendingBefore: number;
+      message?: string;
+    }) => {
+      setAutoFixWaveHistory((prev) => [
+        ...prev,
+        { ...entry, timestamp: new Date().toLocaleTimeString('pt-PT') },
+      ]);
+    };
 
     try {
       toast({
@@ -1289,7 +1311,16 @@ export function SyncPanel() {
         setAutoFixWave({ current: wave, max: maxWaves });
 
         const currentTotal = counts.pt + counts.eu;
-        if (currentTotal === 0) break;
+        if (currentTotal === 0) {
+          addHistoryEntry({
+            wave,
+            status: 'skipped',
+            jobsLaunched: 0,
+            pendingBefore: 0,
+            message: 'Zero pendentes',
+          });
+          break;
+        }
 
         // Smart cool-down: if limit reached, wait N seconds and retry
         let runningNow = await fetchRunningPdfFixJobsCount();
@@ -1322,6 +1353,13 @@ export function SyncPanel() {
         }
 
         if (runningNow >= maxRunningPdfFixJobs) {
+          addHistoryEntry({
+            wave,
+            status: 'fail',
+            jobsLaunched: 0,
+            pendingBefore: currentTotal,
+            message: `Limite ${runningNow}/${maxRunningPdfFixJobs}`,
+          });
           toast({
             title: "Ainda no limite",
             description: `Mantém-se ${runningNow} jobs a correr (limite: ${maxRunningPdfFixJobs}). Parei a automação por agora.`,
@@ -1330,7 +1368,24 @@ export function SyncPanel() {
           break;
         }
 
-        await launchPdfFixJobs(20);
+        try {
+          await launchPdfFixJobs(20);
+          addHistoryEntry({
+            wave,
+            status: 'ok',
+            jobsLaunched: 20,
+            pendingBefore: currentTotal,
+            message: `Lançados 20 jobs`,
+          });
+        } catch (launchErr) {
+          addHistoryEntry({
+            wave,
+            status: 'fail',
+            jobsLaunched: 0,
+            pendingBefore: currentTotal,
+            message: launchErr instanceof Error ? launchErr.message : 'Erro ao lançar',
+          });
+        }
 
         // Pausa para evitar demasiada concorrência e dar tempo aos jobs
         await new Promise((r) => setTimeout(r, 12000));
@@ -2462,6 +2517,64 @@ https://dre.pt/application/file/..."
                   </Button>
                 </div>
               </div>
+
+              {/* Wave History */}
+              {autoFixWaveHistory.length > 0 && (
+                <div className="border-t pt-3 mt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-muted-foreground">Histórico de vagas</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setAutoFixWaveHistory([])}
+                    >
+                      Limpar
+                    </Button>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {autoFixWaveHistory.map((entry, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex items-center justify-between text-xs px-2 py-1 rounded ${
+                          entry.status === 'ok'
+                            ? 'bg-green-50 text-green-700'
+                            : entry.status === 'fail'
+                            ? 'bg-red-50 text-red-700'
+                            : 'bg-gray-50 text-gray-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] px-1.5 py-0 ${
+                              entry.status === 'ok'
+                                ? 'border-green-300 bg-green-100'
+                                : entry.status === 'fail'
+                                ? 'border-red-300 bg-red-100'
+                                : 'border-gray-300 bg-gray-100'
+                            }`}
+                          >
+                            {entry.status === 'ok' ? '✓' : entry.status === 'fail' ? '✗' : '—'}
+                          </Badge>
+                          <span className="font-medium">Vaga {entry.wave}</span>
+                          <span className="text-muted-foreground">({entry.timestamp})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">
+                            {entry.pendingBefore > 0 ? `${entry.pendingBefore} pendentes` : ''}
+                          </span>
+                          {entry.message && (
+                            <span className="truncate max-w-32" title={entry.message}>
+                              {entry.message}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
