@@ -2267,49 +2267,85 @@ https://dre.pt/application/file/..."
                   )}
                 </span>
                 <div className="flex items-center gap-2">
-                  <Button
-                    onClick={handleFixPdfImportToZero}
-                    disabled={isFixingPdfImport || isAutoFixingPdfToZero || pdfImportIssuesCount === 0 || pdfFixBlocked}
-                    size="sm"
-                    variant="outline"
-                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                  >
-                    {(isAutoFixingPdfToZero || isFixingPdfImport) ? (
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    ) : (
-                      <Rocket className="mr-2 h-3 w-3" />
+                  <div className="relative">
+                    <Button
+                      onClick={handleFixPdfImportToZero}
+                      disabled={isFixingPdfImport || isAutoFixingPdfToZero || pdfImportIssuesCount === 0 || pdfFixBlocked || !!autoFixCooldown}
+                      size="sm"
+                      variant="outline"
+                      className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                    >
+                      {(isAutoFixingPdfToZero || isFixingPdfImport) ? (
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      ) : autoFixCooldown ? (
+                        <Clock className="mr-2 h-3 w-3" />
+                      ) : (
+                        <Rocket className="mr-2 h-3 w-3" />
+                      )}
+                      {isAutoFixingPdfToZero ? "A lançar vagas..." : autoFixCooldown ? `Cool-down ${autoFixCooldown.remaining}s` : "Corrigir até zero"}
+                    </Button>
+                    {autoFixCooldown && (
+                      <Badge 
+                        variant="outline" 
+                        className="absolute -top-2 -right-2 bg-orange-100 border-orange-300 text-orange-700 text-[10px] px-1.5 py-0.5 animate-pulse"
+                      >
+                        Em espera
+                      </Badge>
                     )}
-                    {isAutoFixingPdfToZero ? "A lançar vagas..." : "Corrigir até zero"}
-                  </Button>
+                  </div>
 
-                  <Button
-                    onClick={() => handleFixPdfImportDataBurst(20)}
-                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0 || pdfFixBlocked}
-                    size="sm"
-                    variant="outline"
-                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                  >
-                    {isFixingPdfImport ? (
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    ) : (
-                      <Rocket className="mr-2 h-3 w-3" />
+                  <div className="relative">
+                    <Button
+                      onClick={() => handleFixPdfImportDataBurst(20)}
+                      disabled={isFixingPdfImport || pdfImportIssuesCount === 0 || pdfFixBlocked || !!autoFixCooldown}
+                      size="sm"
+                      variant="outline"
+                      className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                    >
+                      {isFixingPdfImport ? (
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      ) : autoFixCooldown ? (
+                        <Clock className="mr-2 h-3 w-3" />
+                      ) : (
+                        <Rocket className="mr-2 h-3 w-3" />
+                      )}
+                      {isFixingPdfImport ? "A lançar..." : autoFixCooldown ? `${autoFixCooldown.remaining}s` : "Lançar 20 jobs"}
+                    </Button>
+                    {autoFixCooldown && (
+                      <Badge 
+                        variant="outline" 
+                        className="absolute -top-2 -right-2 bg-orange-100 border-orange-300 text-orange-700 text-[10px] px-1.5 py-0.5 animate-pulse"
+                      >
+                        Em espera
+                      </Badge>
                     )}
-                    {isFixingPdfImport ? "A lançar..." : "Lançar 20 jobs"}
-                  </Button>
+                  </div>
 
-                  <Button
-                    onClick={handleFixPdfImportData}
-                    disabled={isFixingPdfImport || pdfImportIssuesCount === 0 || pdfFixBlocked}
-                    size="sm"
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    {isFixingPdfImport ? (
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    ) : (
-                      <Wrench className="mr-2 h-3 w-3" />
+                  <div className="relative">
+                    <Button
+                      onClick={handleFixPdfImportData}
+                      disabled={isFixingPdfImport || pdfImportIssuesCount === 0 || pdfFixBlocked || !!autoFixCooldown}
+                      size="sm"
+                      className="bg-orange-600 hover:bg-orange-700"
+                    >
+                      {isFixingPdfImport ? (
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      ) : autoFixCooldown ? (
+                        <Clock className="mr-2 h-3 w-3" />
+                      ) : (
+                        <Wrench className="mr-2 h-3 w-3" />
+                      )}
+                      {isFixingPdfImport ? "A corrigir..." : autoFixCooldown ? `${autoFixCooldown.remaining}s` : "Corrigir Dados"}
+                    </Button>
+                    {autoFixCooldown && (
+                      <Badge 
+                        variant="outline" 
+                        className="absolute -top-2 -right-2 bg-orange-100 border-orange-300 text-orange-700 text-[10px] px-1.5 py-0.5 animate-pulse"
+                      >
+                        Em espera
+                      </Badge>
                     )}
-                    {isFixingPdfImport ? "A corrigir..." : "Corrigir Dados"}
-                  </Button>
+                  </div>
                 </div>
               </div>
 
