@@ -11,10 +11,11 @@ import { toast } from "sonner";
 import { 
   Link, Calendar, Type, FileText, ListChecks, GitBranch,
   Loader2, Wrench, RefreshCw, Play, Pause, CheckCircle2, Activity,
-  Zap, Settings2
+  Zap, Settings2, ChevronRight, AlertCircle
 } from "lucide-react";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface FixStats {
   urls: number;
@@ -37,13 +38,30 @@ interface RunningJob {
 type FixType = "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations";
 
 const FIX_LABELS: Record<FixType, string> = {
-  urls: "URLs",
-  dates: "Datas",
-  titles: "Títulos",
-  summaries: "Sumários",
-  requirements: "Requisitos",
-  relations: "Relações",
+  urls: "1. URLs",
+  dates: "2. Datas",
+  titles: "2. Títulos",
+  summaries: "2. Sumários",
+  requirements: "3. Requisitos",
+  relations: "4. Relações",
 };
+
+const FIX_DESCRIPTIONS: Record<FixType, string> = {
+  urls: "Base para tudo - sem URL não é possível obter os restantes dados",
+  dates: "Obtido via scraping do URL",
+  titles: "Obtido via scraping do URL",
+  summaries: "Obtido via scraping do URL",
+  requirements: "Extraídos do conteúdo do documento (requer URL)",
+  relations: "Detetadas a partir de referências no texto (requer requisitos)",
+};
+
+// Dependency order: URLs first, then metadata (dates/titles/summaries), then requirements, then relations
+const FIX_PHASES: { name: string; types: FixType[]; description: string }[] = [
+  { name: "Fase 1: URLs", types: ["urls"], description: "Obter links oficiais (base para tudo)" },
+  { name: "Fase 2: Metadados", types: ["dates", "titles", "summaries"], description: "Scraping de datas, títulos e resumos" },
+  { name: "Fase 3: Requisitos", types: ["requirements"], description: "Extração IA de obrigações legais" },
+  { name: "Fase 4: Relações", types: ["relations"], description: "Deteção de referências entre diplomas" },
+];
 
 const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
   "fix-broken-urls": "urls",
@@ -226,7 +244,46 @@ export function DataFixPanel() {
     refetch();
   };
 
-  // Fix Category Card with individual controls
+  // Check if a fix type is blocked by dependencies
+  const isBlocked = (type: FixType): boolean => {
+    const urlCount = stats?.urls || 0;
+    const metadataCount = (stats?.dates || 0) + (stats?.titles || 0) + (stats?.summaries || 0);
+    
+    // Metadata fixes are blocked if there are many URLs missing
+    if (["dates", "titles", "summaries"].includes(type) && urlCount > 50) {
+      return true;
+    }
+    // Requirements are blocked if there are many URLs or metadata missing
+    if (type === "requirements" && (urlCount > 20 || metadataCount > 100)) {
+      return true;
+    }
+    // Relations are blocked if there are many requirements missing
+    if (type === "relations" && (stats?.requirements || 0) > 50) {
+      return true;
+    }
+    return false;
+  };
+
+  const getBlockReason = (type: FixType): string | null => {
+    const urlCount = stats?.urls || 0;
+    const metadataCount = (stats?.dates || 0) + (stats?.titles || 0) + (stats?.summaries || 0);
+    
+    if (["dates", "titles", "summaries"].includes(type) && urlCount > 50) {
+      return `Corrija primeiro os URLs (${urlCount} em falta)`;
+    }
+    if (type === "requirements" && urlCount > 20) {
+      return `Corrija primeiro os URLs (${urlCount} em falta)`;
+    }
+    if (type === "requirements" && metadataCount > 100) {
+      return `Corrija primeiro os metadados (${metadataCount} em falta)`;
+    }
+    if (type === "relations" && (stats?.requirements || 0) > 50) {
+      return `Extraia primeiro os requisitos (${stats?.requirements} em falta)`;
+    }
+    return null;
+  };
+
+  // Fix Category Card with dependency awareness
   const FixCategory = ({ type, count, icon }: { type: FixType; count: number; icon: React.ReactNode }) => {
     const isDone = count === 0;
     const typeJobs = getRunningJobsForType(type);
@@ -234,9 +291,12 @@ export function DataFixPanel() {
     const isActiveType = activeFixType === type;
     const totalProcessed = typeJobs.reduce((sum, j) => sum + (j.items_processed || 0), 0);
     const totalAdded = typeJobs.reduce((sum, j) => sum + (j.items_added || 0), 0);
+    const blocked = isBlocked(type);
+    const blockReason = getBlockReason(type);
     
     return (
       <div className={`relative overflow-hidden rounded-lg transition-all ${
+        blocked ? "opacity-60 bg-muted/30" :
         isActiveType ? "ring-2 ring-green-500 bg-green-50 dark:bg-green-900/30" :
         hasRunningJobs ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30" :
         isDone ? "bg-green-50 dark:bg-green-900/20" :
@@ -252,6 +312,7 @@ export function DataFixPanel() {
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className={`p-2 rounded-lg shrink-0 ${
+              blocked ? "bg-muted text-muted-foreground" :
               isActiveType ? "bg-green-500 text-white" :
               hasRunningJobs ? "bg-blue-500 text-white animate-pulse" :
               isDone ? "bg-green-500 text-white" :
@@ -261,7 +322,22 @@ export function DataFixPanel() {
               {hasRunningJobs ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
             </div>
             <div className="min-w-0">
-              <span className="font-medium block truncate">{FIX_LABELS[type]}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium block truncate">{FIX_LABELS[type]}</span>
+                {blocked && blockReason && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">{blockReason}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate">{FIX_DESCRIPTIONS[type]}</p>
               {hasRunningJobs && (
                 <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
                   <Activity className="h-3 w-3 shrink-0" />
@@ -289,6 +365,7 @@ export function DataFixPanel() {
                   size="sm"
                   className="h-7 px-2 gap-1"
                   onClick={() => toggleFixType(type)}
+                  disabled={blocked && !isActiveType}
                 >
                   {isActiveType ? (
                     <>
@@ -302,7 +379,7 @@ export function DataFixPanel() {
                     </>
                   )}
                 </Button>
-                {!isActiveType && !hasRunningJobs && (
+                {!isActiveType && !hasRunningJobs && !blocked && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -322,6 +399,14 @@ export function DataFixPanel() {
         </div>
       </div>
     );
+  };
+
+  // Calculate phase completion
+  const getPhaseStats = (types: FixType[]) => {
+    const total = types.reduce((sum, t) => sum + (stats?.[t] || 0), 0);
+    const hasRunning = types.some(t => getRunningJobsForType(t).length > 0);
+    const isActive = types.includes(activeFixType as FixType);
+    return { total, hasRunning, isActive, isDone: total === 0 };
   };
 
   const activeJobsCount = runningJobs?.length ?? 0;
@@ -443,14 +528,56 @@ export function DataFixPanel() {
                 </div>
               )}
 
-              {/* Fix Categories */}
-              <div className="grid gap-2">
-                <FixCategory type="urls" count={stats?.urls || 0} icon={<Link className="h-4 w-4" />} />
-                <FixCategory type="dates" count={stats?.dates || 0} icon={<Calendar className="h-4 w-4" />} />
-                <FixCategory type="titles" count={stats?.titles || 0} icon={<Type className="h-4 w-4" />} />
-                <FixCategory type="summaries" count={stats?.summaries || 0} icon={<FileText className="h-4 w-4" />} />
-                <FixCategory type="requirements" count={stats?.requirements || 0} icon={<ListChecks className="h-4 w-4" />} />
-                <FixCategory type="relations" count={stats?.relations || 0} icon={<GitBranch className="h-4 w-4" />} />
+              {/* Fix Categories organized by Phase */}
+              <div className="space-y-4">
+                {FIX_PHASES.map((phase, idx) => {
+                  const phaseStats = getPhaseStats(phase.types);
+                  const isPhaseActive = phaseStats.isActive || phaseStats.hasRunning;
+                  
+                  return (
+                    <div key={phase.name} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                          phaseStats.isDone ? "bg-green-500 text-white" :
+                          isPhaseActive ? "bg-blue-500 text-white animate-pulse" :
+                          "bg-muted text-muted-foreground"
+                        }`}>
+                          {phaseStats.isDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : idx + 1}
+                        </div>
+                        <span className="text-sm font-medium">{phase.name}</span>
+                        <span className="text-xs text-muted-foreground">— {phase.description}</span>
+                        {phaseStats.total > 0 && (
+                          <Badge variant="outline" className="ml-auto text-xs">
+                            {phaseStats.total} pendentes
+                          </Badge>
+                        )}
+                        {idx < FIX_PHASES.length - 1 && (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/50 ml-1" />
+                        )}
+                      </div>
+                      <div className={`grid gap-2 ${phase.types.length > 1 ? "md:grid-cols-3" : ""}`}>
+                        {phase.types.map(type => {
+                          const iconMap: Record<FixType, React.ReactNode> = {
+                            urls: <Link className="h-4 w-4" />,
+                            dates: <Calendar className="h-4 w-4" />,
+                            titles: <Type className="h-4 w-4" />,
+                            summaries: <FileText className="h-4 w-4" />,
+                            requirements: <ListChecks className="h-4 w-4" />,
+                            relations: <GitBranch className="h-4 w-4" />,
+                          };
+                          return (
+                            <FixCategory 
+                              key={type}
+                              type={type} 
+                              count={stats?.[type] || 0} 
+                              icon={iconMap[type]} 
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* All done */}
