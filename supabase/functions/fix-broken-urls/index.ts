@@ -147,10 +147,14 @@ function generateEurlexUrl(number: string, title: string): string | null {
 }
 
 // Check if URL is accessible
-async function checkUrl(url: string): Promise<{ valid: boolean; statusCode?: number }> {
+async function checkUrl(
+  url: string,
+  opts?: { timeoutMs?: number }
+): Promise<{ valid: boolean; statusCode?: number }> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutMs = Math.max(1000, Math.min(20000, opts?.timeoutMs ?? 5000));
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const response = await fetch(url, {
       method: "HEAD",
@@ -173,7 +177,7 @@ async function checkUrl(url: string): Promise<{ valid: boolean; statusCode?: num
 async function processLegislationUrl(
   supabase: AnySupabaseClient,
   leg: { id: string; number: string; title: string; document_url: string | null; origin: string | null },
-  options: { validateExisting: boolean; recoverMissing: boolean; clearInvalid: boolean }
+  options: { validateExisting: boolean; recoverMissing: boolean; clearInvalid: boolean; requestTimeoutMs: number }
 ): Promise<UrlFixResult> {
   const result: UrlFixResult = {
     id: leg.id,
@@ -188,7 +192,7 @@ async function processLegislationUrl(
 
     // Case 1: Has URL - validate it
     if (leg.document_url && options.validateExisting) {
-      const check = await checkUrl(leg.document_url);
+      const check = await checkUrl(leg.document_url, { timeoutMs: options.requestTimeoutMs });
       
       if (check.valid) {
         result.action = "validated";
@@ -197,7 +201,7 @@ async function processLegislationUrl(
         const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
         
         if (newUrl) {
-          const newCheck = await checkUrl(newUrl);
+            const newCheck = await checkUrl(newUrl, { timeoutMs: options.requestTimeoutMs });
           if (newCheck.valid) {
             await supabase
               .from("legislation")
@@ -226,7 +230,7 @@ async function processLegislationUrl(
       const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
       
       if (newUrl) {
-        const check = await checkUrl(newUrl);
+        const check = await checkUrl(newUrl, { timeoutMs: options.requestTimeoutMs });
         if (check.valid) {
           await supabase
             .from("legislation")
@@ -250,23 +254,31 @@ async function fixUrlsInBackground(
   supabase: AnySupabaseClient,
   legislation: Array<{ id: string; number: string; title: string; document_url: string | null; origin: string | null }>,
   logId: string,
-  options: { validateExisting: boolean; recoverMissing: boolean; clearInvalid: boolean }
+  options: {
+    validateExisting: boolean;
+    recoverMissing: boolean;
+    clearInvalid: boolean;
+    parallel: number;
+    batchDelayMs: number;
+    requestTimeoutMs: number;
+  }
 ) {
-  const PARALLEL_BATCH_SIZE = 20; // Process 20 URLs in parallel
+  const PARALLEL_BATCH_SIZE = Math.max(1, Math.min(100, Math.floor(options.parallel || 1)));
+  const BATCH_DELAY_MS = Math.max(0, Math.min(5000, Math.floor(options.batchDelayMs || 0)));
   let totalProcessed = 0;
   let totalRecovered = 0;
   let totalCleared = 0;
   let totalValidated = 0;
 
-  console.log(`Starting parallel URL fix: ${legislation.length} items in batches of ${PARALLEL_BATCH_SIZE}`);
+  console.log(
+    `Starting parallel URL fix: ${legislation.length} items | parallel=${PARALLEL_BATCH_SIZE} | delayMs=${BATCH_DELAY_MS} | timeoutMs=${options.requestTimeoutMs}`
+  );
 
   for (let i = 0; i < legislation.length; i += PARALLEL_BATCH_SIZE) {
     const batch = legislation.slice(i, i + PARALLEL_BATCH_SIZE);
     
     // Process batch in parallel
-    const results = await Promise.all(
-      batch.map(leg => processLegislationUrl(supabase, leg, options))
-    );
+    const results = await Promise.all(batch.map((leg) => processLegislationUrl(supabase, leg, options)));
 
     // Count results
     for (const result of results) {
@@ -290,7 +302,7 @@ async function fixUrlsInBackground(
 
     // Small delay between batches to avoid rate limiting
     if (i + PARALLEL_BATCH_SIZE < legislation.length) {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      if (BATCH_DELAY_MS > 0) await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
     }
   }
 
@@ -322,6 +334,9 @@ Deno.serve(async (req) => {
       origin, // "PT" | "EU" | undefined for all
       mode = "all", // "validate" | "recover" | "all"
       background = true,
+      parallel,
+      batchDelayMs,
+      requestTimeoutMs,
     } = body;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -334,6 +349,10 @@ Deno.serve(async (req) => {
       validateExisting: mode === "validate" || mode === "all",
       recoverMissing: mode === "recover" || mode === "all",
       clearInvalid: mode === "validate" || mode === "all",
+      // Speed controls (safe defaults, overridable by caller)
+      parallel: parallel ?? 40,
+      batchDelayMs: batchDelayMs ?? 50,
+      requestTimeoutMs: Math.max(1000, Math.min(20000, requestTimeoutMs ?? 5000)),
     };
 
     // Build query based on mode
