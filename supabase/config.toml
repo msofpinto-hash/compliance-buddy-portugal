@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.cleanup-duplicate-legislation]
 verify_jwt = false
+
+[functions.find-dre-urls-direct]
+verify_jwt = false
