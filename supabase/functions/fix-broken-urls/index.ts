@@ -49,23 +49,27 @@ function generateEurlexUrl(number: string, title: string): string | null {
 
   // Patterns for year/number extraction - supports multiple formats
   const patterns = [
-    // Regulamento (UE) 2023/1804, Regulamento de Execução (UE) 2020/704
-    /REGULAMENTO[^\d]*(\d{4})\/(\d+)/i,
-    // Diretiva 2023/1234/UE, Directiva 84/466/Euratom
-    /DIRE[CT]IVA[^\d]*(\d{2,4})\/(\d+)/i,
+    // Regulamento (UE) 2023/1804, Regulamento de Execução (UE) 2020/704, Regulamento (CE) n.º 3093/94
+    /REGULAMENTO[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
+    // Diretiva/Directiva 2023/1234/UE, Directiva 84/466/Euratom, Directiva n.º 87/101/CEE
+    /DIRE[CT]IVA[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
     // Decisão (UE) 2025/439, Decisão de Execução (UE) n.º 2025/439
-    /DECIS[ÃA]O[^\d]*(?:N\.?[º°]?\s*)?(\d{4})\/(\d+)/i,
-    // (UE) 2017/745
-    /\(U[EA]\)\s*(\d{4})\/(\d+)/i,
-    // Decisão 1999/468/CE
-    /(\d{4})\/(\d+)\/C?E/i,
+    /DECIS[ÃA]O[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
+    // Recomendação (UE) n.º 2024/597
+    /RECOMENDA[ÇC][ÃA]O[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
+    // (UE) 2017/745, (EU) 2017/176, (CE) n.º 123/97
+    /\([UE][EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
+    // Decisão 1999/468/CE, 84/466/Euratom
+    /(\d{2,4})\/(\d+)\/(?:C?E|EURATOM)/i,
+    // Generic fallback: any YEAR/NUMBER pattern
+    /(\d{4})\/(\d{1,4})(?:\s|$|,)/,
   ];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match) {
       let year = match[1];
-      const num = match[2].padStart(4, "0");
+      let num = match[2];
       
       // Convert 2-digit year to 4-digit
       if (year.length === 2) {
@@ -73,10 +77,14 @@ function generateEurlexUrl(number: string, title: string): string | null {
         year = yearNum <= 30 ? `20${year}` : `19${year}`;
       }
       
+      // Pad number to 4 digits
+      num = num.padStart(4, "0");
+      
       // Determine document type
       let docType = "R"; // Default to Regulation
       if (/DIRE[CT]IVA/i.test(text)) docType = "L";
       else if (/DECIS[ÃA]O/i.test(text)) docType = "D";
+      else if (/RECOMENDA[ÇC][ÃA]O/i.test(text)) docType = "H"; // Recommendations use H
       
       return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:3${year}${docType}${num}`;
     }
