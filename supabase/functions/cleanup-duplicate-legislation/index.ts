@@ -82,13 +82,29 @@ async function processCleanupInBackground(supabase: any, batchSize: number, logI
   let errors: string[] = [];
 
   try {
-    // Fetch all legislation with counts
-    const { data: legislation, error: legError } = await supabase
-      .from("legislation")
-      .select("id, number, title, summary, entity, publication_date, effective_date, document_url, external_id, origin, source, created_at")
-      .order("publication_date", { ascending: false });
-
-    if (legError) throw legError;
+    // Fetch ALL legislation (no limit) with counts
+    const allLegislation: LegislationItem[] = [];
+    let offset = 0;
+    const pageSize = 1000;
+    
+    while (true) {
+      const { data: page, error: pageError } = await supabase
+        .from("legislation")
+        .select("id, number, title, summary, entity, publication_date, effective_date, document_url, external_id, origin, source, created_at")
+        .order("publication_date", { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      
+      if (pageError) throw pageError;
+      if (!page || page.length === 0) break;
+      
+      allLegislation.push(...page);
+      offset += pageSize;
+      
+      // Safety check to prevent infinite loops
+      if (offset > 50000) break;
+    }
+    
+    const legislation = allLegislation;
 
     console.log(`Fetched ${legislation?.length || 0} legislation records`);
 
