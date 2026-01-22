@@ -39,26 +39,47 @@ function generateDreUrl(number: string): string | null {
 
 // Generate EUR-Lex URL from legislation number
 function generateEurlexUrl(number: string, title: string): string | null {
-  // Try to extract CELEX from number or title
-  const celexMatch = (number + " " + title).match(/3(\d{4})[A-Z](\d{4})/);
+  const text = `${number} ${title}`.toUpperCase();
+  
+  // Try to extract CELEX from number or title (e.g., 32020R0704)
+  const celexMatch = text.match(/3(\d{4})([RLDC])(\d{4})/);
   if (celexMatch) {
-    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:3${celexMatch[1]}${celexMatch[2]}`;
+    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:3${celexMatch[1]}${celexMatch[2]}${celexMatch[3]}`;
   }
 
-  // Pattern for directives: Diretiva 2023/1234/UE
-  const directiveMatch = (number + " " + title).match(/(?:Directive|Diretiva)[^\d]*(\d{4})\/(\d+)/i);
-  if (directiveMatch) {
-    const year = directiveMatch[1];
-    const num = directiveMatch[2].padStart(4, "0");
-    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:32${year}L${num}`;
-  }
+  // Patterns for year/number extraction - supports multiple formats
+  const patterns = [
+    // Regulamento (UE) 2023/1804, Regulamento de Execução (UE) 2020/704
+    /REGULAMENTO[^\d]*(\d{4})\/(\d+)/i,
+    // Diretiva 2023/1234/UE, Directiva 84/466/Euratom
+    /DIRE[CT]IVA[^\d]*(\d{2,4})\/(\d+)/i,
+    // Decisão (UE) 2025/439, Decisão de Execução (UE) n.º 2025/439
+    /DECIS[ÃA]O[^\d]*(?:N\.?[º°]?\s*)?(\d{4})\/(\d+)/i,
+    // (UE) 2017/745
+    /\(U[EA]\)\s*(\d{4})\/(\d+)/i,
+    // Decisão 1999/468/CE
+    /(\d{4})\/(\d+)\/C?E/i,
+  ];
 
-  // Pattern for regulations: Regulamento (UE) 2023/1234
-  const regMatch = (number + " " + title).match(/(?:Regulation|Regulamento)[^\d]*(?:\([^)]+\))?\s*(?:n[º.]?\s*)?(\d{4})\/(\d+)/i);
-  if (regMatch) {
-    const year = regMatch[1];
-    const num = regMatch[2].padStart(4, "0");
-    return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:32${year}R${num}`;
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      let year = match[1];
+      const num = match[2].padStart(4, "0");
+      
+      // Convert 2-digit year to 4-digit
+      if (year.length === 2) {
+        const yearNum = parseInt(year);
+        year = yearNum <= 30 ? `20${year}` : `19${year}`;
+      }
+      
+      // Determine document type
+      let docType = "R"; // Default to Regulation
+      if (/DIRE[CT]IVA/i.test(text)) docType = "L";
+      else if (/DECIS[ÃA]O/i.test(text)) docType = "D";
+      
+      return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:3${year}${docType}${num}`;
+    }
   }
 
   return null;
@@ -258,22 +279,21 @@ Deno.serve(async (req) => {
     let query = supabase
       .from("legislation")
       .select("id, number, title, document_url, origin")
-      // include rows where no_digital_version is NULL (treated as false)
-      .or("no_digital_version.is.null,no_digital_version.eq.false")
-      .limit(limit);
-
-    if (origin === "PT") {
-      query = query.or("origin.eq.PT,origin.eq.dre");
-    } else if (origin === "EU") {
-      query = query.or("origin.eq.EU,origin.eq.eurlex");
-    }
+      .or("no_digital_version.is.null,no_digital_version.eq.false");
 
     // For recover mode, only get items without URLs
     if (mode === "recover") {
-      query = query.or("document_url.is.null,document_url.eq.");
+      query = query.is("document_url", null);
     }
 
-    const { data: legislation, error: fetchError } = await query;
+    // Filter by origin if specified
+    if (origin === "PT") {
+      query = query.in("origin", ["PT", "dre"]);
+    } else if (origin === "EU") {
+      query = query.in("origin", ["EU", "eurlex"]);
+    }
+
+    const { data: legislation, error: fetchError } = await query.limit(limit);
 
     if (fetchError) {
       throw new Error(`Failed to fetch legislation: ${fetchError.message}`);
