@@ -48,28 +48,35 @@ function generateEurlexUrl(number: string, title: string): string | null {
   }
 
   // Patterns for year/number extraction - supports multiple formats
+  // Note: Some EU legislation uses NUMBER/YEAR format (e.g., 142/97), others use YEAR/NUMBER (e.g., 2023/1804)
   const patterns = [
-    // Regulamento (UE) 2023/1804, Regulamento de Execução (UE) 2020/704, Regulamento (CE) n.º 3093/94
-    /REGULAMENTO[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
-    // Diretiva/Directiva 2023/1234/UE, Directiva 84/466/Euratom, Directiva n.º 87/101/CEE
-    /DIRE[CT]IVA[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
-    // Decisão (UE) 2025/439, Decisão de Execução (UE) n.º 2025/439
-    /DECIS[ÃA]O[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
-    // Recomendação (UE) n.º 2024/597
-    /RECOMENDA[ÇC][ÃA]O[^\d]*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
-    // (UE) 2017/745, (EU) 2017/176, (CE) n.º 123/97
-    /\([UE][EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d{2,4})\/(\d+)/i,
-    // Decisão 1999/468/CE, 84/466/Euratom
-    /(\d{2,4})\/(\d+)\/(?:C?E|EURATOM)/i,
-    // Generic fallback: any YEAR/NUMBER pattern
-    /(\d{4})\/(\d{1,4})(?:\s|$|,)/,
+    // Modern format: YEAR/NUMBER - Regulamento (UE) 2023/1804
+    { regex: /REGULAMENTO[^\d]*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
+    // Old format: NUMBER/YEAR - Regulamento (CE) n.º 142/97, 1488/94
+    { regex: /REGULAMENTO[^\d]*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{2})(?:\s|$|,|DE)/i, yearFirst: false },
+    // Diretiva modern
+    { regex: /DIRE[CT]IVA[^\d]*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
+    // Diretiva old
+    { regex: /DIRE[CT]IVA[^\d]*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{2})(?:\s|$|,|DE)/i, yearFirst: false },
+    // Decisão modern
+    { regex: /DECIS[ÃA]O[^\d]*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
+    // Recomendação
+    { regex: /RECOMENDA[ÇC][ÃA]O[^\d]*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
+    // (UE) 2017/745, (EU) 2017/176 - modern
+    { regex: /\([UE][EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
+    // (UE) n.o 293/2012 - could be either format, assume NUMBER/YEAR if second part is 4 digits
+    { regex: /\([UE][EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{4})/i, yearFirst: false },
+    // (CE) old format NUMBER/YEAR
+    { regex: /\(C?E[EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{2})(?:\s|$|,|DE)/i, yearFirst: false },
+    // Decisão 1999/468/CE
+    { regex: /(\d{4})\/(\d+)\/(?:C?E|EURATOM)/i, yearFirst: true },
   ];
 
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
+  for (const { regex, yearFirst } of patterns) {
+    const match = text.match(regex);
     if (match) {
-      let year = match[1];
-      let num = match[2];
+      let year = yearFirst ? match[1] : match[2];
+      let num = yearFirst ? match[2] : match[1];
       
       // Convert 2-digit year to 4-digit
       if (year.length === 2) {
@@ -84,7 +91,7 @@ function generateEurlexUrl(number: string, title: string): string | null {
       let docType = "R"; // Default to Regulation
       if (/DIRE[CT]IVA/i.test(text)) docType = "L";
       else if (/DECIS[ÃA]O/i.test(text)) docType = "D";
-      else if (/RECOMENDA[ÇC][ÃA]O/i.test(text)) docType = "H"; // Recommendations use H
+      else if (/RECOMENDA[ÇC][ÃA]O/i.test(text)) docType = "H";
       
       return `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:3${year}${docType}${num}`;
     }
