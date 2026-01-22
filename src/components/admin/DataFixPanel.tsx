@@ -281,13 +281,18 @@ export function DataFixPanel() {
   }, [batchSize, parallelJobs]);
 
   // Auto-fix loop for a single fix type
-
-  // Auto-fix loop for a single fix type
   useEffect(() => {
     if (!activeFixType || !stats) return;
 
     const runBatchFix = async () => {
       const currentRunning = runningJobs?.length ?? 0;
+      const runningForType = getRunningJobsForType(activeFixType).length;
+      
+      // For duplicates, only 1 job allowed at a time - skip if already running
+      if (activeFixType === "duplicates" && runningForType > 0) {
+        return; // Wait for current job to finish
+      }
+      
       if (currentRunning >= parallelJobs) return;
 
       const count = stats[activeFixType];
@@ -310,7 +315,7 @@ export function DataFixPanel() {
     runBatchFix();
 
     return () => clearInterval(interval);
-  }, [activeFixType, stats, runningJobs, parallelJobs, launchBatch, refetchJobs]);
+  }, [activeFixType, stats, runningJobs, parallelJobs, launchBatch, refetchJobs, refetch]);
 
   const toggleFixType = (type: FixType) => {
     if (activeFixType === type) {
