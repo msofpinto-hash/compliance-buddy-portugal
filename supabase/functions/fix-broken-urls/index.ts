@@ -19,16 +19,31 @@ interface UrlFixResult {
   error?: string;
 }
 
+function normalizePtLegislationText(input: string): string {
+  // Normalize common PT number formats (n.º / n.° / n.o), whitespace and punctuation
+  return (input || "")
+    .toUpperCase()
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    // normalize n.º variants
+    .replace(/\bN\s*[\.\-]?\s*[º°O]\b/g, "N")
+    .replace(/\bN\s*[\.\-]?\s*O\b/g, "N")
+    .trim();
+}
+
 // Generate DRE URL from legislation number
 function generateDreUrl(number: string): string | null {
-  const text = number.toUpperCase();
+  const text = normalizePtLegislationText(number);
   
   // Try to extract document type and number/year
   // Pattern 1: Lei n.º 123/2020, Decreto-Lei n.º 456/99, Portaria n.º 1102-G/2000
-  const modernMatch = text.match(/(\d+)(?:-[A-Z]+)?\/(\d{2,4})/);
+  // Also supports series suffix: Portaria n.º 474/2025/1 and letter suffixes: 1102-G/2000
+  const modernMatch = text.match(/(\d+)(?:-([A-Z]+))?\/(\d{2,4})(?:\/(\d+))?/);
   if (modernMatch) {
     const num = modernMatch[1];
-    let year = modernMatch[2];
+    const letterSuffix = modernMatch[2] ? modernMatch[2].toLowerCase() : null;
+    let year = modernMatch[3];
+    const series = modernMatch[4] ? modernMatch[4] : null;
     
     // Convert 2-digit year to 4-digit
     if (year.length === 2) {
@@ -42,11 +57,19 @@ function generateDreUrl(number: string): string | null {
     else if (/DECRETO\s+REGULAMENTAR/i.test(text)) docType = "decreto-regulamentar";
     else if (/DECRETO/i.test(text)) docType = "decreto";
     else if (/PORTARIA/i.test(text)) docType = "portaria";
+    else if (/AVISO/i.test(text)) docType = "aviso";
     else if (/DESPACHO/i.test(text)) docType = "despacho";
     else if (/RESOLUÇÃO/i.test(text)) docType = "resolucao-do-conselho-de-ministros";
     
-    // Try detailed page format first
-    return `https://diariodarepublica.pt/dr/detalhe/${docType}/${num}-${year}`;
+    // Detailed page format
+    // Examples (observed): /dr/detalhe/portaria/474-2025, sometimes with suffixes
+    // We include letter suffix and series when present (e.g., 1102-g-2000, 474-2025-1)
+    const detailIdParts = [num];
+    if (letterSuffix) detailIdParts.push(letterSuffix);
+    detailIdParts.push(year);
+    if (series) detailIdParts.push(series);
+    const detailId = detailIdParts.join("-");
+    return `https://diariodarepublica.pt/dr/detalhe/${docType}/${detailId}`;
   }
   
   // Pattern 2: Old format - Decreto n.º 45458 (number without year separator)
