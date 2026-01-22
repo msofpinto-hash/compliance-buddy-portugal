@@ -87,111 +87,129 @@ async function checkUrl(url: string): Promise<{ valid: boolean; statusCode?: num
   }
 }
 
-async function fixUrlsInBackground(
+// Process a single legislation item
+async function processLegislationUrl(
   supabase: AnySupabaseClient,
-  legislation: Array<{ id: string; number: string; title: string; document_url: string | null; origin: string | null }>,
-  logId: string,
+  leg: { id: string; number: string; title: string; document_url: string | null; origin: string | null },
   options: { validateExisting: boolean; recoverMissing: boolean; clearInvalid: boolean }
-) {
-  const results: UrlFixResult[] = [];
-  let processed = 0;
-  let recovered = 0;
-  let cleared = 0;
-  let validated = 0;
+): Promise<UrlFixResult> {
+  const result: UrlFixResult = {
+    id: leg.id,
+    number: leg.number,
+    oldUrl: leg.document_url,
+    newUrl: null,
+    action: "unchanged",
+  };
 
-  for (const leg of legislation) {
-    const result: UrlFixResult = {
-      id: leg.id,
-      number: leg.number,
-      oldUrl: leg.document_url,
-      newUrl: null,
-      action: "unchanged",
-    };
+  try {
+    const isPT = leg.origin === "PT" || leg.origin === "dre";
 
-    try {
-      const isPT = leg.origin === "PT" || leg.origin === "dre";
-      const isEU = leg.origin === "EU" || leg.origin === "eurlex";
-
-      // Case 1: Has URL - validate it
-      if (leg.document_url && options.validateExisting) {
-        const check = await checkUrl(leg.document_url);
-        
-        if (check.valid) {
-          result.action = "validated";
-          validated++;
-        } else if (options.clearInvalid) {
-          // Try to recover before clearing
-          const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
-          
-          if (newUrl) {
-            const newCheck = await checkUrl(newUrl);
-            if (newCheck.valid) {
-              await supabase
-                .from("legislation")
-                .update({ document_url: newUrl })
-                .eq("id", leg.id);
-              result.newUrl = newUrl;
-              result.action = "recovered";
-              recovered++;
-            } else {
-              // Clear the invalid URL
-              await supabase
-                .from("legislation")
-                .update({ document_url: null })
-                .eq("id", leg.id);
-              result.action = "cleared";
-              cleared++;
-            }
-          } else {
-            // Clear the invalid URL
-            await supabase
-              .from("legislation")
-              .update({ document_url: null })
-              .eq("id", leg.id);
-            result.action = "cleared";
-            cleared++;
-          }
-        }
-      }
-      // Case 2: No URL - try to recover
-      else if (!leg.document_url && options.recoverMissing) {
+    // Case 1: Has URL - validate it
+    if (leg.document_url && options.validateExisting) {
+      const check = await checkUrl(leg.document_url);
+      
+      if (check.valid) {
+        result.action = "validated";
+      } else if (options.clearInvalid) {
+        // Try to recover before clearing
         const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
         
         if (newUrl) {
-          const check = await checkUrl(newUrl);
-          if (check.valid) {
+          const newCheck = await checkUrl(newUrl);
+          if (newCheck.valid) {
             await supabase
               .from("legislation")
               .update({ document_url: newUrl })
               .eq("id", leg.id);
             result.newUrl = newUrl;
             result.action = "recovered";
-            recovered++;
+          } else {
+            await supabase
+              .from("legislation")
+              .update({ document_url: null })
+              .eq("id", leg.id);
+            result.action = "cleared";
           }
+        } else {
+          await supabase
+            .from("legislation")
+            .update({ document_url: null })
+            .eq("id", leg.id);
+          result.action = "cleared";
         }
       }
-    } catch (err) {
-      result.action = "error";
-      result.error = err instanceof Error ? err.message : "Unknown error";
+    }
+    // Case 2: No URL - try to recover
+    else if (!leg.document_url && options.recoverMissing) {
+      const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
+      
+      if (newUrl) {
+        const check = await checkUrl(newUrl);
+        if (check.valid) {
+          await supabase
+            .from("legislation")
+            .update({ document_url: newUrl })
+            .eq("id", leg.id);
+          result.newUrl = newUrl;
+          result.action = "recovered";
+        }
+      }
+    }
+  } catch (err) {
+    result.action = "error";
+    result.error = err instanceof Error ? err.message : "Unknown error";
+  }
+
+  return result;
+}
+
+// Process URLs in parallel batches
+async function fixUrlsInBackground(
+  supabase: AnySupabaseClient,
+  legislation: Array<{ id: string; number: string; title: string; document_url: string | null; origin: string | null }>,
+  logId: string,
+  options: { validateExisting: boolean; recoverMissing: boolean; clearInvalid: boolean }
+) {
+  const PARALLEL_BATCH_SIZE = 20; // Process 20 URLs in parallel
+  let totalProcessed = 0;
+  let totalRecovered = 0;
+  let totalCleared = 0;
+  let totalValidated = 0;
+
+  console.log(`Starting parallel URL fix: ${legislation.length} items in batches of ${PARALLEL_BATCH_SIZE}`);
+
+  for (let i = 0; i < legislation.length; i += PARALLEL_BATCH_SIZE) {
+    const batch = legislation.slice(i, i + PARALLEL_BATCH_SIZE);
+    
+    // Process batch in parallel
+    const results = await Promise.all(
+      batch.map(leg => processLegislationUrl(supabase, leg, options))
+    );
+
+    // Count results
+    for (const result of results) {
+      totalProcessed++;
+      if (result.action === "validated") totalValidated++;
+      if (result.action === "recovered") totalRecovered++;
+      if (result.action === "cleared") totalCleared++;
     }
 
-    results.push(result);
-    processed++;
+    // Update progress after each batch
+    await supabase
+      .from("sync_logs")
+      .update({
+        items_processed: totalProcessed,
+        items_added: totalRecovered,
+        items_updated: totalCleared,
+      })
+      .eq("id", logId);
 
-    // Update progress every 10 items
-    if (processed % 10 === 0 || processed === legislation.length) {
-      await supabase
-        .from("sync_logs")
-        .update({
-          items_processed: processed,
-          items_added: recovered,
-          items_updated: cleared,
-        })
-        .eq("id", logId);
+    console.log(`Batch ${Math.floor(i / PARALLEL_BATCH_SIZE) + 1}: processed ${totalProcessed}/${legislation.length}`);
+
+    // Small delay between batches to avoid rate limiting
+    if (i + PARALLEL_BATCH_SIZE < legislation.length) {
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
-
-    // Rate limiting delay
-    await new Promise(resolve => setTimeout(resolve, 300));
   }
 
   // Final update
@@ -200,14 +218,14 @@ async function fixUrlsInBackground(
     .update({
       status: "completed",
       completed_at: new Date().toISOString(),
-      items_processed: processed,
-      items_added: recovered,
-      items_updated: cleared,
-      error_message: `Validados: ${validated}, Recuperados: ${recovered}, Limpos: ${cleared}`,
+      items_processed: totalProcessed,
+      items_added: totalRecovered,
+      items_updated: totalCleared,
+      error_message: `Validados: ${totalValidated}, Recuperados: ${totalRecovered}, Limpos: ${totalCleared}`,
     })
     .eq("id", logId);
 
-  console.log(`URL fix completed: ${JSON.stringify({ processed, recovered, cleared, validated })}`);
+  console.log(`URL fix completed: ${JSON.stringify({ processed: totalProcessed, recovered: totalRecovered, cleared: totalCleared, validated: totalValidated })}`);
 }
 
 Deno.serve(async (req) => {
