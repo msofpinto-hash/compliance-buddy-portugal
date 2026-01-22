@@ -731,7 +731,10 @@ async function runBackgroundCompletion(params: {
   let syncLogId: string | null = null;
   if (!dryRun) {
     const syncType = mode === 'pdf_import_fix' ? 'fix_pdf_import' 
-                   : mode === 'missing_dates' ? 'fix_missing_dates' 
+                   : mode === 'missing_dates' ? 'fix_missing_dates'
+                   : mode === 'missing_summary' ? 'fix_missing_summary'
+                   : mode === 'short_summary' ? 'fix_short_summary'
+                   : mode === 'generic_titles' ? 'fix_generic_titles'
                    : 'complete_auto_imported';
     const { data: syncLog } = await supabase
       .from('sync_logs')

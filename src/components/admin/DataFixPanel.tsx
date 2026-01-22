@@ -64,19 +64,36 @@ const FIX_PHASES: { name: string; types: FixType[]; description: string }[] = [
 ];
 
 const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
-  // URL jobs (note: older jobs used underscore names in sync_logs)
+  // URL jobs
   "fix-broken-urls": "urls",
   "fix_broken_urls": "urls",
   "find-missing-dre-urls": "urls",
   "find_dre_urls": "urls",
+  "validate_urls": "urls",
+  // Dates jobs
+  "fix_missing_dates": "dates",
+  "reimport-eurlex-dates": "dates",
+  "reimport_eurlex_dates": "dates",
+  // Title jobs
   "complete-auto-imported-legislation": "titles",
+  "complete_auto_imported": "titles",
+  "fix_generic_titles": "titles",
   "reimport-dre-metadata": "titles",
+  "reimport_dre_metadata": "titles",
   "fix-eurlex-titles": "titles",
   "fix-generic-titles": "titles",
+  // Summary jobs
+  "fix_missing_summary": "summaries",
+  "fix_short_summary": "summaries",
+  // Requirements jobs
   "extract-requirements": "requirements",
   "extract-requirements-background": "requirements",
+  "background-requirements-extraction": "requirements",
   "fix-incomplete-requirements": "requirements",
+  "post-fix-requirements-extraction": "requirements",
+  // Relations jobs
   "extract-legislation-relations": "relations",
+  "extract_relations": "relations",
 };
 
 export function DataFixPanel() {
