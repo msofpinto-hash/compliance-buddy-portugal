@@ -59,10 +59,12 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const queryClient = useQueryClient();
   const { data: fixIncompletesJob } = useFixIncompletesJob();
   const isFixIncompletesRunning = fixIncompletesJob?.status === "running";
+  const isMobile = useIsMobile();
   
   // Bulk fixes hook
   const bulkFixes = useBulkFixes(legislation);
 
+  const [panelMode, setPanelMode] = useState<PanelMode>("browse");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("publication_date");
@@ -827,9 +829,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     setSelectedLegislation(leg);
     setEditDialogOpen(true);
   };
-
-  const isMobile = useIsMobile();
-  const [panelMode, setPanelMode] = useState<PanelMode>("browse");
 
   return (
     <div className="space-y-4 sm:space-y-6">
