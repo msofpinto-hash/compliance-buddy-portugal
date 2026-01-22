@@ -542,6 +542,7 @@ export function DuplicateCleanupPanel() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -708,132 +709,133 @@ export function DuplicateCleanupPanel() {
           </div>
         )}
       </CardContent>
+    </Card>
 
-      {/* Merge Confirmation Dialog */}
-      <AlertDialog open={showMergeConfirmation} onOpenChange={setShowMergeConfirmation}>
-        <AlertDialogContent className="max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Merge className="h-5 w-5" />
-              Confirmar Fusão de Duplicados
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4 text-left">
-                <p>
-                  Está prestes a fundir <strong>{mergeSummary.groupCount} grupos</strong> de duplicados.
-                </p>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-green-600 font-medium">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Manter ({mergeSummary.keepCount})
-                    </div>
-                    <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
-                      {mergeSummary.itemsToKeep.map((item, i) => (
-                        <li key={i} className="truncate" title={item.title}>
-                          • {item.number}
-                        </li>
-                      ))}
-                      {mergeSummary.keepCount > 5 && (
-                        <li className="text-muted-foreground">...e mais {mergeSummary.keepCount - 5}</li>
-                      )}
-                    </ul>
+    {/* Merge Confirmation Dialog - Outside Card for proper portal rendering */}
+    <AlertDialog open={showMergeConfirmation} onOpenChange={setShowMergeConfirmation}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Merge className="h-5 w-5" />
+            Confirmar Fusão de Duplicados
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-4 text-left">
+              <p>
+                Está prestes a fundir <strong>{mergeSummary.groupCount} grupos</strong> de duplicados.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-green-600 font-medium">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Manter ({mergeSummary.keepCount})
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-destructive font-medium">
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar ({mergeSummary.deleteCount})
-                    </div>
-                    <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
-                      {mergeSummary.itemsToDelete.map((item, i) => (
-                        <li key={i} className="truncate" title={item.title}>
-                          • {item.number}
-                        </li>
-                      ))}
-                      {mergeSummary.deleteCount > 5 && (
-                        <li className="text-muted-foreground">...e mais {mergeSummary.deleteCount - 5}</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="bg-muted p-3 rounded-lg text-xs">
-                  <strong>Nota:</strong> Os dados dos registos eliminados serão fundidos nos registos mantidos. 
-                  Categorias, atribuições a organizações e relações serão transferidas automaticamente.
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setShowMergeConfirmation(false);
-                mergeSelectedGroups();
-              }}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              <Merge className="h-4 w-4 mr-2" />
-              Confirmar Fusão
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Auto Cleanup Confirmation Dialog */}
-      <AlertDialog open={showAutoCleanupConfirmation} onOpenChange={setShowAutoCleanupConfirmation}>
-        <AlertDialogContent className="max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500" />
-              Limpeza Automática de Duplicados
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4 text-left">
-                <p>
-                  Esta operação irá processar <strong>TODOS os duplicados</strong> automaticamente em background.
-                </p>
-                
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 rounded-lg space-y-2">
-                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium">
-                    <AlertTriangle className="h-4 w-4" />
-                    O que vai acontecer:
-                  </div>
-                  <ul className="text-sm space-y-1 ml-6 list-disc">
-                    <li>Identificar todos os grupos de duplicados</li>
-                    <li>Selecionar automaticamente o registo mais completo (com mais requisitos, categorias e dados)</li>
-                    <li>Fundir dados complementares dos duplicados</li>
-                    <li>Transferir categorias, requisitos, relações e atribuições</li>
-                    <li>Eliminar os registos duplicados</li>
+                  <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                    {mergeSummary.itemsToKeep.map((item, i) => (
+                      <li key={i} className="truncate" title={item.title}>
+                        • {item.number}
+                      </li>
+                    ))}
+                    {mergeSummary.keepCount > 5 && (
+                      <li className="text-muted-foreground">...e mais {mergeSummary.keepCount - 5}</li>
+                    )}
                   </ul>
                 </div>
-
-                <div className="bg-muted p-3 rounded-lg text-xs">
-                  <strong>Nota:</strong> O processo corre em background e pode demorar alguns minutos. 
-                  Pode acompanhar o progresso nos logs de sincronização.
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-destructive font-medium">
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar ({mergeSummary.deleteCount})
+                  </div>
+                  <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                    {mergeSummary.itemsToDelete.map((item, i) => (
+                      <li key={i} className="truncate" title={item.title}>
+                        • {item.number}
+                      </li>
+                    ))}
+                    {mergeSummary.deleteCount > 5 && (
+                      <li className="text-muted-foreground">...e mais {mergeSummary.deleteCount - 5}</li>
+                    )}
+                  </ul>
                 </div>
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={runAutoCleanup}
-              className="bg-amber-600 hover:bg-amber-700"
-            >
-              {isAutoCleanup ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Iniciar Limpeza
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
+
+              <div className="bg-muted p-3 rounded-lg text-xs">
+                <strong>Nota:</strong> Os dados dos registos eliminados serão fundidos nos registos mantidos. 
+                Categorias, atribuições a organizações e relações serão transferidas automaticamente.
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setShowMergeConfirmation(false);
+              mergeSelectedGroups();
+            }}
+            className="bg-destructive hover:bg-destructive/90"
+          >
+            <Merge className="h-4 w-4 mr-2" />
+            Confirmar Fusão
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Auto Cleanup Confirmation Dialog - Outside Card for proper portal rendering */}
+    <AlertDialog open={showAutoCleanupConfirmation} onOpenChange={setShowAutoCleanupConfirmation}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-amber-500" />
+            Limpeza Automática de Duplicados
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-4 text-left">
+              <p>
+                Esta operação irá processar <strong>TODOS os duplicados</strong> automaticamente em background.
+              </p>
+              
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 rounded-lg space-y-2">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium">
+                  <AlertTriangle className="h-4 w-4" />
+                  O que vai acontecer:
+                </div>
+                <ul className="text-sm space-y-1 ml-6 list-disc">
+                  <li>Identificar todos os grupos de duplicados</li>
+                  <li>Selecionar automaticamente o registo mais completo (com mais requisitos, categorias e dados)</li>
+                  <li>Fundir dados complementares dos duplicados</li>
+                  <li>Transferir categorias, requisitos, relações e atribuições</li>
+                  <li>Eliminar os registos duplicados</li>
+                </ul>
+              </div>
+
+              <div className="bg-muted p-3 rounded-lg text-xs">
+                <strong>Nota:</strong> O processo corre em background e pode demorar alguns minutos. 
+                Pode acompanhar o progresso nos logs de sincronização.
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={runAutoCleanup}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            {isAutoCleanup ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4 mr-2" />
+            )}
+            Iniciar Limpeza
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   );
 }
 
