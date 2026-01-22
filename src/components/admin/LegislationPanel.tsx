@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, Sparkles, Ban, FileQuestion, Layers } from "lucide-react";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, Sparkles, Ban, FileQuestion, Layers, Globe2, Building2, FolderTree } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
 import { useBulkFixes } from "@/hooks/useBulkFixes";
@@ -31,16 +32,20 @@ import { AISuggestCategoriesDialog } from "./AISuggestCategoriesDialog";
 import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
 import { AnimatedStatCard } from "./AnimatedStatCard";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
+import { GlobalApplicabilityPanel } from "./GlobalApplicabilityPanel";
+import { ClientLegislationImportPanel } from "./ClientLegislationImportPanel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type SortField = "title" | "number" | "publication_date" | "theme" | "category_count";
 type SortOrder = "asc" | "desc";
 type ViewMode = "list" | "tree";
+type PanelMode = "browse" | "global" | "clients";
 
 const ITEMS_PER_PAGE_OPTIONS = [25, 50, 100, 200];
 
@@ -823,31 +828,65 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     setEditDialogOpen(true);
   };
 
+  const isMobile = useIsMobile();
+  const [panelMode, setPanelMode] = useState<PanelMode>("browse");
+
   return (
-    <div className="space-y-6">
-      {/* View Mode Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={viewMode === "list" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className="gap-2"
-          >
-            <List className="h-4 w-4" />
-            Lista
-          </Button>
-          <Button
-            variant={viewMode === "tree" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("tree")}
-            className="gap-2"
-          >
-            <GitBranch className="h-4 w-4" />
-            Árvore
-          </Button>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Panel Mode Tabs - Mobile optimized */}
+      <Tabs value={panelMode} onValueChange={(v) => setPanelMode(v as PanelMode)} className="w-full">
+        <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-full sm:w-auto h-auto gap-1 p-1">
+            <TabsTrigger value="browse" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
+              <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Navegação</span>
+              <span className="xs:hidden">Nav.</span>
+            </TabsTrigger>
+            <TabsTrigger value="global" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
+              <Globe2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Global</span>
+              <span className="xs:hidden">Glob.</span>
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
+              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Clientes</span>
+              <span className="xs:hidden">Cli.</span>
+            </TabsTrigger>
+          </TabsList>
         </div>
-      </div>
+
+        <TabsContent value="global" className="mt-4">
+          <GlobalApplicabilityPanel />
+        </TabsContent>
+
+        <TabsContent value="clients" className="mt-4">
+          <ClientLegislationImportPanel />
+        </TabsContent>
+
+        <TabsContent value="browse" className="mt-4 space-y-4">
+          {/* View Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewMode === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="gap-1.5 h-8 text-xs sm:text-sm"
+              >
+                <List className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Lista</span>
+              </Button>
+              <Button
+                variant={viewMode === "tree" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("tree")}
+                className="gap-1.5 h-8 text-xs sm:text-sm"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Árvore</span>
+              </Button>
+            </div>
+          </div>
 
       {/* Progress Banner for All Active Jobs */}
       {!hideBanner && <ActiveJobsBanner />}
