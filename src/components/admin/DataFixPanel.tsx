@@ -16,9 +16,9 @@ import {
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
 
 interface FixStats {
+  duplicates: number;
   urls: number;
   dates: number;
   titles: number;
@@ -37,9 +37,10 @@ interface RunningJob {
   started_at: string;
 }
 
-type FixType = "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations" | "categories";
+type FixType = "duplicates" | "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations" | "categories";
 
 const FIX_LABELS: Record<FixType, string> = {
+  duplicates: "0. Duplicados",
   urls: "1. URLs",
   dates: "2. Datas",
   titles: "2. Títulos",
@@ -50,6 +51,7 @@ const FIX_LABELS: Record<FixType, string> = {
 };
 
 const FIX_DESCRIPTIONS: Record<FixType, string> = {
+  duplicates: "Consolida registos duplicados preservando dados mais completos",
   urls: "Base para tudo - sem URL não é possível obter os restantes dados",
   dates: "Obtido via scraping do URL",
   titles: "Obtido via scraping do URL",
@@ -59,8 +61,9 @@ const FIX_DESCRIPTIONS: Record<FixType, string> = {
   categories: "Atribuição automática via IA (requer sumário válido)",
 };
 
-// Dependency order: URLs first, then metadata (dates/titles/summaries), then requirements, then relations, then categories
+// Dependency order: Duplicates first, then URLs, then metadata (dates/titles/summaries), then requirements, then relations, then categories
 const FIX_PHASES: { name: string; types: FixType[]; description: string }[] = [
+  { name: "Fase 0: Duplicados", types: ["duplicates"], description: "Consolidar registos duplicados" },
   { name: "Fase 1: URLs", types: ["urls"], description: "Obter links oficiais (base para tudo)" },
   { name: "Fase 2: Metadados", types: ["dates", "titles", "summaries"], description: "Scraping de datas, títulos e resumos" },
   { name: "Fase 3: Requisitos", types: ["requirements"], description: "Extração IA de obrigações legais" },
@@ -69,6 +72,10 @@ const FIX_PHASES: { name: string; types: FixType[]; description: string }[] = [
 ];
 
 const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
+  // Duplicate cleanup jobs
+  "cleanup-duplicate-legislation": "duplicates",
+  "cleanup_duplicates": "duplicates",
+  "duplicate_cleanup": "duplicates",
   // URL jobs
   "fix-broken-urls": "urls",
   "fix_broken_urls": "urls",
@@ -135,6 +142,38 @@ export function DataFixPanel() {
   const { data: stats, isLoading, refetch } = useQuery({
     queryKey: ["data-fix-stats-unified"],
     queryFn: async (): Promise<FixStats> => {
+      // Count duplicate groups by fetching legislation and grouping by normalized number
+      const { data: legNumbers } = await supabase
+        .from("legislation")
+        .select("id, number");
+      
+      // Count duplicates using normalized number logic
+      const normalizeNumber = (num: string): string => {
+        return num
+          .toLowerCase()
+          .replace(/\s+/g, "")
+          .replace(/n\.?º?\s*/gi, "")
+          .replace(/[–—−]/g, "-")
+          .replace(/,/g, "")
+          .trim();
+      };
+      
+      const groups = new Map<string, string[]>();
+      for (const item of legNumbers || []) {
+        const normalized = normalizeNumber(item.number);
+        if (!groups.has(normalized)) {
+          groups.set(normalized, []);
+        }
+        groups.get(normalized)!.push(item.id);
+      }
+      
+      let duplicateCount = 0;
+      for (const [, ids] of groups) {
+        if (ids.length > 1) {
+          duplicateCount += ids.length - 1; // Count redundant records
+        }
+      }
+
       // URLs: document_url is null AND (no_digital_version is null OR no_digital_version is false)
       const urlsResult = await supabase
         .from("legislation")
@@ -167,6 +206,7 @@ export function DataFixPanel() {
       const uniqueReqLeg = new Set((reqLegResult.data || []).map(r => r.legislation_id));
 
       return {
+        duplicates: duplicateCount,
         urls: urlsResult.count || 0,
         dates: datesResult.count || 0,
         titles: genericTitles,
@@ -192,6 +232,10 @@ export function DataFixPanel() {
       let body = {};
 
       switch (type) {
+        case "duplicates":
+          functionName = "cleanup-duplicate-legislation";
+          body = { batchSize: batchSize };
+          break;
         case "urls":
           // For URLs we run both strategies:
           // 1) DRE search (better recovery for PT origin)
@@ -614,6 +658,7 @@ export function DataFixPanel() {
                       <div className={`grid gap-1.5 sm:gap-2 ${phase.types.length > 1 ? "grid-cols-1 sm:grid-cols-3" : ""}`}>
                         {phase.types.map(type => {
                           const iconMap: Record<FixType, React.ReactNode> = {
+                            duplicates: <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
                             urls: <Link className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
                             dates: <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
                             titles: <Type className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
@@ -651,8 +696,6 @@ export function DataFixPanel() {
         </CardContent>
       </Card>
 
-      {/* Duplicate Cleanup Section */}
-      <DuplicateCleanupPanel />
     </div>
   );
 }
