@@ -25,6 +25,7 @@ import { UrlHealthPanel } from "./UrlHealthPanel";
 import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
 import { DataQualityPanel } from "./DataQualityPanel";
 import { DateAnomaliesPanel } from "./DateAnomaliesPanel";
+import { ActiveJobsBanner } from "./ActiveJobsBanner";
 
 type MaintenanceCategory = "urls" | "dates" | "titles" | "summaries" | "entities" | "requirements" | "relations" | "quality";
 
@@ -51,6 +52,9 @@ export function MaintenancePanel() {
 
   return (
     <div className="space-y-4">
+      {/* Active Jobs Banner - visible on all tabs */}
+      <ActiveJobsBanner />
+
       {/* Quick Stats Summary */}
       <MaintenanceQuickStats />
 
