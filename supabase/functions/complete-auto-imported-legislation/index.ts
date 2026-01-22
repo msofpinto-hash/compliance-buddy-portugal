@@ -322,30 +322,56 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
   }
   
   // ========== EXTRACT TITLE ==========
-  // For title, prefer the summary if it's a good description, or construct from number + summary
+  // For title, try multiple patterns then fall back to constructing from number + summary
   const titlePatterns = [
-    // Pattern 1: Look for the diploma type + number + description
+    // Pattern 1: Look for the diploma type + number + description (full format)
     /((?:Decreto-Lei|Portaria|Lei|Despacho|Resolução|Declaração|Aviso|Regulamento|Acórdão|Decreto)\s+n\.?º?\s*\d+[A-Za-z]?[-\/]\d{4}\s*[-–]\s*[^\n]{20,})/i,
-    // Pattern 2: After legislation number, get the descriptive title
-    /(?:^|\n)([A-Z][^.\n]{30,}\.)/m,
+    // Pattern 2: After "Sumário" label, get the first substantive line
+    /Sum[áa]rio[:\s]*\n?\s*([A-Z][^\n]{25,})/i,
+    // Pattern 3: Content between the legislation number and "Emissor"
+    /(?:n\.?º?\s*\d+[A-Za-z]?[-\/]\d{4})[^\n]*\n+([A-Z][^\n]{30,})(?=\n)/,
+    // Pattern 4: Long sentence starting with uppercase (likely descriptive)
+    /(?:^|\n)([A-Z][A-Za-zÀ-ÿ\s,]{40,}(?:\.|\n))/m,
+    // Pattern 5: After "Série" line, get substantial content
+    /Série\s+[I]+[^\n]*\n\s*\n?\s*([A-Z][A-Za-zÀ-ÿ\s,]{30,})/,
   ];
   
   for (const pattern of titlePatterns) {
     const match = cleanMarkdown.match(pattern);
     if (match && match[1]) {
-      const title = match[1].trim().replace(/\s+/g, ' ');
+      let title = match[1].trim().replace(/\s+/g, ' ');
+      // Clean trailing garbage
+      title = title.replace(/\s*(Texto|PDF|Partilhar|Versão|Diploma referenciado|Emissor).*$/i, '').trim();
+      
       if (isValidTitle(title, currentNumber)) {
         update.title = title.substring(0, 500);
-        console.log(`[extractMetadataFromDRE] Found title: ${update.title}`);
+        console.log(`[extractMetadataFromDRE] Found title via pattern: ${update.title.substring(0, 80)}...`);
         break;
       }
     }
   }
   
-  // If no title found but we have a summary, use the summary as title
+  // If no title found but we have a valid summary, construct title from number + summary
   if (!update.title && update.summary && update.summary.length > 20) {
-    update.title = update.summary.substring(0, 500);
-    console.log(`[extractMetadataFromDRE] Using summary as title`);
+    // Extract just the base number without date (e.g., "Aviso n.º 16734/2024" from "Aviso n.º 16734/2024/2 de 7 de agosto")
+    const baseNumberMatch = currentNumber.match(/^([A-Za-zÀ-ÿ\-\s]+n\.?º?\s*\d+[A-Za-z]?[-\/]\d{4})/i);
+    const baseNumber = baseNumberMatch ? baseNumberMatch[1] : currentNumber.split(' de ')[0];
+    
+    // Create a descriptive title combining number and summary
+    const summaryPreview = update.summary.length > 200 
+      ? update.summary.substring(0, 200) + '...'
+      : update.summary;
+    
+    const constructedTitle = `${baseNumber} - ${summaryPreview}`;
+    
+    if (isValidTitle(constructedTitle, currentNumber)) {
+      update.title = constructedTitle.substring(0, 500);
+      console.log(`[extractMetadataFromDRE] Constructed title from summary: ${update.title.substring(0, 80)}...`);
+    } else {
+      // Last resort: use summary directly if it's valid
+      update.title = update.summary.substring(0, 500);
+      console.log(`[extractMetadataFromDRE] Using raw summary as title`);
+    }
   }
   
   // ========== EXTRACT PUBLICATION DATE ==========
