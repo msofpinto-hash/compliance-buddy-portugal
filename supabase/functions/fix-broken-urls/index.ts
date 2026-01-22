@@ -240,7 +240,8 @@ Deno.serve(async (req) => {
     let query = supabase
       .from("legislation")
       .select("id, number, title, document_url, origin")
-      .eq("no_digital_version", false)
+      // include rows where no_digital_version is NULL (treated as false)
+      .or("no_digital_version.is.null,no_digital_version.eq.false")
       .limit(limit);
 
     if (origin === "PT") {
@@ -277,6 +278,7 @@ Deno.serve(async (req) => {
       const { data: logData, error: logError } = await supabase
         .from("sync_logs")
         .insert({
+          // Keep underscore for backward compatibility with existing logs
           sync_type: "fix_broken_urls",
           status: "running",
           items_processed: 0,

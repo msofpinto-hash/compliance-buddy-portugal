@@ -64,8 +64,11 @@ const FIX_PHASES: { name: string; types: FixType[]; description: string }[] = [
 ];
 
 const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
+  // URL jobs (note: older jobs used underscore names in sync_logs)
   "fix-broken-urls": "urls",
+  "fix_broken_urls": "urls",
   "find-missing-dre-urls": "urls",
+  "find_dre_urls": "urls",
   "complete-auto-imported-legislation": "titles",
   "reimport-dre-metadata": "titles",
   "fix-eurlex-titles": "titles",
@@ -161,8 +164,14 @@ export function DataFixPanel() {
 
       switch (type) {
         case "urls":
-          functionName = "fix-broken-urls";
-          body = { limit: batchSize, mode: "recover", background: true };
+          // For URLs we run both strategies:
+          // 1) DRE search (better recovery for PT origin)
+          // 2) Generic recovery/validation (covers other cases)
+          functionName = i % 2 === 0 ? "find-missing-dre-urls" : "fix-broken-urls";
+          body =
+            functionName === "find-missing-dre-urls"
+              ? { limit: batchSize, background: true, dryRun: false }
+              : { limit: batchSize, mode: "recover", background: true };
           break;
         case "titles":
           functionName = "complete-auto-imported-legislation";
@@ -213,6 +222,8 @@ export function DataFixPanel() {
       if (slotsAvailable > 0) {
         await launchBatch(activeFixType, count);
         refetchJobs();
+        // Force immediate refresh of counters after launching jobs
+        refetch();
       }
     };
 
