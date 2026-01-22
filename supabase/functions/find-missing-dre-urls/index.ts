@@ -321,8 +321,8 @@ async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string
         }
       }
       
-      // Minimal delay between query attempts (300ms)
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Delay between query attempts (2s to respect rate limits)
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
     
     console.log(`✗ No URL for: ${number}`);
@@ -420,9 +420,10 @@ async function processInBackground(
     
     console.log(`[Batch ${batchNum}/${totalBatches}] Done. Total: ${found} found, ${failed} failed`);
     
-    // Minimal delay between batches (500ms) - rely on per-query delays instead
+    // Delay between batches (5s to respect rate limits)
     if (batchStart + concurrency < legislation.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log(`Waiting 5s before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
   
@@ -447,7 +448,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 200, dryRun = false, stream = false, background = false, concurrency = 10 } = await req.json().catch(() => ({}));
+    const { limit = 30, dryRun = false, stream = false, background = false, concurrency = 1 } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
