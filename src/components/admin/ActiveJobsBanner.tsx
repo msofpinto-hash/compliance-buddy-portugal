@@ -48,6 +48,8 @@ const SYNC_TYPE_LABELS: Record<string, string> = {
   "import-eurlex-summaries": "Importação de Sumários EUR-Lex",
   "fix_broken_urls": "Correção de URLs Quebradas",
   "fix-broken-urls": "Correção de URLs Quebradas",
+  "cleanup-duplicate-legislation": "Limpeza de Duplicados",
+  "cleanup_duplicates": "Limpeza de Duplicados",
 };
 
 // Timeout thresholds (in seconds)
