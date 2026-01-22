@@ -1511,6 +1511,8 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           categories: leg.categories,
         }))}
       />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
