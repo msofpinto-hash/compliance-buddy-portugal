@@ -52,53 +52,61 @@ export function UrlHealthPanel() {
   const [origin, setOrigin] = useState<string>("all");
   const [mode, setMode] = useState<string>("all");
 
-  // Fetch URL health statistics
+  // Fetch URL health statistics using RPC for accurate counts
   const { data: stats, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["url-health-stats"],
     queryFn: async () => {
+      // Use separate queries with proper filtering
       const [
-        totalWithUrl,
-        totalWithoutUrl,
-        ptWithUrl,
-        ptWithoutUrl,
-        euWithUrl,
-        euWithoutUrl,
-        noDigitalVersion,
+        withUrlResult,
+        withoutUrlResult,
+        ptWithUrlResult,
+        ptWithoutUrlResult,
+        euWithUrlResult,
+        euWithoutUrlResult,
+        noDigitalResult,
       ] = await Promise.all([
+        // With URL (not null and not empty)
         supabase
           .from("legislation")
           .select("id", { count: "exact", head: true })
           .not("document_url", "is", null)
           .neq("document_url", ""),
+        // Without URL (null or empty) AND not marked as no_digital_version
         supabase
           .from("legislation")
           .select("id", { count: "exact", head: true })
           .or("document_url.is.null,document_url.eq.")
-          .or("no_digital_version.is.null,no_digital_version.eq.false"),
+          .neq("no_digital_version", true),
+        // PT with URL
         supabase
           .from("legislation")
           .select("id", { count: "exact", head: true })
-          .or("origin.eq.PT,origin.eq.dre")
+          .in("origin", ["PT", "dre"])
           .not("document_url", "is", null)
           .neq("document_url", ""),
+        // PT without URL
         supabase
           .from("legislation")
           .select("id", { count: "exact", head: true })
-          .or("origin.eq.PT,origin.eq.dre")
+          .in("origin", ["PT", "dre"])
           .or("document_url.is.null,document_url.eq.")
-          .or("no_digital_version.is.null,no_digital_version.eq.false"),
+          .neq("no_digital_version", true),
+        // EU with URL
         supabase
           .from("legislation")
           .select("id", { count: "exact", head: true })
-          .or("origin.eq.EU,origin.eq.eurlex")
+          .in("origin", ["EU", "eurlex"])
           .not("document_url", "is", null)
           .neq("document_url", ""),
+        // EU without URL
         supabase
           .from("legislation")
           .select("id", { count: "exact", head: true })
-          .or("origin.eq.EU,origin.eq.eurlex")
+          .in("origin", ["EU", "eurlex"])
           .or("document_url.is.null,document_url.eq.")
-          .or("no_digital_version.is.null,no_digital_version.eq.false"),
+          .neq("no_digital_version", true),
+        // Marked as no digital version
         supabase
           .from("legislation")
           .select("id", { count: "exact", head: true })
@@ -106,13 +114,13 @@ export function UrlHealthPanel() {
       ]);
 
       return {
-        withUrl: totalWithUrl.count || 0,
-        withoutUrl: totalWithoutUrl.count || 0,
-        ptWithUrl: ptWithUrl.count || 0,
-        ptWithoutUrl: ptWithoutUrl.count || 0,
-        euWithUrl: euWithUrl.count || 0,
-        euWithoutUrl: euWithoutUrl.count || 0,
-        noDigitalVersion: noDigitalVersion.count || 0,
+        withUrl: withUrlResult.count || 0,
+        withoutUrl: withoutUrlResult.count || 0,
+        ptWithUrl: ptWithUrlResult.count || 0,
+        ptWithoutUrl: ptWithoutUrlResult.count || 0,
+        euWithUrl: euWithUrlResult.count || 0,
+        euWithoutUrl: euWithoutUrlResult.count || 0,
+        noDigitalVersion: noDigitalResult.count || 0,
       };
     },
     refetchInterval: 30000,
