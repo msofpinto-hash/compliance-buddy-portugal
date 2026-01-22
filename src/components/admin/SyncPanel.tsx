@@ -7,9 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { RefreshCw, CheckCircle2, XCircle, Clock, Loader2, Globe, Flag, FileUp, Upload, FileText, Send, FileSpreadsheet, Link, AlertCircle, Filter, Wrench, Type, Calendar } from "lucide-react";
-import { PdfDataFixPanel } from "./PdfDataFixPanel";
-import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
-import { UrlHealthPanel } from "./UrlHealthPanel";
 import { useSyncLogs, useTriggerSync } from "@/hooks/useSyncLogs";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -1897,12 +1894,6 @@ https://dre.pt/application/file/..."
         </CardContent>
       </Card>
 
-      {/* PDF Data Fix - New dedicated panel */}
-      <PdfDataFixPanel />
-
-      {/* URL Health Panel */}
-      <UrlHealthPanel />
-
       {/* DRE Sync */}
       <Card>
         <CardHeader>
@@ -2022,9 +2013,6 @@ https://dre.pt/application/file/..."
         )}
       </CardContent>
     </Card>
-
-    {/* Duplicate Cleanup Panel */}
-    <DuplicateCleanupPanel />
   </div>
 );
 }
