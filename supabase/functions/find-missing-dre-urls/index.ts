@@ -317,63 +317,94 @@ async function searchDREWithFirecrawlSearch(number: string, firecrawlKey: string
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<void>) => void };
 
+// Process a single item
+async function processItem(
+  supabase: any,
+  leg: any,
+  firecrawlKey: string
+): Promise<{ success: boolean; url?: string }> {
+  try {
+    const dreUrl = await searchDREWithFirecrawlSearch(leg.number, firecrawlKey);
+    
+    if (dreUrl) {
+      const { error: updateError } = await supabase
+        .from('legislation')
+        .update({ 
+          document_url: dreUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', leg.id);
+      
+      if (!updateError) {
+        console.log(`✓ ${leg.number} -> ${dreUrl}`);
+        return { success: true, url: dreUrl };
+      } else {
+        console.error(`✗ Update failed for ${leg.number}:`, updateError.message);
+        return { success: false };
+      }
+    } else {
+      console.log(`✗ No URL found for ${leg.number}`);
+      return { success: false };
+    }
+  } catch (error) {
+    console.error(`✗ Error for ${leg.number}:`, error);
+    return { success: false };
+  }
+}
+
+// Process items in parallel batches
 async function processInBackground(
   supabase: any,
   legislation: any[],
   firecrawlKey: string,
-  logId: string
+  logId: string,
+  concurrency: number = 5
 ) {
   let found = 0;
   let failed = 0;
+  let processed = 0;
   
-  for (let i = 0; i < legislation.length; i++) {
-    const leg = legislation[i];
+  console.log(`Starting parallel processing: ${legislation.length} items with concurrency ${concurrency}`);
+  
+  // Process in batches of 'concurrency' items
+  for (let batchStart = 0; batchStart < legislation.length; batchStart += concurrency) {
+    const batch = legislation.slice(batchStart, batchStart + concurrency);
+    const batchNum = Math.floor(batchStart / concurrency) + 1;
+    const totalBatches = Math.ceil(legislation.length / concurrency);
     
-    try {
-      console.log(`[${i+1}/${legislation.length}] Searching URL for ${leg.number}...`);
-      
-      const dreUrl = await searchDREWithFirecrawlSearch(leg.number, firecrawlKey);
-      
-      if (dreUrl) {
-        const { error: updateError } = await supabase
-          .from('legislation')
-          .update({ 
-            document_url: dreUrl,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', leg.id);
-        
-        if (!updateError) {
-          console.log(`Updated ${leg.number} with URL: ${dreUrl}`);
-          found++;
-        } else {
-          console.error(`Failed to update ${leg.number}:`, updateError);
-          failed++;
-        }
+    console.log(`[Batch ${batchNum}/${totalBatches}] Processing ${batch.length} items in parallel...`);
+    
+    // Process batch in parallel
+    const results = await Promise.all(
+      batch.map(leg => processItem(supabase, leg, firecrawlKey))
+    );
+    
+    // Count results
+    for (const result of results) {
+      processed++;
+      if (result.success) {
+        found++;
       } else {
-        console.log(`No URL found for ${leg.number}`);
         failed++;
       }
-      
-      // Update progress every 5 items
-      if ((i + 1) % 5 === 0 || i === legislation.length - 1) {
-        await supabase
-          .from('sync_logs')
-          .update({
-            items_processed: i + 1,
-            items_added: found,
-            items_updated: failed,
-            status: i === legislation.length - 1 ? 'completed' : 'running'
-          })
-          .eq('id', logId);
-      }
-      
-      // Rate limiting - 2 seconds between requests
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-    } catch (error) {
-      console.error(`Error processing ${leg.number}:`, error);
-      failed++;
+    }
+    
+    // Update progress after each batch
+    await supabase
+      .from('sync_logs')
+      .update({
+        items_processed: processed,
+        items_added: found,
+        items_updated: failed,
+        status: processed >= legislation.length ? 'completed' : 'running'
+      })
+      .eq('id', logId);
+    
+    console.log(`[Batch ${batchNum}/${totalBatches}] Done. Total: ${found} found, ${failed} failed`);
+    
+    // Small delay between batches to avoid rate limiting (500ms instead of 2s per item)
+    if (batchStart + concurrency < legislation.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
   
@@ -389,7 +420,7 @@ async function processInBackground(
     })
     .eq('id', logId);
   
-  console.log(`Background job completed: ${found} found, ${failed} failed`);
+  console.log(`Background job completed: ${found} found, ${failed} failed out of ${legislation.length}`);
 }
 
 Deno.serve(async (req) => {
@@ -398,7 +429,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 20, dryRun = false, stream = false, background = false } = await req.json().catch(() => ({}));
+    const { limit = 100, dryRun = false, stream = false, background = false, concurrency = 5 } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -482,7 +513,7 @@ Deno.serve(async (req) => {
       const logId = logData.id;
       
       // Start background processing
-      EdgeRuntime.waitUntil(processInBackground(supabase, toProcess, firecrawlKey, logId));
+      EdgeRuntime.waitUntil(processInBackground(supabase, toProcess, firecrawlKey, logId, concurrency));
       
       return new Response(
         JSON.stringify({
