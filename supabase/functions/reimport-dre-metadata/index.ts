@@ -80,70 +80,124 @@ function sanitizeDate(dateStr: string | null): string | null {
   }
 }
 
+// ========== VALIDATION HELPERS ==========
+const INVALID_ENTITIES = [
+  'pesquisar', 'search', 'buscar', 'procurar', 
+  'menu', 'nav', 'navigation', 'header', 'footer',
+  'login', 'entrar', 'registar', 'cookies',
+  'aceitar', 'recusar', 'fechar', 'close',
+  'undefined', 'null', ''
+];
+
+const INVALID_TITLE_PREFIXES = [
+  'diário da república',
+  '# diário',
+  'série i',
+  'série ii',
+  'emissor',
+  'pesquisar',
+  'menu',
+  'navigation',
+  'cookies',
+  'diploma referenciado'
+];
+
+function isValidEntity(entity: string | null | undefined): boolean {
+  if (!entity) return false;
+  const lower = entity.toLowerCase().trim();
+  if (lower.length < 3 || lower.length > 300) return false;
+  if (INVALID_ENTITIES.some(inv => lower === inv || lower.startsWith(inv + ' '))) return false;
+  if (entity.includes('http') || entity.includes('www.')) return false;
+  if (!/[a-zA-ZÀ-ÿ]/.test(entity)) return false;
+  return true;
+}
+
+function isValidTitle(title: string | null | undefined, currentNumber: string): boolean {
+  if (!title) return false;
+  const lower = title.toLowerCase().trim();
+  if (lower.length < 15) return false;
+  if (INVALID_TITLE_PREFIXES.some(prefix => lower.startsWith(prefix))) return false;
+  if (title.includes('http') || title.includes('www.')) return false;
+  if (title.trim() === currentNumber.trim()) return false;
+  // Reject social sharing garbage
+  if (lower.includes('enviar por email') || lower.includes('copiar link')) return false;
+  if (lower.includes('facebook') || lower.includes('linkedin') || lower.includes('twitter')) return false;
+  return true;
+}
+
+function isValidSummary(summary: string | null | undefined): boolean {
+  if (!summary) return false;
+  const trimmed = summary.trim();
+  if (trimmed.length < 20) return false;
+  if (trimmed.toLowerCase().includes('lamentamos')) return false;
+  if (trimmed.toLowerCase().includes('página não encontrada')) return false;
+  if (/^(menu|nav|header|footer|cookies|aceitar|recusar)/i.test(trimmed)) return false;
+  return true;
+}
+
 function extractMetadataFromDRE(markdown: string, currentNumber: string): LegislationUpdate {
   const update: LegislationUpdate = {};
   
-  // Clean markdown from unwanted patterns first
   const cleanMarkdown = markdown
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove markdown links, keep text
-    .replace(/\*\*/g, '')                     // Remove bold markers
-    .replace(/\n+/g, '\n');                   // Normalize newlines
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\n{3,}/g, '\n\n');
   
-  // Extract title - look for the diploma title pattern
-  // Usually appears after the diploma type and number
-  const titlePatterns = [
-    // Pattern: Look for content after "Série" line
-    /Série [I]+.*?\n(.+?)(?:\n|Emissor)/s,
-    // Pattern: Title is the first substantial line after number
-    new RegExp(`${currentNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*\\n+(.+?)(?:\\n|$)`),
-    // Pattern: Look for text before "Emissor:"
-    /^(.+?)(?=\nEmissor:)/m,
+  // ========== EXTRACT ENTITY/EMISSOR ==========
+  const entityPatterns = [
+    /Emissor[:\s]*\n?\s*([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ][^\n]{3,100})/i,
+    /Entidade[:\s]*\n?\s*([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ][^\n]{3,100})/i,
+    /(Ministério\s+d[aoe]\s+[^\n]+)/i,
+    /(Presidência\s+d[ao]\s+[^\n]+)/i,
   ];
   
-  for (const pattern of titlePatterns) {
+  for (const pattern of entityPatterns) {
     const match = cleanMarkdown.match(pattern);
     if (match && match[1]) {
-      const potentialTitle = match[1].trim();
-      // Validate it's a good title (not too short, not just the number, not UI garbage)
-      const isGarbageTitle = 
-        potentialTitle.toLowerCase().includes('enviar por email') ||
-        potentialTitle.toLowerCase().includes('copiar link') ||
-        potentialTitle.toLowerCase().includes('facebook') ||
-        potentialTitle.toLowerCase().includes('linkedin') ||
-        potentialTitle.toLowerCase().includes('twitter') ||
-        potentialTitle.toLowerCase().includes('whatsapp') ||
-        potentialTitle.toLowerCase().includes('publicação: diário');
-      
-      if (potentialTitle.length > 20 && 
-          !potentialTitle.includes('http') &&
-          !potentialTitle.toLowerCase().startsWith('emissor') &&
-          !potentialTitle.toLowerCase().startsWith('série') &&
-          !isGarbageTitle) {
-        update.title = potentialTitle.substring(0, 500);
+      const entity = match[1].trim().replace(/\s+/g, ' ');
+      if (isValidEntity(entity)) {
+        update.entity = entity.substring(0, 200);
         break;
       }
     }
   }
   
-  // Extract entity/emissor
-  const entityMatch = cleanMarkdown.match(/Emissor[:\s]+([^\n]+)/i);
-  if (entityMatch) {
-    const entity = entityMatch[1].trim();
-    if (entity && !entity.includes('http') && entity.length < 200) {
-      update.entity = entity;
+  // ========== EXTRACT SUMMARY ==========
+  const summaryPatterns = [
+    /Sum[áa]rio[:\s]*\n?\s*([^\n].+?)(?=\n\s*(?:Texto|Data\s+de|Publicação|Série|Emissor|Entidade|Diploma|Versão|PDF|$))/is,
+    /Sum[áa]rio[:\s]+([^\n]{20,})/i,
+  ];
+  
+  for (const pattern of summaryPatterns) {
+    const match = cleanMarkdown.match(pattern);
+    if (match && match[1]) {
+      let summary = match[1].trim().replace(/\s+/g, ' ');
+      summary = summary.replace(/\s*(Texto|PDF|Partilhar|Versão).*$/i, '').trim();
+      
+      if (isValidSummary(summary)) {
+        update.summary = summary.substring(0, 2000);
+        break;
+      }
     }
   }
   
-  // Extract summary - look for "Sumário:" section
-  const summaryMatch = cleanMarkdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n(?:Texto|Data|Publicação|Série|$))/i);
-  if (summaryMatch) {
-    const summary = summaryMatch[1].trim();
-    if (summary && summary.length > 10 && !summary.includes('Lamentamos')) {
-      update.summary = summary.substring(0, 2000);
+  // ========== EXTRACT TITLE ==========
+  // If we have a good summary, use it for title construction
+  if (update.summary && update.summary.length > 30) {
+    const titleCandidate = `${currentNumber.split(' de ')[0]} - ${update.summary.substring(0, 150)}${update.summary.length > 150 ? '...' : ''}`;
+    if (isValidTitle(titleCandidate, currentNumber)) {
+      update.title = titleCandidate;
     }
   }
   
-  // Extract effective date (data de entrada em vigor)
+  // ========== EXTRACT EFFECTIVE DATE ==========
+  const monthMap: Record<string, string> = {
+    'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+    'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+    'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+  };
+  
   const effectiveDatePatterns = [
     /(?:entra(?:da)?\s+em\s+vigor|vigência|vigor\s+a\s+partir\s+de)[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
     /(\d{1,2})\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})(?:\s*[,.]\s*(?:entra|vigor|vigência))/i,
@@ -154,16 +208,9 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
     if (match) {
       try {
         let dateStr: string;
-        if (match[2]) {
-          // Month name format
-          const monthMap: Record<string, string> = {
-            'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
-            'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
-            'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
-          };
+        if (match[2] && monthMap[match[2].toLowerCase()]) {
           dateStr = `${match[3]}-${monthMap[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
         } else {
-          // Numeric format
           const parts = match[1].split(/[-/]/);
           if (parts.length === 3) {
             dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -171,7 +218,6 @@ function extractMetadataFromDRE(markdown: string, currentNumber: string): Legisl
             continue;
           }
         }
-        // Validate the date before assigning
         const sanitized = sanitizeDate(dateStr);
         if (sanitized) {
           update.effective_date = sanitized;
