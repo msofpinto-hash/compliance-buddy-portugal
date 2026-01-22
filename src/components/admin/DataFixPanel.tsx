@@ -11,11 +11,12 @@ import { toast } from "sonner";
 import { 
   Link, Calendar, Type, FileText, ListChecks, GitBranch, Layers,
   Loader2, Wrench, RefreshCw, Play, Pause, CheckCircle2, Activity,
-  Zap, Settings2, ChevronRight, AlertCircle
+  Zap, Settings2, ChevronRight, AlertCircle, Trash2
 } from "lucide-react";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { DuplicateCleanupPanel } from "./DuplicateCleanupPanel";
 
 interface FixStats {
   urls: number;
@@ -649,6 +650,9 @@ export function DataFixPanel() {
           )}
         </CardContent>
       </Card>
+
+      {/* Duplicate Cleanup Section */}
+      <DuplicateCleanupPanel />
     </div>
   );
 }
