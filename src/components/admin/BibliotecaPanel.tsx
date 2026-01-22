@@ -47,30 +47,36 @@ export function BibliotecaPanel() {
         </div>
       )}
 
-      <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
-        <TabsList className="flex flex-wrap gap-1 bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35">
-          <TabsTrigger value="legislacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <BookOpen className="h-4 w-4" />
-            Legislação
-          </TabsTrigger>
-          <TabsTrigger value="importacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Download className="h-4 w-4" />
-            Importação
-          </TabsTrigger>
-          <TabsTrigger value="correcao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Wrench className="h-4 w-4" />
-            Correção de Dados
-            {hasRunningJobs && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 bg-blue-500 text-white text-xs animate-pulse">
-                {runningJobsCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="temas" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
-            <Palette className="h-4 w-4" />
-            Temas
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-3 sm:space-y-4">
+        <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-full sm:w-auto gap-0.5 sm:gap-1 bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35 p-1 sm:p-1.5">
+            <TabsTrigger value="legislacao" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Legislação</span>
+              <span className="sm:hidden">Leg.</span>
+            </TabsTrigger>
+            <TabsTrigger value="importacao" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Importação</span>
+              <span className="sm:hidden">Imp.</span>
+            </TabsTrigger>
+            <TabsTrigger value="correcao" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Correção</span>
+              <span className="sm:hidden">Fix</span>
+              {hasRunningJobs && (
+                <Badge variant="secondary" className="ml-0.5 sm:ml-1 h-4 sm:h-5 px-1 sm:px-1.5 bg-blue-500 text-white text-[10px] sm:text-xs animate-pulse">
+                  {runningJobsCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="temas" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <Palette className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Temas</span>
+              <span className="sm:hidden">Temas</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="legislacao" className="mt-0">
           <LegislationPanel hideBanner />

@@ -315,7 +315,7 @@ export function DataFixPanel() {
     return null;
   };
 
-  // Fix Category Card with dependency awareness
+  // Fix Category Card with dependency awareness - Mobile optimized
   const FixCategory = ({ type, count, icon }: { type: FixType; count: number; icon: React.ReactNode }) => {
     const isDone = count === 0;
     const typeJobs = getRunningJobsForType(type);
@@ -341,9 +341,9 @@ export function DataFixPanel() {
           </div>
         )}
         
-        <div className="flex items-center justify-between p-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className={`p-2 rounded-lg shrink-0 ${
+        <div className="flex items-center justify-between p-2 sm:p-3 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${
               blocked ? "bg-muted text-muted-foreground" :
               isActiveType ? "bg-green-500 text-white" :
               hasRunningJobs ? "bg-blue-500 text-white animate-pulse" :
@@ -351,63 +351,63 @@ export function DataFixPanel() {
               count > 100 ? "bg-red-500 text-white" :
               "bg-muted"
             }`}>
-              {hasRunningJobs ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+              {hasRunningJobs ? <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" /> : icon}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-medium block truncate">{FIX_LABELS[type]}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                <span className="font-medium text-xs sm:text-sm truncate">{FIX_LABELS[type]}</span>
                 {blocked && blockReason && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
-                        <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                        <AlertCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500 shrink-0" />
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="top" className="max-w-[200px]">
                         <p className="text-xs">{blockReason}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground truncate">{FIX_DESCRIPTIONS[type]}</p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate hidden sm:block">{FIX_DESCRIPTIONS[type]}</p>
               {hasRunningJobs && (
-                <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                  <Activity className="h-3 w-3 shrink-0" />
+                <div className="flex items-center gap-1 text-[10px] sm:text-xs text-blue-600 dark:text-blue-400">
+                  <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
                   <span className="truncate">
-                    {typeJobs.length} job(s) • {totalProcessed} proc. • {totalAdded} corr.
+                    {typeJobs.length}× • {totalProcessed} proc.
                   </span>
                 </div>
               )}
               {isActiveType && !hasRunningJobs && (
-                <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                  <Activity className="h-3 w-3 shrink-0" />
-                  <span>A aguardar próximo lote...</span>
+                <div className="flex items-center gap-1 text-[10px] sm:text-xs text-green-600 dark:text-green-400">
+                  <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                  <span className="truncate">A aguardar...</span>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {isDone ? (
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
             ) : (
               <>
                 <Button
                   variant={isActiveType ? "destructive" : "outline"}
                   size="sm"
-                  className="h-7 px-2 gap-1"
+                  className="h-6 sm:h-7 px-1.5 sm:px-2 gap-0.5 sm:gap-1 text-[10px] sm:text-xs"
                   onClick={() => toggleFixType(type)}
                   disabled={blocked && !isActiveType}
                 >
                   {isActiveType ? (
                     <>
-                      <Pause className="h-3 w-3" />
-                      Parar
+                      <Pause className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                      <span className="hidden xs:inline">Parar</span>
                     </>
                   ) : (
                     <>
-                      <Play className="h-3 w-3" />
-                      Iniciar
+                      <Play className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                      <span className="hidden xs:inline">Iniciar</span>
                     </>
                   )}
                 </Button>
@@ -415,14 +415,14 @@ export function DataFixPanel() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2"
+                    className="h-6 sm:h-7 px-1.5 sm:px-2 hidden sm:flex"
                     onClick={() => launchManualBatch(type)}
                     title="Lançar um lote manualmente"
                   >
-                    <Zap className="h-3 w-3" />
+                    <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </Button>
                 )}
-                <Badge variant={count > 100 ? "destructive" : "secondary"} className="text-sm">
+                <Badge variant={count > 100 ? "destructive" : "secondary"} className="text-[10px] sm:text-sm px-1 sm:px-2">
                   {count}
                 </Badge>
               </>
@@ -444,7 +444,7 @@ export function DataFixPanel() {
   const activeJobsCount = runningJobs?.length ?? 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <ActiveJobsBanner />
 
       <Card className={`transition-all ${
@@ -452,67 +452,68 @@ export function DataFixPanel() {
         activeJobsCount > 0 ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-300 dark:border-blue-700" :
         "bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30"
       }`}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
+        <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${
                 activeFixType ? "bg-green-500" : 
                 activeJobsCount > 0 ? "bg-blue-500 animate-pulse" : 
                 "bg-amber-500"
               }`}>
-                <Wrench className="h-5 w-5 text-white" />
+                <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
-              <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  Correção por Tipo
+              <div className="min-w-0">
+                <CardTitle className="text-sm sm:text-lg flex items-center gap-1 sm:gap-2 flex-wrap">
+                  <span>Correção</span>
                   {activeFixType && (
-                    <Badge className="text-xs bg-green-500">
+                    <Badge className="text-[10px] sm:text-xs bg-green-500 px-1 sm:px-2">
                       {FIX_LABELS[activeFixType]}
                     </Badge>
                   )}
                   {activeJobsCount > 0 && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-2">
                       {activeJobsCount} job(s)
                     </Badge>
                   )}
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[10px] sm:text-sm text-muted-foreground hidden sm:block">
                   Escolha um tipo de problema para corrigir em segundo plano
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 self-end sm:self-auto">
               {activeFixType && (
                 <Button 
                   variant="destructive"
                   size="sm"
                   onClick={stopAllFixes}
-                  className="gap-1"
+                  className="gap-0.5 sm:gap-1 h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
                 >
-                  <Pause className="h-4 w-4" />
-                  Parar
+                  <Pause className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden xs:inline">Parar</span>
                 </Button>
               )}
               <Button
                 variant="outline"
                 size="icon"
+                className="h-7 w-7 sm:h-9 sm:w-9"
                 onClick={() => setShowSettings(!showSettings)}
               >
-                <Settings2 className="h-4 w-4" />
+                <Settings2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
-              <Button variant="outline" size="icon" onClick={() => { refetch(); refetchJobs(); }}>
-                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <Button variant="outline" size="icon" className="h-7 w-7 sm:h-9 sm:w-9" onClick={() => { refetch(); refetchJobs(); }}>
+                <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isLoading ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
           {/* Settings Collapsible */}
           <Collapsible open={showSettings} onOpenChange={setShowSettings}>
-            <CollapsibleContent className="space-y-4 pb-4 border-b">
-              <div className="grid grid-cols-2 gap-6">
+            <CollapsibleContent className="space-y-3 sm:space-y-4 pb-3 sm:pb-4 border-b">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
-                  <Label className="text-sm">Itens por lote: {batchSize}</Label>
+                  <Label className="text-xs sm:text-sm">Itens por lote: {batchSize}</Label>
                   <Slider
                     value={[batchSize]}
                     onValueChange={([v]) => setBatchSize(v)}
@@ -523,7 +524,7 @@ export function DataFixPanel() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm">Jobs paralelos: {parallelJobs}</Label>
+                  <Label className="text-xs sm:text-sm">Jobs paralelos: {parallelJobs}</Label>
                   <Slider
                     value={[parallelJobs]}
                     onValueChange={([v]) => setParallelJobs(v)}
@@ -534,8 +535,8 @@ export function DataFixPanel() {
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                ⚡ Mais jobs = mais rápido, mas consome mais recursos do servidor
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                ⚡ Mais jobs = mais rápido, mas consome mais recursos
               </p>
             </CollapsibleContent>
           </Collapsible>
@@ -560,42 +561,42 @@ export function DataFixPanel() {
                 </div>
               )}
 
-              {/* Fix Categories organized by Phase */}
-              <div className="space-y-4">
+              {/* Fix Categories organized by Phase - Mobile optimized */}
+              <div className="space-y-3 sm:space-y-4">
                 {FIX_PHASES.map((phase, idx) => {
                   const phaseStats = getPhaseStats(phase.types);
                   const isPhaseActive = phaseStats.isActive || phaseStats.hasRunning;
                   
                   return (
-                    <div key={phase.name} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                    <div key={phase.name} className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <div className={`flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full text-[10px] sm:text-xs font-bold shrink-0 ${
                           phaseStats.isDone ? "bg-green-500 text-white" :
                           isPhaseActive ? "bg-blue-500 text-white animate-pulse" :
                           "bg-muted text-muted-foreground"
                         }`}>
-                          {phaseStats.isDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : idx + 1}
+                          {phaseStats.isDone ? <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : idx + 1}
                         </div>
-                        <span className="text-sm font-medium">{phase.name}</span>
-                        <span className="text-xs text-muted-foreground">— {phase.description}</span>
+                        <span className="text-xs sm:text-sm font-medium">{phase.name}</span>
+                        <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">— {phase.description}</span>
                         {phaseStats.total > 0 && (
-                          <Badge variant="outline" className="ml-auto text-xs">
-                            {phaseStats.total} pendentes
+                          <Badge variant="outline" className="ml-auto text-[10px] sm:text-xs px-1 sm:px-2">
+                            {phaseStats.total}
                           </Badge>
                         )}
                         {idx < FIX_PHASES.length - 1 && (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/50 ml-1" />
+                          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground/50 hidden sm:block" />
                         )}
                       </div>
-                      <div className={`grid gap-2 ${phase.types.length > 1 ? "md:grid-cols-3" : ""}`}>
+                      <div className={`grid gap-1.5 sm:gap-2 ${phase.types.length > 1 ? "grid-cols-1 sm:grid-cols-3" : ""}`}>
                         {phase.types.map(type => {
                           const iconMap: Record<FixType, React.ReactNode> = {
-                            urls: <Link className="h-4 w-4" />,
-                            dates: <Calendar className="h-4 w-4" />,
-                            titles: <Type className="h-4 w-4" />,
-                            summaries: <FileText className="h-4 w-4" />,
-                            requirements: <ListChecks className="h-4 w-4" />,
-                            relations: <GitBranch className="h-4 w-4" />,
+                            urls: <Link className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+                            dates: <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+                            titles: <Type className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+                            summaries: <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+                            requirements: <ListChecks className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+                            relations: <GitBranch className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
                           };
                           return (
                             <FixCategory 
