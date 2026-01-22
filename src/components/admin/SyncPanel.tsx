@@ -2468,7 +2468,16 @@ https://dre.pt/application/file/..."
           <div className="flex justify-end">
             <Button
               variant="outline"
-              onClick={fetchMetadataCounts}
+              onClick={() => {
+                fetchMetadataCounts();
+                fetchPdfIncompleteCounts();
+                fetchRunningPdfFixJobsCount();
+                fetchStuckPdfFixJobsCount(stuckPdfFixThresholdMinutes);
+                toast({
+                  title: "A atualizar",
+                  description: "Contagens atualizadas com sucesso.",
+                });
+              }}
               disabled={isFixingEurlexTitles || isFixingDreMetadata}
               className="border-violet-300 text-violet-700 hover:bg-violet-50"
             >
