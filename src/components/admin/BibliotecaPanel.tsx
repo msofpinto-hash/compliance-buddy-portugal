@@ -33,7 +33,7 @@ export function BibliotecaPanel() {
         </TabsList>
 
         <TabsContent value="legislacao" className="mt-0">
-          <LegislationPanel />
+          <LegislationPanel hideBanner />
         </TabsContent>
 
         <TabsContent value="importacao" className="mt-0">
