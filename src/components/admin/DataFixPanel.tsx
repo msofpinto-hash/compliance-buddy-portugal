@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
-  Link, Calendar, Type, FileText, ListChecks, GitBranch,
+  Link, Calendar, Type, FileText, ListChecks, GitBranch, Layers,
   Loader2, Wrench, RefreshCw, Play, Pause, CheckCircle2, Activity,
   Zap, Settings2, ChevronRight, AlertCircle
 } from "lucide-react";
@@ -24,6 +24,7 @@ interface FixStats {
   summaries: number;
   requirements: number;
   relations: number;
+  categories: number;
 }
 
 interface RunningJob {
@@ -35,7 +36,7 @@ interface RunningJob {
   started_at: string;
 }
 
-type FixType = "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations";
+type FixType = "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations" | "categories";
 
 const FIX_LABELS: Record<FixType, string> = {
   urls: "1. URLs",
@@ -44,6 +45,7 @@ const FIX_LABELS: Record<FixType, string> = {
   summaries: "2. Sumários",
   requirements: "3. Requisitos",
   relations: "4. Relações",
+  categories: "5. Categorias",
 };
 
 const FIX_DESCRIPTIONS: Record<FixType, string> = {
@@ -53,14 +55,16 @@ const FIX_DESCRIPTIONS: Record<FixType, string> = {
   summaries: "Obtido via scraping do URL",
   requirements: "Extraídos do conteúdo do documento (requer URL)",
   relations: "Detetadas a partir de referências no texto (requer requisitos)",
+  categories: "Atribuição automática via IA (requer sumário válido)",
 };
 
-// Dependency order: URLs first, then metadata (dates/titles/summaries), then requirements, then relations
+// Dependency order: URLs first, then metadata (dates/titles/summaries), then requirements, then relations, then categories
 const FIX_PHASES: { name: string; types: FixType[]; description: string }[] = [
   { name: "Fase 1: URLs", types: ["urls"], description: "Obter links oficiais (base para tudo)" },
   { name: "Fase 2: Metadados", types: ["dates", "titles", "summaries"], description: "Scraping de datas, títulos e resumos" },
   { name: "Fase 3: Requisitos", types: ["requirements"], description: "Extração IA de obrigações legais" },
   { name: "Fase 4: Relações", types: ["relations"], description: "Deteção de referências entre diplomas" },
+  { name: "Fase 5: Categorias", types: ["categories"], description: "Classificação temática via IA" },
 ];
 
 const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
@@ -94,6 +98,10 @@ const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
   // Relations jobs
   "extract-legislation-relations": "relations",
   "extract_relations": "relations",
+  // Categories jobs
+  "bulk-suggest-categories": "categories",
+  "suggest_categories": "categories",
+  "auto-categorize-legislation": "categories",
 };
 
 export function DataFixPanel() {
@@ -133,12 +141,14 @@ export function DataFixPanel() {
         .is("document_url", null)
         .or("no_digital_version.is.null,no_digital_version.eq.false");
 
-      const [datesResult, titlesResult, summariesResult] = await Promise.all([
+      const [datesResult, titlesResult, summariesResult, categoriesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .is("publication_date", null),
         supabase.from("legislation").select("id, title, number").limit(2000),
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .or("summary.is.null,summary.eq."),
+        // Legislation without categories
+        supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
       const genericTitles = (titlesResult.data || []).filter(leg => {
@@ -162,6 +172,7 @@ export function DataFixPanel() {
         summaries: summariesResult.count || 0,
         requirements: Math.max(0, (totalLegResult.count || 0) - uniqueReqLeg.size),
         relations: Math.max(0, (totalLegResult.count || 0) - (processedRelationsResult.count || 0)),
+        categories: (categoriesResult.data as number) || 0,
       };
     },
     staleTime: 10000,
@@ -208,6 +219,10 @@ export function DataFixPanel() {
           break;
         case "relations":
           functionName = "extract-legislation-relations";
+          body = { limit: batchSize, background: true };
+          break;
+        case "categories":
+          functionName = "bulk-suggest-categories";
           body = { limit: batchSize, background: true };
           break;
       }
@@ -293,6 +308,10 @@ export function DataFixPanel() {
     if (type === "relations" && (stats?.requirements || 0) > 50) {
       return true;
     }
+    // Categories are blocked if there are many summaries missing (IA needs summaries)
+    if (type === "categories" && (stats?.summaries || 0) > 50) {
+      return true;
+    }
     return false;
   };
 
@@ -311,6 +330,9 @@ export function DataFixPanel() {
     }
     if (type === "relations" && (stats?.requirements || 0) > 50) {
       return `Extraia primeiro os requisitos (${stats?.requirements} em falta)`;
+    }
+    if (type === "categories" && (stats?.summaries || 0) > 50) {
+      return `Corrija primeiro os sumários (${stats?.summaries} em falta)`;
     }
     return null;
   };
@@ -597,6 +619,7 @@ export function DataFixPanel() {
                             summaries: <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
                             requirements: <ListChecks className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
                             relations: <GitBranch className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+                            categories: <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
                           };
                           return (
                             <FixCategory 

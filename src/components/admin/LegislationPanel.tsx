@@ -852,8 +852,8 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       {/* Progress Banner for All Active Jobs */}
       {!hideBanner && <ActiveJobsBanner />}
 
-      {/* Stats - Apenas estatísticas de inventário (sem problemas/correções) */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
+      {/* Stats - Apenas estatísticas de inventário */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
         <AnimatedStatCard
           label="Total de Legislação"
           value={legislation?.length || 0}
@@ -861,7 +861,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           onClick={() => {
             setFilterOrigin("all");
             setFilterNoCategory(false);
-            setFilterProblems(false);
             setFilterRevoked(false);
             setFilterTheme("all");
             setFilterCategory("all");
@@ -878,7 +877,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           onClick={() => {
             setFilterOrigin(filterOrigin === "PT" ? "all" : "PT");
             setFilterNoCategory(false);
-            setFilterProblems(false);
             setFilterRevoked(false);
             setCurrentPage(1);
           }}
@@ -893,25 +891,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           onClick={() => {
             setFilterOrigin(filterOrigin === "EU" ? "all" : "EU");
             setFilterNoCategory(false);
-            setFilterProblems(false);
-            setFilterRevoked(false);
-            setCurrentPage(1);
-          }}
-        />
-        <AnimatedStatCard
-          label="Outros"
-          value={otherCount}
-          previousValue={periodStats.previous.other > 0 ? otherCount - periodStats.current.other + periodStats.previous.other : undefined}
-          isActive={filterOrigin === "other"}
-          activeRingColor="ring-primary"
-          onClick={() => {
-            if (filterOrigin === "all") {
-              setFilterOrigin("other");
-            } else {
-              setFilterOrigin("all");
-            }
-            setFilterNoCategory(false);
-            setFilterProblems(false);
             setFilterRevoked(false);
             setCurrentPage(1);
           }}
@@ -1003,45 +982,34 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                 </Button>
               </div>
 
-              {/* Status filters group */}
-              <div className="flex items-center gap-1 border rounded-md p-0.5 bg-muted/50">
-                <Button
-                  variant={filterNoCategory ? "default" : "ghost"}
-                  size="sm"
-                  onClick={toggleNoCategoryFilter}
-                  className={cn(
-                    "h-7 px-2 text-xs gap-1",
-                    filterNoCategory && "bg-amber-600 hover:bg-amber-700 text-white"
-                  )}
-                >
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  Sem Cat. ({noCategoryCount})
-                </Button>
-                <Button
-                  variant={filterProblems ? "default" : "ghost"}
-                  size="sm"
-                  onClick={toggleProblemsFilter}
-                  className={cn(
-                    "h-7 px-2 text-xs gap-1",
-                    filterProblems && "bg-red-600 hover:bg-red-700 text-white"
-                  )}
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Problemas ({problemsCount})
-                </Button>
-                <Button
-                  variant={filterRevoked ? "default" : "ghost"}
-                  size="sm"
-                  onClick={toggleRevokedFilter}
-                  className={cn(
-                    "h-7 px-2 text-xs gap-1",
-                    filterRevoked && "bg-gray-700 hover:bg-gray-800 text-white"
-                  )}
-                >
-                  <Ban className="h-3.5 w-3.5" />
-                  Revogados ({revokedCount})
-                </Button>
-              </div>
+              {/* Status filters */}
+              <Button
+                variant={filterNoCategory ? "default" : "outline"}
+                size="sm"
+                onClick={toggleNoCategoryFilter}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1",
+                  filterNoCategory && "bg-amber-600 hover:bg-amber-700 text-white"
+                )}
+              >
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Sem Categoria</span>
+                <span className="sm:hidden">Sem Cat.</span>
+                ({noCategoryCount})
+              </Button>
+              <Button
+                variant={filterRevoked ? "default" : "outline"}
+                size="sm"
+                onClick={toggleRevokedFilter}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1",
+                  filterRevoked && "bg-gray-700 hover:bg-gray-800 text-white"
+                )}
+              >
+                <Ban className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Revogados</span>
+                ({revokedCount})
+              </Button>
 
               {/* Theme & Category selectors */}
               <Select value={filterTheme} onValueChange={handleThemeChange} disabled={filterNoCategory || filterProblems || filterRevoked}>
@@ -1138,101 +1106,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
               </div>
             )}
 
-            {/* Problem Type Actions Bar - Only shows when filtering by problems */}
-            {filterProblems && (
-              <div className="flex flex-wrap gap-2 items-center p-3 bg-red-50 border border-red-200 rounded-lg">
-                <span className="text-sm font-medium text-red-800 mr-2">Tipo de problema:</span>
-                <Select value={filterProblemType} onValueChange={(v) => { setFilterProblemType(v); setCurrentPage(1); }}>
-                  <SelectTrigger className="w-44 h-8 text-xs bg-white border-red-300">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos ({problemsCount})</SelectItem>
-                    <SelectItem value="generic_title">
-                      Título genérico ({problemTypeCounts.generic_title})
-                    </SelectItem>
-                    <SelectItem value="missing_origin">
-                      Origem em falta ({problemTypeCounts.missing_origin})
-                    </SelectItem>
-                    <SelectItem value="missing_dates">
-                      Datas em falta ({problemTypeCounts.missing_dates})
-                    </SelectItem>
-                    <SelectItem value="invalid_dates">
-                      Datas inválidas ({problemTypeCounts.invalid_dates})
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <div className="flex-1" />
-
-                {/* Contextual correction buttons - automatic batch fixes */}
-                {filterProblemType === "generic_title" && problemTypeCounts.generic_title > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => bulkFixes.fixGenericTitles()}
-                    disabled={bulkFixes.isFixingGenericTitles}
-                    className="bg-white border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
-                  >
-                    {bulkFixes.isFixingGenericTitles ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileQuestion className="h-4 w-4" />}
-                    Corrigir Títulos ({problemTypeCounts.generic_title})
-                  </Button>
-                )}
-                {filterProblemType === "missing_origin" && problemTypeCounts.missing_origin > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => bulkFixes.fixMissingOrigin()}
-                    disabled={bulkFixes.isFixingOrigin}
-                    className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
-                  >
-                    {bulkFixes.isFixingOrigin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
-                    Corrigir Origem ({problemTypeCounts.missing_origin})
-                  </Button>
-                )}
-                {filterProblemType === "missing_dates" && problemTypeCounts.missing_dates > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => bulkFixes.fixMissingDates()}
-                    disabled={bulkFixes.isFixingMissingDates}
-                    className="bg-white border-purple-300 text-purple-700 hover:bg-purple-50 gap-2"
-                  >
-                    {bulkFixes.isFixingMissingDates ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
-                    Corrigir Datas ({problemTypeCounts.missing_dates})
-                  </Button>
-                )}
-                {filterProblemType === "invalid_dates" && problemTypeCounts.invalid_dates > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => bulkFixes.fixInvalidDates()}
-                    disabled={bulkFixes.isFixingInvalidDates}
-                    className="bg-white border-orange-300 text-orange-700 hover:bg-orange-50 gap-2"
-                  >
-                    {bulkFixes.isFixingInvalidDates ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
-                    Corrigir Datas Inválidas ({problemTypeCounts.invalid_dates})
-                  </Button>
-                )}
-                {filterProblemType === "all" && problemsCount > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Execute all fixes sequentially
-                      bulkFixes.fixGenericTitles();
-                      setTimeout(() => bulkFixes.fixMissingOrigin(), 500);
-                      setTimeout(() => bulkFixes.fixInvalidDates(), 1000);
-                    }}
-                    disabled={bulkFixes.isFixing}
-                    className="bg-white border-red-300 text-red-700 hover:bg-red-50 gap-2"
-                  >
-                    {bulkFixes.isFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
-                    Corrigir Tudo
-                  </Button>
-                )}
-              </div>
-            )}
 
             <div className="flex flex-wrap gap-3 items-center">
               <span className="text-sm text-muted-foreground">Ordenar por:</span>
