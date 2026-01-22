@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,12 +27,15 @@ import {
   Calendar,
   FileText,
   Building2,
-  Filter
+  Filter,
+  Zap,
+  Play
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface LegislationItem {
   id: string;
@@ -98,8 +101,10 @@ function qualityScore(item: LegislationItem): number {
 
 export function DuplicateCleanupPanel() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isScanning, setIsScanning] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
+  const [isAutoCleanup, setIsAutoCleanup] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [scanStats, setScanStats] = useState<{
@@ -109,6 +114,7 @@ export function DuplicateCleanupPanel() {
   } | null>(null);
   const [incompleteFilter, setIncompleteFilter] = useState<string>("all");
   const [showMergeConfirmation, setShowMergeConfirmation] = useState(false);
+  const [showAutoCleanupConfirmation, setShowAutoCleanupConfirmation] = useState(false);
 
   // Calculate merge summary for confirmation dialog
   const mergeSummary = useMemo(() => {
@@ -483,6 +489,58 @@ export function DuplicateCleanupPanel() {
     }
   };
 
+  // Auto cleanup using edge function
+  const runAutoCleanup = async () => {
+    setIsAutoCleanup(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("cleanup-duplicate-legislation", {
+        body: { batchSize: 50 },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Limpeza automática iniciada",
+        description: `Job ${data.jobId} em execução. Pode acompanhar o progresso nos logs de sincronização.`,
+      });
+
+      // Clear local state as it's being processed
+      setDuplicateGroups([]);
+      setScanStats(null);
+      setSelectedGroups(new Set());
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["sync-logs"] });
+    } catch (error) {
+      console.error("Auto cleanup error:", error);
+      toast({
+        title: "Erro na limpeza automática",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAutoCleanup(false);
+      setShowAutoCleanupConfirmation(false);
+    }
+  };
+
+  // Dry run to check duplicates count
+  const checkDuplicatesCount = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("cleanup-duplicate-legislation", {
+        body: { dryRun: true },
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error("Dry run error:", error);
+      return null;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -496,10 +554,10 @@ export function DuplicateCleanupPanel() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Scan button and stats */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <Button 
             onClick={scanForDuplicates} 
-            disabled={isScanning}
+            disabled={isScanning || isAutoCleanup}
             variant="outline"
           >
             {isScanning ? (
@@ -508,6 +566,20 @@ export function DuplicateCleanupPanel() {
               <Search className="h-4 w-4 mr-2" />
             )}
             Procurar Duplicados
+          </Button>
+
+          <Button
+            onClick={() => setShowAutoCleanupConfirmation(true)}
+            disabled={isScanning || isAutoCleanup}
+            variant="default"
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            {isAutoCleanup ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-2" />
+            )}
+            Limpeza Automática Total
           </Button>
 
           {scanStats && (
@@ -705,6 +777,58 @@ export function DuplicateCleanupPanel() {
             >
               <Merge className="h-4 w-4 mr-2" />
               Confirmar Fusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Auto Cleanup Confirmation Dialog */}
+      <AlertDialog open={showAutoCleanupConfirmation} onOpenChange={setShowAutoCleanupConfirmation}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              Limpeza Automática de Duplicados
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 text-left">
+                <p>
+                  Esta operação irá processar <strong>TODOS os duplicados</strong> automaticamente em background.
+                </p>
+                
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 rounded-lg space-y-2">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium">
+                    <AlertTriangle className="h-4 w-4" />
+                    O que vai acontecer:
+                  </div>
+                  <ul className="text-sm space-y-1 ml-6 list-disc">
+                    <li>Identificar todos os grupos de duplicados</li>
+                    <li>Selecionar automaticamente o registo mais completo (com mais requisitos, categorias e dados)</li>
+                    <li>Fundir dados complementares dos duplicados</li>
+                    <li>Transferir categorias, requisitos, relações e atribuições</li>
+                    <li>Eliminar os registos duplicados</li>
+                  </ul>
+                </div>
+
+                <div className="bg-muted p-3 rounded-lg text-xs">
+                  <strong>Nota:</strong> O processo corre em background e pode demorar alguns minutos. 
+                  Pode acompanhar o progresso nos logs de sincronização.
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={runAutoCleanup}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {isAutoCleanup ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              Iniciar Limpeza
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

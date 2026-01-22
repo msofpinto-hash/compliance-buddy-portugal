@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.full-data-fix]
 verify_jwt = false
+
+[functions.cleanup-duplicate-legislation]
+verify_jwt = false
