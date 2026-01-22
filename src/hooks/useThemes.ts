@@ -20,6 +20,17 @@ export interface ThemeCategory {
   updated_at: string;
 }
 
+export interface CategoryThemeLink {
+  id: string;
+  category_id: string;
+  theme_id: string;
+  created_at: string;
+}
+
+export interface ThemeCategoryWithLinks extends ThemeCategory {
+  linkedThemeIds: string[];
+}
+
 export interface ThemeWithCategories extends Theme {
   categories: ThemeCategory[];
 }
@@ -88,6 +99,67 @@ export function useThemesWithCategories() {
   });
 }
 
+// Get all categories with their linked themes
+export function useCategoriesWithThemeLinks() {
+  return useQuery({
+    queryKey: ["categories-with-theme-links"],
+    queryFn: async () => {
+      const [categoriesRes, linksRes, themesRes] = await Promise.all([
+        supabase.from("theme_categories").select("*").order("name"),
+        supabase.from("category_theme_links").select("*"),
+        supabase.from("themes").select("*").order("name"),
+      ]);
+
+      if (categoriesRes.error) throw categoriesRes.error;
+      if (linksRes.error) throw linksRes.error;
+      if (themesRes.error) throw themesRes.error;
+
+      const categories = categoriesRes.data as ThemeCategory[];
+      const links = linksRes.data as CategoryThemeLink[];
+      const themes = themesRes.data as Theme[];
+
+      // Build categories with linked theme IDs
+      const categoriesWithLinks: ThemeCategoryWithLinks[] = categories.map(cat => ({
+        ...cat,
+        linkedThemeIds: links.filter(l => l.category_id === cat.id).map(l => l.theme_id),
+      }));
+
+      return { categories: categoriesWithLinks, themes };
+    },
+  });
+}
+
+// Mutation to update category theme links
+export function useUpdateCategoryThemeLinks() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ categoryId, themeIds }: { categoryId: string; themeIds: string[] }) => {
+      // Delete existing links
+      const { error: deleteError } = await supabase
+        .from("category_theme_links")
+        .delete()
+        .eq("category_id", categoryId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new links
+      if (themeIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from("category_theme_links")
+          .insert(themeIds.map(themeId => ({ category_id: categoryId, theme_id: themeId })));
+
+        if (insertError) throw insertError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories-with-theme-links"] });
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["theme-categories"] });
+    },
+  });
+}
+
 export function useUpdateTheme() {
   const queryClient = useQueryClient();
 
@@ -122,6 +194,7 @@ export function useUpdateCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["theme-categories"] });
       queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories-with-theme-links"] });
     },
   });
 }

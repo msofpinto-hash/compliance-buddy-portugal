@@ -391,6 +391,42 @@ export type Database = {
           },
         ]
       }
+      category_theme_links: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          theme_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          theme_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          theme_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_theme_links_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "theme_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_theme_links_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compliance_change_requests: {
         Row: {
           applicability_id: string

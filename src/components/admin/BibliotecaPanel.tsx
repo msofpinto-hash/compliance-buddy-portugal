@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Download, Wrench, Palette, Loader2 } from "lucide-react";
+import { BookOpen, Download, Wrench, Palette, Loader2, FolderTree } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
 import { ThemesPanel } from "./ThemesPanel";
 import { ImportPanel } from "./ImportPanel";
 import { DataFixPanel } from "./DataFixPanel";
+import { CategoryManagementPanel } from "./CategoryManagementPanel";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -53,6 +54,10 @@ export function BibliotecaPanel() {
             <BookOpen className="h-4 w-4" />
             Legislação
           </TabsTrigger>
+          <TabsTrigger value="categorias" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+            <FolderTree className="h-4 w-4" />
+            Categorias
+          </TabsTrigger>
           <TabsTrigger value="importacao" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
             <Download className="h-4 w-4" />
             Importação
@@ -74,6 +79,10 @@ export function BibliotecaPanel() {
 
         <TabsContent value="legislacao" className="mt-0">
           <LegislationPanel hideBanner />
+        </TabsContent>
+
+        <TabsContent value="categorias" className="mt-0">
+          <CategoryManagementPanel />
         </TabsContent>
 
         <TabsContent value="importacao" className="mt-0">
