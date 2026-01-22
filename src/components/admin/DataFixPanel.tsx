@@ -224,7 +224,9 @@ export function DataFixPanel() {
 
   // Launch batch of parallel jobs for a fix type
   const launchBatch = useCallback(async (type: FixType, count: number) => {
-    const jobsToLaunch = Math.min(parallelJobs, Math.ceil(count / batchSize));
+    // Duplicates only allow 1 job at a time (enforced by edge function)
+    const maxJobs = type === "duplicates" ? 1 : parallelJobs;
+    const jobsToLaunch = Math.min(maxJobs, Math.ceil(count / batchSize));
     const promises: Promise<any>[] = [];
 
     for (let i = 0; i < jobsToLaunch; i++) {
