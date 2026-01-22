@@ -183,7 +183,29 @@ const INVALID_TITLE_PREFIXES = [
   'menu',
   'navigation',
   'cookies',
-  'diploma referenciado'
+  'diploma referenciado',
+  'publicação:',
+  'publicação diário',
+  'texto integral',
+  'versão pdf',
+  'partilhar',
+  'enviar por',
+];
+
+// Invalid substrings that should not appear anywhere in titles
+const INVALID_TITLE_CONTAINS = [
+  'publicação: diário',
+  'diário da república n.',
+  'diário da república n.º',
+  'enviar por email',
+  'copiar link',
+  'facebook',
+  'linkedin', 
+  'twitter',
+  'whatsapp',
+  'partilhar',
+  'versão pdf',
+  'texto integral',
 ];
 
 // Validate extracted entity
@@ -203,7 +225,10 @@ function isValidTitle(title: string | null | undefined, currentNumber: string): 
   if (!title) return false;
   const lower = title.toLowerCase().trim();
   if (lower.length < 15) return false;
+  // Check prefixes
   if (INVALID_TITLE_PREFIXES.some(prefix => lower.startsWith(prefix))) return false;
+  // Check for invalid substrings anywhere in title
+  if (INVALID_TITLE_CONTAINS.some(inv => lower.includes(inv))) return false;
   if (title.includes('http') || title.includes('www.')) return false;
   // If title is just the number, it's not valid
   if (title.trim() === currentNumber.trim()) return false;
