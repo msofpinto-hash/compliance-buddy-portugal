@@ -163,87 +163,255 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
   }
 }
 
+// List of invalid entity values to filter out
+const INVALID_ENTITIES = [
+  'pesquisar', 'search', 'buscar', 'procurar', 
+  'menu', 'nav', 'navigation', 'header', 'footer',
+  'login', 'entrar', 'registar', 'cookies',
+  'aceitar', 'recusar', 'fechar', 'close',
+  'undefined', 'null', ''
+];
+
+// List of invalid title prefixes to filter out
+const INVALID_TITLE_PREFIXES = [
+  'diário da república',
+  '# diário',
+  'série i',
+  'série ii',
+  'emissor',
+  'pesquisar',
+  'menu',
+  'navigation',
+  'cookies',
+  'diploma referenciado'
+];
+
+// Validate extracted entity
+function isValidEntity(entity: string | null | undefined): boolean {
+  if (!entity) return false;
+  const lower = entity.toLowerCase().trim();
+  if (lower.length < 3 || lower.length > 300) return false;
+  if (INVALID_ENTITIES.some(inv => lower === inv || lower.startsWith(inv + ' '))) return false;
+  if (entity.includes('http') || entity.includes('www.')) return false;
+  // Must contain at least one letter
+  if (!/[a-zA-ZÀ-ÿ]/.test(entity)) return false;
+  return true;
+}
+
+// Validate extracted title
+function isValidTitle(title: string | null | undefined, currentNumber: string): boolean {
+  if (!title) return false;
+  const lower = title.toLowerCase().trim();
+  if (lower.length < 15) return false;
+  if (INVALID_TITLE_PREFIXES.some(prefix => lower.startsWith(prefix))) return false;
+  if (title.includes('http') || title.includes('www.')) return false;
+  // If title is just the number, it's not valid
+  if (title.trim() === currentNumber.trim()) return false;
+  return true;
+}
+
+// Validate extracted summary
+function isValidSummary(summary: string | null | undefined): boolean {
+  if (!summary) return false;
+  const trimmed = summary.trim();
+  if (trimmed.length < 20) return false;
+  if (trimmed.toLowerCase().includes('lamentamos')) return false;
+  if (trimmed.toLowerCase().includes('página não encontrada')) return false;
+  if (trimmed.toLowerCase().includes('erro')) return false;
+  // Must contain actual content, not just UI elements
+  if (/^(menu|nav|header|footer|cookies|aceitar|recusar)/i.test(trimmed)) return false;
+  return true;
+}
+
 // Extract metadata from DRE page content
 function extractMetadataFromDRE(markdown: string, currentNumber: string): LegislationUpdate {
   const update: LegislationUpdate = {};
   
+  // Clean markdown: remove links but keep text, remove bold markers
   const cleanMarkdown = markdown
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/\*\*/g, '')
-    .replace(/\n+/g, '\n');
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\n{3,}/g, '\n\n');
   
-  // Extract title
-  const titlePatterns = [
-    /Série [I]+.*?\n(.+?)(?:\n|Emissor)/s,
-    /^(.+?)(?=\nEmissor:)/m,
+  console.log(`[extractMetadataFromDRE] Processing content for: ${currentNumber}, length: ${cleanMarkdown.length}`);
+  
+  // ========== EXTRACT ENTITY/EMISSOR ==========
+  // Try multiple patterns for entity extraction
+  const entityPatterns = [
+    // Pattern 1: "Emissor:" followed by content
+    /Emissor[:\s]*\n?\s*([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ][^\n]{3,100})/i,
+    // Pattern 2: "Entidade:" followed by content
+    /Entidade[:\s]*\n?\s*([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ][^\n]{3,100})/i,
+    // Pattern 3: After "Diário da República" line, look for ministry/entity
+    /(?:Série\s+[I]+[^\n]*\n)([A-Z][A-Za-zÀ-ÿ\s]+(?:Ministério|Secretaria|Presidência|Assembleia|Governo|Autoridade)[^\n]*)/i,
+    // Pattern 4: Standalone ministry/entity names
+    /(Ministério\s+d[aoe]\s+[^\n]+)/i,
+    /(Presidência\s+d[ao]\s+[^\n]+)/i,
+    /(Assembleia\s+da\s+República)/i,
   ];
   
-  for (const pattern of titlePatterns) {
+  for (const pattern of entityPatterns) {
     const match = cleanMarkdown.match(pattern);
     if (match && match[1]) {
-      const potentialTitle = match[1].trim();
-      if (potentialTitle.length > 20 && 
-          !potentialTitle.includes('http') &&
-          !potentialTitle.toLowerCase().startsWith('emissor') &&
-          !potentialTitle.toLowerCase().startsWith('série') &&
-          !potentialTitle.includes('Diploma referenciado')) {
-        update.title = potentialTitle.substring(0, 500);
+      const entity = match[1].trim().replace(/\s+/g, ' ');
+      if (isValidEntity(entity)) {
+        update.entity = entity.substring(0, 200);
+        console.log(`[extractMetadataFromDRE] Found entity: ${update.entity}`);
         break;
       }
     }
   }
   
-  // Extract entity/emissor
-  const entityMatch = cleanMarkdown.match(/Emissor[:\s]+([^\n]+)/i);
-  if (entityMatch) {
-    const entity = entityMatch[1].trim();
-    if (entity && !entity.includes('http') && entity.length < 200) {
-      update.entity = entity;
+  // ========== EXTRACT SUMMARY ==========
+  // Try multiple patterns for summary extraction
+  const summaryPatterns = [
+    // Pattern 1: "Sumário" followed by content until next section
+    /Sum[áa]rio[:\s]*\n?\s*([^\n].+?)(?=\n\s*(?:Texto|Data\s+de|Publicação|Série|Emissor|Entidade|Diploma|Versão|PDF|Partilhar|$))/is,
+    // Pattern 2: "Sumário:" on same line
+    /Sum[áa]rio[:\s]+([^\n]{20,})/i,
+    // Pattern 3: Content after title/number pattern
+    /(?:n\.?º?\s*\d+[A-Za-z]?[-\/]\d{4})\s*[-–]\s*([^\n]{30,})/i,
+    // Pattern 4: Look for descriptive text after "Série I" or "Série II"
+    /Série\s+[I]+[^\n]*\n\s*\n?\s*([A-Z][^\n]{30,})/,
+  ];
+  
+  for (const pattern of summaryPatterns) {
+    const match = cleanMarkdown.match(pattern);
+    if (match && match[1]) {
+      // Clean up the summary
+      let summary = match[1]
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/^\s*[-–]\s*/, ''); // Remove leading dash
+      
+      // Remove trailing navigation/UI elements
+      summary = summary.replace(/\s*(Texto|PDF|Partilhar|Versão|Diploma referenciado).*$/i, '').trim();
+      
+      if (isValidSummary(summary)) {
+        update.summary = summary.substring(0, 2000);
+        console.log(`[extractMetadataFromDRE] Found summary (${summary.length} chars): ${summary.substring(0, 100)}...`);
+        break;
+      }
     }
   }
   
-  // Extract summary
-  const summaryMatch = cleanMarkdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n(?:Texto|Data|Publicação|Série|$))/i);
-  if (summaryMatch) {
-    const summary = summaryMatch[1].trim();
-    if (summary && summary.length > 10 && !summary.includes('Lamentamos')) {
-      update.summary = summary.substring(0, 2000);
+  // ========== EXTRACT TITLE ==========
+  // For title, prefer the summary if it's a good description, or construct from number + summary
+  const titlePatterns = [
+    // Pattern 1: Look for the diploma type + number + description
+    /((?:Decreto-Lei|Portaria|Lei|Despacho|Resolução|Declaração|Aviso|Regulamento|Acórdão|Decreto)\s+n\.?º?\s*\d+[A-Za-z]?[-\/]\d{4}\s*[-–]\s*[^\n]{20,})/i,
+    // Pattern 2: After legislation number, get the descriptive title
+    /(?:^|\n)([A-Z][^.\n]{30,}\.)/m,
+  ];
+  
+  for (const pattern of titlePatterns) {
+    const match = cleanMarkdown.match(pattern);
+    if (match && match[1]) {
+      const title = match[1].trim().replace(/\s+/g, ' ');
+      if (isValidTitle(title, currentNumber)) {
+        update.title = title.substring(0, 500);
+        console.log(`[extractMetadataFromDRE] Found title: ${update.title}`);
+        break;
+      }
     }
   }
   
-  // Extract publication date
+  // If no title found but we have a summary, use the summary as title
+  if (!update.title && update.summary && update.summary.length > 20) {
+    update.title = update.summary.substring(0, 500);
+    console.log(`[extractMetadataFromDRE] Using summary as title`);
+  }
+  
+  // ========== EXTRACT PUBLICATION DATE ==========
+  const monthMap: Record<string, string> = {
+    'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+    'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+    'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+  };
+  
   const pubDatePatterns = [
-    /Data de Publicação[:\s]+(\d{4}-\d{2}-\d{2})/i,
-    /Publicação[:\s]+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+    // Pattern 1: ISO format YYYY-MM-DD
+    /Data\s+de\s+Publicação[:\s]*(\d{4}-\d{2}-\d{2})/i,
+    // Pattern 2: DD/MM/YYYY or DD-MM-YYYY
+    /(?:Data\s+de\s+)?Publicação[:\s]*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+    // Pattern 3: "DD de Mês de YYYY"
     /(\d{1,2})\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/i,
+    // Pattern 4: In metadata block
+    /Publicado[:\s]*em[:\s]*(\d{4}-\d{2}-\d{2})/i,
   ];
   
   for (const pattern of pubDatePatterns) {
     const match = cleanMarkdown.match(pattern);
     if (match) {
       try {
-        if (match[0].includes('-') && match[0].match(/\d{4}-\d{2}-\d{2}/)) {
-          update.publication_date = match[1];
-          break;
-        } else if (match[2] && !isNaN(parseInt(match[2]))) {
-          update.publication_date = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
-          break;
-        } else if (match[2]) {
-          const monthMap: Record<string, string> = {
-            'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
-            'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
-            'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
-          };
-          if (monthMap[match[2].toLowerCase()]) {
-            update.publication_date = `${match[3]}-${monthMap[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+        if (match[0].match(/\d{4}-\d{2}-\d{2}/)) {
+          // ISO format
+          const isoMatch = match[0].match(/(\d{4}-\d{2}-\d{2})/);
+          if (isoMatch) {
+            const year = parseInt(isoMatch[1].split('-')[0]);
+            if (year >= 1900 && year <= 2100) {
+              update.publication_date = isoMatch[1];
+              console.log(`[extractMetadataFromDRE] Found pub date (ISO): ${update.publication_date}`);
+              break;
+            }
+          }
+        } else if (match[2] && !isNaN(parseInt(match[2])) && match[3]) {
+          // DD/MM/YYYY format
+          const year = parseInt(match[3]);
+          if (year >= 1900 && year <= 2100) {
+            update.publication_date = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+            console.log(`[extractMetadataFromDRE] Found pub date (DD/MM/YYYY): ${update.publication_date}`);
             break;
           }
+        } else if (match[2] && monthMap[match[2].toLowerCase()]) {
+          // DD de Mês de YYYY format
+          const year = parseInt(match[3]);
+          if (year >= 1900 && year <= 2100) {
+            update.publication_date = `${match[3]}-${monthMap[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+            console.log(`[extractMetadataFromDRE] Found pub date (text): ${update.publication_date}`);
+            break;
+          }
+        }
+      } catch (e) {
+        console.log(`[extractMetadataFromDRE] Date parse error: ${e}`);
+        continue;
+      }
+    }
+  }
+  
+  // ========== EXTRACT EFFECTIVE DATE ==========
+  const effectiveDatePatterns = [
+    /Data\s+de\s+Entrada\s+em\s+Vigor[:\s]*(\d{4}-\d{2}-\d{2})/i,
+    /Entra(?:da)?\s+em\s+vigor[:\s]*(?:a|em)?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i,
+    /Entra(?:da)?\s+em\s+vigor[:\s]*(?:a|em)?\s*(\d{1,2})\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/i,
+  ];
+  
+  for (const pattern of effectiveDatePatterns) {
+    const match = cleanMarkdown.match(pattern);
+    if (match) {
+      try {
+        if (match[0].match(/\d{4}-\d{2}-\d{2}/)) {
+          const isoMatch = match[0].match(/(\d{4}-\d{2}-\d{2})/);
+          if (isoMatch) {
+            update.effective_date = isoMatch[1];
+            console.log(`[extractMetadataFromDRE] Found effective date: ${update.effective_date}`);
+            break;
+          }
+        } else if (match[2] && !isNaN(parseInt(match[2])) && match[3]) {
+          update.effective_date = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+          break;
+        } else if (match[2] && monthMap[match[2].toLowerCase()]) {
+          update.effective_date = `${match[3]}-${monthMap[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+          break;
         }
       } catch {
         continue;
       }
     }
   }
+  
+  console.log(`[extractMetadataFromDRE] Extracted: entity=${!!update.entity}, summary=${!!update.summary}, title=${!!update.title}, pubDate=${!!update.publication_date}`);
   
   return update;
 }
