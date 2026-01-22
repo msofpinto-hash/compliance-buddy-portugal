@@ -83,56 +83,112 @@ async function scrapeWithFirecrawl(url: string, apiKey: string): Promise<any> {
   throw lastError || new Error('Failed to scrape after retries');
 }
 
+// ========== VALIDATION HELPERS ==========
+const INVALID_ENTITIES = [
+  'pesquisar', 'search', 'buscar', 'procurar', 
+  'menu', 'nav', 'navigation', 'header', 'footer',
+  'login', 'entrar', 'registar', 'cookies',
+  'aceitar', 'recusar', 'fechar', 'close',
+  'undefined', 'null', ''
+];
+
+const INVALID_TITLE_PREFIXES = [
+  'diário da república',
+  '# diário',
+  'série i',
+  'série ii',
+  'emissor',
+  'pesquisar',
+  'menu',
+  'navigation',
+  'cookies',
+  'diploma referenciado'
+];
+
+function isValidEntity(entity: string | null | undefined): boolean {
+  if (!entity) return false;
+  const lower = entity.toLowerCase().trim();
+  if (lower.length < 3 || lower.length > 300) return false;
+  if (INVALID_ENTITIES.some(inv => lower === inv || lower.startsWith(inv + ' '))) return false;
+  if (entity.includes('http') || entity.includes('www.')) return false;
+  if (!/[a-zA-ZÀ-ÿ]/.test(entity)) return false;
+  return true;
+}
+
+function isValidTitle(title: string | null | undefined, currentNumber: string): boolean {
+  if (!title) return false;
+  const lower = title.toLowerCase().trim();
+  if (lower.length < 15) return false;
+  if (INVALID_TITLE_PREFIXES.some(prefix => lower.startsWith(prefix))) return false;
+  if (title.includes('http') || title.includes('www.')) return false;
+  if (title.trim() === currentNumber.trim()) return false;
+  if (lower.includes('enviar por email') || lower.includes('copiar link')) return false;
+  if (lower.includes('facebook') || lower.includes('linkedin') || lower.includes('twitter')) return false;
+  return true;
+}
+
+function isValidSummary(summary: string | null | undefined): boolean {
+  if (!summary) return false;
+  const trimmed = summary.trim();
+  if (trimmed.length < 20) return false;
+  if (trimmed.toLowerCase().includes('lamentamos')) return false;
+  if (trimmed.toLowerCase().includes('página não encontrada')) return false;
+  if (/^(menu|nav|header|footer|cookies|aceitar|recusar)/i.test(trimmed)) return false;
+  return true;
+}
+
 function extractMetadataFromDRE(markdown: string, currentNumber: string): LegislationUpdate {
   const update: LegislationUpdate = {};
   
   const cleanMarkdown = markdown
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/\*\*/g, '')
-    .replace(/\n+/g, '\n');
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\n{3,}/g, '\n\n');
   
-  const lines = cleanMarkdown.split('\n').filter(l => l.trim().length > 0);
+  // ========== EXTRACT SUMMARY ==========
+  const summaryPatterns = [
+    /Sum[áa]rio[:\s]*\n?\s*([^\n].+?)(?=\n\s*(?:Texto|Data\s+de|Publicação|Série|Emissor|Entidade|Diploma|Versão|PDF|$))/is,
+    /Sum[áa]rio[:\s]+([^\n]{20,})/i,
+  ];
   
-  const summaryMatch = cleanMarkdown.match(/Sum[áa]rio[:\s]*\n?([^\n]+(?:\n[^\n]+)*?)(?=\n(?:Texto|Data|Publicação|Série|Emissor|$))/i);
-  if (summaryMatch) {
-    const summary = summaryMatch[1].trim();
-    if (summary && summary.length > 20 && !summary.includes('Lamentamos')) {
-      update.summary = summary.substring(0, 2000);
-      if (summary.length > 30 && summary.length < 300) {
-        update.title = `${currentNumber.split(' de ')[0]} - ${summary.substring(0, 150)}${summary.length > 150 ? '...' : ''}`;
-      }
-    }
-  }
-  
-  if (!update.title) {
-    for (const line of lines) {
-      if (line.length < 40) continue;
-      if (line.startsWith('#')) continue;
-      if (line.includes('http')) continue;
-      if (line.toLowerCase().includes('série')) continue;
-      if (line.toLowerCase().includes('emissor')) continue;
-      if (line.toLowerCase().includes('publicação')) continue;
-      if (line.toLowerCase().match(/^\d+[º°]/)) continue;
+  for (const pattern of summaryPatterns) {
+    const match = cleanMarkdown.match(pattern);
+    if (match && match[1]) {
+      let summary = match[1].trim().replace(/\s+/g, ' ');
+      summary = summary.replace(/\s*(Texto|PDF|Partilhar|Versão).*$/i, '').trim();
       
-      const cleanLine = line.trim();
-      if (cleanLine.length > 40 && cleanLine.length < 500) {
-        const titlePart = cleanLine.split('.')[0];
-        if (titlePart.length > 30) {
-          update.title = `${currentNumber.split(' de ')[0]} - ${titlePart.substring(0, 120)}${titlePart.length > 120 ? '...' : ''}`;
-          if (!update.summary) {
-            update.summary = cleanLine.substring(0, 500);
-          }
-          break;
-        }
+      if (isValidSummary(summary)) {
+        update.summary = summary.substring(0, 2000);
+        break;
       }
     }
   }
   
-  const entityMatch = cleanMarkdown.match(/Emissor[:\s]+([^\n]+)/i);
-  if (entityMatch) {
-    const entity = entityMatch[1].trim();
-    if (entity && !entity.includes('http') && entity.length < 200) {
-      update.entity = entity;
+  // ========== EXTRACT TITLE ==========
+  if (update.summary && update.summary.length > 30) {
+    const titleCandidate = `${currentNumber.split(' de ')[0]} - ${update.summary.substring(0, 150)}${update.summary.length > 150 ? '...' : ''}`;
+    if (isValidTitle(titleCandidate, currentNumber)) {
+      update.title = titleCandidate;
+    }
+  }
+  
+  // ========== EXTRACT ENTITY/EMISSOR ==========
+  const entityPatterns = [
+    /Emissor[:\s]*\n?\s*([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ][^\n]{3,100})/i,
+    /Entidade[:\s]*\n?\s*([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ][^\n]{3,100})/i,
+    /(Ministério\s+d[aoe]\s+[^\n]+)/i,
+    /(Presidência\s+d[ao]\s+[^\n]+)/i,
+  ];
+  
+  for (const pattern of entityPatterns) {
+    const match = cleanMarkdown.match(pattern);
+    if (match && match[1]) {
+      const entity = match[1].trim().replace(/\s+/g, ' ');
+      if (isValidEntity(entity)) {
+        update.entity = entity.substring(0, 200);
+        break;
+      }
     }
   }
   
