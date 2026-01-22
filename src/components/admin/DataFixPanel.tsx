@@ -59,10 +59,10 @@ const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
 };
 
 export function DataFixPanel() {
-  const [isAutoFixing, setIsAutoFixing] = useState(false);
   const [batchSize, setBatchSize] = useState(100);
   const [parallelJobs, setParallelJobs] = useState(3);
   const [showSettings, setShowSettings] = useState(false);
+  const [activeFixType, setActiveFixType] = useState<FixType | null>(null);
 
   // Query for running jobs
   const { data: runningJobs, refetch: refetchJobs } = useQuery({
@@ -123,7 +123,7 @@ export function DataFixPanel() {
       };
     },
     staleTime: 10000,
-    refetchInterval: isAutoFixing || (runningJobs?.length ?? 0) > 0 ? 5000 : 30000,
+    refetchInterval: activeFixType || (runningJobs?.length ?? 0) > 0 ? 5000 : 30000,
   });
 
   const totalPending = Object.values(stats || {}).reduce((sum, val) => sum + val, 0);
@@ -170,41 +170,26 @@ export function DataFixPanel() {
     await Promise.allSettled(promises);
   }, [batchSize, parallelJobs]);
 
-  // Auto-fix loop with batch processing
+  // Auto-fix loop for a single fix type
+
+  // Auto-fix loop for a single fix type
   useEffect(() => {
-    if (!isAutoFixing || !stats) return;
+    if (!activeFixType || !stats) return;
 
     const runBatchFix = async () => {
-      // Check how many jobs are already running
       const currentRunning = runningJobs?.length ?? 0;
-      if (currentRunning >= parallelJobs) {
-        // Wait for some jobs to finish
+      if (currentRunning >= parallelJobs) return;
+
+      const count = stats[activeFixType];
+      if (count === 0) {
+        setActiveFixType(null);
+        toast.success(`✅ ${FIX_LABELS[activeFixType]} - Correção concluída!`);
         return;
       }
 
-      const fixes: { type: FixType; count: number }[] = [
-        { type: "urls", count: stats.urls },
-        { type: "dates", count: stats.dates },
-        { type: "titles", count: stats.titles },
-        { type: "summaries", count: stats.summaries },
-        { type: "requirements", count: stats.requirements },
-        { type: "relations", count: stats.relations },
-      ];
-
-      // Find categories with pending items
-      const pendingFixes = fixes.filter(f => f.count > 0);
-
-      if (pendingFixes.length === 0) {
-        setIsAutoFixing(false);
-        toast.success("✅ Todas as correções concluídas!");
-        return;
-      }
-
-      // Launch jobs for the first pending category
       const slotsAvailable = parallelJobs - currentRunning;
       if (slotsAvailable > 0) {
-        const fix = pendingFixes[0];
-        await launchBatch(fix.type, fix.count);
+        await launchBatch(activeFixType, count);
         refetchJobs();
       }
     };
@@ -213,16 +198,21 @@ export function DataFixPanel() {
     runBatchFix();
 
     return () => clearInterval(interval);
-  }, [isAutoFixing, stats, runningJobs, parallelJobs, launchBatch, refetchJobs]);
+  }, [activeFixType, stats, runningJobs, parallelJobs, launchBatch, refetchJobs]);
 
-  const toggleAutoFix = () => {
-    if (isAutoFixing) {
-      setIsAutoFixing(false);
-      toast.info("Correção pausada");
+  const toggleFixType = (type: FixType) => {
+    if (activeFixType === type) {
+      setActiveFixType(null);
+      toast.info(`${FIX_LABELS[type]} - Correção pausada`);
     } else {
-      setIsAutoFixing(true);
-      toast.success(`Correção em lotes iniciada (${parallelJobs} jobs paralelos)`);
+      setActiveFixType(type);
+      toast.success(`${FIX_LABELS[type]} - Correção iniciada (${parallelJobs} jobs paralelos)`);
     }
+  };
+
+  const stopAllFixes = () => {
+    setActiveFixType(null);
+    toast.info("Correção pausada");
   };
 
   // Manual batch launch for a specific type
@@ -236,30 +226,33 @@ export function DataFixPanel() {
     refetch();
   };
 
-  // Fix Category Card
+  // Fix Category Card with individual controls
   const FixCategory = ({ type, count, icon }: { type: FixType; count: number; icon: React.ReactNode }) => {
     const isDone = count === 0;
     const typeJobs = getRunningJobsForType(type);
     const hasRunningJobs = typeJobs.length > 0;
+    const isActiveType = activeFixType === type;
     const totalProcessed = typeJobs.reduce((sum, j) => sum + (j.items_processed || 0), 0);
     const totalAdded = typeJobs.reduce((sum, j) => sum + (j.items_added || 0), 0);
     
     return (
       <div className={`relative overflow-hidden rounded-lg transition-all ${
+        isActiveType ? "ring-2 ring-green-500 bg-green-50 dark:bg-green-900/30" :
         hasRunningJobs ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30" :
         isDone ? "bg-green-50 dark:bg-green-900/20" :
         count > 100 ? "bg-red-50 dark:bg-red-900/20" :
         "bg-muted/50"
       }`}>
-        {hasRunningJobs && (
+        {(hasRunningJobs || isActiveType) && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-200 dark:bg-blue-800 overflow-hidden">
-            <div className="h-full bg-blue-500 animate-pulse" style={{ width: "100%" }} />
+            <div className={`h-full ${isActiveType ? "bg-green-500" : "bg-blue-500"} animate-pulse`} style={{ width: "100%" }} />
           </div>
         )}
         
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className={`p-2 rounded-lg shrink-0 ${
+              isActiveType ? "bg-green-500 text-white" :
               hasRunningJobs ? "bg-blue-500 text-white animate-pulse" :
               isDone ? "bg-green-500 text-white" :
               count > 100 ? "bg-red-500 text-white" :
@@ -277,6 +270,12 @@ export function DataFixPanel() {
                   </span>
                 </div>
               )}
+              {isActiveType && !hasRunningJobs && (
+                <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <Activity className="h-3 w-3 shrink-0" />
+                  <span>A aguardar próximo lote...</span>
+                </div>
+              )}
             </div>
           </div>
           
@@ -285,12 +284,31 @@ export function DataFixPanel() {
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             ) : (
               <>
-                {!hasRunningJobs && !isAutoFixing && (
+                <Button
+                  variant={isActiveType ? "destructive" : "outline"}
+                  size="sm"
+                  className="h-7 px-2 gap-1"
+                  onClick={() => toggleFixType(type)}
+                >
+                  {isActiveType ? (
+                    <>
+                      <Pause className="h-3 w-3" />
+                      Parar
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-3 w-3" />
+                      Iniciar
+                    </>
+                  )}
+                </Button>
+                {!isActiveType && !hasRunningJobs && (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2"
                     onClick={() => launchManualBatch(type)}
+                    title="Lançar um lote manualmente"
                   >
                     <Zap className="h-3 w-3" />
                   </Button>
@@ -313,7 +331,7 @@ export function DataFixPanel() {
       <ActiveJobsBanner />
 
       <Card className={`transition-all ${
-        isAutoFixing ? "bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-300 dark:border-green-700" : 
+        activeFixType ? "bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-300 dark:border-green-700" : 
         activeJobsCount > 0 ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-300 dark:border-blue-700" :
         "bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30"
       }`}>
@@ -321,7 +339,7 @@ export function DataFixPanel() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
-                isAutoFixing ? "bg-green-500" : 
+                activeFixType ? "bg-green-500" : 
                 activeJobsCount > 0 ? "bg-blue-500 animate-pulse" : 
                 "bg-amber-500"
               }`}>
@@ -329,33 +347,41 @@ export function DataFixPanel() {
               </div>
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  Correção em Lotes
+                  Correção por Tipo
+                  {activeFixType && (
+                    <Badge className="text-xs bg-green-500">
+                      {FIX_LABELS[activeFixType]}
+                    </Badge>
+                  )}
                   {activeJobsCount > 0 && (
                     <Badge variant="outline" className="text-xs">
-                      {activeJobsCount}/{parallelJobs} jobs
+                      {activeJobsCount} job(s)
                     </Badge>
                   )}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Processamento paralelo • Não bloqueia a interface
+                  Escolha um tipo de problema para corrigir em segundo plano
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {activeFixType && (
+                <Button 
+                  variant="destructive"
+                  size="sm"
+                  onClick={stopAllFixes}
+                  className="gap-1"
+                >
+                  <Pause className="h-4 w-4" />
+                  Parar
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => setShowSettings(!showSettings)}
               >
                 <Settings2 className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant={isAutoFixing ? "destructive" : "default"}
-                onClick={toggleAutoFix}
-                className="gap-2"
-              >
-                {isAutoFixing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {isAutoFixing ? "Pausar" : "Iniciar"}
               </Button>
               <Button variant="outline" size="icon" onClick={() => { refetch(); refetchJobs(); }}>
                 <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -376,7 +402,7 @@ export function DataFixPanel() {
                     min={25}
                     max={200}
                     step={25}
-                    disabled={isAutoFixing}
+                    disabled={!!activeFixType}
                   />
                 </div>
                 <div className="space-y-2">
@@ -387,7 +413,7 @@ export function DataFixPanel() {
                     min={1}
                     max={10}
                     step={1}
-                    disabled={isAutoFixing}
+                    disabled={!!activeFixType}
                   />
                 </div>
               </div>
@@ -404,7 +430,7 @@ export function DataFixPanel() {
           ) : (
             <>
               {/* Global Progress */}
-              {(isAutoFixing || activeJobsCount > 0) && (
+              {(activeFixType || activeJobsCount > 0) && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground flex items-center gap-2">
