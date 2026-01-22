@@ -24,6 +24,8 @@ const SYNC_TYPE_LABELS: Record<string, string> = {
   "fix_pdf_import": "Correção de Dados PDF",
   "fix_missing_dates": "Correção de Datas",
   "complete_auto_imported": "Completar Metadados",
+  "cleanup-duplicate-legislation": "Limpeza de Duplicados",
+  "cleanup_duplicates": "Limpeza de Duplicados",
 };
 
 export function useBackgroundJobNotifications() {
