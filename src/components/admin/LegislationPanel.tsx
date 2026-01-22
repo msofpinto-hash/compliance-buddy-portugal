@@ -833,14 +833,39 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Panel Mode Tabs - Mobile optimized */}
+      {/* Stats at the top - Always visible */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4 mb-4">
+        <AnimatedStatCard
+          label="Total de Legislação"
+          value={legislation?.length || 0}
+          previousValue={periodStats.previous.total > 0 ? (legislation?.length || 0) - periodStats.current.total + periodStats.previous.total : undefined}
+        />
+        <AnimatedStatCard
+          label="DRE (Portugal)"
+          value={dreCount}
+          previousValue={periodStats.previous.dre > 0 ? dreCount - periodStats.current.dre + periodStats.previous.dre : undefined}
+          titleClassName="text-green-600"
+        />
+        <AnimatedStatCard
+          label="EUR-Lex (UE)"
+          value={eurlexCount}
+          previousValue={periodStats.previous.eurlex > 0 ? eurlexCount - periodStats.current.eurlex + periodStats.previous.eurlex : undefined}
+          titleClassName="text-blue-600"
+        />
+        <AnimatedStatCard
+          label="Revogados"
+          value={revokedCount}
+          previousValue={periodStats.previous.revoked > 0 ? revokedCount - periodStats.current.revoked + periodStats.previous.revoked : undefined}
+          icon={revokedCount > 0 ? Ban : undefined}
+          iconClassName="text-slate-600"
+          titleClassName={revokedCount > 0 ? "text-slate-600" : ""}
+          className={revokedCount > 0 ? "border-slate-400 bg-slate-50/50" : ""}
+        />
+      </div>
+
       <Tabs value={panelMode} onValueChange={(v) => setPanelMode(v as PanelMode)} className="w-full">
         <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-full sm:w-auto h-auto gap-1 p-1">
-            <TabsTrigger value="browse" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
-              <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Navegação</span>
-              <span className="xs:hidden">Nav.</span>
-            </TabsTrigger>
             <TabsTrigger value="global" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
               <Globe2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden xs:inline">Global</span>
@@ -861,96 +886,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
         <TabsContent value="clients" className="mt-4">
           <ClientLegislationImportPanel />
         </TabsContent>
-
-        <TabsContent value="browse" className="mt-4 space-y-4">
-          {/* View Mode Toggle */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className="gap-1.5 h-8 text-xs sm:text-sm"
-              >
-                <List className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Lista</span>
-              </Button>
-              <Button
-                variant={viewMode === "tree" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("tree")}
-                className="gap-1.5 h-8 text-xs sm:text-sm"
-              >
-                <GitBranch className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Árvore</span>
-              </Button>
-            </div>
-          </div>
-
-      {/* Progress Banner for All Active Jobs */}
-      {!hideBanner && <ActiveJobsBanner />}
-
-      {/* Stats - Apenas estatísticas de inventário */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
-        <AnimatedStatCard
-          label="Total de Legislação"
-          value={legislation?.length || 0}
-          previousValue={periodStats.previous.total > 0 ? (legislation?.length || 0) - periodStats.current.total + periodStats.previous.total : undefined}
-          onClick={() => {
-            setFilterOrigin("all");
-            setFilterNoCategory(false);
-            setFilterRevoked(false);
-            setFilterTheme("all");
-            setFilterCategory("all");
-            setCurrentPage(1);
-          }}
-        />
-        <AnimatedStatCard
-          label="DRE (Portugal)"
-          value={dreCount}
-          previousValue={periodStats.previous.dre > 0 ? dreCount - periodStats.current.dre + periodStats.previous.dre : undefined}
-          titleClassName="text-green-600"
-          isActive={filterOrigin === "PT"}
-          activeRingColor="ring-green-500"
-          onClick={() => {
-            setFilterOrigin(filterOrigin === "PT" ? "all" : "PT");
-            setFilterNoCategory(false);
-            setFilterRevoked(false);
-            setCurrentPage(1);
-          }}
-        />
-        <AnimatedStatCard
-          label="EUR-Lex (UE)"
-          value={eurlexCount}
-          previousValue={periodStats.previous.eurlex > 0 ? eurlexCount - periodStats.current.eurlex + periodStats.previous.eurlex : undefined}
-          titleClassName="text-blue-600"
-          isActive={filterOrigin === "EU"}
-          activeRingColor="ring-blue-500"
-          onClick={() => {
-            setFilterOrigin(filterOrigin === "EU" ? "all" : "EU");
-            setFilterNoCategory(false);
-            setFilterRevoked(false);
-            setCurrentPage(1);
-          }}
-        />
-        <AnimatedStatCard
-          label="Revogados"
-          value={revokedCount}
-          previousValue={periodStats.previous.revoked > 0 ? revokedCount - periodStats.current.revoked + periodStats.previous.revoked : undefined}
-          icon={revokedCount > 0 ? Ban : undefined}
-          iconClassName="text-slate-600"
-          titleClassName={revokedCount > 0 ? "text-slate-600" : ""}
-          className={revokedCount > 0 ? "border-slate-400 bg-slate-50/50" : ""}
-          isActive={filterRevoked}
-          activeRingColor="ring-slate-500"
-          onClick={() => toggleRevokedFilter()}
-        />
-      </div>
-
-      {/* Tree View */}
-      {viewMode === "tree" && legislation && (
-        <LegislationTreeView legislation={legislation} />
-      )}
+      </Tabs>
 
       {/* List View */}
       {viewMode === "list" && (
@@ -1510,8 +1446,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           categories: leg.categories,
         }))}
       />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
