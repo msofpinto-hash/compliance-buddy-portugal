@@ -26,46 +26,70 @@ interface LoginCheckResult {
   lockout_minutes: number;
 }
 
-// Corporate professional background - Clean and institutional with dark mode support
+// Corporate professional background - Warm I&D palette (beige, salmon, brown + green)
 const CorporateBackground = () => {
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Base gradient - light/dark professional tones */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/30" />
+      {/* Warm beige/cream base with subtle green */}
+      <div className="absolute inset-0 bg-gradient-to-br from-amber-50/90 via-stone-50 to-emerald-50/40 dark:from-[#1a1512] dark:via-[#141210] dark:to-[#0f1a14]" />
       
-      {/* Subtle grid pattern */}
+      {/* Subtle warm geometric pattern overlay */}
       <div 
-        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+        className="absolute inset-0 opacity-[0.02] dark:opacity-[0.04]"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(100, 116, 139, 0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(100, 116, 139, 0.3) 1px, transparent 1px)
+            repeating-linear-gradient(
+              45deg,
+              transparent,
+              transparent 50px,
+              hsl(30 40% 45%) 50px,
+              hsl(30 40% 45%) 51px
+            )
           `,
-          backgroundSize: '40px 40px'
         }}
       />
       
-      {/* Soft decorative shapes */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-100/40 dark:bg-emerald-900/20 rounded-full blur-[150px]" />
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-slate-200/60 dark:bg-slate-800/40 rounded-full blur-[120px]" />
+      {/* Warm salmon/terracotta accent - top right */}
+      <div 
+        className="absolute -top-20 -right-20 w-[700px] h-[700px] opacity-20 dark:opacity-12"
+        style={{
+          background: 'radial-gradient(circle at center, hsl(15 50% 55% / 0.4) 0%, transparent 60%)'
+        }}
+      />
+      
+      {/* Forest green accent - bottom left */}
+      <div 
+        className="absolute -bottom-20 -left-20 w-[500px] h-[500px] opacity-25 dark:opacity-15"
+        style={{
+          background: 'radial-gradient(circle at center, hsl(152 45% 30% / 0.35) 0%, transparent 65%)'
+        }}
+      />
+      
+      {/* Warm brown accent - center */}
+      <div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] opacity-10 dark:opacity-6"
+        style={{
+          background: 'radial-gradient(ellipse at center, hsl(25 35% 40% / 0.2) 0%, transparent 70%)'
+        }}
+      />
     </div>
   );
 };
 
 // Removed TechParticles - keeping corporate clean look
 
-// Corporate Logo Component - Clean and professional with dark mode
+// Corporate Logo Component - Warm I&D palette
 const CorporateLogo = () => (
-  <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-600 hover:shadow-md transition-all duration-200">
+  <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/95 dark:bg-stone-900/90 border-2 border-stone-200 dark:border-amber-900/40 shadow-sm hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-md transition-all duration-200 backdrop-blur-sm">
     {/* Icon container */}
-    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 shadow-sm">
+    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-600 shadow-sm">
       <Scale className="h-5 w-5 text-white" />
     </div>
     
     {/* Text */}
     <div className="flex flex-col items-start">
-      <span className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">I&D</span>
-      <span className="text-xs font-semibold tracking-[0.15em] text-emerald-600 dark:text-emerald-400">
+      <span className="text-lg font-bold text-stone-800 dark:text-amber-50 tracking-tight">I&D</span>
+      <span className="text-xs font-semibold tracking-[0.15em] text-emerald-700 dark:text-emerald-400">
         COMPLIANCE
       </span>
     </div>
@@ -335,29 +359,29 @@ const Auth = () => {
         </div>
 
         <div className="relative z-10">
-          <Card className="w-full max-w-md bg-white border-2 border-slate-200 shadow-lg">
+          <Card className="w-full max-w-md bg-white/95 dark:bg-stone-900/90 border-2 border-stone-200 dark:border-amber-900/40 shadow-lg backdrop-blur-sm">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 border-2 border-amber-300">
-                <Clock className="h-7 w-7 text-amber-600" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 border-2 border-amber-300 dark:border-amber-700">
+                <Clock className="h-7 w-7 text-amber-600 dark:text-amber-400" />
               </div>
-              <CardTitle className="text-slate-800 text-xl">Aguarda Aprovação</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-stone-800 dark:text-amber-50 text-xl">Aguarda Aprovação</CardTitle>
+              <CardDescription className="text-stone-600 dark:text-stone-400">
                 A sua conta foi criada com sucesso e está a aguardar aprovação por um administrador.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert className="bg-emerald-50 border-2 border-emerald-200">
-                <Clock className="h-4 w-4 text-emerald-600" />
-                <AlertDescription className="text-slate-700">
+              <Alert className="bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-200 dark:border-emerald-800/50">
+                <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <AlertDescription className="text-stone-700 dark:text-stone-300">
                   Será notificado por email quando a sua conta for aprovada. Entretanto, poderá tentar iniciar sessão novamente mais tarde.
                 </AlertDescription>
               </Alert>
-              <div className="text-center text-sm text-slate-600">
-                Sessão iniciada como: <strong className="text-emerald-700">{user?.email}</strong>
+              <div className="text-center text-sm text-stone-600 dark:text-stone-400">
+                Sessão iniciada como: <strong className="text-emerald-700 dark:text-emerald-400">{user?.email}</strong>
               </div>
               <Button 
                 variant="outline" 
-                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-emerald-400" 
+                className="w-full border-2 border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:border-amber-400 dark:hover:border-amber-600" 
                 onClick={handleSignOut}
               >
                 Terminar sessão
@@ -381,26 +405,26 @@ const Auth = () => {
         </div>
 
         <div className="relative z-10">
-          <Card className="w-full max-w-md bg-white border-2 border-slate-200 shadow-lg">
+          <Card className="w-full max-w-md bg-white/95 dark:bg-stone-900/90 border-2 border-stone-200 dark:border-amber-900/40 shadow-lg backdrop-blur-sm">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-300">
-                <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 border-2 border-emerald-300 dark:border-emerald-700">
+                <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <CardTitle className="text-slate-800 text-xl">Registo Submetido</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-stone-800 dark:text-amber-50 text-xl">Registo Submetido</CardTitle>
+              <CardDescription className="text-stone-600 dark:text-stone-400">
                 A sua conta foi criada com sucesso!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert className="bg-emerald-50 border-2 border-emerald-200">
-                <Clock className="h-4 w-4 text-emerald-600" />
-                <AlertDescription className="text-slate-700">
+              <Alert className="bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-200 dark:border-emerald-800/50">
+                <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <AlertDescription className="text-stone-700 dark:text-stone-300">
                   O seu pedido de acesso será analisado por um administrador. Receberá uma notificação quando a sua conta for aprovada.
                 </AlertDescription>
               </Alert>
               <Button 
                 variant="outline" 
-                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-emerald-400" 
+                className="w-full border-2 border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:border-amber-400 dark:hover:border-amber-600" 
                 onClick={() => setRegistrationSuccess(false)}
               >
                 Voltar ao login
@@ -429,13 +453,13 @@ const Auth = () => {
         </div>
 
         <div className="relative z-10">
-          <Card className="w-full max-w-md bg-white border-2 border-slate-200 shadow-lg">
+          <Card className="w-full max-w-md bg-white/95 dark:bg-stone-900/90 border-2 border-stone-200 dark:border-amber-900/40 shadow-lg backdrop-blur-sm">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-300">
-                <Mail className="h-7 w-7 text-emerald-600" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 border-2 border-amber-300 dark:border-amber-700">
+                <Mail className="h-7 w-7 text-amber-600 dark:text-amber-400" />
               </div>
-              <CardTitle className="text-slate-800 text-xl">Recuperar Password</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-stone-800 dark:text-amber-50 text-xl">Recuperar Password</CardTitle>
+              <CardDescription className="text-stone-600 dark:text-stone-400">
                 {resetEmailSent 
                   ? "Verifique o seu email para redefinir a password"
                   : "Introduza o seu email para receber instruções"
@@ -445,16 +469,16 @@ const Auth = () => {
             <CardContent className="space-y-4">
               {resetEmailSent ? (
                 <>
-                  <Alert className="bg-emerald-50 border-2 border-emerald-200">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <AlertDescription className="text-emerald-700">
+                  <Alert className="bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-200 dark:border-emerald-800/50">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <AlertDescription className="text-emerald-700 dark:text-emerald-300">
                       Enviámos um email com instruções para redefinir a sua password. 
                       Por favor, verifique também a pasta de spam.
                     </AlertDescription>
                   </Alert>
                   <Button 
                     variant="outline" 
-                    className="w-full gap-2 border-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-emerald-400" 
+                    className="w-full gap-2 border-2 border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:border-amber-400 dark:hover:border-amber-600" 
                     onClick={handleBackToLogin}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -464,14 +488,14 @@ const Auth = () => {
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   {error && (
-                    <Alert variant="destructive" className="bg-red-50 border-2 border-red-200">
+                    <Alert variant="destructive" className="bg-red-50 dark:bg-red-950/50 border-2 border-red-200 dark:border-red-800">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reset-email" className="text-slate-700">Email</Label>
+                    <Label htmlFor="reset-email" className="text-stone-700 dark:text-stone-300">Email</Label>
                     <Input
                       id="reset-email"
                       type="email"
@@ -480,7 +504,7 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       autoFocus
-                      className="bg-white border-2 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
 
@@ -496,7 +520,7 @@ const Auth = () => {
                   <Button 
                     type="button"
                     variant="ghost" 
-                    className="w-full gap-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100" 
+                    className="w-full gap-2 text-stone-600 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-amber-50 dark:hover:bg-amber-900/30" 
                     onClick={handleBackToLogin}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -530,13 +554,13 @@ const Auth = () => {
             <img 
               src={officeWorkspaceImg} 
               alt="Profissional a trabalhar em compliance" 
-              className="relative w-full max-w-md mx-auto lg:mx-0 rounded-2xl border-2 border-slate-200 dark:border-slate-700 shadow-lg"
+              className="relative w-full max-w-md mx-auto lg:mx-0 rounded-2xl border-2 border-stone-200 dark:border-amber-900/40 shadow-lg"
             />
           </div>
           
           {/* Text Content */}
           <div className="space-y-4">
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 dark:text-white leading-tight">
+            <h2 className="text-3xl lg:text-4xl font-bold text-stone-800 dark:text-amber-50 leading-tight">
               O seu{" "}
               <span className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
                 assistente digital
@@ -544,7 +568,7 @@ const Auth = () => {
               <br />
               de conformidade
             </h2>
-            <p className="text-slate-600 dark:text-slate-300 text-lg max-w-md mx-auto lg:mx-0">
+            <p className="text-stone-600 dark:text-stone-400 text-lg max-w-md mx-auto lg:mx-0">
               Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
             </p>
             
@@ -557,7 +581,7 @@ const Auth = () => {
               ].map((feature) => (
                 <div
                   key={feature.text}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 shadow-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 dark:bg-stone-800/80 border-2 border-stone-200 dark:border-amber-900/40 text-sm text-stone-700 dark:text-stone-200 shadow-sm backdrop-blur-sm"
                 >
                   <feature.icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   {feature.text}
@@ -574,25 +598,25 @@ const Auth = () => {
             <CorporateLogo />
           </div>
 
-          <Card className="bg-white dark:bg-slate-800/90 border-2 border-slate-200 dark:border-slate-700 shadow-lg backdrop-blur-sm">
+          <Card className="bg-white/95 dark:bg-stone-900/90 border-2 border-stone-200 dark:border-amber-900/40 shadow-lg backdrop-blur-sm">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-slate-800 dark:text-white text-xl">Área de Cliente</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
+              <CardTitle className="text-stone-800 dark:text-amber-50 text-xl">Área de Cliente</CardTitle>
+              <CardDescription className="text-stone-600 dark:text-stone-400">
                 Aceda à sua área de gestão de conformidade legal
               </CardDescription>
             </CardHeader>
             <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-slate-100 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700">
+              <TabsList className="grid w-full grid-cols-2 bg-stone-100 dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700">
                 <TabsTrigger 
                   value="login" 
-                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400"
+                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-stone-900 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm text-stone-600 dark:text-stone-400"
                 >
                   Entrar
                 </TabsTrigger>
                 <TabsTrigger 
                   value="register"
-                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400"
+                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-stone-900 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm text-stone-600 dark:text-stone-400"
                 >
                   Registar
                 </TabsTrigger>
@@ -622,7 +646,7 @@ const Auth = () => {
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-700 dark:text-slate-300">Email</Label>
+                    <Label htmlFor="email" className="text-stone-700 dark:text-stone-300">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -630,13 +654,13 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">Password</Label>
+                      <Label htmlFor="password" className="text-stone-700 dark:text-stone-300">Password</Label>
                       <Button
                         type="button"
                         variant="link"
@@ -652,7 +676,7 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
 
@@ -683,7 +707,7 @@ const Auth = () => {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-name" className="text-slate-700 dark:text-slate-300">Nome Completo</Label>
+                    <Label htmlFor="reg-name" className="text-stone-700 dark:text-stone-300">Nome Completo</Label>
                     <Input
                       id="reg-name"
                       type="text"
@@ -691,12 +715,12 @@ const Auth = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reg-email" className="text-slate-700 dark:text-slate-300">Email</Label>
+                    <Label htmlFor="reg-email" className="text-stone-700 dark:text-stone-300">Email</Label>
                     <Input
                       id="reg-email"
                       type="email"
@@ -704,12 +728,12 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
+                      className="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-emerald-500/20"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reg-password" className="text-slate-700 dark:text-slate-300">Password</Label>
+                    <Label htmlFor="reg-password" className="text-stone-700 dark:text-stone-300">Password</Label>
                     <Input
                       id="reg-password"
                       type="password"
@@ -717,27 +741,27 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
-                      className={`bg-white dark:bg-slate-900 border-2 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-emerald-500/20 ${
+                      className={`bg-white dark:bg-stone-800 border-2 text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:ring-emerald-500/20 ${
                         password.length > 0 
                           ? (isPasswordValid ? "border-emerald-500 focus:border-emerald-500" : "border-amber-500 focus:border-amber-500") 
-                          : "border-slate-200 dark:border-slate-700 focus:border-emerald-500"
+                          : "border-stone-200 dark:border-stone-700 focus:border-emerald-500"
                       }`}
                     />
                     {password.length > 0 && (
                       <div className="mt-2 space-y-1 text-xs">
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.minLength ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.minLength ? "text-emerald-600 dark:text-emerald-400" : "text-stone-500 dark:text-stone-400"}`}>
                           {passwordValidation.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Mínimo 8 caracteres
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasUppercase ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasUppercase ? "text-emerald-600 dark:text-emerald-400" : "text-stone-500 dark:text-stone-400"}`}>
                           {passwordValidation.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Uma letra maiúscula
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasLowercase ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasLowercase ? "text-emerald-600 dark:text-emerald-400" : "text-stone-500 dark:text-stone-400"}`}>
                           {passwordValidation.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Uma letra minúscula
                         </div>
-                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasNumber ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
+                        <div className={`flex items-center gap-1.5 ${passwordValidation.hasNumber ? "text-emerald-600 dark:text-emerald-400" : "text-stone-500 dark:text-stone-400"}`}>
                           {passwordValidation.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Um número
                         </div>
@@ -746,7 +770,7 @@ const Auth = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reg-confirm-password" className="text-slate-700 dark:text-slate-300">Confirmar Password</Label>
+                    <Label htmlFor="reg-confirm-password" className="text-stone-700 dark:text-stone-300">Confirmar Password</Label>
                     <Input
                       id="reg-confirm-password"
                       type="password"
@@ -754,10 +778,10 @@ const Auth = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       minLength={8}
-                      className={`bg-white dark:bg-slate-900 border-2 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-emerald-500/20 ${
+                      className={`bg-white dark:bg-stone-800 border-2 text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:ring-emerald-500/20 ${
                         confirmPassword.length > 0 
                           ? (password === confirmPassword ? "border-emerald-500 focus:border-emerald-500" : "border-red-500 focus:border-red-500") 
-                          : "border-slate-200 dark:border-slate-700 focus:border-emerald-500"
+                          : "border-stone-200 dark:border-stone-700 focus:border-emerald-500"
                       }`}
                     />
                     {confirmPassword.length > 0 && password !== confirmPassword && (
@@ -783,9 +807,9 @@ const Auth = () => {
                     Criar conta
                   </Button>
 
-                  <Alert className="bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700">
-                    <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <AlertDescription className="text-xs text-slate-600 dark:text-slate-400">
+                  <Alert className="bg-amber-50/50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800/50">
+                    <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <AlertDescription className="text-xs text-stone-600 dark:text-stone-400">
                       Após criar conta, o seu acesso ficará pendente de aprovação por um administrador.
                     </AlertDescription>
                   </Alert>
@@ -797,11 +821,11 @@ const Auth = () => {
       </div>
       </div>
 
-      {/* Bottom decoration */}
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
+      {/* Bottom decoration - warm gradient */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-500/30 dark:via-amber-500/20 to-transparent" />
       
       {/* Copyright */}
-      <div className="absolute bottom-6 text-slate-500 dark:text-slate-400 text-sm">
+      <div className="absolute bottom-6 text-stone-500 dark:text-stone-500 text-sm">
         © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
       </div>
     </div>
