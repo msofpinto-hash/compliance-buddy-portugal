@@ -112,11 +112,47 @@ const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
   "auto-categorize-legislation": "categories",
 };
 
+// Performance presets for URL fixing
+type UrlSpeedPreset = "conservador" | "rapido" | "maximo";
+
+interface UrlSpeedConfig {
+  parallel: number;
+  batchDelayMs: number;
+  requestTimeoutMs: number;
+  label: string;
+  description: string;
+}
+
+const URL_SPEED_PRESETS: Record<UrlSpeedPreset, UrlSpeedConfig> = {
+  conservador: {
+    parallel: 20,
+    batchDelayMs: 200,
+    requestTimeoutMs: 8000,
+    label: "Conservador",
+    description: "Menos carga, ideal para servidores lentos",
+  },
+  rapido: {
+    parallel: 40,
+    batchDelayMs: 50,
+    requestTimeoutMs: 5000,
+    label: "Rápido",
+    description: "Bom equilíbrio entre velocidade e estabilidade",
+  },
+  maximo: {
+    parallel: 80,
+    batchDelayMs: 0,
+    requestTimeoutMs: 3500,
+    label: "Máximo",
+    description: "Máxima velocidade, pode causar rate-limit",
+  },
+};
+
 export function DataFixPanel() {
   const [batchSize, setBatchSize] = useState(100);
   const [parallelJobs, setParallelJobs] = useState(3);
   const [showSettings, setShowSettings] = useState(false);
   const [activeFixType, setActiveFixType] = useState<FixType | null>(null);
+  const [urlSpeedPreset, setUrlSpeedPreset] = useState<UrlSpeedPreset>("rapido");
 
   // Query for running jobs
   const { data: runningJobs, refetch: refetchJobs } = useQuery({
@@ -245,16 +281,25 @@ export function DataFixPanel() {
           functionName = "cleanup-duplicate-legislation";
           body = { batchSize: batchSize };
           break;
-        case "urls":
+        case "urls": {
           // For URLs we run both strategies:
           // 1) DRE search (better recovery for PT origin)
           // 2) Generic recovery/validation (covers other cases)
+          const urlConfig = URL_SPEED_PRESETS[urlSpeedPreset];
           functionName = i % 2 === 0 ? "find-missing-dre-urls" : "fix-broken-urls";
           body =
             functionName === "find-missing-dre-urls"
               ? { limit: batchSize, background: true, dryRun: false }
-              : { limit: batchSize, mode: "recover", background: true };
+              : {
+                  limit: batchSize,
+                  mode: "recover",
+                  background: true,
+                  parallel: urlConfig.parallel,
+                  batchDelayMs: urlConfig.batchDelayMs,
+                  requestTimeoutMs: urlConfig.requestTimeoutMs,
+                };
           break;
+        }
         case "titles":
           functionName = "complete-auto-imported-legislation";
           body = { mode: "generic_titles", limit: batchSize, dryRun: false };
@@ -285,7 +330,7 @@ export function DataFixPanel() {
     }
 
     await Promise.allSettled(promises);
-  }, [batchSize, parallelJobs]);
+  }, [batchSize, parallelJobs, urlSpeedPreset]);
 
   // Auto-fix loop for a single fix type
   useEffect(() => {
@@ -614,6 +659,34 @@ export function DataFixPanel() {
                     step={1}
                     disabled={!!activeFixType}
                   />
+                </div>
+              </div>
+              {/* URL Speed Presets */}
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-xs sm:text-sm flex items-center gap-2">
+                  <Link className="h-3.5 w-3.5" />
+                  Velocidade de URLs: <span className="font-bold">{URL_SPEED_PRESETS[urlSpeedPreset].label}</span>
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.entries(URL_SPEED_PRESETS) as [UrlSpeedPreset, UrlSpeedConfig][]).map(([key, config]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setUrlSpeedPreset(key)}
+                      disabled={!!activeFixType}
+                      className={`p-2 rounded-lg border text-left transition-all ${
+                        urlSpeedPreset === key
+                          ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                          : "border-border hover:border-primary/50"
+                      } ${activeFixType ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <div className="font-medium text-xs sm:text-sm">{config.label}</div>
+                      <div className="text-[9px] sm:text-[10px] text-muted-foreground">{config.description}</div>
+                      <div className="text-[8px] sm:text-[9px] text-muted-foreground/70 mt-1">
+                        {config.parallel}× | {config.batchDelayMs}ms | {config.requestTimeoutMs / 1000}s timeout
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">
