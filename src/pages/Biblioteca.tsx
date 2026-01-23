@@ -55,14 +55,99 @@ const themeImages: Record<string, string> = {
   geral: themeGeral,
 };
 
-const themeConfig: Record<string, { icon: React.ElementType; color: string; bgLight: string; bgDark: string; border: string }> = {
-  "Ambiente": { icon: Leaf, color: "text-emerald-600", bgLight: "bg-emerald-100", bgDark: "dark:bg-emerald-900/40", border: "border-emerald-300 dark:border-emerald-700" },
-  "SST": { icon: Shield, color: "text-orange-600", bgLight: "bg-orange-100", bgDark: "dark:bg-orange-900/40", border: "border-orange-300 dark:border-orange-700" },
-  "Segurança e Saúde no Trabalho": { icon: Shield, color: "text-orange-600", bgLight: "bg-orange-100", bgDark: "dark:bg-orange-900/40", border: "border-orange-300 dark:border-orange-700" },
-  "Energia": { icon: Zap, color: "text-yellow-600", bgLight: "bg-yellow-100", bgDark: "dark:bg-yellow-900/40", border: "border-yellow-300 dark:border-yellow-700" },
-  "Qualidade": { icon: Award, color: "text-blue-600", bgLight: "bg-blue-100", bgDark: "dark:bg-blue-900/40", border: "border-blue-300 dark:border-blue-700" },
-  "Segurança": { icon: Shield, color: "text-red-600", bgLight: "bg-red-100", bgDark: "dark:bg-red-900/40", border: "border-red-300 dark:border-red-700" },
-  "Conciliação Familiar e Profissional": { icon: Heart, color: "text-pink-600", bgLight: "bg-pink-100", bgDark: "dark:bg-pink-900/40", border: "border-pink-300 dark:border-pink-700" },
+// Enhanced warm theme configuration with distinct colors per theme
+const themeConfig: Record<string, { 
+  icon: React.ElementType; 
+  color: string; 
+  bgLight: string; 
+  bgDark: string; 
+  border: string;
+  gradient: string;
+  gradientDark: string;
+  ring: string;
+}> = {
+  "Ambiente": { 
+    icon: Leaf, 
+    color: "text-emerald-600 dark:text-emerald-400", 
+    bgLight: "bg-emerald-100", 
+    bgDark: "dark:bg-emerald-900/40", 
+    border: "border-emerald-300 dark:border-emerald-700",
+    gradient: "from-emerald-600 to-teal-700",
+    gradientDark: "dark:from-emerald-500 dark:to-teal-600",
+    ring: "ring-emerald-300/40 dark:ring-emerald-500/30"
+  },
+  "SST": { 
+    icon: Shield, 
+    color: "text-orange-600 dark:text-orange-400", 
+    bgLight: "bg-orange-100", 
+    bgDark: "dark:bg-orange-900/40", 
+    border: "border-orange-300 dark:border-orange-700",
+    gradient: "from-orange-500 to-red-600",
+    gradientDark: "dark:from-orange-400 dark:to-red-500",
+    ring: "ring-orange-300/40 dark:ring-orange-500/30"
+  },
+  "Segurança e Saúde no Trabalho": { 
+    icon: Shield, 
+    color: "text-orange-600 dark:text-orange-400", 
+    bgLight: "bg-orange-100", 
+    bgDark: "dark:bg-orange-900/40", 
+    border: "border-orange-300 dark:border-orange-700",
+    gradient: "from-orange-500 to-red-600",
+    gradientDark: "dark:from-orange-400 dark:to-red-500",
+    ring: "ring-orange-300/40 dark:ring-orange-500/30"
+  },
+  "Energia": { 
+    icon: Zap, 
+    color: "text-amber-600 dark:text-amber-400", 
+    bgLight: "bg-amber-100", 
+    bgDark: "dark:bg-amber-900/40", 
+    border: "border-amber-300 dark:border-amber-700",
+    gradient: "from-amber-500 to-yellow-600",
+    gradientDark: "dark:from-amber-400 dark:to-yellow-500",
+    ring: "ring-amber-300/40 dark:ring-amber-500/30"
+  },
+  "Qualidade": { 
+    icon: Award, 
+    color: "text-sky-600 dark:text-sky-400", 
+    bgLight: "bg-sky-100", 
+    bgDark: "dark:bg-sky-900/40", 
+    border: "border-sky-300 dark:border-sky-700",
+    gradient: "from-sky-500 to-blue-600",
+    gradientDark: "dark:from-sky-400 dark:to-blue-500",
+    ring: "ring-sky-300/40 dark:ring-sky-500/30"
+  },
+  "Segurança": { 
+    icon: Shield, 
+    color: "text-rose-600 dark:text-rose-400", 
+    bgLight: "bg-rose-100", 
+    bgDark: "dark:bg-rose-900/40", 
+    border: "border-rose-300 dark:border-rose-700",
+    gradient: "from-rose-500 to-red-600",
+    gradientDark: "dark:from-rose-400 dark:to-red-500",
+    ring: "ring-rose-300/40 dark:ring-rose-500/30"
+  },
+  "Conciliação Familiar e Profissional": { 
+    icon: Heart, 
+    color: "text-pink-600 dark:text-pink-400", 
+    bgLight: "bg-pink-100", 
+    bgDark: "dark:bg-pink-900/40", 
+    border: "border-pink-300 dark:border-pink-700",
+    gradient: "from-pink-500 to-rose-600",
+    gradientDark: "dark:from-pink-400 dark:to-rose-500",
+    ring: "ring-pink-300/40 dark:ring-pink-500/30"
+  },
+};
+
+// Default theme config fallback
+const defaultThemeConfig = {
+  icon: Folder,
+  color: "text-stone-600 dark:text-stone-400",
+  bgLight: "bg-stone-100",
+  bgDark: "dark:bg-stone-800/40",
+  border: "border-stone-300 dark:border-stone-700",
+  gradient: "from-stone-500 to-stone-600",
+  gradientDark: "dark:from-stone-400 dark:to-stone-500",
+  ring: "ring-stone-300/40 dark:ring-stone-500/30"
 };
 
 const getThemeImage = (themeName: string): string | undefined => {
@@ -350,7 +435,7 @@ export default function Biblioteca() {
 
                   {/* Theme buttons */}
                   {themes?.map((theme, index) => {
-                    const config = themeConfig[theme.name] || { icon: Folder, color: "text-amber-600", bgLight: "bg-amber-50", bgDark: "dark:bg-amber-900/30", border: "border-amber-200" };
+                    const config = themeConfig[theme.name] || defaultThemeConfig;
                     const ThemeIcon = config.icon;
                     const isSelected = selectedThemeId === theme.id;
                     
@@ -369,7 +454,7 @@ export default function Biblioteca() {
                         className={cn(
                           "flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200 min-w-[90px] shrink-0",
                           isSelected 
-                            ? "bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-500 dark:to-emerald-600 text-white shadow-md ring-2 ring-amber-300/30 dark:ring-amber-500/20"
+                            ? `bg-gradient-to-br ${config.gradient} ${config.gradientDark} text-white shadow-md ring-2 ${config.ring}`
                             : "bg-stone-50 dark:bg-stone-800/40 border border-stone-200/60 dark:border-amber-800/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-stone-600 dark:text-amber-200"
                         )}
                         initial={{ opacity: 0, y: 10 }}
@@ -380,7 +465,7 @@ export default function Biblioteca() {
                       >
                         <div className={cn(
                           "w-10 h-10 rounded-lg flex items-center justify-center",
-                          isSelected ? "bg-white/20" : "bg-white dark:bg-stone-700"
+                          isSelected ? "bg-white/20" : `bg-white dark:bg-stone-700 ${config.border}`
                         )}>
                           <ThemeIcon className={cn("h-5 w-5", isSelected ? "text-white" : config.color)} />
                         </div>
