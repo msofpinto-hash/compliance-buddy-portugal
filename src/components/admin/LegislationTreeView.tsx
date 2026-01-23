@@ -65,57 +65,109 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import emptySearchImage from "@/assets/empty-search.png";
 import treeCategoriesImage from "@/assets/tree-categories.png";
 
-// Theme color configurations
-const themeColors: Record<string, { bg: string; text: string; border: string; accent: string; icon: LucideIcon }> = {
+// Theme color configurations with warm corporate palette
+const themeColors: Record<string, { 
+  bg: string; 
+  text: string; 
+  border: string; 
+  accent: string; 
+  icon: LucideIcon;
+  badge: string;
+  badgeDark: string;
+  gradient: string;
+}> = {
   "Ambiente": { 
     bg: "bg-emerald-500/10", 
     text: "text-emerald-700", 
     border: "border-emerald-200",
     accent: "bg-emerald-500",
-    icon: Leaf
+    icon: Leaf,
+    badge: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    badgeDark: "dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700",
+    gradient: "from-emerald-500 to-teal-600"
   },
   "SST": { 
     bg: "bg-orange-500/10", 
     text: "text-orange-700", 
     border: "border-orange-200",
     accent: "bg-orange-500",
-    icon: Shield
+    icon: Shield,
+    badge: "bg-orange-100 text-orange-800 border-orange-300",
+    badgeDark: "dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-700",
+    gradient: "from-orange-500 to-red-600"
   },
   "Segurança e Saúde no Trabalho": { 
     bg: "bg-orange-500/10", 
     text: "text-orange-700", 
     border: "border-orange-200",
     accent: "bg-orange-500",
-    icon: Shield
+    icon: Shield,
+    badge: "bg-orange-100 text-orange-800 border-orange-300",
+    badgeDark: "dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-700",
+    gradient: "from-orange-500 to-red-600"
   },
   "Energia": { 
-    bg: "bg-yellow-500/10", 
-    text: "text-yellow-700", 
-    border: "border-yellow-200",
-    accent: "bg-yellow-500",
-    icon: Zap
+    bg: "bg-amber-500/10", 
+    text: "text-amber-700", 
+    border: "border-amber-200",
+    accent: "bg-amber-500",
+    icon: Zap,
+    badge: "bg-amber-100 text-amber-800 border-amber-300",
+    badgeDark: "dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700",
+    gradient: "from-amber-400 to-yellow-500"
   },
   "Qualidade": { 
-    bg: "bg-blue-500/10", 
-    text: "text-blue-700", 
-    border: "border-blue-200",
-    accent: "bg-blue-500",
-    icon: Award
+    bg: "bg-sky-500/10", 
+    text: "text-sky-700", 
+    border: "border-sky-200",
+    accent: "bg-sky-500",
+    icon: Award,
+    badge: "bg-sky-100 text-sky-800 border-sky-300",
+    badgeDark: "dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-700",
+    gradient: "from-sky-500 to-blue-600"
   },
   "Segurança": { 
-    bg: "bg-red-500/10", 
-    text: "text-red-700", 
-    border: "border-red-200",
-    accent: "bg-red-500",
-    icon: Shield
+    bg: "bg-rose-500/10", 
+    text: "text-rose-700", 
+    border: "border-rose-200",
+    accent: "bg-rose-500",
+    icon: Shield,
+    badge: "bg-rose-100 text-rose-800 border-rose-300",
+    badgeDark: "dark:bg-rose-900/50 dark:text-rose-300 dark:border-rose-700",
+    gradient: "from-rose-500 to-red-600"
   },
   "Conciliação Familiar e Profissional": { 
     bg: "bg-pink-500/10", 
     text: "text-pink-700", 
     border: "border-pink-200",
     accent: "bg-pink-500",
-    icon: Heart
+    icon: Heart,
+    badge: "bg-pink-100 text-pink-800 border-pink-300",
+    badgeDark: "dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-700",
+    gradient: "from-pink-500 to-rose-600"
   },
+  "Conciliação": { 
+    bg: "bg-pink-500/10", 
+    text: "text-pink-700", 
+    border: "border-pink-200",
+    accent: "bg-pink-500",
+    icon: Heart,
+    badge: "bg-pink-100 text-pink-800 border-pink-300",
+    badgeDark: "dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-700",
+    gradient: "from-pink-500 to-rose-600"
+  },
+};
+
+// Default theme config for themes not explicitly defined
+const defaultThemeConfig = {
+  bg: "bg-stone-500/10", 
+  text: "text-stone-700", 
+  border: "border-stone-200",
+  accent: "bg-stone-500",
+  icon: Tags,
+  badge: "bg-stone-100 text-stone-700 border-stone-300",
+  badgeDark: "dark:bg-stone-800/50 dark:text-stone-300 dark:border-stone-600",
+  gradient: "from-stone-500 to-stone-600"
 };
 
 // Category-specific icons based on keywords in name
@@ -139,13 +191,19 @@ const getCategoryIcon = (categoryName: string): LucideIcon => {
 };
 
 const getThemeConfig = (themeName: string) => {
-  return themeColors[themeName] || { 
-    bg: "bg-primary/10", 
-    text: "text-primary", 
-    border: "border-primary/20",
-    accent: "bg-primary",
-    icon: Tags
-  };
+  return themeColors[themeName] || defaultThemeConfig;
+};
+
+// Get theme config for a category by finding its parent theme
+const getThemeConfigForCategory = (categoryId: string, themes: ThemeWithCategories[] | undefined): typeof defaultThemeConfig => {
+  if (!themes) return defaultThemeConfig;
+  
+  for (const theme of themes) {
+    if (theme.categories.some(c => c.id === categoryId)) {
+      return getThemeConfig(theme.name);
+    }
+  }
+  return defaultThemeConfig;
 };
 
 // Helper to detect if title is redundant with number (e.g., "Decreto-Lei n.º 152/2017" appears in both)
@@ -1188,12 +1246,15 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                               : "Sem data"
                             }
                           </div>
-                          {leg.categories.length > 0 && (
-                            <Badge variant="outline" className="text-xs h-5">
-                              {leg.categories[0].name}
-                              {leg.categories.length > 1 && ` +${leg.categories.length - 1}`}
-                            </Badge>
-                          )}
+                          {leg.categories.length > 0 && (() => {
+                            const catConfig = getThemeConfigForCategory(leg.categories[0].id, themesWithCategories);
+                            return (
+                              <Badge variant="outline" className={`text-xs h-5 ${catConfig.badge} ${catConfig.badgeDark}`}>
+                                {leg.categories[0].name}
+                                {leg.categories.length > 1 && ` +${leg.categories.length - 1}`}
+                              </Badge>
+                            );
+                          })()}
                         </div>
 
                         {/* Actions */}
@@ -1606,22 +1667,46 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                           )}
                         </Link>
 
-                        {/* Summary + Date - only show if not redundant with title */}
-                        <div className="flex items-end justify-between mt-2">
-                          {(() => {
-                            // For EUR-Lex, use the remainder of the title as summary if no explicit summary
-                            const eurlexSummaryPart = leg.origin === 'EU' ? splitEurlexTitle(leg.title).rest : null;
-                            const displaySummary = eurlexSummaryPart || (leg as any).summary;
-                            
-                            if (displaySummary && !isSummaryRedundant(leg.number, leg.title, displaySummary)) {
-                              return (
-                                <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">
-                                  {highlightText(displaySummary, searchTerm, "bg-yellow-200 text-yellow-900 rounded px-0.5 font-medium")}
-                                </p>
-                              );
-                            }
-                            return null;
-                          })()}
+                        {/* Summary + Date + Categories */}
+                        <div className="flex items-end justify-between mt-2 gap-2">
+                          <div className="flex-1 min-w-0">
+                            {(() => {
+                              // For EUR-Lex, use the remainder of the title as summary if no explicit summary
+                              const eurlexSummaryPart = leg.origin === 'EU' ? splitEurlexTitle(leg.title).rest : null;
+                              const displaySummary = eurlexSummaryPart || (leg as any).summary;
+                              
+                              if (displaySummary && !isSummaryRedundant(leg.number, leg.title, displaySummary)) {
+                                return (
+                                  <p className="text-xs text-muted-foreground line-clamp-1 mb-1.5">
+                                    {highlightText(displaySummary, searchTerm, "bg-yellow-200 text-yellow-900 rounded px-0.5 font-medium")}
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
+                            {/* Category badges with theme colors */}
+                            {leg.categories.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {leg.categories.slice(0, 2).map(cat => {
+                                  const catConfig = getThemeConfigForCategory(cat.id, themesWithCategories);
+                                  return (
+                                    <Badge 
+                                      key={cat.id}
+                                      variant="outline" 
+                                      className={`text-[10px] px-1.5 py-0 h-4 ${catConfig.badge} ${catConfig.badgeDark}`}
+                                    >
+                                      {cat.name}
+                                    </Badge>
+                                  );
+                                })}
+                                {leg.categories.length > 2 && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    +{leg.categories.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                           {leg.publication_date && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                               <Calendar className="h-3 w-3" />
