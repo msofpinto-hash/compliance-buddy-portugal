@@ -192,34 +192,34 @@ export default function Biblioteca() {
       <IDBackground />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-emerald-200/40 dark:border-emerald-900/30 bg-white dark:bg-[#0c1f17] shadow-sm">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512] shadow-sm">
         <IDSidebar currentOrg={currentOrg} />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-emerald-200/40 dark:border-emerald-900/30 bg-white dark:bg-[#0c1f17]">
+        <SheetContent side="left" className="w-64 p-0 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512]">
           <IDSidebar currentOrg={currentOrg} onCloseMobile={() => setSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
-        {/* Top Header - Clean institutional style */}
-        <header className="sticky top-0 z-20 bg-white/95 dark:bg-[#0c1f17]/95 backdrop-blur-md border-b border-emerald-100 dark:border-emerald-900/30">
+        {/* Top Header - Warm institutional style */}
+        <header className="sticky top-0 z-20 bg-white/95 dark:bg-[#1a1512]/95 backdrop-blur-md border-b border-stone-200/60 dark:border-amber-900/30">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-white hover:bg-emerald-50 dark:hover:bg-emerald-900/40"
+                className="lg:hidden text-stone-700 dark:text-amber-200 hover:text-stone-800 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-amber-900/30"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-xs text-slate-500 dark:text-emerald-300/60 uppercase tracking-wider font-medium">{currentOrg?.name || "Biblioteca"}</p>
-                <h1 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                <p className="text-xs text-amber-700/70 dark:text-amber-300/60 uppercase tracking-wider font-medium">{currentOrg?.name || "Biblioteca"}</p>
+                <h1 className="text-lg font-semibold text-stone-800 dark:text-white flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   Legislação
                 </h1>
@@ -258,18 +258,18 @@ export default function Biblioteca() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-4 flex-wrap">
                   <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600 dark:text-emerald-400" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-600 dark:text-amber-400" />
                     <Input
                       placeholder="Pesquisar legislação..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-stone-50 dark:bg-emerald-950/30 border-emerald-200/60 dark:border-emerald-800/40 focus:border-emerald-500 focus:ring-emerald-500/20 text-slate-700 dark:text-white placeholder:text-slate-400 dark:placeholder:text-emerald-300/40"
+                      className="pl-10 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 focus:border-amber-500 focus:ring-amber-500/20 text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-amber-300/40"
                     />
                     {searchTerm && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-amber-100 dark:hover:bg-amber-900/30"
                         onClick={() => setSearchTerm("")}
                       >
                         <X className="h-4 w-4" />
@@ -277,17 +277,17 @@ export default function Biblioteca() {
                     )}
                   </div>
                   
-                  {/* Origin Tabs - Forest green style */}
+                  {/* Origin Tabs - Warm green style */}
                   <Tabs value={selectedSource} onValueChange={setSelectedSource} className="shrink-0">
-                    <TabsList className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/40">
-                      <TabsTrigger value="all" className="text-xs data-[state=active]:bg-emerald-700 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">
+                    <TabsList className="bg-stone-100 dark:bg-stone-800/50 border border-stone-200/60 dark:border-amber-800/40">
+                      <TabsTrigger value="all" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-500">
                         Todos
                       </TabsTrigger>
-                      <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-emerald-700 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">
+                      <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-500">
                         <Flag className="h-3 w-3" />
                         PT
                       </TabsTrigger>
-                      <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-emerald-700 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">
+                      <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-500">
                         <Globe className="h-3 w-3" />
                         UE
                       </TabsTrigger>
@@ -316,7 +316,7 @@ export default function Biblioteca() {
             </IDCard>
           </motion.div>
 
-          {/* Theme Icons Bar - I&D Clean Style */}
+          {/* Theme Icons Bar - I&D Warm Style */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -331,17 +331,17 @@ export default function Biblioteca() {
                     className={cn(
                       "flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200 min-w-[90px] shrink-0",
                       !selectedThemeId 
-                        ? "bg-emerald-700 dark:bg-emerald-600 text-white shadow-md" 
-                        : "bg-stone-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-emerald-200"
+                        ? "bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-500 dark:to-emerald-600 text-white shadow-md ring-2 ring-amber-300/30 dark:ring-amber-500/20" 
+                        : "bg-stone-50 dark:bg-stone-800/40 border border-stone-200/60 dark:border-amber-800/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-stone-600 dark:text-amber-200"
                     )}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className={cn(
                       "w-10 h-10 rounded-lg flex items-center justify-center",
-                      !selectedThemeId ? "bg-white/20" : "bg-emerald-100 dark:bg-emerald-900/50"
+                      !selectedThemeId ? "bg-white/20" : "bg-white dark:bg-stone-700"
                     )}>
-                      <LayoutGrid className={cn("h-5 w-5", !selectedThemeId ? "text-white" : "text-emerald-600 dark:text-emerald-400")} />
+                      <LayoutGrid className={cn("h-5 w-5", !selectedThemeId ? "text-white" : "text-emerald-600 dark:text-amber-400")} />
                     </div>
                     <span className="text-xs font-medium">
                       Todos
@@ -350,7 +350,7 @@ export default function Biblioteca() {
 
                   {/* Theme buttons */}
                   {themes?.map((theme, index) => {
-                    const config = themeConfig[theme.name] || { icon: Folder, color: "text-emerald-600", bgLight: "bg-emerald-50", bgDark: "dark:bg-emerald-900/40", border: "border-emerald-200" };
+                    const config = themeConfig[theme.name] || { icon: Folder, color: "text-amber-600", bgLight: "bg-amber-50", bgDark: "dark:bg-amber-900/30", border: "border-amber-200" };
                     const ThemeIcon = config.icon;
                     const isSelected = selectedThemeId === theme.id;
                     
@@ -369,8 +369,8 @@ export default function Biblioteca() {
                         className={cn(
                           "flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200 min-w-[90px] shrink-0",
                           isSelected 
-                            ? "bg-emerald-700 dark:bg-emerald-600 text-white shadow-md"
-                            : "bg-stone-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-emerald-200"
+                            ? "bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-500 dark:to-emerald-600 text-white shadow-md ring-2 ring-amber-300/30 dark:ring-amber-500/20"
+                            : "bg-stone-50 dark:bg-stone-800/40 border border-stone-200/60 dark:border-amber-800/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-stone-600 dark:text-amber-200"
                         )}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -380,7 +380,7 @@ export default function Biblioteca() {
                       >
                         <div className={cn(
                           "w-10 h-10 rounded-lg flex items-center justify-center",
-                          isSelected ? "bg-white/20" : "bg-white dark:bg-emerald-900/50"
+                          isSelected ? "bg-white/20" : "bg-white dark:bg-stone-700"
                         )}>
                           <ThemeIcon className={cn("h-5 w-5", isSelected ? "text-white" : config.color)} />
                         </div>
@@ -395,30 +395,30 @@ export default function Biblioteca() {
             </IDCard>
           </motion.div>
 
-          {/* Active Filters & Results Count - I&D style */}
+          {/* Active Filters & Results Count - Warm style */}
           <motion.div 
             className="flex items-center justify-between flex-wrap gap-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.3 }}
           >
-            <p className="text-sm text-slate-600 dark:text-emerald-200/80">
-              <span className="font-semibold text-emerald-700 dark:text-white">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
+            <p className="text-sm text-stone-600 dark:text-amber-200/80">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
             </p>
             
             {hasActiveFilters && (
               <div className="flex items-center gap-2 flex-wrap">
                 {selectedSource !== "all" && (
-                  <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-200 border-0">
+                  <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800 dark:bg-amber-800/40 dark:text-amber-200 border-0">
                     {selectedSource === "dre" ? <Flag className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
                     {selectedSource === "dre" ? "Portugal" : "UE"}
-                    <button onClick={() => setSelectedSource("all")} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-700 rounded-full p-0.5">
+                    <button onClick={() => setSelectedSource("all")} className="ml-1 hover:bg-amber-200 dark:hover:bg-amber-700 rounded-full p-0.5">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
                 )}
                 {selectedThemeId && themes && (
-                  <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-200 border-0">
+                  <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-800/40 dark:text-emerald-200 border-0">
                     <Tags className="h-3 w-3" />
                     {themes.find(t => t.id === selectedThemeId)?.name}
                     <button onClick={() => { setSelectedThemeId(null); setSelectedCategoryId(null); }} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-700 rounded-full p-0.5">
@@ -430,20 +430,20 @@ export default function Biblioteca() {
                   const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
                   const category = theme?.categories.find(c => c.id === selectedCategoryId);
                   return category ? (
-                    <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-200 border-0">
+                    <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-800 dark:bg-orange-800/40 dark:text-orange-200 border-0">
                       <Folder className="h-3 w-3" />
                       {category.name}
-                      <button onClick={() => setSelectedCategoryId(null)} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-700 rounded-full p-0.5">
+                      <button onClick={() => setSelectedCategoryId(null)} className="ml-1 hover:bg-orange-200 dark:hover:bg-orange-700 rounded-full p-0.5">
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
                   ) : null;
                 })()}
                 {searchTerm && (
-                  <Badge variant="secondary" className="gap-1 bg-stone-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-0">
+                  <Badge variant="secondary" className="gap-1 bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300 border-0">
                     <Search className="h-3 w-3" />
                     "{searchTerm.slice(0, 20)}{searchTerm.length > 20 ? '...' : ''}"
-                    <button onClick={() => setSearchTerm("")} className="ml-1 hover:bg-stone-200 dark:hover:bg-slate-700 rounded-full p-0.5">
+                    <button onClick={() => setSearchTerm("")} className="ml-1 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-full p-0.5">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -461,7 +461,7 @@ export default function Biblioteca() {
             )}
           </motion.div>
 
-          {/* Legislation Content - I&D Style */}
+          {/* Legislation Content - Warm Style */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -470,7 +470,7 @@ export default function Biblioteca() {
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-32 w-full rounded-xl bg-emerald-100/50 dark:bg-emerald-900/20" />
+                  <Skeleton key={i} className="h-32 w-full rounded-xl bg-amber-100/50 dark:bg-amber-900/15" />
                 ))}
               </div>
             ) : legislationWithCategories ? (
@@ -487,21 +487,21 @@ export default function Biblioteca() {
               <IDCard className="py-20">
                 <CardContent className="flex flex-col items-center justify-center text-center">
                   <motion.div 
-                    className="p-6 rounded-full bg-emerald-100 dark:bg-emerald-900/40 mb-6"
+                    className="p-6 rounded-full bg-gradient-to-br from-amber-100 to-emerald-100 dark:from-amber-900/30 dark:to-emerald-900/30 mb-6"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 200 }}
                   >
                     <FileText className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
                   </motion.div>
-                  <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-white">Nenhum diploma encontrado</h3>
-                  <p className="text-sm text-slate-500 dark:text-emerald-200/60 max-w-md">
+                  <h3 className="text-xl font-semibold mb-2 text-stone-800 dark:text-white">Nenhum diploma encontrado</h3>
+                  <p className="text-sm text-stone-500 dark:text-amber-200/60 max-w-md">
                     Não encontrámos legislação disponível com os filtros selecionados.
                   </p>
                   {hasActiveFilters && (
                     <Button
                       variant="outline"
-                      className="mt-6 gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                      className="mt-6 gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
                       onClick={clearAllFilters}
                     >
                       <X className="h-4 w-4" />
