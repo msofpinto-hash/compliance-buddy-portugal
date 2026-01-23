@@ -31,12 +31,11 @@ import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useLegislationWithCategories } from "@/hooks/useLegislation";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
-import { DashboardSidebar } from "@/components/client/DashboardSidebar";
-import { AnimatedParticles } from "@/components/client/AnimatedParticles";
+import { IDSidebar } from "@/components/client/IDSidebar";
+import { IDBackground, IDParticles, IDHeroSection, IDCard } from "@/components/client/IDBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { cn } from "@/lib/utils";
-import heroVideo from "@/assets/hero-background.mp4";
 
 // Theme icons and colors mapping
 import themeAmbiente from "@/assets/theme-ambiente.png";
@@ -189,54 +188,40 @@ export default function Biblioteca() {
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">
-      {/* Animated Video Background */}
-      <div className="fixed inset-0 z-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-        >
-          <source src={heroVideo} type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/95 via-white/90 to-teal-50/85 dark:from-slate-900/92 dark:via-slate-900/88 dark:to-emerald-950/30" />
-        <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-300/25 dark:bg-emerald-400/12 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-300/25 dark:bg-teal-400/12 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <AnimatedParticles count={25} />
-      </div>
+      {/* I&D Inspired Background */}
+      <IDBackground />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-emerald-200/60 dark:border-emerald-900/30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
-        <DashboardSidebar currentOrg={currentOrg} />
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-emerald-200/40 dark:border-emerald-900/30 bg-white dark:bg-[#0c1f17] shadow-sm">
+        <IDSidebar currentOrg={currentOrg} />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-emerald-200/60 dark:border-emerald-900/30 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl">
-          <DashboardSidebar currentOrg={currentOrg} onCloseMobile={() => setSidebarOpen(false)} />
+        <SheetContent side="left" className="w-64 p-0 border-r border-emerald-200/40 dark:border-emerald-900/30 bg-white dark:bg-[#0c1f17]">
+          <IDSidebar currentOrg={currentOrg} onCloseMobile={() => setSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
-        {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-emerald-200/60 dark:border-emerald-900/30">
+        {/* Top Header - Clean institutional style */}
+        <header className="sticky top-0 z-20 bg-white/95 dark:bg-[#0c1f17]/95 backdrop-blur-md border-b border-emerald-100 dark:border-emerald-900/30">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15"
+                className="lg:hidden text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-white hover:bg-emerald-50 dark:hover:bg-emerald-900/40"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80">{currentOrg?.name || "Biblioteca"}</p>
-                <h1 className="text-xl font-semibold text-emerald-800 dark:text-emerald-100 flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Biblioteca de Legislação
+                <p className="text-xs text-slate-500 dark:text-emerald-300/60 uppercase tracking-wider font-medium">{currentOrg?.name || "Biblioteca"}</p>
+                <h1 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  Legislação
                 </h1>
               </div>
             </div>
@@ -254,59 +239,37 @@ export default function Biblioteca() {
         </header>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-8 space-y-6">
-          {/* Hero Header Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-100/80 via-teal-50/70 to-cyan-100/60 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-cyan-900/25 border border-emerald-200/60 dark:border-emerald-800/40 p-6 lg:p-8"
-          >
-            {/* Background decorative elements */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-300/20 dark:bg-emerald-400/10 rounded-full blur-3xl" />
-              <div className="absolute -left-10 -top-10 w-32 h-32 bg-teal-300/20 dark:bg-teal-400/10 rounded-full blur-2xl" />
-              <AnimatedParticles count={12} />
-            </div>
+        <main className="p-4 lg:p-8 space-y-5">
+          {/* Hero Header - I&D Style */}
+          <IDHeroSection
+            title="Biblioteca de Legislação"
+            subtitle="Consulta e acompanhamento de toda a legislação aplicável à sua organização"
+            badge="Gestão Documental"
+            icon={BookOpen}
+          />
 
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="space-y-3">
-                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-300/50 dark:border-emerald-600/50 hover:bg-emerald-500/20">
-                  <BookOpen className="h-3 w-3 mr-1" />
-                  Gestão Documental
-                </Badge>
-                <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-slate-100">
-                  Biblioteca de Legislação
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400 max-w-xl">
-                  Consulta e acompanhamento de toda a legislação aplicável à sua organização
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Search Bar */}
+          {/* Search Bar - Clean institutional */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
           >
-            <Card className="bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm">
+            <IDCard>
               <CardContent className="p-4">
                 <div className="flex items-center gap-4 flex-wrap">
                   <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500 dark:text-emerald-400" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600 dark:text-emerald-400" />
                     <Input
-                      placeholder="Pesquisar legislação por título, número ou conteúdo..."
+                      placeholder="Pesquisar legislação..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-emerald-50/50 dark:bg-slate-800/80 border-emerald-200/80 dark:border-emerald-800/40 focus:border-emerald-400 focus:ring-emerald-400/30"
+                      className="pl-10 bg-stone-50 dark:bg-emerald-950/30 border-emerald-200/60 dark:border-emerald-800/40 focus:border-emerald-500 focus:ring-emerald-500/20 text-slate-700 dark:text-white placeholder:text-slate-400 dark:placeholder:text-emerald-300/40"
                     />
                     {searchTerm && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
                         onClick={() => setSearchTerm("")}
                       >
                         <X className="h-4 w-4" />
@@ -314,17 +277,17 @@ export default function Biblioteca() {
                     )}
                   </div>
                   
-                  {/* Origin Tabs */}
+                  {/* Origin Tabs - Forest green style */}
                   <Tabs value={selectedSource} onValueChange={setSelectedSource} className="shrink-0">
-                    <TabsList className="bg-emerald-100/60 dark:bg-emerald-900/30">
-                      <TabsTrigger value="all" className="text-xs data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
+                    <TabsList className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/40">
+                      <TabsTrigger value="all" className="text-xs data-[state=active]:bg-emerald-700 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">
                         Todos
                       </TabsTrigger>
-                      <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
+                      <TabsTrigger value="dre" className="text-xs gap-1 data-[state=active]:bg-emerald-700 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">
                         <Flag className="h-3 w-3" />
                         PT
                       </TabsTrigger>
-                      <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-white data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-800 dark:data-[state=active]:text-emerald-100">
+                      <TabsTrigger value="eurlex" className="text-xs gap-1 data-[state=active]:bg-emerald-700 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600">
                         <Globe className="h-3 w-3" />
                         UE
                       </TabsTrigger>
@@ -350,50 +313,46 @@ export default function Biblioteca() {
                   />
                 </div>
               </CardContent>
-            </Card>
+            </IDCard>
           </motion.div>
 
-          {/* Theme Icons Bar */}
+          {/* Theme Icons Bar - I&D Clean Style */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
-            <Card className="bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm backdrop-blur-sm overflow-hidden">
+            <IDCard>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2">
                   {/* All themes button */}
                   <motion.button
                     onClick={() => { setSelectedThemeId(null); setSelectedCategoryId(null); }}
                     className={cn(
-                      "flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 min-w-[100px] shrink-0",
+                      "flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200 min-w-[90px] shrink-0",
                       !selectedThemeId 
-                        ? "bg-emerald-100 dark:bg-emerald-900/50 border-2 border-emerald-400 dark:border-emerald-600 shadow-md" 
-                        : "bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                        ? "bg-emerald-700 dark:bg-emerald-600 text-white shadow-md" 
+                        : "bg-stone-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-emerald-200"
                     )}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center",
-                      !selectedThemeId ? "bg-emerald-500 text-white shadow-lg" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                      "w-10 h-10 rounded-lg flex items-center justify-center",
+                      !selectedThemeId ? "bg-white/20" : "bg-emerald-100 dark:bg-emerald-900/50"
                     )}>
-                      <LayoutGrid className="h-6 w-6" />
+                      <LayoutGrid className={cn("h-5 w-5", !selectedThemeId ? "text-white" : "text-emerald-600 dark:text-emerald-400")} />
                     </div>
-                    <span className={cn(
-                      "text-xs font-medium",
-                      !selectedThemeId ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-400"
-                    )}>
+                    <span className="text-xs font-medium">
                       Todos
                     </span>
                   </motion.button>
 
                   {/* Theme buttons */}
                   {themes?.map((theme, index) => {
-                    const config = themeConfig[theme.name] || { icon: Folder, color: "text-slate-600", bgLight: "bg-slate-100", bgDark: "dark:bg-slate-800", border: "border-slate-300" };
+                    const config = themeConfig[theme.name] || { icon: Folder, color: "text-emerald-600", bgLight: "bg-emerald-50", bgDark: "dark:bg-emerald-900/40", border: "border-emerald-200" };
                     const ThemeIcon = config.icon;
                     const isSelected = selectedThemeId === theme.id;
-                    const themeImage = getThemeImage(theme.name);
                     
                     return (
                       <motion.button
@@ -408,76 +367,61 @@ export default function Biblioteca() {
                           }
                         }}
                         className={cn(
-                          "flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 min-w-[100px] shrink-0 relative overflow-hidden",
+                          "flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200 min-w-[90px] shrink-0",
                           isSelected 
-                            ? cn(config.bgLight, config.bgDark, "border-2", config.border, "shadow-md")
-                            : "bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            ? "bg-emerald-700 dark:bg-emerald-600 text-white shadow-md"
+                            : "bg-stone-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-emerald-200"
                         )}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.1 * index }}
+                        transition={{ duration: 0.3, delay: 0.05 * index }}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        {/* Background image */}
-                        {themeImage && (
-                          <div className="absolute inset-0 opacity-10">
-                            <img src={themeImage} alt="" className="w-full h-full object-cover" />
-                          </div>
-                        )}
                         <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center relative z-10 shadow-sm",
-                          isSelected ? cn(config.bgLight, config.bgDark) : "bg-white dark:bg-slate-700"
+                          "w-10 h-10 rounded-lg flex items-center justify-center",
+                          isSelected ? "bg-white/20" : "bg-white dark:bg-emerald-900/50"
                         )}>
-                          <ThemeIcon className={cn("h-6 w-6", config.color)} />
+                          <ThemeIcon className={cn("h-5 w-5", isSelected ? "text-white" : config.color)} />
                         </div>
-                        <span className={cn(
-                          "text-xs font-medium relative z-10 text-center leading-tight",
-                          isSelected ? config.color : "text-slate-600 dark:text-slate-400"
-                        )}>
-                          {theme.name.length > 12 ? theme.name.substring(0, 12) + "..." : theme.name}
+                        <span className="text-xs font-medium text-center leading-tight">
+                          {theme.name.length > 10 ? theme.name.substring(0, 10) + "..." : theme.name}
                         </span>
-                        {isSelected && (
-                          <motion.div 
-                            className="absolute bottom-0 left-0 right-0 h-1 bg-current opacity-50"
-                            layoutId="themeIndicator"
-                          />
-                        )}
                       </motion.button>
                     );
                   })}
                 </div>
               </CardContent>
-            </Card>
+            </IDCard>
           </motion.div>
 
-          {/* Active Filters & Results Count */}
+          {/* Active Filters & Results Count - I&D style */}
           <motion.div 
             className="flex items-center justify-between flex-wrap gap-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.3 }}
           >
-            <p className="text-sm text-emerald-700/80 dark:text-emerald-300/80">
-              <span className="font-semibold text-emerald-800 dark:text-emerald-100">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
+            <p className="text-sm text-slate-600 dark:text-emerald-200/80">
+              <span className="font-semibold text-emerald-700 dark:text-white">{filteredCount}</span> diploma{filteredCount !== 1 ? "s" : ""} encontrado{filteredCount !== 1 ? "s" : ""}
             </p>
             
             {hasActiveFilters && (
               <div className="flex items-center gap-2 flex-wrap">
                 {selectedSource !== "all" && (
-                  <Badge variant="secondary" className="gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                  <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-200 border-0">
                     {selectedSource === "dre" ? <Flag className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
                     {selectedSource === "dre" ? "Portugal" : "UE"}
-                    <button onClick={() => setSelectedSource("all")} className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5">
+                    <button onClick={() => setSelectedSource("all")} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-700 rounded-full p-0.5">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
                 )}
                 {selectedThemeId && themes && (
-                  <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                  <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-200 border-0">
                     <Tags className="h-3 w-3" />
                     {themes.find(t => t.id === selectedThemeId)?.name}
-                    <button onClick={() => { setSelectedThemeId(null); setSelectedCategoryId(null); }} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5">
+                    <button onClick={() => { setSelectedThemeId(null); setSelectedCategoryId(null); }} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-700 rounded-full p-0.5">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -486,20 +430,20 @@ export default function Biblioteca() {
                   const theme = themes.find(t => t.categories.some(c => c.id === selectedCategoryId));
                   const category = theme?.categories.find(c => c.id === selectedCategoryId);
                   return category ? (
-                    <Badge variant="secondary" className="gap-1 bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300">
+                    <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-200 border-0">
                       <Folder className="h-3 w-3" />
                       {category.name}
-                      <button onClick={() => setSelectedCategoryId(null)} className="ml-1 hover:bg-teal-200 dark:hover:bg-teal-800 rounded-full p-0.5">
+                      <button onClick={() => setSelectedCategoryId(null)} className="ml-1 hover:bg-emerald-200 dark:hover:bg-emerald-700 rounded-full p-0.5">
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
                   ) : null;
                 })()}
                 {searchTerm && (
-                  <Badge variant="secondary" className="gap-1 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <Badge variant="secondary" className="gap-1 bg-stone-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-0">
                     <Search className="h-3 w-3" />
                     "{searchTerm.slice(0, 20)}{searchTerm.length > 20 ? '...' : ''}"
-                    <button onClick={() => setSearchTerm("")} className="ml-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full p-0.5">
+                    <button onClick={() => setSearchTerm("")} className="ml-1 hover:bg-stone-200 dark:hover:bg-slate-700 rounded-full p-0.5">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -507,7 +451,7 @@ export default function Biblioteca() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950 gap-1"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 gap-1"
                   onClick={clearAllFilters}
                 >
                   <X className="h-3 w-3" />
@@ -517,7 +461,7 @@ export default function Biblioteca() {
             )}
           </motion.div>
 
-          {/* Legislation Content */}
+          {/* Legislation Content - I&D Style */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -526,11 +470,11 @@ export default function Biblioteca() {
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-32 w-full rounded-xl" />
+                  <Skeleton key={i} className="h-32 w-full rounded-xl bg-emerald-100/50 dark:bg-emerald-900/20" />
                 ))}
               </div>
             ) : legislationWithCategories ? (
-              <Card className="bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 shadow-sm overflow-hidden backdrop-blur-sm">
+              <IDCard className="overflow-hidden">
                 <LegislationTreeView 
                   legislation={legislationWithCategories} 
                   hideFilters 
@@ -538,26 +482,26 @@ export default function Biblioteca() {
                   applicabilityMap={legislationApplicabilitiesMap}
                   externalSearchTerm={searchTerm}
                 />
-              </Card>
+              </IDCard>
             ) : (
-              <Card className="py-20 bg-white/95 dark:bg-slate-900/90 border-emerald-200/60 dark:border-emerald-800/30 backdrop-blur-sm">
+              <IDCard className="py-20">
                 <CardContent className="flex flex-col items-center justify-center text-center">
                   <motion.div 
-                    className="p-6 rounded-full bg-emerald-100/60 dark:bg-emerald-900/30 mb-6"
+                    className="p-6 rounded-full bg-emerald-100 dark:bg-emerald-900/40 mb-6"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 200 }}
                   >
-                    <FileText className="h-12 w-12 text-emerald-400" />
+                    <FileText className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
                   </motion.div>
-                  <h3 className="text-xl font-semibold mb-2 text-emerald-800 dark:text-emerald-100">Nenhum diploma encontrado</h3>
-                  <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 max-w-md">
+                  <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-white">Nenhum diploma encontrado</h3>
+                  <p className="text-sm text-slate-500 dark:text-emerald-200/60 max-w-md">
                     Não encontrámos legislação disponível com os filtros selecionados.
                   </p>
                   {hasActiveFilters && (
                     <Button
                       variant="outline"
-                      className="mt-6 gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
+                      className="mt-6 gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
                       onClick={clearAllFilters}
                     >
                       <X className="h-4 w-4" />
@@ -565,7 +509,7 @@ export default function Biblioteca() {
                     </Button>
                   )}
                 </CardContent>
-              </Card>
+              </IDCard>
             )}
           </motion.div>
         </main>
