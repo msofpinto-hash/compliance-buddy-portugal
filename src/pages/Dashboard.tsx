@@ -58,6 +58,9 @@ import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDial
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
 import { WelcomeHero } from "@/components/client/WelcomeHero";
 import { ModuleCard } from "@/components/client/ModuleCard";
+import { TechWelcomeHero } from "@/components/client/TechWelcomeHero";
+import { TechModuleCard } from "@/components/client/TechModuleCard";
+import { TechGridBackground, TechParticles, HexPattern } from "@/components/client/TechBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ClientGridBackground, ClientParticles, ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
 import { AnimatedParticles } from "@/components/client/AnimatedParticles";
@@ -574,35 +577,37 @@ export default function Dashboard() {
           />
         ) : (
           <div className="flex items-center gap-3">
-            <ClientAnimatedLogo />
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30">
+              <Scale className="h-5 w-5 text-white" />
+            </div>
             <div className="flex flex-col">
-              <span className="font-bold text-emerald-800 dark:text-emerald-100 leading-tight">I&D</span>
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 leading-tight font-medium tracking-wider">COMPLIANCE</span>
+              <span className="font-bold text-slate-100 leading-tight">I&D</span>
+              <span className="text-xs text-cyan-400 leading-tight font-mono tracking-wider">COMPLIANCE</span>
             </div>
           </div>
         )}
       </Link>
 
-      {/* User Info */}
-      <div className="p-4 border-b border-emerald-200/60 dark:border-emerald-900/30">
+      {/* User Info - Tech Style */}
+      <div className="p-4 border-b border-cyan-500/20">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-emerald-100/80 dark:bg-emerald-500/15 border border-emerald-300/60 dark:border-emerald-500/25 flex items-center justify-center">
-            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          <div className="h-10 w-10 rounded-lg bg-slate-800 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/10">
+            <span className="text-sm font-bold text-cyan-400 font-mono">
               {user?.email?.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-100 truncate">
+            <p className="text-sm font-medium text-slate-100 truncate">
               {user?.email?.split("@")[0]}
             </p>
-            <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 truncate">
+            <p className="text-xs text-slate-400 truncate font-mono">
               {currentOrg?.name || ""}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation - Tech Style */}
       <ScrollArea className="flex-1 py-4">
         <nav className="px-3 space-y-1">
           {navItems.map((item) => {
@@ -614,20 +619,20 @@ export default function Dashboard() {
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-300",
                   isActive 
-                    ? "bg-emerald-100/80 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-500/25" 
-                    : "text-emerald-700/80 dark:text-emerald-200/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-100"
+                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-500/10" 
+                    : "text-slate-300 hover:bg-slate-800/60 hover:text-cyan-300 border border-transparent"
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
                 <span>{item.label}</span>
                 {item.count !== undefined && item.count > 0 && (
                   <Badge className={cn(
-                    "ml-auto text-xs",
+                    "ml-auto text-xs font-mono",
                     isActive 
-                      ? "bg-emerald-200/80 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border-0" 
-                      : "bg-emerald-100/60 dark:bg-emerald-800/40 text-emerald-600 dark:text-emerald-300 border-0"
+                      ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/30" 
+                      : "bg-slate-700/60 text-slate-300 border border-slate-600/50"
                   )}>
                     {item.count}
                   </Badge>
@@ -639,11 +644,11 @@ export default function Dashboard() {
 
         {/* Admin link if admin */}
         {isAdmin && (
-          <div className="px-3 mt-4 pt-4 border-t border-emerald-200/60 dark:border-emerald-900/30">
+          <div className="px-3 mt-4 pt-4 border-t border-cyan-500/20">
             <Link
               to="/admin"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-700/80 dark:text-emerald-200/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-800 dark:hover:text-emerald-100 transition-all duration-200"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-violet-500/15 hover:text-violet-300 border border-transparent hover:border-violet-500/30 transition-all duration-300"
             >
               <Settings className="h-5 w-5 shrink-0" />
               <span>Administração</span>
@@ -652,26 +657,26 @@ export default function Dashboard() {
         )}
       </ScrollArea>
 
-      {/* Footer - Help, Settings & Logout */}
-      <div className="p-4 border-t border-emerald-200/60 dark:border-emerald-900/30 mt-auto space-y-1">
+      {/* Footer - Tech Style */}
+      <div className="p-4 border-t border-cyan-500/20 mt-auto space-y-1">
         <Link
           to="/settings"
           onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-600/80 dark:text-emerald-300/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-100 transition-all duration-200 w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all duration-200 w-full"
         >
           <User className="h-4 w-4" />
           <span>Definições</span>
         </Link>
         <a
           href="mailto:suporte@legalcompliance.pt"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-600/80 dark:text-emerald-300/80 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-100 transition-all duration-200 w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all duration-200 w-full"
         >
           <HelpCircle className="h-4 w-4" />
           <span>Ajuda</span>
         </a>
         <LogoutConfirmDialog 
           onConfirm={signOut} 
-          className="w-full justify-start gap-3 text-emerald-600/80 dark:text-emerald-300/80 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 px-3" 
+          className="w-full justify-start gap-3 text-slate-400 hover:bg-red-500/15 hover:text-red-400 px-3 border border-transparent hover:border-red-500/30" 
           variant="ghost"
         />
       </div>
@@ -679,59 +684,41 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
-      {/* Animated Video Background */}
-      <div className="fixed inset-0 z-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-        >
-          <source src={heroVideo} type="video/mp4" />
-        </video>
-        {/* Lighter Overlay gradient - green pastel tones */}
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/95 via-white/90 to-teal-50/85 dark:from-slate-900/92 dark:via-slate-900/88 dark:to-emerald-950/30" />
-        {/* Decorative color orbs - soft green pastel */}
-        <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-300/25 dark:bg-emerald-400/12 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-300/25 dark:bg-teal-400/12 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-mint-200/20 dark:bg-emerald-400/8 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-lime-200/20 dark:bg-lime-400/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-        
-        {/* Animated Particles */}
-        <AnimatedParticles count={25} />
-      </div>
+    <div className="min-h-screen flex relative overflow-hidden bg-slate-950">
+      {/* Tech Background */}
+      <TechGridBackground />
+      <TechParticles />
+      <HexPattern />
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-emerald-200/60 dark:border-emerald-900/30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
+      {/* Desktop Sidebar - Tech Style */}
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-cyan-500/20 bg-slate-950/95 backdrop-blur-xl">
         <SidebarContent />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-emerald-200/60 dark:border-emerald-900/30 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl">
+        <SheetContent side="left" className="w-64 p-0 border-r border-cyan-500/20 bg-slate-950/98 backdrop-blur-xl">
           <SidebarContent />
         </SheetContent>
       </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
-        {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-emerald-200/60 dark:border-emerald-900/30">
+        {/* Top Header - Tech Style */}
+        <header className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-xl border-b border-cyan-500/20">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15 icon-pulse transition-all duration-200 active:scale-90"
+                className="lg:hidden text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/15 icon-pulse transition-all duration-200 active:scale-90"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80">{currentOrg?.name || "Dashboard"}</p>
-                <h1 className="text-xl font-semibold text-emerald-800 dark:text-emerald-100">
+                <p className="text-sm text-cyan-400/80 font-mono">{currentOrg?.name || "Dashboard"}</p>
+                <h1 className="text-xl font-semibold text-slate-100">
                   {activeTab === "overview" && "Painel de Controlo"}
                   {activeTab === "actions" && "Planos de Ação"}
                   {activeTab === "audits" && "Auditorias"}
@@ -749,27 +736,27 @@ export default function Dashboard() {
                 />
               )}
               <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500/70" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-cyan-500/70" />
                 <Input 
                   placeholder="Pesquisa" 
-                  className="pl-9 w-64 bg-emerald-50/60 dark:bg-emerald-900/20 border-emerald-200/80 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-100 placeholder:text-emerald-500/60 focus:border-emerald-400 focus:ring-emerald-400/30"
+                  className="pl-9 w-64 bg-slate-900/60 border-cyan-500/30 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400/30"
                 />
               </div>
               <TooltipProvider>
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <Link to="/legislacao-recente">
-                      <Button variant="ghost" size="icon" className="relative text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15 icon-pulse transition-all duration-200 hover:scale-110 active:scale-95">
+                      <Button variant="ghost" size="icon" className="relative text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/15 icon-pulse transition-all duration-200 hover:scale-110 active:scale-95">
                         <FileText className="h-5 w-5" />
                         {unreadLegislationCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 text-white text-xs flex items-center justify-center shadow-sm animate-pulse-ring">
+                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-cyan-500 text-slate-950 text-xs font-bold flex items-center justify-center shadow-lg shadow-cyan-500/50 animate-pulse-ring">
                             {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
                           </span>
                         )}
                       </Button>
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-700/40 text-emerald-800 dark:text-emerald-100">
+                  <TooltipContent className="bg-slate-900 border-cyan-500/30 text-cyan-100">
                     <p>{unreadLegislationCount > 0 ? `${unreadLegislationCount} diplomas por ler` : "Legislação recente"}</p>
                   </TooltipContent>
                 </UITooltip>
@@ -784,8 +771,8 @@ export default function Dashboard() {
           {/* Overview Tab Content */}
           {activeTab === "overview" && (
             <>
-              {/* Welcome Hero Section */}
-              <WelcomeHero
+              {/* Welcome Hero Section - Tech Style */}
+              <TechWelcomeHero
                 userName={userProfile?.full_name || user?.email}
                 organizationName={currentOrg?.name}
                 alertsCount={0}
@@ -793,125 +780,120 @@ export default function Dashboard() {
                 pendingActions={actionPlanStats.pending + actionPlanStats.inProgress}
               />
 
-              {/* Modules Grid */}
+              {/* Modules Grid - Tech Style */}
               <div>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 shadow-lg">
+                  <div className="p-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30">
                     <Sparkles className="h-5 w-5 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Acesso Rápido</h2>
+                  <h2 className="text-2xl font-bold text-slate-100">Acesso Rápido</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                  <ModuleCard
+                  <TechModuleCard
                     title="Legislação"
                     description="Consulte a biblioteca de diplomas legais aplicáveis"
                     icon={Gavel}
                     href="/biblioteca"
                     image={moduleLegislation}
-                    gradient="from-emerald-500 to-teal-600"
+                    glowColor="cyan"
                     count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
                     countLabel="novos"
                     index={0}
                   />
-                  <ModuleCard
+                  <TechModuleCard
                     title="Planos de Ação"
                     description="Gerir ações de conformidade e prazos"
                     icon={ClipboardList}
                     href="/dashboard?tab=actions"
                     image={moduleActions}
-                    gradient="from-blue-500 to-indigo-600"
+                    glowColor="violet"
                     count={actionPlanStats.pending + actionPlanStats.inProgress}
                     countLabel="ativos"
                     index={1}
                   />
-                  <ModuleCard
+                  <TechModuleCard
                     title="Auditorias"
                     description="Acompanhe o estado das auditorias"
                     icon={ClipboardCheck}
                     href="/dashboard?tab=audits"
                     image={moduleAudits}
-                    gradient="from-amber-500 to-orange-600"
+                    glowColor="amber"
                     count={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length}
                     countLabel="ativas"
                     index={2}
                   />
-                  <ModuleCard
+                  <TechModuleCard
                     title="Evidências"
                     description="Submeta documentos de conformidade"
                     icon={FolderOpen}
                     href="/dashboard?tab=documents"
                     image={moduleDocuments}
-                    gradient="from-purple-500 to-pink-600"
+                    glowColor="rose"
                     index={3}
                   />
                 </div>
               </div>
 
-              {/* Recent Legislation */}
-              <Card className="overflow-hidden bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 dark:from-slate-900 dark:via-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/60 dark:border-emerald-800/40 shadow-md backdrop-blur-sm">
-                <CardHeader className="bg-gradient-to-r from-emerald-50/80 to-teal-50/60 dark:from-emerald-900/25 dark:to-teal-900/15">
+              {/* Recent Legislation - Tech Style */}
+              <div className="rounded-xl border border-cyan-500/20 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-[0_0_30px_hsl(190_100%_50%/0.1)]">
+                <div className="p-5 border-b border-cyan-500/20 bg-slate-900/40">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 shadow-lg shadow-emerald-400/25">
+                      <div className="p-2.5 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30">
                         <FileText className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <CardTitle className="text-emerald-800 dark:text-emerald-100">Legislação Recente</CardTitle>
-                        <CardDescription className="text-emerald-600/80 dark:text-emerald-300/80">Últimos diplomas publicados</CardDescription>
+                        <h3 className="text-lg font-semibold text-slate-100">Legislação Recente</h3>
+                        <p className="text-sm text-slate-400">Últimos diplomas publicados</p>
                       </div>
                     </div>
                     <Link 
                       to="/legislacao-recente" 
-                      className="group flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-emerald-500/25 active:scale-95"
+                      className="group flex items-center gap-1 px-4 py-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-sm font-medium hover:bg-cyan-500/20 hover:border-cyan-400/50 transition-all duration-300 active:scale-95"
                     >
                       Ver todos <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                     </Link>
                   </div>
-                </CardHeader>
-                <CardContent className="p-5">
+                </div>
+                <div className="p-5">
                   {loadingLegislation ? (
                     <div className="grid md:grid-cols-4 gap-4">
                       {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-44 w-full rounded-xl bg-slate-100 dark:bg-slate-700" />
+                        <Skeleton key={i} className="h-44 w-full rounded-xl bg-slate-800" />
                       ))}
                     </div>
                   ) : recentLegislation && recentLegislation.length > 0 ? (
                     <div className="grid md:grid-cols-4 gap-4">
                       {recentLegislation.slice(0, 4).map((leg, index) => {
-                        const gradients = [
-                          "from-emerald-400 to-teal-500",
-                          "from-blue-400 to-indigo-500",
-                          "from-amber-400 to-orange-500",
-                          "from-purple-400 to-pink-500",
+                        const colors = [
+                          { border: "border-cyan-500/30", glow: "shadow-cyan-500/20", accent: "bg-cyan-500" },
+                          { border: "border-violet-500/30", glow: "shadow-violet-500/20", accent: "bg-violet-500" },
+                          { border: "border-amber-500/30", glow: "shadow-amber-500/20", accent: "bg-amber-500" },
+                          { border: "border-rose-500/30", glow: "shadow-rose-500/20", accent: "bg-rose-500" },
                         ];
+                        const color = colors[index % colors.length];
                         return (
                           <Link
                             key={leg.id}
                             to={`/legislacao/${leg.id}`}
-                            className="group relative rounded-xl border border-slate-200/80 dark:border-slate-600/50 bg-white dark:bg-slate-700/80 overflow-hidden hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 transform hover:-translate-y-2 active:translate-y-0 active:shadow-md"
+                            className={`group relative rounded-xl border ${color.border} bg-slate-800/60 backdrop-blur-sm overflow-hidden hover:shadow-lg ${color.glow} transition-all duration-300 transform hover:-translate-y-2 active:translate-y-0`}
                           >
                             {/* Colored top accent */}
-                            <div className={cn(
-                              "h-2 bg-gradient-to-r",
-                              gradients[index % gradients.length]
-                            )} />
+                            <div className={`h-1 ${color.accent}`} />
                             
-                            <div className="p-4 pt-4">
+                            <div className="p-4">
                               <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs text-slate-500 dark:text-slate-300 font-medium bg-slate-100 dark:bg-slate-600 px-2 py-1 rounded-full">
+                                <span className="text-xs text-slate-400 font-mono bg-slate-700/60 px-2 py-1 rounded">
                                   {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
                                 </span>
-                                <div className={cn(
-                                  "p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all bg-gradient-to-r",
-                                  gradients[index % gradients.length]
-                                )}>
+                                <div className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${color.accent}`}>
                                   <ExternalLink className="h-3 w-3 text-white" />
                                 </div>
                               </div>
-                              <p className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-primary transition-colors">
+                              <p className="text-sm font-bold text-slate-100 line-clamp-2 group-hover:text-cyan-300 transition-colors">
                                 {leg.number}
                               </p>
-                              <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2 mt-2">
+                              <p className="text-xs text-slate-400 line-clamp-2 mt-2">
                                 {leg.title}
                               </p>
                             </div>
@@ -921,14 +903,14 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="text-center py-12">
-                      <div className="p-4 rounded-full bg-slate-100 dark:bg-slate-700 inline-block mb-3">
-                        <FileText className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                      <div className="p-4 rounded-lg bg-slate-800/60 inline-block mb-3">
+                        <FileText className="h-10 w-10 text-slate-500" />
                       </div>
-                      <p className="text-slate-500 dark:text-slate-300">Nenhuma legislação disponível</p>
+                      <p className="text-slate-400">Nenhuma legislação disponível</p>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Charts and Stats Row - 3 columns */}
               <div className="grid gap-6 lg:grid-cols-3">
