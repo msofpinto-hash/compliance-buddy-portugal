@@ -795,7 +795,7 @@ export default function Dashboard() {
                     icon={Gavel}
                     href="/biblioteca"
                     image={moduleLegislation}
-                    glowColor="cyan"
+                    glowColor="emerald"
                     count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
                     countLabel="novos"
                     index={0}
@@ -806,7 +806,7 @@ export default function Dashboard() {
                     icon={ClipboardList}
                     href="/dashboard?tab=actions"
                     image={moduleActions}
-                    glowColor="violet"
+                    glowColor="terracotta"
                     count={actionPlanStats.pending + actionPlanStats.inProgress}
                     countLabel="ativos"
                     index={1}

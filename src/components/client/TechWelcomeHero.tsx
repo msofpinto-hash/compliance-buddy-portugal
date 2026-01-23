@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronRight, ClipboardList, Cpu, Sparkles, Zap } from "lucide-react";
+import { Calendar, ChevronRight, ClipboardList, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -29,33 +29,32 @@ export function TechWelcomeHero({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-900/60 backdrop-blur-xl shadow-[0_0_40px_hsl(190_100%_50%/0.15)]"
+      className="relative overflow-hidden rounded-2xl border border-stone-200/60 dark:border-stone-700/40 bg-white/70 dark:bg-stone-900/60 backdrop-blur-xl shadow-[0_8px_30px_hsl(25_50%_40%/0.1)]"
     >
-      {/* Animated scan line */}
+      {/* Subtle animated accent line */}
       <motion.div 
-        className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
-        animate={{ top: ['0%', '100%', '0%'] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+        className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent"
+        style={{ top: 0 }}
       />
       
-      {/* Corner decorations */}
-      <div className="absolute top-0 left-0 w-20 h-20 border-l-2 border-t-2 border-cyan-500/40 rounded-tl-2xl" />
-      <div className="absolute top-0 right-0 w-20 h-20 border-r-2 border-t-2 border-violet-500/40 rounded-tr-2xl" />
-      <div className="absolute bottom-0 left-0 w-20 h-20 border-l-2 border-b-2 border-violet-500/40 rounded-bl-2xl" />
-      <div className="absolute bottom-0 right-0 w-20 h-20 border-r-2 border-b-2 border-cyan-500/40 rounded-br-2xl" />
+      {/* Corner decorations - warm tones */}
+      <div className="absolute top-0 left-0 w-16 h-16 border-l-2 border-t-2 border-emerald-500/30 rounded-tl-2xl" />
+      <div className="absolute top-0 right-0 w-16 h-16 border-r-2 border-t-2 border-amber-500/30 rounded-tr-2xl" />
+      <div className="absolute bottom-0 left-0 w-16 h-16 border-l-2 border-b-2 border-amber-500/30 rounded-bl-2xl" />
+      <div className="absolute bottom-0 right-0 w-16 h-16 border-r-2 border-b-2 border-emerald-500/30 rounded-br-2xl" />
       
-      {/* Glowing orbs */}
+      {/* Warm gradient orbs */}
       <motion.div 
-        className="absolute -top-20 -right-20 w-60 h-60 rounded-full opacity-30"
-        style={{ background: 'radial-gradient(circle, hsl(190 100% 50% / 0.4) 0%, transparent 70%)' }}
-        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
-        transition={{ duration: 4, repeat: Infinity }}
+        className="absolute -top-20 -right-20 w-60 h-60 rounded-full opacity-20"
+        style={{ background: 'radial-gradient(circle, hsl(25 70% 55% / 0.4) 0%, transparent 70%)' }}
+        animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.25, 0.15] }}
+        transition={{ duration: 6, repeat: Infinity }}
       />
       <motion.div 
-        className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-30"
-        style={{ background: 'radial-gradient(circle, hsl(280 100% 60% / 0.4) 0%, transparent 70%)' }}
-        animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }}
-        transition={{ duration: 5, repeat: Infinity, delay: 1 }}
+        className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-20"
+        style={{ background: 'radial-gradient(circle, hsl(152 60% 40% / 0.4) 0%, transparent 70%)' }}
+        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.35, 0.2] }}
+        transition={{ duration: 8, repeat: Infinity, delay: 1 }}
       />
       
       {/* Content */}
@@ -74,8 +73,8 @@ export function TechWelcomeHero({
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
             >
-              <Badge className="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 backdrop-blur-sm px-3 py-1.5 font-mono text-xs">
-                <Cpu className="h-3 w-3 mr-1.5" />
+              <Badge className="bg-amber-100 hover:bg-amber-200/80 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300/50 dark:border-amber-700/50 backdrop-blur-sm px-3 py-1.5 text-xs font-medium">
+                <Sparkles className="h-3 w-3 mr-1.5" />
                 {format(new Date(), "EEEE, d 'de' MMMM", { locale: pt })}
               </Badge>
             </motion.div>
@@ -86,21 +85,21 @@ export function TechWelcomeHero({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <span className="text-slate-100">{greeting}, </span>
-              <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-400 bg-clip-text text-transparent">
+              <span className="text-stone-700 dark:text-stone-200">{greeting}, </span>
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 bg-clip-text text-transparent">
                 {firstName}
               </span>
             </motion.h1>
             
             {organizationName && (
               <motion.p 
-                className="text-slate-400 text-lg font-light"
+                className="text-stone-500 dark:text-stone-400 text-lg font-light"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
                 Gestão de conformidade para{" "}
-                <span className="font-medium text-cyan-300">{organizationName}</span>
+                <span className="font-medium text-emerald-700 dark:text-emerald-400">{organizationName}</span>
               </motion.p>
             )}
           </motion.div>
@@ -113,42 +112,42 @@ export function TechWelcomeHero({
             transition={{ delay: 0.3 }}
           >
             {upcomingAudits > 0 && (
-              <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.98 }}>
+              <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}>
                 <Link 
                   to="/dashboard?tab=audits"
-                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-slate-800/60 backdrop-blur-sm border border-amber-500/30 hover:border-amber-400/50 hover:bg-slate-800/80 transition-all duration-300 shadow-[0_0_20px_hsl(38_100%_50%/0.15)]"
+                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-white/80 dark:bg-stone-800/60 backdrop-blur-sm border border-amber-200/60 dark:border-amber-700/40 hover:border-amber-400/80 dark:hover:border-amber-600/60 hover:bg-amber-50/50 dark:hover:bg-amber-900/20 transition-all duration-300 shadow-[0_4px_20px_hsl(38_80%_50%/0.12)]"
                 >
                   <motion.div 
-                    className="p-2.5 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30"
-                    whileHover={{ rotate: 10 }}
+                    className="p-2.5 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-400/30"
+                    whileHover={{ rotate: 5 }}
                   >
                     <Calendar className="h-5 w-5 text-white" />
                   </motion.div>
                   <div>
-                    <p className="text-2xl font-bold text-white font-mono">{upcomingAudits}</p>
-                    <p className="text-sm text-slate-400">auditorias ativas</p>
+                    <p className="text-2xl font-bold text-stone-800 dark:text-stone-100">{upcomingAudits}</p>
+                    <p className="text-sm text-stone-500 dark:text-stone-400">auditorias ativas</p>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-amber-400/60 group-hover:text-amber-300 group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="h-5 w-5 text-amber-500/60 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
                 </Link>
               </motion.div>
             )}
             {pendingActions > 0 && (
-              <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.98 }}>
+              <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}>
                 <Link 
                   to="/dashboard?tab=actions"
-                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-slate-800/60 backdrop-blur-sm border border-cyan-500/30 hover:border-cyan-400/50 hover:bg-slate-800/80 transition-all duration-300 shadow-[0_0_20px_hsl(190_100%_50%/0.15)]"
+                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-white/80 dark:bg-stone-800/60 backdrop-blur-sm border border-emerald-200/60 dark:border-emerald-700/40 hover:border-emerald-400/80 dark:hover:border-emerald-600/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-all duration-300 shadow-[0_4px_20px_hsl(152_60%_40%/0.12)]"
                 >
                   <motion.div 
-                    className="p-2.5 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30"
-                    whileHover={{ rotate: -10 }}
+                    className="p-2.5 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30"
+                    whileHover={{ rotate: -5 }}
                   >
                     <ClipboardList className="h-5 w-5 text-white" />
                   </motion.div>
                   <div>
-                    <p className="text-2xl font-bold text-white font-mono">{pendingActions}</p>
-                    <p className="text-sm text-slate-400">ações pendentes</p>
+                    <p className="text-2xl font-bold text-stone-800 dark:text-stone-100">{pendingActions}</p>
+                    <p className="text-sm text-stone-500 dark:text-stone-400">ações pendentes</p>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-cyan-400/60 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="h-5 w-5 text-emerald-500/60 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
                 </Link>
               </motion.div>
             )}

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { LucideIcon, ChevronRight, Zap } from "lucide-react";
+import { LucideIcon, ChevronRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface TechModuleCardProps {
@@ -12,46 +12,46 @@ interface TechModuleCardProps {
   image?: string;
   count?: number;
   countLabel?: string;
-  glowColor?: "cyan" | "violet" | "amber" | "emerald" | "rose";
+  glowColor?: "emerald" | "amber" | "terracotta" | "stone" | "rose";
   isActive?: boolean;
   index?: number;
 }
 
 const GLOW_CONFIGS = {
-  cyan: {
-    border: "border-cyan-500/30 hover:border-cyan-400/60",
-    shadow: "shadow-[0_0_30px_hsl(190_100%_50%/0.2)] hover:shadow-[0_0_50px_hsl(190_100%_50%/0.35)]",
-    gradient: "from-cyan-500 to-blue-600",
-    text: "text-cyan-400",
-    glow: "bg-cyan-500/20",
-  },
-  violet: {
-    border: "border-violet-500/30 hover:border-violet-400/60",
-    shadow: "shadow-[0_0_30px_hsl(280_100%_60%/0.2)] hover:shadow-[0_0_50px_hsl(280_100%_60%/0.35)]",
-    gradient: "from-violet-500 to-purple-600",
-    text: "text-violet-400",
-    glow: "bg-violet-500/20",
+  emerald: {
+    border: "border-emerald-200/60 dark:border-emerald-700/40 hover:border-emerald-400/80 dark:hover:border-emerald-600/60",
+    shadow: "shadow-[0_4px_20px_hsl(152_60%_40%/0.1)] hover:shadow-[0_8px_30px_hsl(152_60%_40%/0.2)]",
+    gradient: "from-emerald-500 to-teal-600",
+    text: "text-emerald-600 dark:text-emerald-400",
+    badge: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/50 dark:border-emerald-700/50",
   },
   amber: {
-    border: "border-amber-500/30 hover:border-amber-400/60",
-    shadow: "shadow-[0_0_30px_hsl(38_100%_50%/0.2)] hover:shadow-[0_0_50px_hsl(38_100%_50%/0.35)]",
-    gradient: "from-amber-500 to-orange-600",
-    text: "text-amber-400",
-    glow: "bg-amber-500/20",
+    border: "border-amber-200/60 dark:border-amber-700/40 hover:border-amber-400/80 dark:hover:border-amber-600/60",
+    shadow: "shadow-[0_4px_20px_hsl(38_80%_50%/0.1)] hover:shadow-[0_8px_30px_hsl(38_80%_50%/0.2)]",
+    gradient: "from-amber-400 to-orange-500",
+    text: "text-amber-600 dark:text-amber-400",
+    badge: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300/50 dark:border-amber-700/50",
   },
-  emerald: {
-    border: "border-emerald-500/30 hover:border-emerald-400/60",
-    shadow: "shadow-[0_0_30px_hsl(160_100%_40%/0.2)] hover:shadow-[0_0_50px_hsl(160_100%_40%/0.35)]",
-    gradient: "from-emerald-500 to-teal-600",
-    text: "text-emerald-400",
-    glow: "bg-emerald-500/20",
+  terracotta: {
+    border: "border-orange-200/60 dark:border-orange-800/40 hover:border-orange-400/80 dark:hover:border-orange-700/60",
+    shadow: "shadow-[0_4px_20px_hsl(15_50%_50%/0.1)] hover:shadow-[0_8px_30px_hsl(15_50%_50%/0.2)]",
+    gradient: "from-orange-400 to-red-500",
+    text: "text-orange-600 dark:text-orange-400",
+    badge: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-300/50 dark:border-orange-700/50",
+  },
+  stone: {
+    border: "border-stone-200/60 dark:border-stone-700/40 hover:border-stone-400/80 dark:hover:border-stone-600/60",
+    shadow: "shadow-[0_4px_20px_hsl(30_10%_40%/0.1)] hover:shadow-[0_8px_30px_hsl(30_10%_40%/0.15)]",
+    gradient: "from-stone-400 to-stone-600",
+    text: "text-stone-600 dark:text-stone-400",
+    badge: "bg-stone-100 dark:bg-stone-800/60 text-stone-600 dark:text-stone-300 border-stone-300/50 dark:border-stone-700/50",
   },
   rose: {
-    border: "border-rose-500/30 hover:border-rose-400/60",
-    shadow: "shadow-[0_0_30px_hsl(350_100%_60%/0.2)] hover:shadow-[0_0_50px_hsl(350_100%_60%/0.35)]",
-    gradient: "from-rose-500 to-pink-600",
-    text: "text-rose-400",
-    glow: "bg-rose-500/20",
+    border: "border-rose-200/60 dark:border-rose-800/40 hover:border-rose-400/80 dark:hover:border-rose-700/60",
+    shadow: "shadow-[0_4px_20px_hsl(350_80%_55%/0.1)] hover:shadow-[0_8px_30px_hsl(350_80%_55%/0.15)]",
+    gradient: "from-rose-400 to-pink-500",
+    text: "text-rose-600 dark:text-rose-400",
+    badge: "bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 border-rose-300/50 dark:border-rose-700/50",
   },
 };
 
@@ -63,7 +63,7 @@ export function TechModuleCard({
   image,
   count,
   countLabel,
-  glowColor = "cyan",
+  glowColor = "emerald",
   isActive = false,
   index = 0,
 }: TechModuleCardProps) {
@@ -71,7 +71,7 @@ export function TechModuleCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.9 }}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ 
         duration: 0.5, 
@@ -79,7 +79,7 @@ export function TechModuleCard({
         ease: [0.25, 0.46, 0.45, 0.94]
       }}
       whileHover={{ 
-        y: -8, 
+        y: -6, 
         scale: 1.02,
         transition: { duration: 0.25 }
       }}
@@ -89,47 +89,32 @@ export function TechModuleCard({
         <div
           className={cn(
             "relative overflow-hidden rounded-xl min-h-[220px] border",
-            "bg-slate-900/70 backdrop-blur-xl",
+            "bg-white/80 dark:bg-stone-900/70 backdrop-blur-xl",
             "transition-all duration-500",
             config.border,
             config.shadow,
-            isActive && "ring-2 ring-cyan-400"
+            isActive && "ring-2 ring-emerald-400"
           )}
         >
-          {/* Animated border gradient */}
+          {/* Subtle gradient overlay on hover */}
           <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500">
             <div className={cn(
-              "absolute inset-[-2px] rounded-xl bg-gradient-to-r opacity-50 blur-sm",
+              "absolute inset-[-1px] rounded-xl bg-gradient-to-br opacity-10",
               config.gradient
             )} />
           </div>
 
-          {/* Scan line effect on hover */}
-          <motion.div 
-            className={cn(
-              "absolute left-0 right-0 h-px opacity-0 group-hover:opacity-100",
-              "bg-gradient-to-r from-transparent via-current to-transparent",
-              config.text
-            )}
-            animate={{ top: ['0%', '100%'] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          />
-
-          {/* Background Image with dark overlay */}
+          {/* Background Image with warm overlay */}
           {image && (
             <div className="absolute inset-0">
               <img 
                 src={image} 
                 alt="" 
-                className="w-full h-full object-cover opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-700 ease-out grayscale"
+                className="w-full h-full object-cover opacity-8 group-hover:opacity-15 group-hover:scale-105 transition-all duration-700 ease-out"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/95 to-slate-900/80" />
+              <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-stone-900 via-white/98 dark:via-stone-900/98 to-white/90 dark:to-stone-900/90" />
             </div>
           )}
-
-          {/* Corner accents */}
-          <div className={cn("absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 rounded-tl-xl transition-colors duration-300", config.border.replace('hover:', 'group-hover:'))} />
-          <div className={cn("absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 rounded-br-xl transition-colors duration-300", config.border.replace('hover:', 'group-hover:'))} />
 
           {/* Content */}
           <div className="relative h-full p-5 flex flex-col">
@@ -137,23 +122,15 @@ export function TechModuleCard({
             <div className="flex items-start justify-between mb-4">
               <motion.div 
                 className={cn(
-                  "relative p-3 rounded-lg",
+                  "relative p-3 rounded-xl",
                   "bg-gradient-to-br",
                   config.gradient,
                   "shadow-lg"
                 )}
-                style={{
-                  boxShadow: `0 0 30px hsl(var(--${glowColor === 'cyan' ? '190 100% 50%' : glowColor === 'violet' ? '280 100% 60%' : glowColor === 'amber' ? '38 100% 50%' : glowColor === 'emerald' ? '160 100% 40%' : '350 100% 60%'} / 0.4))`
-                }}
-                whileHover={{ rotate: [0, -5, 5, 0], scale: 1.1 }}
+                whileHover={{ rotate: [0, -3, 3, 0], scale: 1.05 }}
                 transition={{ duration: 0.4 }}
               >
                 <Icon className="h-6 w-6 text-white" />
-                {/* Icon glow ring */}
-                <div className={cn(
-                  "absolute inset-0 rounded-lg animate-pulse-ring",
-                  config.glow
-                )} />
               </motion.div>
               
               {count !== undefined && count > 0 && (
@@ -164,13 +141,11 @@ export function TechModuleCard({
                 >
                   <Badge 
                     className={cn(
-                      "font-mono text-xs font-bold px-3 py-1.5 border backdrop-blur-sm",
-                      "bg-slate-800/80",
-                      config.border,
-                      config.text
+                      "text-xs font-medium px-3 py-1.5 border backdrop-blur-sm",
+                      config.badge
                     )}
                   >
-                    <Zap className="h-3 w-3 mr-1" />
+                    <Sparkles className="h-3 w-3 mr-1" />
                     {count} {countLabel || ""}
                   </Badge>
                 </motion.div>
@@ -180,12 +155,11 @@ export function TechModuleCard({
             {/* Title and Description */}
             <div className="mt-auto space-y-2">
               <h3 className={cn(
-                "font-bold text-xl text-slate-100 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r transition-all duration-300",
-                `group-hover:${config.gradient}`
+                "font-bold text-xl text-stone-800 dark:text-stone-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors duration-300"
               )}>
                 {title}
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors duration-300">
+              <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed group-hover:text-stone-600 dark:group-hover:text-stone-300 transition-colors duration-300">
                 {description}
               </p>
             </div>
@@ -198,11 +172,10 @@ export function TechModuleCard({
             >
               <motion.div 
                 className={cn(
-                  "p-2 rounded-lg border backdrop-blur-sm",
-                  "bg-slate-800/80",
+                  "p-2 rounded-lg border backdrop-blur-sm bg-white/80 dark:bg-stone-800/80",
                   config.border,
                 )}
-                animate={{ x: [0, 5, 0] }}
+                animate={{ x: [0, 4, 0] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
               >
                 <ChevronRight className={cn("h-4 w-4", config.text)} />
