@@ -5,17 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Link, Calendar, Type, FileText, ListChecks, GitBranch, Layers,
   Loader2, Wrench, RefreshCw, Play, Pause, CheckCircle2, Activity,
-  Zap, Settings2, ChevronRight, AlertCircle, Trash2
+  Zap, Settings2, ChevronRight, AlertCircle, Trash2, Clock, StopCircle
 } from "lucide-react";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+
+// Threshold for stale jobs (in minutes)
+const STALE_JOB_THRESHOLD_MINUTES = 10;
 
 interface FixStats {
   duplicates: number;
@@ -148,11 +151,87 @@ const URL_SPEED_PRESETS: Record<UrlSpeedPreset, UrlSpeedConfig> = {
 };
 
 export function DataFixPanel() {
+  const queryClient = useQueryClient();
   const [batchSize, setBatchSize] = useState(100);
   const [parallelJobs, setParallelJobs] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
   const [activeFixType, setActiveFixType] = useState<FixType | null>(null);
   const [urlSpeedPreset, setUrlSpeedPreset] = useState<UrlSpeedPreset>("rapido");
+
+  // Query for stale jobs (running > 10 minutes)
+  const { data: staleJobs, refetch: refetchStaleJobs } = useQuery({
+    queryKey: ["stale-fix-jobs"],
+    queryFn: async () => {
+      const thresholdTime = new Date(Date.now() - STALE_JOB_THRESHOLD_MINUTES * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("id, sync_type, status, items_processed, items_added, started_at")
+        .eq("status", "running")
+        .lt("started_at", thresholdTime)
+        .order("started_at", { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30000, // Check every 30 seconds
+  });
+
+  // Mutation to clean up stale jobs
+  const cleanupStaleJobsMutation = useMutation({
+    mutationFn: async () => {
+      const thresholdTime = new Date(Date.now() - STALE_JOB_THRESHOLD_MINUTES * 60 * 1000).toISOString();
+      
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .update({
+          status: "completed_timeout",
+          completed_at: new Date().toISOString(),
+          error_message: `Marcado como timeout automaticamente (running > ${STALE_JOB_THRESHOLD_MINUTES} min)`,
+        })
+        .eq("status", "running")
+        .lt("started_at", thresholdTime)
+        .select("id");
+      
+      if (error) throw error;
+      return data?.length || 0;
+    },
+    onSuccess: (count) => {
+      if (count > 0) {
+        toast.success(`${count} job(s) estagnado(s) marcado(s) como timeout`);
+      } else {
+        toast.info("Nenhum job estagnado encontrado");
+      }
+      queryClient.invalidateQueries({ queryKey: ["running-fix-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["stale-fix-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["active-jobs-banner"] });
+      refetchJobs();
+      refetchStaleJobs();
+    },
+    onError: (error) => {
+      toast.error("Erro ao limpar jobs: " + (error as Error).message);
+    },
+  });
+
+  // Auto-cleanup effect: runs every 2 minutes and cleans up jobs running > 10 min
+  useEffect(() => {
+    const autoCleanup = async () => {
+      const staleCount = staleJobs?.length || 0;
+      if (staleCount > 0) {
+        console.log(`[Auto-cleanup] Found ${staleCount} stale jobs, cleaning up...`);
+        await cleanupStaleJobsMutation.mutateAsync();
+      }
+    };
+
+    // Run auto-cleanup every 2 minutes
+    const interval = setInterval(autoCleanup, 2 * 60 * 1000);
+    
+    // Also run once on mount if there are stale jobs
+    if (staleJobs && staleJobs.length > 0) {
+      autoCleanup();
+    }
+
+    return () => clearInterval(interval);
+  }, [staleJobs?.length]); // Only re-run when stale count changes
 
   // Query for running jobs
   const { data: runningJobs, refetch: refetchJobs } = useQuery({
@@ -630,6 +709,21 @@ export function DataFixPanel() {
                       {activeJobsCount} job(s)
                     </Badge>
                   )}
+                  {(staleJobs?.length || 0) > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="destructive" className="text-[10px] sm:text-xs px-1 sm:px-2 gap-0.5 cursor-pointer" onClick={() => setShowSettings(true)}>
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            {staleJobs?.length} estagnado(s)
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p className="text-xs">Jobs "running" há mais de {STALE_JOB_THRESHOLD_MINUTES} min. Clique para ver.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </CardTitle>
                 <p className="text-[10px] sm:text-sm text-muted-foreground hidden sm:block">
                   Escolha um tipo de problema para corrigir em segundo plano
@@ -718,6 +812,62 @@ export function DataFixPanel() {
                   ))}
                 </div>
               </div>
+              
+              {/* Stale Jobs Cleanup */}
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs sm:text-sm flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5" />
+                    Jobs Estagnados ({`> ${STALE_JOB_THRESHOLD_MINUTES} min`})
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    {(staleJobs?.length || 0) > 0 && (
+                      <Badge variant="destructive" className="text-[10px]">
+                        {staleJobs?.length} estagnado(s)
+                      </Badge>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => cleanupStaleJobsMutation.mutate()}
+                      disabled={cleanupStaleJobsMutation.isPending || (staleJobs?.length || 0) === 0}
+                    >
+                      {cleanupStaleJobsMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <StopCircle className="h-3 w-3" />
+                      )}
+                      Limpar Estagnados
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                  Jobs "running" há mais de {STALE_JOB_THRESHOLD_MINUTES} minutos são automaticamente marcados como timeout a cada 2 minutos.
+                </p>
+                {staleJobs && staleJobs.length > 0 && (
+                  <div className="space-y-1 mt-2 max-h-24 overflow-y-auto">
+                    {staleJobs.slice(0, 5).map((job) => {
+                      const elapsedMs = Date.now() - new Date(job.started_at).getTime();
+                      const elapsedMin = Math.floor(elapsedMs / 60000);
+                      return (
+                        <div key={job.id} className="flex items-center justify-between text-[10px] bg-destructive/10 rounded px-2 py-1">
+                          <span className="truncate flex-1">{job.sync_type}</span>
+                          <Badge variant="outline" className="text-[9px] ml-2">
+                            {elapsedMin}m • {job.items_processed || 0} proc.
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                    {staleJobs.length > 5 && (
+                      <p className="text-[9px] text-muted-foreground text-center">
+                        +{staleJobs.length - 5} mais...
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
               <p className="text-[10px] sm:text-xs text-muted-foreground">
                 ⚡ Mais jobs = mais rápido, mas consome mais recursos
               </p>
