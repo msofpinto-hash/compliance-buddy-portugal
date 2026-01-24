@@ -140,14 +140,23 @@ function isNonScrapableUrl(url: string): boolean {
          lowerUrl.endsWith('.xls') ||
          lowerUrl.endsWith('.xlsx') ||
          lowerUrl.includes('/gratuitos/') || // DRE PDF downloads
-         lowerUrl.includes('files.dre.pt');
+         lowerUrl.includes('files.dre.pt') ||
+         lowerUrl.includes('/application/file/'); // DRE file downloads
 }
 
-// Direct HTML scrape fallback (no Firecrawl) - extracts text from HTML
-async function scrapeUrlDirect(url: string): Promise<string | null> {
+// Check if URL is from a domain that supports direct scraping (no anti-bot)
+function isDirectScrapableDomain(url: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.includes('dre.pt') ||
+         lowerUrl.includes('diariodarepublica.pt') ||
+         lowerUrl.includes('eur-lex.europa.eu');
+}
+
+// Direct HTML scrape (no Firecrawl) - faster and more reliable for DRE/EUR-Lex
+async function scrapeUrlDirect(url: string, timeoutMs: number = 10000): Promise<string | null> {
   // Skip PDFs and binary files - they can't be parsed as HTML
   if (isNonScrapableUrl(url)) {
-    console.log('[DirectScrape] Skipping non-HTML URL:', url);
+    console.log('[DirectScrape] Skipping non-scrapable URL:', url);
     return null;
   }
 
@@ -155,7 +164,7 @@ async function scrapeUrlDirect(url: string): Promise<string | null> {
     console.log('[DirectScrape] Fetching:', url);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     const response = await fetch(url, {
       method: 'GET',
@@ -216,23 +225,74 @@ async function scrapeUrlDirect(url: string): Promise<string | null> {
     console.log(`[DirectScrape] Extracted ${text.length} chars`);
     return text.length > 100 ? text : null;
   } catch (error) {
-    console.error('[DirectScrape] Error:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('[DirectScrape] Timeout');
+    } else {
+      console.error('[DirectScrape] Error:', error);
+    }
     return null;
   }
 }
 
-// Scrape URL content using Firecrawl with timeout, fallback to direct fetch
+// Scrape URL content - DIRECT FIRST for DRE/EUR-Lex, Firecrawl as fallback
+// This reduces timeouts and is faster since direct fetch takes ~1-3s vs Firecrawl's ~5-20s
 async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | null> {
-  // Skip PDFs and binary files entirely - Firecrawl also struggles with them
+  // Skip PDFs and binary files entirely - immediate return
   if (isNonScrapableUrl(url)) {
-    console.log('[Scrape] Skipping non-scrapable URL (PDF/binary):', url);
+    console.log('[Scrape] SKIP: Non-scrapable URL (PDF/binary):', url);
     return null;
   }
 
-  // Try Firecrawl first
-  try {
-    console.log('Scraping URL via Firecrawl:', url);
+  // STRATEGY: Direct-first for known domains, Firecrawl for others
+  const useDirectFirst = isDirectScrapableDomain(url);
+  
+  if (useDirectFirst) {
+    console.log('[Scrape] Using direct-first strategy for:', url);
     
+    // Try direct fetch first (faster, no rate-limit)
+    const directResult = await scrapeUrlDirect(url, 8000);
+    if (directResult && directResult.length > 200) {
+      console.log('[Scrape] Direct fetch SUCCESS');
+      return directResult;
+    }
+    
+    // Only fallback to Firecrawl if direct failed AND content looks like it needs JS rendering
+    if (!directResult) {
+      console.log('[Scrape] Direct failed, trying Firecrawl fallback...');
+      try {
+        const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url,
+            formats: ['markdown'],
+            onlyMainContent: true,
+            waitFor: 1500, // Reduced wait time
+          }),
+        }, 15000); // Reduced timeout
+        
+        if (response.ok) {
+          const data = await response.json();
+          const markdown = data.data?.markdown || data.markdown || null;
+          if (markdown && markdown.length > 100) {
+            console.log('[Scrape] Firecrawl fallback SUCCESS');
+            return markdown;
+          }
+        }
+      } catch (error) {
+        console.log('[Scrape] Firecrawl fallback failed:', error);
+      }
+    }
+    
+    return directResult; // Return whatever direct got (may be null)
+  }
+  
+  // For unknown domains, use Firecrawl first (might need JS rendering)
+  console.log('[Scrape] Using Firecrawl-first for unknown domain:', url);
+  try {
     const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -245,20 +305,20 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
         onlyMainContent: true,
         waitFor: 2000,
       }),
-    }, 20000);
+    }, 18000);
     
     if (response.ok) {
       const data = await response.json();
       const markdown = data.data?.markdown || data.markdown || null;
       if (markdown && markdown.length > 100) {
-        console.log('[Firecrawl] Success');
+        console.log('[Scrape] Firecrawl SUCCESS');
         return markdown;
       }
     } else {
-      console.log(`[Firecrawl] Failed with ${response.status}, trying direct fetch...`);
+      console.log(`[Scrape] Firecrawl failed (${response.status}), trying direct...`);
     }
   } catch (error) {
-    console.log(`[Firecrawl] Error: ${error}, trying direct fetch...`);
+    console.log(`[Scrape] Firecrawl error: ${error}, trying direct...`);
   }
   
   // Fallback to direct fetch
