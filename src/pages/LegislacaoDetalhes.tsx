@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { RequirementApplicabilitySelect, ApplicabilityBadge } from "@/components/RequirementApplicabilitySelect";
 import { LegislationApplicabilitySelect, LegislationApplicabilityBadge } from "@/components/LegislationApplicabilitySelect";
 import { EditLegislationDialog } from "@/components/admin/EditLegislationDialog";
@@ -746,34 +747,47 @@ export default function LegislacaoDetalhes() {
               </CardHeader>
               <CardContent>
                 {themes.length > 0 ? (
-                  <div className="space-y-4">
-                    {themes.map((theme) => {
-                      const themeConfig = getThemeConfig(theme.name);
-                      return (
-                        <div key={theme.id}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className={`flex h-6 w-6 items-center justify-center rounded ${themeConfig.icon}`}>
-                              <FileText className="h-3 w-3" />
+                  <TooltipProvider delayDuration={200}>
+                    <div className="space-y-4">
+                      {themes.map((theme) => {
+                        const themeConfig = getThemeConfig(theme.name);
+                        return (
+                          <div key={theme.id}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`flex h-6 w-6 items-center justify-center rounded ${themeConfig.icon}`}>
+                                <FileText className="h-3 w-3" />
+                              </div>
+                              <span className="font-medium text-sm">{theme.name}</span>
                             </div>
-                            <span className="font-medium text-sm">{theme.name}</span>
+                            <div className="ml-8 flex flex-wrap gap-1.5">
+                              {categories
+                                .filter((c) => c.themeName === theme.name)
+                                .map((cat) => (
+                                  <Tooltip key={cat.id}>
+                                    <TooltipTrigger asChild>
+                                      <Badge 
+                                        variant="outline" 
+                                        className={`text-xs border cursor-default transition-all hover:scale-105 hover:shadow-sm ${themeConfig.badge} ${themeConfig.badgeDark}`}
+                                      >
+                                        {cat.name}
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent 
+                                      side="top" 
+                                      className="bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 text-xs"
+                                    >
+                                      <span className="text-muted-foreground">{theme.name}</span>
+                                      <span className="mx-1.5 text-muted-foreground/60">›</span>
+                                      <span className="font-medium">{cat.name}</span>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ))}
+                            </div>
                           </div>
-                          <div className="ml-8 flex flex-wrap gap-1.5">
-                            {categories
-                              .filter((c) => c.themeName === theme.name)
-                              .map((cat) => (
-                                <Badge 
-                                  key={cat.id} 
-                                  variant="outline" 
-                                  className={`text-xs border ${themeConfig.badge} ${themeConfig.badgeDark}`}
-                                >
-                                  {cat.name}
-                                </Badge>
-                              ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  </TooltipProvider>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Sem categorias atribuídas
