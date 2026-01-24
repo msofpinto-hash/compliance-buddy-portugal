@@ -881,9 +881,9 @@ async function runBackgroundCompletion(params: {
                                   (leg.title && leg.title.length < 10);
           if (!titleEqualsNumber && !hasGenericPattern && !hasOldGenericTitle) return false;
         } else if (mode === 'short_summary') {
-          // Only process diplomas with very short/malformed summaries
+          // Process diplomas with NULL, empty, or very short summaries (< 20 chars)
           const summaryLength = leg.summary?.length || 0;
-          if (summaryLength === 0 || summaryLength >= 20) return false;
+          if (summaryLength >= 20) return false;
         } else {
           const isIncomplete = !leg.document_url || 
                               (leg.summary && leg.summary.includes('Diploma referenciado')) ||
