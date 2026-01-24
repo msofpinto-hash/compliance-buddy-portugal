@@ -1136,9 +1136,10 @@ async function runBackgroundCompletion(params: {
       // Fetch PT legislation - will filter for generic titles in JS
       // Generic titles: title = number OR title matches pattern without description
       // IMPORTANT: Exclude no_digital_version records as they can't be scraped
+      // Use neq(true) which handles both null and false cases
       query = query
         .or('origin.eq.PT,origin.eq.dre')
-        .or('no_digital_version.is.null,no_digital_version.eq.false');
+        .neq('no_digital_version', true);
     } else if (mode === 'short_summary') {
       // Diplomas with NULL or empty summaries that have valid URLs
       // We filter for summary IS NULL at DB level, then JS filter handles < 20 chars
