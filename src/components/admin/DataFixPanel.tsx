@@ -259,9 +259,33 @@ export function DataFixPanel() {
         categories: (categoriesResult.data as number) || 0,
       };
     },
-    staleTime: 10000,
-    refetchInterval: activeFixType || (runningJobs?.length ?? 0) > 0 ? 5000 : 30000,
+    staleTime: 2000,
+    refetchInterval: (runningJobs?.length ?? 0) > 0 ? 3000 : (activeFixType ? 5000 : 30000),
   });
+
+  // Subscribe to sync_logs changes for real-time counter updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('data-fix-stats-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sync_logs',
+        },
+        () => {
+          // Refetch stats when any sync_log changes (job completed/updated)
+          refetch();
+          refetchJobs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch, refetchJobs]);
 
   const totalPending = Object.values(stats || {}).reduce((sum, val) => sum + val, 0);
 
