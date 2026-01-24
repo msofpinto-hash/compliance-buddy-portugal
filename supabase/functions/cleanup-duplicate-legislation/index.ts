@@ -39,6 +39,31 @@ function normalizeNumber(num: string): string {
     .trim();
 }
 
+// Helper to chunk arrays for .in() operations (Supabase limit ~100-200 IDs per call)
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+// Helper for bulk delete with chunking
+async function bulkDeleteIn(supabase: any, table: string, column: string, ids: string[]): Promise<void> {
+  const chunks = chunkArray(ids, 100);
+  for (const chunk of chunks) {
+    await supabase.from(table).delete().in(column, chunk);
+  }
+}
+
+// Helper for bulk update with chunking  
+async function bulkUpdateIn(supabase: any, table: string, column: string, ids: string[], updateData: Record<string, any>): Promise<void> {
+  const chunks = chunkArray(ids, 100);
+  for (const chunk of chunks) {
+    await supabase.from(table).update(updateData).in(column, chunk);
+  }
+}
+
 function qualityScore(item: LegislationItem, reqCount: number, relCount: number, catCount: number): number {
   let score = 0;
   score += reqCount * 50;
@@ -271,42 +296,54 @@ async function processCleanupInBackground(supabase: any, batchSize: number, logI
           await supabase.from("organization_legislation").insert(newOrgAssigns);
         }
 
-        // 5. Delete duplicate relations first, then migrate unique ones
-        // Relations have unique constraint on (source, target, type) - must delete duplicates before migration
+        // 5. Delete duplicate relations first
+        console.log(`Step 5: Deleting relations for ${keepToDeleteMap.size} groups`);
         for (const [keepId, deleteIds] of keepToDeleteMap) {
           if (deleteIds.length === 0) continue;
           
-          // 5a. Delete relations from duplicates that would conflict with keepId
-          // (same target + type already exists for keepId as source)
-          await supabase.from("legislation_relations").delete()
+          const { error: relSrcErr } = await supabase.from("legislation_relations").delete()
             .in("source_legislation_id", deleteIds);
-          await supabase.from("legislation_relations").delete()
+          if (relSrcErr) console.error(`Rel source delete error:`, relSrcErr);
+          
+          const { error: relTgtErr } = await supabase.from("legislation_relations").delete()
             .in("target_legislation_id", deleteIds);
+          if (relTgtErr) console.error(`Rel target delete error:`, relTgtErr);
           
-          // 5b. Migrate requirements (these don't have unique constraints that would conflict)
-          await supabase.from("legal_requirements").update({ legislation_id: keepId }).in("legislation_id", deleteIds);
+          const { error: reqErr } = await supabase.from("legal_requirements").update({ legislation_id: keepId }).in("legislation_id", deleteIds);
+          if (reqErr) console.error(`Requirements update error:`, reqErr);
           
-          // 5c. Migrate alerts and reads
-          await Promise.all([
+          const [alertRes, readsRes] = await Promise.all([
             supabase.from("alerts").update({ related_legislation_id: keepId }).in("related_legislation_id", deleteIds),
             supabase.from("user_legislation_reads").delete().in("legislation_id", deleteIds),
           ]);
+          if (alertRes.error) console.error(`Alerts update error:`, alertRes.error);
+          if (readsRes.error) console.error(`Reads delete error:`, readsRes.error);
         }
 
-        // 6. BULK delete from related tables
+        // 6. BULK delete from related tables (chunked to avoid Bad Request)
+        console.log(`Step 6: Bulk deleting from related tables for ${allDeleteIds.length} items (in chunks of 100)`);
         await Promise.all([
-          supabase.from("legislation_relations_processed").delete().in("legislation_id", allDeleteIds),
-          supabase.from("legislation_category_mapping").delete().in("legislation_id", allDeleteIds),
-          supabase.from("organization_legislation").delete().in("legislation_id", allDeleteIds),
+          bulkDeleteIn(supabase, "legislation_relations_processed", "legislation_id", allDeleteIds),
+          bulkDeleteIn(supabase, "legislation_category_mapping", "legislation_id", allDeleteIds),
+          bulkDeleteIn(supabase, "organization_legislation", "legislation_id", allDeleteIds),
         ]);
 
-        // 7. BULK delete duplicates
-        const { error: deleteError } = await supabase.from("legislation").delete().in("id", allDeleteIds);
+        // 7. BULK delete duplicates (chunked to avoid Bad Request)
+        console.log(`Step 7: Deleting ${allDeleteIds.length} duplicate legislation records (in chunks of 100)`);
+        const deleteChunks = chunkArray(allDeleteIds, 100);
+        let deleteErrors: string[] = [];
+        for (const chunk of deleteChunks) {
+          const { error: deleteError } = await supabase.from("legislation").delete().in("id", chunk);
+          if (deleteError) {
+            console.error(`Chunk delete error:`, deleteError);
+            deleteErrors.push(deleteError.message);
+          }
+        }
 
-        if (deleteError) {
-          console.error(`Batch delete error:`, deleteError);
-          errors.push(`Batch ${i}: ${deleteError.message}`);
+        if (deleteErrors.length > 0) {
+          errors.push(`Batch ${i}: ${deleteErrors.join(", ")}`);
         } else {
+          console.log(`Successfully deleted ${allDeleteIds.length} duplicates, merged ${batch.length} groups`);
           totalMerged += batch.length;
           totalDeleted += allDeleteIds.length;
         }
