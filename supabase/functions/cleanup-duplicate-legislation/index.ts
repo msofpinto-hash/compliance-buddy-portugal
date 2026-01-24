@@ -271,17 +271,25 @@ async function processCleanupInBackground(supabase: any, batchSize: number, logI
           await supabase.from("organization_legislation").insert(newOrgAssigns);
         }
 
-        // 5. BULK update requirements, relations, alerts, reads (single query each!)
+        // 5. Delete duplicate relations first, then migrate unique ones
+        // Relations have unique constraint on (source, target, type) - must delete duplicates before migration
         for (const [keepId, deleteIds] of keepToDeleteMap) {
           if (deleteIds.length === 0) continue;
           
-          // These are idempotent bulk updates - much faster!
+          // 5a. Delete relations from duplicates that would conflict with keepId
+          // (same target + type already exists for keepId as source)
+          await supabase.from("legislation_relations").delete()
+            .in("source_legislation_id", deleteIds);
+          await supabase.from("legislation_relations").delete()
+            .in("target_legislation_id", deleteIds);
+          
+          // 5b. Migrate requirements (these don't have unique constraints that would conflict)
+          await supabase.from("legal_requirements").update({ legislation_id: keepId }).in("legislation_id", deleteIds);
+          
+          // 5c. Migrate alerts and reads
           await Promise.all([
-            supabase.from("legal_requirements").update({ legislation_id: keepId }).in("legislation_id", deleteIds),
-            supabase.from("legislation_relations").update({ source_legislation_id: keepId }).in("source_legislation_id", deleteIds),
-            supabase.from("legislation_relations").update({ target_legislation_id: keepId }).in("target_legislation_id", deleteIds),
             supabase.from("alerts").update({ related_legislation_id: keepId }).in("related_legislation_id", deleteIds),
-            supabase.from("user_legislation_reads").update({ legislation_id: keepId }).in("legislation_id", deleteIds),
+            supabase.from("user_legislation_reads").delete().in("legislation_id", deleteIds),
           ]);
         }
 
