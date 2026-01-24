@@ -575,6 +575,11 @@ export function DataFixPanel() {
                 <Badge variant={count > 100 ? "destructive" : "secondary"} className="text-[10px] sm:text-sm px-1 sm:px-2">
                   {count}
                 </Badge>
+                {totalAdded > 0 && (
+                  <Badge variant="outline" className="text-[10px] sm:text-sm px-1 sm:px-2 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700">
+                    +{totalAdded}
+                  </Badge>
+                )}
               </>
             )}
           </div>
