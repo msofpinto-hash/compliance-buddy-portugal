@@ -148,11 +148,12 @@ async function runBackgroundExtraction(
     firecrawlApiKey?: string;
     legislationIds?: string[]; // Optional: specific IDs to process
     forceReplace?: boolean; // Optional: delete existing requirements and re-extract
+    randomOffset?: number; // Random offset for parallel jobs to avoid overlap
   }
 ) {
-  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey, legislationIds, forceReplace } = options;
+  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey, legislationIds, forceReplace, randomOffset = 0 } = options;
   
-  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}, forceReplace=${forceReplace || false}`);
+  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}, forceReplace=${forceReplace || false}, randomOffset=${randomOffset}`);
   
   // If forceReplace is true and we have specific IDs, delete their existing requirements first
   if (forceReplace && legislationIds && legislationIds.length > 0) {
@@ -254,7 +255,7 @@ async function runBackgroundExtraction(
         legislationWithoutReqs = specificLegislation || [];
         console.log(`📋 Targeted: ${legislationIds.length} specified, ${idsToProcess.length} to process (forceReplace=${forceReplace}), fetched ${legislationWithoutReqs.length}`);
       } else {
-        // Build query with optional origin filter
+        // Build query with optional origin filter and random offset for parallel jobs
         let query = supabase
           .from('legislation')
           .select('id, number, title, summary, document_url, origin')
@@ -267,10 +268,14 @@ async function runBackgroundExtraction(
           query = query.or('origin.eq.EU,origin.eq.eurlex');
         }
         
+        // Apply random offset and limit for parallel job isolation
+        const fetchLimit = batchSize * maxBatches + randomOffset;
+        query = query.range(randomOffset, fetchLimit - 1);
+        
         const { data: allLegislation } = await query;
         
         legislationWithoutReqs = allLegislation?.filter((l: any) => !idsWithReqs.has(l.id)) || [];
-        console.log(`📋 ${origin || 'ALL'}: ${allLegislation?.length || 0} total, ${legislationWithoutReqs.length} without reqs`);
+        console.log(`📋 ${origin || 'ALL'}: fetched ${allLegislation?.length || 0} (offset ${randomOffset}), ${legislationWithoutReqs.length} without reqs`);
       }
       
       const legislationToProcess = legislationWithoutReqs.slice(0, batchSize);
@@ -423,7 +428,7 @@ Retorna APENAS um array JSON válido:
                       { role: 'user', content: prompt }
                     ],
                     temperature: 0.2,
-                    max_tokens: 8000,
+                    max_tokens: 16000, // Increased for diplomas with many articles
                   }),
                 });
                 
@@ -896,24 +901,38 @@ Deno.serve(async (req) => {
     // For targeted extractions (post-fix), skip concurrency check
     const isTargetedExtraction = legislationIds && legislationIds.length > 0;
     
+    // Allow up to 5 parallel jobs for requirements extraction
+    const MAX_PARALLEL_JOBS = 5;
+    const randomOffset = Math.floor(Math.random() * 500); // Random offset to avoid overlap
+    
     if (!isTargetedExtraction) {
-      // Check concurrency - prevent multiple simultaneous runs
-      const { canProceed, runningJob } = await checkConcurrency(supabase, SYNC_TYPE);
-      if (!canProceed) {
-        console.log(`⚠️ Job já em execução desde ${runningJob?.started_at}`);
+      // Check concurrency - allow up to MAX_PARALLEL_JOBS simultaneous runs
+      const { data: runningJobs } = await supabase
+        .from('sync_logs')
+        .select('id, started_at')
+        .eq('sync_type', SYNC_TYPE)
+        .eq('status', 'running')
+        .gte('started_at', new Date(Date.now() - 60 * 60 * 1000).toISOString()); // Last hour
+      
+      const runningCount = runningJobs?.length || 0;
+      
+      if (runningCount >= MAX_PARALLEL_JOBS) {
+        console.log(`⚠️ ${runningCount} jobs já em execução (max: ${MAX_PARALLEL_JOBS})`);
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Extração já em curso. Aguarde a conclusão ou verifique o painel de monitorização.",
-            runningJobId: runningJob?.id,
-            runningJobStartedAt: runningJob?.started_at,
+            error: `Já existem ${runningCount} extrações em curso (máximo: ${MAX_PARALLEL_JOBS}). Aguarde a conclusão.`,
+            runningCount,
+            maxParallel: MAX_PARALLEL_JOBS,
           }),
           { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      
+      console.log(`📊 Currently ${runningCount}/${MAX_PARALLEL_JOBS} jobs running, starting new job with offset ${randomOffset}`);
     }
 
-    console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}, targetedIds=${legislationIds?.length || 0}`);
+    console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}, targetedIds=${legislationIds?.length || 0}, randomOffset=${randomOffset}`);
 
     // Start background task using Deno's EdgeRuntime
     // Use null for system calls since created_by expects UUID or null
@@ -928,6 +947,7 @@ Deno.serve(async (req) => {
         firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
         legislationIds,
         forceReplace,
+        randomOffset,
       })
     ) || runBackgroundExtraction(supabase, lovableApiKey, createdBy, { 
       batchSize, 
@@ -937,6 +957,7 @@ Deno.serve(async (req) => {
       firecrawlApiKey: useUrl ? firecrawlApiKey : undefined,
       legislationIds,
       forceReplace,
+      randomOffset,
     });
 
     // Return immediately
