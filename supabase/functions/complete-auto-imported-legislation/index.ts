@@ -811,9 +811,12 @@ async function runBackgroundCompletion(params: {
       // Generic titles: title = number OR title matches pattern without description
       query = query.or('origin.eq.PT,origin.eq.dre');
     } else if (mode === 'short_summary') {
-      // Diplomas with malformed/very short summaries (< 20 chars)
-      // This is done via raw SQL filter since Supabase doesn't support length() in .or()
-      query = query.not('summary', 'is', null);
+      // Diplomas with NULL or empty summaries that have valid URLs
+      // We filter for summary IS NULL at DB level, then JS filter handles < 20 chars
+      // This ensures we get records that actually need fixing
+      query = query
+        .not('document_url', 'is', null)
+        .is('summary', null);
     } else if (mode === 'missing_summary') {
       // Only records missing summary
       query = query.or('summary.is.null,summary.eq.');
