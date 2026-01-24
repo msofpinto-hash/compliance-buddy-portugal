@@ -498,9 +498,29 @@ function isEULegislation(number: string): boolean {
 }
 
 function isEULegislationRecord(leg: { number: string; origin?: string | null; document_url?: string | null }): boolean {
+  // IMPORTANT: If explicitly marked as PT/DRE, treat as PT even if the number matches generic EU keywords
+  // (prevents false positives like "Regulamentos das Nações Unidas..." being handled as EU)
+  if (leg?.origin === 'PT' || leg?.origin === 'dre') return false;
   if (leg?.origin === 'EU') return true;
   if (leg?.document_url && leg.document_url.includes('eur-lex')) return true;
   return isEULegislation(leg?.number);
+}
+
+function isGenericPTTitle(title: string | null | undefined, number: string): boolean {
+  const t = (title || '').trim();
+  const n = (number || '').trim();
+  if (!t) return true;
+  if (t === n) return true;
+
+  const lower = t.toLowerCase();
+  if (lower.includes('diploma referenciado')) return true;
+  if (lower.includes('documento ')) return true;
+  if (t.length < 10) return true;
+
+  // Matches "Decreto-Lei n.º ..." without description
+  const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
+  const hasGenericPattern = genericPattern.test(t) && t.length < 80 && !t.includes(' - ');
+  return hasGenericPattern;
 }
 
 
@@ -960,7 +980,12 @@ async function runBackgroundCompletion(params: {
             const metadata = await scrapeEurLexMetadata(urlToScrape, firecrawlKey);
             
             if (metadata) {
-              if (metadata.title && (!leg.title || leg.title === leg.number)) {
+              const shouldUpdateTitle =
+                !leg.title ||
+                leg.title === leg.number ||
+                (mode === 'generic_titles' && isGenericPTTitle(leg.title, leg.number));
+
+              if (metadata.title && shouldUpdateTitle) {
                 updates.title = metadata.title;
                 hasUpdates = true;
               }
@@ -1014,8 +1039,13 @@ async function runBackgroundCompletion(params: {
             const markdown = await scrapeUrl(urlToScrape, firecrawlKey);
             if (markdown && markdown.length > 100) {
               const metadata = extractMetadataFromDRE(markdown, leg.number);
-              
-              if (metadata.title && (!leg.title || leg.title === leg.number)) {
+
+              const shouldUpdateTitle =
+                !leg.title ||
+                leg.title === leg.number ||
+                (mode === 'generic_titles' && isGenericPTTitle(leg.title, leg.number));
+
+              if (metadata.title && shouldUpdateTitle) {
                 updates.title = metadata.title;
                 hasUpdates = true;
               }

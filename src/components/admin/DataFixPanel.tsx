@@ -229,18 +229,20 @@ export function DataFixPanel() {
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .or("publication_date.is.null,effective_date.is.null"),
         // Títulos genéricos PT: fetch PT legislation to count locally
-        supabase.from("legislation").select("id, title, number, origin, summary")
+        supabase.from("legislation").select("id, title, number, origin, summary, document_url")
           .or("origin.eq.PT,origin.eq.dre")
           .limit(10000),
         // Sumários: null OR very short (< 20 chars will be counted in JS)
-        supabase.from("legislation").select("id, summary").limit(10000),
+        supabase.from("legislation").select("id, summary, document_url").limit(10000),
         // Legislation without categories
         supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
       // Count generic titles for PT legislation using same logic as edge function
       const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
+      // NOTE: Metadados (títulos/sumários) só são corrigíveis quando existe URL
       const genericTitles = (titlesResult.data || []).filter(leg => {
+        if (!leg.document_url) return false;
         const title = leg.title?.trim() || "";
         const number = leg.number?.trim() || "";
         const summary = leg.summary || "";
@@ -261,6 +263,7 @@ export function DataFixPanel() {
       
       // Count summaries that are null or very short (< 20 chars)
       const shortSummaries = (summariesResult.data || []).filter(leg => {
+        if (!leg.document_url) return false;
         const summary = leg.summary || "";
         return !summary || summary.length < 20;
       }).length;
@@ -351,11 +354,12 @@ export function DataFixPanel() {
         }
         case "titles":
           functionName = "complete-auto-imported-legislation";
-          body = { mode: "generic_titles", limit: batchSize, dryRun: false };
+          body = { mode: "generic_titles", limit: batchSize, dryRun: false, requireUrl: true };
           break;
         case "summaries":
           functionName = "complete-auto-imported-legislation";
-          body = { mode: "missing_summary", limit: batchSize, dryRun: false };
+          // Alterna entre sumários em falta e sumários curtos para fazer descer o contador do painel
+          body = { mode: i % 2 === 0 ? "missing_summary" : "short_summary", limit: batchSize, dryRun: false, requireUrl: true };
           break;
         case "dates":
           functionName = "complete-auto-imported-legislation";
