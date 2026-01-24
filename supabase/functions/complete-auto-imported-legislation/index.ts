@@ -787,7 +787,9 @@ async function runBackgroundCompletion(params: {
     } else if (mode === 'missing_dates') {
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
-      query = query.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
+      // Fetch PT legislation - will filter for generic titles in JS
+      // Generic titles: title = number OR title matches pattern without description
+      query = query.or('origin.eq.PT,origin.eq.dre');
     } else if (mode === 'short_summary') {
       // Diplomas with malformed/very short summaries (< 20 chars)
       // This is done via raw SQL filter since Supabase doesn't support length() in .or()
@@ -846,10 +848,18 @@ async function runBackgroundCompletion(params: {
         } else if (mode === 'missing_dates') {
           if (leg.publication_date && leg.effective_date) return false;
         } else if (mode === 'generic_titles') {
-          const hasGenericTitle = leg.title?.toLowerCase().includes('diploma referenciado') ||
+          // Generic titles for PT legislation:
+          // 1. Title equals number
+          // 2. Title matches legislation pattern but is short and has no description
+          const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
+          const titleEqualsNumber = leg.title === leg.number;
+          const hasGenericPattern = genericPattern.test(leg.title || '') && 
+            (leg.title?.length || 0) < 80 && 
+            !(leg.title || '').includes(' - ');
+          const hasOldGenericTitle = leg.title?.toLowerCase().includes('diploma referenciado') ||
                                   leg.title?.toLowerCase().includes('documento ') ||
                                   (leg.title && leg.title.length < 10);
-          if (!hasGenericTitle) return false;
+          if (!titleEqualsNumber && !hasGenericPattern && !hasOldGenericTitle) return false;
         } else if (mode === 'short_summary') {
           // Only process diplomas with very short/malformed summaries
           const summaryLength = leg.summary?.length || 0;
