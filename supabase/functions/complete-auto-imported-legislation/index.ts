@@ -719,8 +719,9 @@ async function runBackgroundCompletion(params: {
   fixDates: boolean;
   mode: string;
   extractRequirements: boolean;
+  requireUrl: boolean;
 }) {
-  const { limit, dryRun, includePT, includeEU, fixDates, mode, extractRequirements } = params;
+  const { limit, dryRun, includePT, includeEU, fixDates, mode, extractRequirements, requireUrl } = params;
   
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -775,6 +776,11 @@ async function runBackgroundCompletion(params: {
       .from('legislation')
       .select('id, number, title, summary, entity, document_url, publication_date, effective_date, origin, source');
     
+    // If requireUrl is true, only process records that already have a URL
+    if (requireUrl) {
+      query = query.not('document_url', 'is', null);
+    }
+    
     if (mode === 'pdf_import_fix') {
       // Fix PDF imports: invalid dates, missing URLs, missing summaries
       query = query.eq('source', 'pdf-import');
@@ -786,6 +792,9 @@ async function runBackgroundCompletion(params: {
       // Diplomas with malformed/very short summaries (< 20 chars)
       // This is done via raw SQL filter since Supabase doesn't support length() in .or()
       query = query.not('summary', 'is', null);
+    } else if (mode === 'missing_summary') {
+      // Only records missing summary
+      query = query.or('summary.is.null,summary.eq.');
     } else {
       query = query.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
     }
@@ -1145,6 +1154,7 @@ Deno.serve(async (req) => {
       mode = 'incomplete',
       extractRequirements = false,
       background = true,
+      requireUrl = false,
     } = await req.json().catch(() => ({}));
     
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
@@ -1198,6 +1208,7 @@ Deno.serve(async (req) => {
         fixDates,
         mode,
         extractRequirements,
+        requireUrl,
       }));
       
       return new Response(
@@ -1222,6 +1233,7 @@ Deno.serve(async (req) => {
       fixDates,
       mode,
       extractRequirements,
+      requireUrl,
     });
     
     return new Response(
