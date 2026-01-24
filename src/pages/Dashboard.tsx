@@ -1299,31 +1299,35 @@ export default function Dashboard() {
           {/* Audits Tab */}
           {activeTab === "audits" && (
             <div className="space-y-8">
-              {/* Hero Header */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
-                <div className="absolute inset-0 bg-grid-white/10" />
-                <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
-                        <ClipboardCheck className="h-3 w-3 mr-1" />
-                        Módulo de Auditorias
-                      </Badge>
-                    </div>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Auditorias</h1>
-                    <p className="text-muted-foreground text-lg max-w-xl">
+              {/* Hero Header - I&D Warm Corporate Style */}
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative overflow-hidden rounded-xl bg-gradient-to-r from-white via-amber-50/50 to-stone-50 dark:from-[#1a1512] dark:via-[#181410] dark:to-[#141210] border border-amber-200/50 dark:border-amber-900/30 p-6 lg:p-8 shadow-sm"
+              >
+                {/* Decorative accent - warm gradient */}
+                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-600 via-amber-500 to-orange-500 dark:from-emerald-500 dark:via-amber-500 dark:to-orange-400" />
+                
+                {/* Warm corner accents */}
+                <div className="absolute -right-20 -top-20 w-48 h-48 bg-gradient-to-br from-amber-200/30 to-orange-200/20 dark:from-amber-700/15 dark:to-orange-700/10 rounded-full blur-3xl" />
+                <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-emerald-200/20 dark:bg-emerald-700/10 rounded-full blur-2xl" />
+                
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pl-4">
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-amber-100/80 dark:from-emerald-800/50 dark:to-amber-800/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-700/40">
+                      <ClipboardCheck className="h-3.5 w-3.5" />
+                      Módulo de Auditorias
+                    </span>
+                    <h1 className="text-2xl lg:text-3xl font-semibold text-stone-800 dark:text-white tracking-tight">
+                      Auditorias
+                    </h1>
+                    <p className="text-stone-600 dark:text-amber-100/70 max-w-xl text-sm lg:text-base">
                       Acompanhe as auditorias planeadas, em curso e o histórico completo de auditorias realizadas
                     </p>
                   </div>
-                  <div className="hidden md:block w-48 h-32 relative">
-                    <img 
-                      src={auditHero} 
-                      alt="Auditorias" 
-                      className="w-full h-full object-contain drop-shadow-xl"
-                    />
-                  </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Audit Plan Section - Planned and In Progress */}
               {(() => {
@@ -1774,91 +1778,97 @@ export default function Dashboard() {
           {/* Indicators Tab */}
           {activeTab === "indicators" && (
             <div className="space-y-6">
-              {/* Hero Header */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
-                <div className="absolute inset-0 bg-grid-white/10" />
-                <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
-                  <div className="flex-1 space-y-3">
+              {/* Hero Header - I&D Warm Corporate Style */}
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative overflow-hidden rounded-xl bg-gradient-to-r from-white via-amber-50/50 to-stone-50 dark:from-[#1a1512] dark:via-[#181410] dark:to-[#141210] border border-amber-200/50 dark:border-amber-900/30 p-6 lg:p-8 shadow-sm"
+              >
+                {/* Decorative accent - warm gradient */}
+                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-600 via-amber-500 to-orange-500 dark:from-emerald-500 dark:via-amber-500 dark:to-orange-400" />
+                
+                {/* Warm corner accents */}
+                <div className="absolute -right-20 -top-20 w-48 h-48 bg-gradient-to-br from-amber-200/30 to-orange-200/20 dark:from-amber-700/15 dark:to-orange-700/10 rounded-full blur-3xl" />
+                <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-emerald-200/20 dark:bg-emerald-700/10 rounded-full blur-2xl" />
+                
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pl-4">
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
-                        <BarChart3 className="h-3 w-3 mr-1" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-amber-100/80 dark:from-emerald-800/50 dark:to-amber-800/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-700/40">
+                        <BarChart3 className="h-3.5 w-3.5" />
                         Módulo de Indicadores
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">Em breve</Badge>
+                      </span>
+                      <Badge variant="outline" className="text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300">Em breve</Badge>
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Indicadores</h1>
-                    <p className="text-muted-foreground text-lg max-w-xl">
+                    <h1 className="text-2xl lg:text-3xl font-semibold text-stone-800 dark:text-white tracking-tight">
+                      Indicadores
+                    </h1>
+                    <p className="text-stone-600 dark:text-amber-100/70 max-w-xl text-sm lg:text-base">
                       Métricas e indicadores de desempenho para monitorizar a conformidade legal da sua organização
                     </p>
                   </div>
-                  <div className="hidden md:block w-48 h-32 relative">
-                    <img 
-                      src={indicatorsHero} 
-                      alt="Indicadores" 
-                      className="w-full h-full object-contain drop-shadow-xl"
-                    />
-                  </div>
                 </div>
-              </div>
+              </motion.div>
               
-              {/* Coming Soon Cards */}
+              {/* Coming Soon Cards - I&D Style */}
               <div className="grid gap-4 md:grid-cols-3">
-                <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+                <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
                   <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-bl-full" />
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white">
                       <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                       Taxa de Conformidade
                     </CardTitle>
-                    <CardDescription>Evolução ao longo do tempo</CardDescription>
+                    <CardDescription className="text-stone-600 dark:text-amber-200/60">Evolução ao longo do tempo</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-24 flex items-center justify-center text-muted-foreground">
+                    <div className="h-24 flex items-center justify-center text-stone-400 dark:text-amber-200/40">
                       <Sparkles className="h-8 w-8 opacity-30" />
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
+                <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
                   <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-500/20 to-transparent rounded-bl-full" />
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white">
                       <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                       Tempo de Resolução
                     </CardTitle>
-                    <CardDescription>Média de tempo para corrigir não-conformidades</CardDescription>
+                    <CardDescription className="text-stone-600 dark:text-amber-200/60">Média de tempo para corrigir não-conformidades</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-24 flex items-center justify-center text-muted-foreground">
+                    <div className="h-24 flex items-center justify-center text-stone-400 dark:text-amber-200/40">
                       <Sparkles className="h-8 w-8 opacity-30" />
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-teal-500/20 to-transparent rounded-bl-full" />
+                <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-500/20 to-transparent rounded-bl-full" />
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ClipboardCheck className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                    <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white">
+                      <ClipboardCheck className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                       Auditorias Concluídas
                     </CardTitle>
-                    <CardDescription>Resultados e tendências de auditoria</CardDescription>
+                    <CardDescription className="text-stone-600 dark:text-amber-200/60">Resultados e tendências de auditoria</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-24 flex items-center justify-center text-muted-foreground">
+                    <div className="h-24 flex items-center justify-center text-stone-400 dark:text-amber-200/40">
                       <Sparkles className="h-8 w-8 opacity-30" />
                     </div>
                   </CardContent>
                 </Card>
               </div>
               
-              <Card className="border-dashed bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-800/40">
+              <Card className="border-dashed bg-white/95 dark:bg-[#181410]/90 border-amber-300/60 dark:border-amber-800/40">
                 <CardContent className="py-16 text-center">
-                  <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 flex items-center justify-center mb-6">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-emerald-100 to-amber-100/80 dark:from-emerald-800/30 dark:to-amber-800/20 flex items-center justify-center mb-6">
                     <BarChart3 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">Indicadores em Desenvolvimento</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
+                  <h3 className="text-xl font-semibold mb-2 text-stone-800 dark:text-white">Indicadores em Desenvolvimento</h3>
+                  <p className="text-stone-600 dark:text-amber-200/60 max-w-md mx-auto">
                     Estamos a desenvolver dashboards interativos com métricas avançadas para acompanhar a performance da sua organização.
                   </p>
                 </CardContent>

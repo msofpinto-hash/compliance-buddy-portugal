@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { IDHeroSection, IDCard } from "@/components/client/IDBackground";
 import { 
   Plus, 
   Calendar, 
@@ -40,7 +41,8 @@ import {
   Printer,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ClipboardList
 } from "lucide-react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -1048,27 +1050,22 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
 
   return (
     <div className="space-y-6">
-      {/* Hero Header - Aligned with other modules */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
-        <div className="absolute inset-0 bg-grid-white/10" />
-        <div className="relative flex flex-col md:flex-row items-center justify-between gap-6 p-6 md:p-8">
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Ações Corretivas
-              </Badge>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Planos de Ação</h1>
-            <p className="text-muted-foreground text-lg max-w-xl">
-              Gestão de ações corretivas e preventivas para garantir a conformidade legal
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
+      {/* Hero Header - I&D Warm Corporate Style */}
+      <IDHeroSection
+        title="Planos de Ação"
+        subtitle="Gestão de ações corretivas e preventivas para garantir a conformidade legal"
+        badge="Ações Corretivas"
+        icon={ClipboardList}
+      />
+      
+      {/* Actions Bar */}
+      <IDCard>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-end gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 bg-background/80 backdrop-blur-sm">
-                  <Download className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="gap-2 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 hover:bg-amber-100 dark:hover:bg-amber-900/30">
+                  <Download className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   Exportar
                   <ChevronDown className="h-3 w-3" />
                 </Button>
@@ -1089,21 +1086,20 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </IDCard>
 
-      {/* Stats Row - Enhanced */}
+      {/* Stats Row - Warm Corporate Style */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <Card 
-          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${!filters.status.length && filters.type === "all" ? "ring-2 ring-emerald-400/30 border-emerald-400/50" : ""}`}
-          onClick={() => clearFilters()}
+        <IDCard 
+          className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${!filters.status.length && filters.type === "all" ? "ring-2 ring-emerald-400/30 border-emerald-400/50" : ""}`}
         >
-          <CardContent className="p-4 text-center relative overflow-hidden">
+          <CardContent className="p-4 text-center relative overflow-hidden" onClick={() => clearFilters()}>
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{stats.total}</p>
-            <p className="text-xs text-muted-foreground font-medium mt-1">Total</p>
+            <p className="text-xs text-stone-600 dark:text-amber-200/60 font-medium mt-1">Total</p>
           </CardContent>
-        </Card>
+        </IDCard>
         
         <Card 
           className={`group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-slate-800 ${filters.status.includes("pendente") ? "ring-2 ring-slate-300 border-slate-400" : ""}`}

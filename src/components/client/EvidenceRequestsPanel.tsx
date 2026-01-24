@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { IDHeroSection, IDCard } from "@/components/client/IDBackground";
 import { 
   Search, 
   Upload, 
@@ -34,7 +35,8 @@ import {
   CalendarIcon,
   MessageSquare,
   FileSpreadsheet,
-  Sparkles
+  Sparkles,
+  FolderOpen
 } from "lucide-react";
 import evidenceHero from "@/assets/evidence-hero.png";
 import { exportSimpleExcel } from "@/lib/excelUtils";
@@ -465,110 +467,67 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
 
   return (
     <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-teal-500/10 to-cyan-500/20">
-        <div className="absolute inset-0 bg-grid-white/10" />
-        <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0">
-                <FileText className="h-3 w-3 mr-1" />
-                Evidências Documentais
-              </Badge>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Gestão de Evidências</h1>
-            <p className="text-muted-foreground text-lg max-w-xl">
-              Submeta os documentos solicitados para comprovar a conformidade legal da sua organização
-            </p>
-          </div>
-          <div className="hidden md:block w-48 h-32 relative">
-            <img 
-              src={evidenceHero} 
-              alt="Evidências" 
-              className="w-full h-full object-contain drop-shadow-xl"
-            />
-          </div>
-        </div>
-      </div>
+      {/* Hero Header - I&D Warm Corporate Style */}
+      <IDHeroSection
+        title="Gestão de Evidências"
+        subtitle="Submeta e acompanhe as evidências documentais solicitadas para a sua organização"
+        badge="Evidências Documentais"
+        icon={FolderOpen}
+      />
 
-      {/* Progress Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-slate-400/20 to-transparent rounded-bl-full" />
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
-                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+      {/* Stats and Progress - I&D Style */}
+      <IDCard>
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row gap-6 md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{stats.total}</p>
+                <p className="text-xs text-stone-600 dark:text-amber-200/60 font-medium">Total</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.pending}</p>
-                <p className="text-sm text-muted-foreground">Pendentes</p>
+              <div className="h-10 w-px bg-stone-200 dark:bg-amber-800/30" />
+              <div className="text-center">
+                <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.pending}</p>
+                <p className="text-xs text-stone-600 dark:text-amber-200/60 font-medium">Pendentes</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-teal-400/20 to-transparent rounded-bl-full" />
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
-                <Send className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+              <div className="h-10 w-px bg-stone-200 dark:bg-amber-800/30" />
+              <div className="text-center">
+                <p className="text-3xl font-bold text-sky-600 dark:text-sky-400">{stats.submitted}</p>
+                <p className="text-xs text-stone-600 dark:text-amber-200/60 font-medium">Submetidos</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.submitted}</p>
-                <p className="text-sm text-muted-foreground">Submetidos</p>
+              <div className="h-10 w-px bg-stone-200 dark:bg-amber-800/30" />
+              <div className="text-center">
+                <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{stats.approved}</p>
+                <p className="text-xs text-stone-600 dark:text-amber-200/60 font-medium">Aprovados</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-400/20 to-transparent rounded-bl-full" />
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex-1 max-w-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-stone-700 dark:text-amber-200">Progresso</span>
+                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{progressPercentage}%</span>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.approved}</p>
-                <p className="text-sm text-muted-foreground">Aprovados</p>
-              </div>
+              <Progress value={progressPercentage} className="h-2 bg-stone-200 dark:bg-stone-700" />
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="relative overflow-hidden bg-white dark:bg-slate-800">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-bl-full" />
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Progresso</span>
-                <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{progressPercentage}%</span>
-              </div>
-              <Progress value={progressPercentage} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </IDCard>
 
-      {/* Filters */}
-      <Card className="bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-800/30">
+      {/* Filters - I&D Style */}
+      <IDCard>
         <CardContent className="p-4 space-y-4">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600 dark:text-amber-400" />
                 <Input
                   placeholder="Pesquisar pedidos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 focus:border-amber-500 focus:ring-amber-500/20 text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-amber-300/40"
                 />
               </div>
             </div>
             <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? null : v)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -587,7 +546,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
           
           {/* Theme multi-select filters */}
           <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Filtrar por temas:</Label>
+            <Label className="text-sm text-stone-600 dark:text-amber-200/60">Filtrar por temas:</Label>
             <div className="flex flex-wrap gap-2">
               {Object.entries(AREA_CONFIG).map(([key, config]) => {
                 const IconComponent = config.icon;
@@ -598,7 +557,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                     variant={isSelected ? "default" : "outline"}
                     className={cn(
                       "cursor-pointer transition-colors",
-                      isSelected ? config.color : "hover:bg-accent"
+                      isSelected ? config.color : "hover:bg-amber-50 dark:hover:bg-amber-900/30 border-stone-200 dark:border-amber-800/40"
                     )}
                     onClick={() => toggleAreaFilter(key)}
                   >
@@ -611,7 +570,7 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs"
+                  className="h-6 px-2 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
                   onClick={() => setAreaFilters([])}
                 >
                   Limpar filtros
@@ -621,17 +580,17 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
           </div>
           
           {/* Results counter and export */}
-          <div className="flex items-center justify-between pt-2 border-t">
-            <p className="text-sm text-muted-foreground">
-              A mostrar <span className="font-medium text-foreground">{filteredRequests?.length || 0}</span> de{" "}
-              <span className="font-medium text-foreground">{requests?.length || 0}</span> pedido(s)
+          <div className="flex items-center justify-between pt-2 border-t border-stone-200/60 dark:border-amber-800/30">
+            <p className="text-sm text-stone-600 dark:text-amber-200/60">
+              A mostrar <span className="font-medium text-stone-800 dark:text-white">{filteredRequests?.length || 0}</span> de{" "}
+              <span className="font-medium text-stone-800 dark:text-white">{requests?.length || 0}</span> pedido(s)
             </p>
             <div className="flex items-center gap-2">
               {(searchTerm || statusFilter || areaFilters.length > 0) && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-xs"
+                  className="text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
                   onClick={() => {
                     setSearchTerm("");
                     setStatusFilter(null);
@@ -644,17 +603,17 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 hover:bg-amber-100 dark:hover:bg-amber-900/30"
                 onClick={() => setExportDialogOpen(true)}
                 disabled={!filteredRequests?.length}
               >
-                <FileSpreadsheet className="h-4 w-4" />
+                <FileSpreadsheet className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 Exportar Excel
               </Button>
             </div>
           </div>
         </CardContent>
-      </Card>
+      </IDCard>
 
       {/* Export Columns Dialog */}
       <ExportColumnsDialog
