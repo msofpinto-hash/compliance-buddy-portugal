@@ -225,19 +225,44 @@ export function DataFixPanel() {
         .or("no_digital_version.is.null,no_digital_version.eq.false");
 
       const [datesResult, titlesResult, summariesResult, categoriesResult] = await Promise.all([
+        // Datas: publication_date OR effective_date is null
         supabase.from("legislation").select("id", { count: "exact", head: true })
-          .is("publication_date", null),
-        supabase.from("legislation").select("id, title, number").limit(2000),
-        supabase.from("legislation").select("id", { count: "exact", head: true })
-          .or("summary.is.null,summary.eq."),
+          .or("publication_date.is.null,effective_date.is.null"),
+        // Títulos genéricos PT: fetch PT legislation to count locally
+        supabase.from("legislation").select("id, title, number, origin, summary")
+          .or("origin.eq.PT,origin.eq.dre")
+          .limit(10000),
+        // Sumários: null OR very short (< 20 chars will be counted in JS)
+        supabase.from("legislation").select("id, summary").limit(10000),
         // Legislation without categories
         supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
+      // Count generic titles for PT legislation using same logic as edge function
+      const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
       const genericTitles = (titlesResult.data || []).filter(leg => {
         const title = leg.title?.trim() || "";
         const number = leg.number?.trim() || "";
-        return !title || title === number || title.length < 20;
+        const summary = leg.summary || "";
+        
+        // Generic if: title equals number
+        const titleEqualsNumber = title === number;
+        // Generic if: starts with legislation type but is short and has no description
+        const hasGenericPattern = genericPattern.test(title) && 
+          title.length < 80 && 
+          !title.includes(' - ');
+        // Old patterns
+        const hasOldGenericTitle = title.toLowerCase().includes('diploma referenciado') ||
+          title.toLowerCase().includes('documento ') ||
+          title.length < 10;
+        
+        return titleEqualsNumber || hasGenericPattern || hasOldGenericTitle;
+      }).length;
+      
+      // Count summaries that are null or very short (< 20 chars)
+      const shortSummaries = (summariesResult.data || []).filter(leg => {
+        const summary = leg.summary || "";
+        return !summary || summary.length < 20;
       }).length;
 
       const [totalLegResult, processedRelationsResult, reqLegResult] = await Promise.all([
@@ -253,7 +278,7 @@ export function DataFixPanel() {
         urls: urlsResult.count || 0,
         dates: datesResult.count || 0,
         titles: genericTitles,
-        summaries: summariesResult.count || 0,
+        summaries: shortSummaries,
         requirements: Math.max(0, (totalLegResult.count || 0) - uniqueReqLeg.size),
         relations: Math.max(0, (totalLegResult.count || 0) - (processedRelationsResult.count || 0)),
         categories: (categoriesResult.data as number) || 0,
