@@ -144,12 +144,178 @@ function isNonScrapableUrl(url: string): boolean {
          lowerUrl.includes('/application/file/'); // DRE file downloads
 }
 
-// Check if URL is from a domain that supports direct scraping (no anti-bot)
+// Check if URL is from a domain that supports direct scraping (static HTML, no JS rendering)
+// NOTE: DRE uses a SPA/React app that requires JavaScript execution - Firecrawl is required
+// EUR-Lex serves static HTML so direct scraping works well
 function isDirectScrapableDomain(url: string): boolean {
   const lowerUrl = url.toLowerCase();
-  return lowerUrl.includes('dre.pt') ||
-         lowerUrl.includes('diariodarepublica.pt') ||
-         lowerUrl.includes('eur-lex.europa.eu');
+  // Only EUR-Lex supports direct scraping - DRE requires JS rendering
+  return lowerUrl.includes('eur-lex.europa.eu');
+}
+
+// Extract content using semantic selectors for DRE pages
+function extractDREContent(html: string): string {
+  const parts: string[] = [];
+  
+  // Priority 1: Meta description (always reliable for summary)
+  const metaDesc = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ||
+                   html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
+  if (metaDesc?.[1]) {
+    parts.push(`META_DESCRIPTION: ${metaDesc[1].trim()}`);
+  }
+  
+  // Priority 2: OG description
+  const ogDesc = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
+                 html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:description["']/i);
+  if (ogDesc?.[1] && ogDesc[1] !== metaDesc?.[1]) {
+    parts.push(`OG_DESCRIPTION: ${ogDesc[1].trim()}`);
+  }
+  
+  // Priority 3: OG title (often contains the full title)
+  const ogTitle = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+                  html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']/i);
+  if (ogTitle?.[1]) {
+    parts.push(`OG_TITLE: ${ogTitle[1].trim()}`);
+  }
+  
+  // Priority 4: Page title
+  const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleTag?.[1]) {
+    parts.push(`TITLE: ${titleTag[1].trim()}`);
+  }
+  
+  // Priority 5: Specific DRE content areas (using regex to simulate CSS selectors)
+  // Look for .documento-sumario, .sumario, #sumario sections
+  const sumarioPatterns = [
+    /<(?:div|section|p)[^>]*class=["'][^"']*(?:documento-sumario|sumario|summary)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|p)>/gi,
+    /<(?:div|section)[^>]*id=["']sumario["'][^>]*>([\s\S]*?)<\/(?:div|section)>/gi,
+  ];
+  
+  for (const pattern of sumarioPatterns) {
+    let match;
+    while ((match = pattern.exec(html)) !== null) {
+      const content = stripHtmlTags(match[1]).trim();
+      if (content.length > 30) {
+        parts.push(`SUMARIO: ${content}`);
+      }
+    }
+  }
+  
+  // Priority 6: Emissor/Entity section
+  const emissorPatterns = [
+    /<(?:div|span|p)[^>]*class=["'][^"']*(?:emissor|entidade|entity)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|span|p)>/gi,
+    /Emissor[:\s]*<[^>]*>([^<]+)</gi,
+  ];
+  
+  for (const pattern of emissorPatterns) {
+    let match;
+    while ((match = pattern.exec(html)) !== null) {
+      const content = stripHtmlTags(match[1]).trim();
+      if (content.length > 3 && content.length < 200) {
+        parts.push(`EMISSOR: ${content}`);
+      }
+    }
+  }
+  
+  // Priority 7: Main content area (.documento-body, .main-content, article, main)
+  const mainContentPatterns = [
+    /<(?:div|section)[^>]*class=["'][^"']*(?:documento-body|documento-texto|main-content|content-body)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section)>/gi,
+    /<article[^>]*>([\s\S]*?)<\/article>/gi,
+    /<main[^>]*>([\s\S]*?)<\/main>/gi,
+  ];
+  
+  for (const pattern of mainContentPatterns) {
+    let match;
+    while ((match = pattern.exec(html)) !== null) {
+      const content = stripHtmlTags(match[1]).trim();
+      if (content.length > 100) {
+        // Limit main content to avoid noise
+        parts.push(`CONTENT: ${content.substring(0, 3000)}`);
+        break; // Only take first main content block
+      }
+    }
+  }
+  
+  // Priority 8: Nota de rodapé / footer notes (often contains publication info)
+  const notaPattern = /<(?:div|p)[^>]*class=["'][^"']*(?:nota-rodape|footnote|notas)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p)>/gi;
+  let notaMatch;
+  while ((notaMatch = notaPattern.exec(html)) !== null) {
+    const content = stripHtmlTags(notaMatch[1]).trim();
+    if (content.length > 20 && content.length < 500) {
+      parts.push(`NOTA: ${content}`);
+    }
+  }
+  
+  // Priority 9: Structured data (JSON-LD)
+  const jsonLdPattern = /<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let jsonLdMatch;
+  while ((jsonLdMatch = jsonLdPattern.exec(html)) !== null) {
+    try {
+      const jsonData = JSON.parse(jsonLdMatch[1]);
+      if (jsonData.description) parts.push(`LD_DESCRIPTION: ${jsonData.description}`);
+      if (jsonData.name) parts.push(`LD_NAME: ${jsonData.name}`);
+      if (jsonData.headline) parts.push(`LD_HEADLINE: ${jsonData.headline}`);
+    } catch {
+      // Ignore invalid JSON
+    }
+  }
+  
+  return parts.join('\n\n');
+}
+
+// Extract content using semantic selectors for EUR-Lex pages
+function extractEurLexContent(html: string): string {
+  const parts: string[] = [];
+  
+  // Meta tags
+  const metaDesc = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
+  if (metaDesc?.[1]) parts.push(`META_DESCRIPTION: ${metaDesc[1].trim()}`);
+  
+  // EUR-Lex specific: DocumentTitle
+  const docTitlePattern = /<(?:div|p)[^>]*class=["'][^"']*(?:DocumentTitle|title-document)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p)>/gi;
+  let titleMatch;
+  while ((titleMatch = docTitlePattern.exec(html)) !== null) {
+    const content = stripHtmlTags(titleMatch[1]).trim();
+    if (content.length > 20) {
+      parts.push(`DOC_TITLE: ${content}`);
+    }
+  }
+  
+  // EUR-Lex: Preamble/recitals
+  const preamblePattern = /<(?:div)[^>]*id=["']preamble["'][^>]*>([\s\S]*?)<\/div>/gi;
+  let preambleMatch;
+  while ((preambleMatch = preamblePattern.exec(html)) !== null) {
+    const content = stripHtmlTags(preambleMatch[1]).trim();
+    if (content.length > 100) {
+      parts.push(`PREAMBLE: ${content.substring(0, 2000)}`);
+    }
+  }
+  
+  // OG title
+  const ogTitle = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+  if (ogTitle?.[1]) parts.push(`OG_TITLE: ${ogTitle[1].trim()}`);
+  
+  return parts.join('\n\n');
+}
+
+// Helper: Strip HTML tags and decode entities
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\/?(div|p|h[1-6]|br|li|tr|td|th)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 // Direct HTML scrape (no Firecrawl) - faster and more reliable for DRE/EUR-Lex
@@ -198,32 +364,29 @@ async function scrapeUrlDirect(url: string, timeoutMs: number = 10000): Promise<
     }
     const safeHtml = html.slice(0, 500000);
     
-    // Extract text content from HTML - basic but effective for DRE
-    let text = safeHtml
-      // Remove script and style blocks
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      // Remove HTML comments
-      .replace(/<!--[\s\S]*?-->/g, '')
-      // Convert common elements to newlines
-      .replace(/<\/?(div|p|h[1-6]|br|li|tr)[^>]*>/gi, '\n')
-      // Remove remaining tags
-      .replace(/<[^>]+>/g, ' ')
-      // Decode HTML entities
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
-      // Clean whitespace
-      .replace(/\s+/g, ' ')
-      .replace(/\n\s+/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    // Use domain-specific extractors
+    const lowerUrl = url.toLowerCase();
+    let extractedContent: string;
     
-    console.log(`[DirectScrape] Extracted ${text.length} chars`);
-    return text.length > 100 ? text : null;
+    if (lowerUrl.includes('eur-lex.europa.eu')) {
+      console.log('[DirectScrape] Using EUR-Lex extractor');
+      extractedContent = extractEurLexContent(safeHtml);
+    } else if (lowerUrl.includes('dre.pt') || lowerUrl.includes('diariodarepublica.pt')) {
+      console.log('[DirectScrape] Using DRE extractor');
+      extractedContent = extractDREContent(safeHtml);
+    } else {
+      // Fallback: generic extraction
+      extractedContent = stripHtmlTags(safeHtml);
+    }
+    
+    // If semantic extraction failed, fallback to full page extraction
+    if (extractedContent.length < 100) {
+      console.log('[DirectScrape] Semantic extraction weak, using full page');
+      extractedContent = stripHtmlTags(safeHtml);
+    }
+    
+    console.log(`[DirectScrape] Extracted ${extractedContent.length} chars`);
+    return extractedContent.length > 100 ? extractedContent : null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       console.log('[DirectScrape] Timeout');
