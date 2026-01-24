@@ -284,6 +284,61 @@ export default function LegislacaoDetalhes() {
     enabled: !!id,
   });
 
+  // Theme color configuration for badges
+  const themeColors: Record<string, { badge: string; badgeDark: string; icon: string; gradient: string }> = {
+    "Ambiente": {
+      badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      badgeDark: "dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700",
+      icon: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+      gradient: "from-emerald-500 to-teal-600"
+    },
+    "SST": {
+      badge: "bg-orange-100 text-orange-800 border-orange-200",
+      badgeDark: "dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
+      icon: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+      gradient: "from-orange-500 to-red-500"
+    },
+    "Segurança e Saúde no Trabalho": {
+      badge: "bg-orange-100 text-orange-800 border-orange-200",
+      badgeDark: "dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
+      icon: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+      gradient: "from-orange-500 to-red-500"
+    },
+    "Energia": {
+      badge: "bg-amber-100 text-amber-800 border-amber-200",
+      badgeDark: "dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
+      icon: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+      gradient: "from-amber-500 to-yellow-500"
+    },
+    "Qualidade": {
+      badge: "bg-sky-100 text-sky-800 border-sky-200",
+      badgeDark: "dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-700",
+      icon: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400",
+      gradient: "from-sky-500 to-blue-600"
+    },
+    "Segurança": {
+      badge: "bg-rose-100 text-rose-800 border-rose-200",
+      badgeDark: "dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700",
+      icon: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400",
+      gradient: "from-rose-500 to-red-600"
+    },
+    "Conciliação": {
+      badge: "bg-pink-100 text-pink-800 border-pink-200",
+      badgeDark: "dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-700",
+      icon: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400",
+      gradient: "from-pink-500 to-rose-500"
+    },
+  };
+
+  const defaultThemeColor = {
+    badge: "bg-stone-100 text-stone-800 border-stone-200",
+    badgeDark: "dark:bg-stone-800/50 dark:text-stone-300 dark:border-stone-600",
+    icon: "bg-stone-100 text-stone-600 dark:bg-stone-800/50 dark:text-stone-400",
+    gradient: "from-stone-500 to-amber-600"
+  };
+
+  const getThemeConfig = (themeName: string) => themeColors[themeName] || defaultThemeColor;
+
   // Get unique themes and categories
   const getThemesAndCategories = () => {
     if (!legislation?.legislation_category_mapping) return { themes: [], categories: [] };
@@ -692,25 +747,32 @@ export default function LegislacaoDetalhes() {
               <CardContent>
                 {themes.length > 0 ? (
                   <div className="space-y-4">
-                    {themes.map((theme) => (
-                      <div key={theme.id}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary">
-                            <FileText className="h-3 w-3" />
+                    {themes.map((theme) => {
+                      const themeConfig = getThemeConfig(theme.name);
+                      return (
+                        <div key={theme.id}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`flex h-6 w-6 items-center justify-center rounded ${themeConfig.icon}`}>
+                              <FileText className="h-3 w-3" />
+                            </div>
+                            <span className="font-medium text-sm">{theme.name}</span>
                           </div>
-                          <span className="font-medium text-sm">{theme.name}</span>
+                          <div className="ml-8 flex flex-wrap gap-1.5">
+                            {categories
+                              .filter((c) => c.themeName === theme.name)
+                              .map((cat) => (
+                                <Badge 
+                                  key={cat.id} 
+                                  variant="outline" 
+                                  className={`text-xs border ${themeConfig.badge} ${themeConfig.badgeDark}`}
+                                >
+                                  {cat.name}
+                                </Badge>
+                              ))}
+                          </div>
                         </div>
-                        <div className="ml-8 flex flex-wrap gap-1">
-                          {categories
-                            .filter((c) => c.themeName === theme.name)
-                            .map((cat) => (
-                              <Badge key={cat.id} variant="secondary" className="text-xs">
-                                {cat.name}
-                              </Badge>
-                            ))}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
