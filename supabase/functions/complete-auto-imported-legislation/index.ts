@@ -1036,11 +1036,42 @@ async function runBackgroundCompletion(params: {
                 hasUpdates = true;
               }
               
+              // Handle effective_date - extract from scraping or calculate as day after publication
+              if (metadata.effective_date && !leg.effective_date) {
+                updates.effective_date = metadata.effective_date;
+                hasUpdates = true;
+                console.log(`Found effective date from scraping: ${metadata.effective_date}`);
+              }
+              
               totalMetadataExtracted++;
               console.log(`Extracted metadata:`, metadata);
             }
             
             await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+        
+        // FALLBACK: If we have publication_date but no effective_date, calculate it
+        // For PT legislation: effective_date = day after publication (standard rule)
+        // For EU legislation: effective_date = 20 days after publication (common rule) or same day
+        const pubDate = updates.publication_date || leg.publication_date;
+        const effDate = updates.effective_date || leg.effective_date;
+        
+        if (pubDate && !effDate && mode === 'missing_dates') {
+          try {
+            const pubDateObj = new Date(pubDate);
+            const isEU = isEULegislationRecord(leg);
+            
+            // PT: next day, EU: 20 days later (common default)
+            const daysToAdd = isEU ? 20 : 1;
+            const effectiveDate = new Date(pubDateObj);
+            effectiveDate.setDate(effectiveDate.getDate() + daysToAdd);
+            
+            updates.effective_date = effectiveDate.toISOString().split('T')[0];
+            hasUpdates = true;
+            console.log(`Calculated effective date (${isEU ? 'EU +20d' : 'PT +1d'}): ${pubDate} -> ${updates.effective_date}`);
+          } catch (e) {
+            console.log(`Could not calculate effective date from ${pubDate}:`, e);
           }
         }
         
