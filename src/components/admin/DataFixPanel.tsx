@@ -339,14 +339,14 @@ export function DataFixPanel() {
         categories: (categoriesResult.data as number) || 0,
       };
     },
-    staleTime: 2000,
-    refetchInterval: (runningJobs?.length ?? 0) > 0 ? 3000 : (activeFixType ? 5000 : 30000),
+    staleTime: 1000,
+    refetchInterval: (runningJobs?.length ?? 0) > 0 ? 2000 : (activeFixType ? 3000 : 15000),
   });
 
-  // Subscribe to sync_logs changes for real-time counter updates
+  // Subscribe to sync_logs AND legislation changes for real-time counter updates
   useEffect(() => {
-    const channel = supabase
-      .channel('data-fix-stats-updates')
+    const syncLogsChannel = supabase
+      .channel('data-fix-sync-logs')
       .on(
         'postgres_changes',
         {
@@ -362,10 +362,30 @@ export function DataFixPanel() {
       )
       .subscribe();
 
+    // Also listen to legislation updates for immediate counter refresh
+    const legislationChannel = supabase
+      .channel('data-fix-legislation')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'legislation',
+        },
+        () => {
+          // Debounce: only refetch if we have running jobs
+          if ((runningJobs?.length ?? 0) > 0) {
+            refetch();
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(syncLogsChannel);
+      supabase.removeChannel(legislationChannel);
     };
-  }, [refetch, refetchJobs]);
+  }, [refetch, refetchJobs, runningJobs?.length]);
 
   const totalPending = Object.values(stats || {}).reduce((sum, val) => sum + val, 0);
 
