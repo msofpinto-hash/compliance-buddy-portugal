@@ -493,6 +493,7 @@ export function DataFixPanel() {
   // Fix Category Card with dependency awareness - Mobile optimized
   const FixCategory = ({ type, count, icon }: { type: FixType; count: number; icon: React.ReactNode }) => {
     const isDone = count === 0;
+    const totalRunning = runningJobs?.length ?? 0;
     const typeJobs = getRunningJobsForType(type);
     const hasRunningJobs = typeJobs.length > 0;
     const isActiveType = activeFixType === type;
@@ -554,9 +555,11 @@ export function DataFixPanel() {
                 </div>
               )}
               {isActiveType && !hasRunningJobs && (
-                <div className="flex items-center gap-1 text-[10px] sm:text-xs text-green-600 dark:text-green-400">
+                <div className="flex items-center gap-1 text-[10px] sm:text-xs text-amber-600 dark:text-amber-400">
                   <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
-                  <span className="truncate">A aguardar...</span>
+                  <span className="truncate">
+                    A aguardar... ({totalRunning}/{parallelJobs} jobs)
+                  </span>
                 </div>
               )}
             </div>
