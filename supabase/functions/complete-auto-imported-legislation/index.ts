@@ -1158,14 +1158,15 @@ async function runBackgroundCompletion(params: {
     // This spreads the jobs across different segments of the result set
     let queryOffset = 0;
     if (randomOffset) {
-      // Random offset between 0 and 500 to spread load across different records
-      queryOffset = Math.floor(Math.random() * 500);
+      // Random offset between 0 and 2000 to spread load across different records
+      // With 2500+ pending items, we need a larger range
+      queryOffset = Math.floor(Math.random() * 2000);
       console.log(`Using random offset: ${queryOffset} to avoid parallel job overlap`);
     }
     
     const { data: legislation, error: fetchError } = await query
       .order('created_at', { ascending: false })
-      .range(queryOffset, queryOffset + (limit * 3) - 1);
+      .range(queryOffset, queryOffset + (limit * 5) - 1);
     
     if (fetchError) {
       if (syncLogId) {
