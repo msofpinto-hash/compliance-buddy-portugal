@@ -8,35 +8,39 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 interface LegislationParts {
   type: string;
   num: string;
+  suffix: string;
   year: string;
+  series: string;
 }
 
-// Parse legislation number to extract type, number, and year
+// Parse legislation number to extract type, number, suffix, year, series
 function extractLegislationParts(number: string): LegislationParts | null {
   const normalized = number.toLowerCase()
     .replace(/n\.?[º°o]\s*/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
   
-  // Common patterns
+  // Patterns for Portuguese legislation with suffixes like -A, -B, /1, /2
   const patterns = [
-    // "Decreto-Lei n.º 123/2024" or "Portaria n.º 456/2023"
-    /^(decreto[- ]?lei|portaria|lei|despacho|aviso|regulamento|declaração de retificação|resolução|decreto regulamentar)\s*(\d+[-a-z]*)[\/\-](\d{2,4})/i,
-    // "DL 123/2024"
-    /^(dl|p|l)\s*(\d+[-a-z]*)[\/\-](\d{2,4})/i,
+    // "Decreto-Lei n.º 123-A/2024" or "Portaria n.º 456-B/2023/1"
+    /^(decreto[- ]?lei|portaria|lei|despacho|aviso|regulamento|declaração de retificação|resolução|decreto regulamentar)\s*(\d+)[-]?([a-z])?[\/](\d{2,4})(?:[\/](\d))?/i,
+    // DL 123/2024
+    /^(dl|p|l)\s*(\d+)[-]?([a-z])?[\/](\d{2,4})(?:[\/](\d))?/i,
   ];
   
   for (const pattern of patterns) {
     const match = normalized.match(pattern);
     if (match) {
-      let year = match[3];
+      let year = match[4];
       if (year.length === 2) {
         year = parseInt(year) > 30 ? `19${year}` : `20${year}`;
       }
       return {
         type: normalizeType(match[1]),
-        num: match[2].toUpperCase(),
-        year
+        num: match[2],
+        suffix: (match[3] || '').toUpperCase(),
+        year,
+        series: match[5] || ''
       };
     }
   }
@@ -63,148 +67,110 @@ function normalizeType(type: string): string {
   return typeMap[normalized] || type.toLowerCase();
 }
 
-// Build DRE search URL
-function buildDRESearchUrl(number: string, parts: LegislationParts | null): string {
-  // Use DRE's search page with query parameters
-  const baseUrl = 'https://diariodarepublica.pt/dr/pesquisa-avancada';
-  
-  if (parts) {
-    // Try to build a more specific search
-    const searchTerm = `${parts.type} ${parts.num}/${parts.year}`;
-    return `${baseUrl}?q=${encodeURIComponent(searchTerm)}`;
-  }
-  
-  return `${baseUrl}?q=${encodeURIComponent(number)}`;
-}
-
-// Scrape DRE search results directly
-async function scrapeDRESearch(number: string): Promise<string | null> {
+// Scrape DRE search results with optimized parallel requests
+async function scrapeDRESearch(number: string, timeoutMs: number = 5000): Promise<string | null> {
   const parts = extractLegislationParts(number);
+  if (!parts) return null;
   
-  // Build search queries
-  const queries = [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   
-  if (parts) {
-    // Clean number for URL matching
-    const cleanNum = parts.num.replace(/[^0-9a-zA-Z]/g, '').toLowerCase();
-    
-    // Try direct URL patterns first (faster)
-    queries.push(
-      `https://diariodarepublica.pt/dr/detalhe/${parts.type}/${parts.num}-${parts.year}`,
-      `https://diariodarepublica.pt/dr/detalhe/${parts.type}/${cleanNum}-${parts.year}`,
-    );
-  }
-  
-  // Try direct URL guesses first
-  for (const directUrl of queries) {
-    try {
-      const response = await fetch(directUrl, { 
-        method: 'HEAD',
-        redirect: 'follow'
-      });
-      if (response.ok && response.url.includes('/dr/detalhe/')) {
-        console.log(`✓ Direct URL works: ${response.url}`);
-        return response.url;
-      }
-    } catch (e) {
-      // URL doesn't work, continue
-    }
-  }
-  
-  // Fall back to search page scraping
   try {
-    const searchUrl = buildDRESearchUrl(number, parts);
-    console.log(`Searching: ${searchUrl}`);
+    // Build search query
+    const searchTerm = parts.suffix 
+      ? `${parts.type} ${parts.num}-${parts.suffix}/${parts.year}${parts.series ? '/' + parts.series : ''}`
+      : `${parts.type} ${parts.num}/${parts.year}${parts.series ? '/' + parts.series : ''}`;
+    
+    const searchUrl = `https://diariodarepublica.pt/dr/pesquisa-avancada?q=${encodeURIComponent(searchTerm)}`;
     
     const response = await fetch(searchUrl, {
+      signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'text/html,application/xhtml+xml',
       }
     });
     
-    if (!response.ok) {
-      console.log(`Search failed: ${response.status}`);
-      return null;
-    }
+    clearTimeout(timeout);
+    
+    if (!response.ok) return null;
     
     const html = await response.text();
     
     // Look for result links in the HTML
-    // Pattern: /dr/detalhe/TYPE/NUM-YEAR-ID
     const linkPattern = /href="(\/dr\/detalhe\/[^"]+)"/g;
     const matches = [...html.matchAll(linkPattern)];
     
+    // Find best match
     for (const match of matches) {
-      const path = match[1];
-      const fullUrl = `https://diariodarepublica.pt${path}`;
+      const path = match[1].toLowerCase();
+      const numClean = parts.num;
       
-      // Validate the link matches our legislation
-      if (parts && validateMatch(path, parts)) {
-        console.log(`✓ Found: ${fullUrl}`);
-        return fullUrl;
+      // Check if path contains the type and number
+      if (path.includes(parts.type) && path.includes(numClean) && path.includes(parts.year)) {
+        // Check suffix if present
+        if (parts.suffix && !path.includes(`${numClean}-${parts.suffix.toLowerCase()}`)) {
+          continue;
+        }
+        return `https://diariodarepublica.pt${match[1]}`;
       }
     }
     
-    // If we found any detalhe link, return the first one
+    // Return first result if no exact match
     if (matches.length > 0) {
-      const firstUrl = `https://diariodarepublica.pt${matches[0][1]}`;
-      console.log(`✓ Found (first result): ${firstUrl}`);
-      return firstUrl;
+      return `https://diariodarepublica.pt${matches[0][1]}`;
     }
     
-    console.log(`✗ No results for: ${number}`);
     return null;
   } catch (error) {
-    console.error(`Error scraping DRE: ${error}`);
+    clearTimeout(timeout);
     return null;
   }
 }
 
-function validateMatch(path: string, parts: LegislationParts): boolean {
-  const pathLower = path.toLowerCase();
-  const numClean = parts.num.replace(/[^0-9]/g, '');
-  
-  // Check if path contains the type and number
-  return pathLower.includes(parts.type) && 
-         pathLower.includes(numClean) && 
-         pathLower.includes(parts.year);
-}
-
-// Process a batch of legislation items
-async function processBatch(
-  supabase: any,
+// Process items in parallel with concurrency control
+async function processParallel(
   items: { id: string; number: string }[],
-  dryRun: boolean
+  supabase: any,
+  dryRun: boolean,
+  concurrency: number,
+  timeoutMs: number,
+  delayMs: number
 ): Promise<{ found: number; failed: number; results: any[] }> {
   let found = 0;
   let failed = 0;
   const results: any[] = [];
   
-  for (const item of items) {
-    try {
-      const url = await scrapeDRESearch(item.number);
+  // Process in concurrent batches
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    
+    const batchPromises = batch.map(async (item) => {
+      const url = await scrapeDRESearch(item.number, timeoutMs);
       
       if (url) {
-        found++;
-        results.push({ id: item.id, number: item.number, url, success: true });
-        
         if (!dryRun) {
           await supabase
             .from('legislation')
             .update({ document_url: url })
             .eq('id', item.id);
         }
-      } else {
-        failed++;
-        results.push({ id: item.id, number: item.number, url: null, success: false });
+        return { id: item.id, number: item.number, url, success: true };
       }
-      
-      // Small delay to be polite to DRE servers
-      await new Promise(resolve => setTimeout(resolve, 200));
-    } catch (error) {
-      failed++;
-      results.push({ id: item.id, number: item.number, error: String(error), success: false });
+      return { id: item.id, number: item.number, url: null, success: false };
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    
+    for (const result of batchResults) {
+      results.push(result);
+      if (result.success) found++;
+      else failed++;
+    }
+    
+    // Delay between batches to avoid rate limiting
+    if (delayMs > 0 && i + concurrency < items.length) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
     }
   }
   
@@ -213,27 +179,32 @@ async function processBatch(
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<void>) => void };
 
-// Background processing
+// Background processing with parallel execution
 async function processInBackground(
   supabase: any,
   legislation: { id: string; number: string }[],
   logId: string,
   dryRun: boolean,
-  batchSize: number
+  concurrency: number,
+  timeoutMs: number,
+  batchDelayMs: number
 ): Promise<void> {
   let processed = 0;
   let totalFound = 0;
   let totalFailed = 0;
   
+  const batchSize = concurrency * 5; // Process 5 waves of concurrent requests per update
   const totalBatches = Math.ceil(legislation.length / batchSize);
+  
+  console.log(`🚀 Starting parallel processing: ${legislation.length} items, concurrency: ${concurrency}, timeout: ${timeoutMs}ms`);
   
   for (let i = 0; i < legislation.length; i += batchSize) {
     const batch = legislation.slice(i, i + batchSize);
     const batchNum = Math.floor(i / batchSize) + 1;
     
-    console.log(`[Batch ${batchNum}/${totalBatches}] Processing ${batch.length} items...`);
+    console.log(`[Batch ${batchNum}/${totalBatches}] Processing ${batch.length} items (${concurrency} parallel)...`);
     
-    const { found, failed } = await processBatch(supabase, batch, dryRun);
+    const { found, failed } = await processParallel(batch, supabase, dryRun, concurrency, timeoutMs, batchDelayMs);
     
     processed += batch.length;
     totalFound += found;
@@ -250,12 +221,7 @@ async function processInBackground(
       })
       .eq('id', logId);
     
-    console.log(`[Batch ${batchNum}/${totalBatches}] Done. Total: ${totalFound} found, ${totalFailed} failed`);
-    
-    // Delay between batches
-    if (i + batchSize < legislation.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
+    console.log(`[Batch ${batchNum}/${totalBatches}] Done. Running: ${totalFound} found, ${totalFailed} failed (${Math.round(100 * totalFound / processed)}% success)`);
   }
   
   // Final update
@@ -270,7 +236,7 @@ async function processInBackground(
     })
     .eq('id', logId);
   
-  console.log(`Background job completed: ${totalFound} found, ${totalFailed} failed out of ${legislation.length}`);
+  console.log(`✅ Background job completed: ${totalFound} found, ${totalFailed} failed out of ${legislation.length} (${Math.round(100 * totalFound / legislation.length)}% success)`);
 }
 
 Deno.serve(async (req) => {
@@ -279,35 +245,51 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 100, dryRun = false, background = false, batchSize = 10 } = await req.json().catch(() => ({}));
+    const { 
+      limit = 200, 
+      dryRun = false, 
+      background = true,
+      // Performance tuning
+      concurrency = 40,      // Parallel requests
+      timeoutMs = 5000,      // Request timeout
+      batchDelayMs = 100,    // Delay between concurrent batches
+      // Speed presets
+      speed = 'rapido'       // conservador, rapido, maximo
+    } = await req.json().catch(() => ({}));
+    
+    // Apply speed presets
+    let effectiveConcurrency = concurrency;
+    let effectiveTimeout = timeoutMs;
+    let effectiveDelay = batchDelayMs;
+    
+    if (speed === 'conservador') {
+      effectiveConcurrency = 20;
+      effectiveTimeout = 8000;
+      effectiveDelay = 300;
+    } else if (speed === 'maximo') {
+      effectiveConcurrency = 80;
+      effectiveTimeout = 3500;
+      effectiveDelay = 0;
+    } else if (speed === 'rapido') {
+      effectiveConcurrency = 40;
+      effectiveTimeout = 5000;
+      effectiveDelay = 100;
+    }
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    console.log(`Finding missing DRE URLs (direct scraping). Limit: ${limit}, DryRun: ${dryRun}, Background: ${background}`);
+    console.log(`🔍 Finding missing DRE URLs - Limit: ${limit}, Speed: ${speed}, Concurrency: ${effectiveConcurrency}`);
     
-    // Fetch Portuguese legislation without URLs using raw SQL-like filter
+    // Fetch legislation without URLs
     const { data: allLegislation, error } = await supabase
       .from('legislation')
       .select('id, number, title')
-      .is('document_url', null)
+      .or('document_url.is.null,document_url.eq.')
+      .or('no_digital_version.is.null,no_digital_version.eq.false')
       .order('created_at', { ascending: false })
-      .limit(limit * 3); // Fetch extra to account for filtering
-    
-    console.log(`Fetched ${allLegislation?.length || 0} items from database`);
-    
-    // Filter to only Portuguese legislation patterns
-    const legislation = (allLegislation || []).filter(item => {
-      const num = item.number;
-      // Must have n.º X/YYYY or similar pattern (Portuguese legislation)
-      const hasPortuguesePattern = /n\.?\s*[º°o]\s*\d+/i.test(num) && /\/\d{2,4}/.test(num);
-      // Exclude EU regulations, UN regulations, conventions
-      const isExcluded = /regulamento.*\(ce\)|regulamento.*\(ue\)|nações unidas|convenção|código/i.test(num);
-      return hasPortuguesePattern && !isExcluded;
-    }).slice(0, limit);
-    
-    console.log(`After filtering: ${legislation.length} Portuguese legislation items`);
+      .limit(limit * 2);
     
     if (error) {
       console.error('Error fetching legislation:', error);
@@ -317,14 +299,27 @@ Deno.serve(async (req) => {
       );
     }
     
+    // Filter to only Portuguese legislation patterns
+    const legislation = (allLegislation || []).filter(item => {
+      const num = item.number;
+      // Must have n.º X/YYYY pattern (Portuguese legislation)
+      const hasPortuguesePattern = /n\.?\s*[º°o]\s*\d+/i.test(num) && /\/\d{2,4}/.test(num);
+      // Exclude EU regulations, UN regulations, conventions
+      const isExcluded = /regulamento.*\(ce\)|regulamento.*\(ue\)|nações unidas|convenção|código|tratado/i.test(num);
+      // Exclude items that likely have no digital version
+      const isHistorical = /\/[0-6]\d$/.test(num) && !/\/(19|20)\d{2}/.test(num); // Old 2-digit years like /54
+      
+      return hasPortuguesePattern && !isExcluded && !isHistorical;
+    }).slice(0, limit);
+    
+    console.log(`📋 Found ${legislation.length} Portuguese legislation items without URLs`);
+    
     if (!legislation || legislation.length === 0) {
       return new Response(
         JSON.stringify({ success: true, message: 'No legislation without URLs found', total: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    console.log(`Found ${legislation.length} items without URLs`);
     
     if (background) {
       // Create sync log entry
@@ -347,22 +342,43 @@ Deno.serve(async (req) => {
         );
       }
       
-      // Start background processing
-      EdgeRuntime.waitUntil(processInBackground(supabase, legislation, logEntry.id, dryRun, batchSize));
+      // Start background processing with parallel execution
+      EdgeRuntime.waitUntil(processInBackground(
+        supabase, 
+        legislation, 
+        logEntry.id, 
+        dryRun, 
+        effectiveConcurrency, 
+        effectiveTimeout, 
+        effectiveDelay
+      ));
       
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Background job started (direct scraping)',
+          message: `Background job started (${speed} mode, ${effectiveConcurrency} parallel)`,
           jobId: logEntry.id,
-          total: legislation.length
+          total: legislation.length,
+          settings: {
+            speed,
+            concurrency: effectiveConcurrency,
+            timeoutMs: effectiveTimeout,
+            batchDelayMs: effectiveDelay
+          }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Synchronous processing
-    const { found, failed, results } = await processBatch(supabase, legislation, dryRun);
+    // Synchronous processing with parallel execution
+    const { found, failed, results } = await processParallel(
+      legislation, 
+      supabase, 
+      dryRun, 
+      effectiveConcurrency, 
+      effectiveTimeout, 
+      effectiveDelay
+    );
     
     return new Response(
       JSON.stringify({
@@ -370,8 +386,9 @@ Deno.serve(async (req) => {
         total: legislation.length,
         found,
         failed,
+        successRate: Math.round(100 * found / legislation.length),
         dryRun,
-        results: results.slice(0, 20) // Limit results in response
+        results: results.slice(0, 20)
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
