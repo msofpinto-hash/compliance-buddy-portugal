@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -22,7 +21,8 @@ import {
   Calendar,
   Trash2,
   KeyRound,
-  ShieldCheck
+  ShieldCheck,
+  Settings as SettingsIcon
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +32,7 @@ import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { TwoFactorSetup } from "@/components/auth/TwoFactorSetup";
+import { IDBackground, IDCard } from "@/components/client/IDBackground";
 
 export default function Settings() {
   const { user, isAdmin, check2FAStatus, has2FAEnabled } = useAuth();
@@ -214,14 +215,20 @@ export default function Settings() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen relative">
+        <IDBackground />
+        <div className="relative z-10 flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen relative">
+      {/* I&D Background */}
+      <IDBackground />
+
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -231,284 +238,301 @@ export default function Settings() {
         className="hidden"
       />
 
-      {/* Header */}
-      <header className="border-b border-border dark:border-slate-800 bg-card/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto flex items-center gap-4 px-4 py-4">
-          <Link to="/dashboard">
-            <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted dark:hover:bg-slate-800">
-              <ArrowLeft className="h-5 w-5" />
+      <div className="relative z-10">
+        {/* Header - I&D Style */}
+        <header className="border-b border-stone-200/60 dark:border-amber-900/30 bg-white/95 dark:bg-[#181410]/95 backdrop-blur-sm sticky top-0 z-20">
+          <div className="container mx-auto flex items-center gap-4 px-4 py-4">
+            <Link to="/dashboard">
+              <Button variant="ghost" size="icon" className="text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-amber-900/30">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="flex-1">
+              <h1 className="text-xl font-semibold text-stone-800 dark:text-white flex items-center gap-2">
+                <SettingsIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-500" />
+                Definições
+              </h1>
+              <p className="text-sm text-stone-500 dark:text-stone-400">Gerir as suas preferências e conta</p>
+            </div>
+            <Button 
+              onClick={handleSave} 
+              disabled={updateProfile.isPending}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {updateProfile.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Guardar
             </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold text-foreground">Definições</h1>
-            <p className="text-sm text-muted-foreground">Gerir as suas preferências e conta</p>
           </div>
-          <Button 
-            onClick={handleSave} 
-            disabled={updateProfile.isPending}
-            className="gap-2"
-          >
-            {updateProfile.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Guardar
-          </Button>
-        </div>
-      </header>
+        </header>
 
-      {/* Content */}
-      <main className="container mx-auto px-4 py-8 max-w-3xl">
-        <div className="space-y-6">
-          {/* Profile Header Card */}
-          <Card className="overflow-hidden bg-card dark:bg-slate-900 border-border dark:border-slate-800">
-            <div className="h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent dark:from-primary/10 dark:via-primary/5" />
-            <CardContent className="relative pt-0 pb-6">
-              <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
-                <div className="relative group">
-                  <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-                    <AvatarImage src={profile?.avatar_url || undefined} alt={fullName || "Avatar"} />
-                    <AvatarFallback className="text-2xl font-semibold bg-primary text-primary-foreground">
-                      {getInitials()}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  {/* Upload overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <Button 
-                      size="icon" 
-                      variant="secondary" 
-                      className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md z-10"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingAvatar}
-                    >
-                      {isUploadingAvatar ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Camera className="h-4 w-4" />
-                      )}
-                    </Button>
+        {/* Content */}
+        <main className="container mx-auto px-4 py-8 max-w-3xl">
+          <div className="space-y-6">
+            {/* Profile Header Card */}
+            <IDCard className="overflow-hidden">
+              <div className="h-24 bg-gradient-to-r from-emerald-600/20 via-amber-500/10 to-orange-400/10 dark:from-emerald-600/10 dark:via-amber-500/5 dark:to-orange-400/5" />
+              <div className="relative pt-0 pb-6 px-6">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
+                  <div className="relative group">
+                    <Avatar className="h-24 w-24 border-4 border-white dark:border-stone-800 shadow-lg">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={fullName || "Avatar"} />
+                      <AvatarFallback className="text-2xl font-semibold bg-emerald-600 text-white">
+                        {getInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    {/* Upload overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Button 
+                        size="icon" 
+                        variant="secondary" 
+                        className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md z-10 bg-white dark:bg-stone-700 hover:bg-stone-100"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingAvatar}
+                      >
+                        {isUploadingAvatar ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Camera className="h-4 w-4 text-stone-600 dark:text-stone-300" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex-1 space-y-1">
-                  <h2 className="text-2xl font-bold text-foreground">{fullName || user?.email?.split("@")[0]}</h2>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Mail className="h-3.5 w-3.5" />
-                      {user?.email}
-                    </span>
-                    {profile?.is_approved && (
-                      <Badge variant="outline" className="gap-1 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/50">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Conta verificada
-                      </Badge>
+                  <div className="flex-1 space-y-1">
+                    <h2 className="text-2xl font-bold text-stone-800 dark:text-white">{fullName || user?.email?.split("@")[0]}</h2>
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500">
+                      <span className="flex items-center gap-1">
+                        <Mail className="h-3.5 w-3.5" />
+                        {user?.email}
+                      </span>
+                      {profile?.is_approved && (
+                        <Badge variant="outline" className="gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Conta verificada
+                        </Badge>
+                      )}
+                    </div>
+                    {profile?.avatar_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 gap-1 mt-2 h-7 px-2"
+                        onClick={handleRemoveAvatar}
+                        disabled={isUploadingAvatar}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Remover foto
+                      </Button>
                     )}
                   </div>
-                  {profile?.avatar_url && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 mt-2 h-7 px-2"
-                      onClick={handleRemoveAvatar}
-                      disabled={isUploadingAvatar}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                      Remover foto
-                    </Button>
+                </div>
+              </div>
+            </IDCard>
+
+            {/* Profile Details Section */}
+            <IDCard>
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                    <User className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-stone-800 dark:text-white">Informações Pessoais</h3>
+                    <p className="text-sm text-stone-500">Dados do seu perfil</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName" className="text-stone-700 dark:text-stone-300">Nome Completo</Label>
+                      <Input 
+                        id="fullName" 
+                        value={fullName} 
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Introduza o seu nome"
+                        className="bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-stone-700 dark:text-stone-300">Email</Label>
+                      <Input 
+                        id="email" 
+                        value={user?.email || ""} 
+                        disabled 
+                        className="bg-stone-100 dark:bg-stone-800/50 border-stone-200 dark:border-amber-900/40"
+                      />
+                    </div>
+                  </div>
+                  
+                  {userOrganizations && userOrganizations.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-stone-700 dark:text-stone-300">Organizações</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {userOrganizations.map((org, index) => (
+                          <Badge key={index} variant="outline" className="gap-1.5 py-1.5 bg-amber-50 dark:bg-amber-900/30 text-stone-700 dark:text-stone-300 border-amber-200 dark:border-amber-800">
+                            <Building2 className="h-3 w-3 text-amber-600" />
+                            {(org.organizations as any)?.name || "Organização"}
+                            <span className="text-xs text-stone-500 capitalize">
+                              ({org.role})
+                            </span>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {profile?.created_at && (
+                    <div className="pt-2 text-sm text-stone-500 flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        Membro desde {format(new Date(profile.created_at), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </IDCard>
 
-          {/* Profile Details Section */}
-          <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/20">
-                  <User className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>Informações Pessoais</CardTitle>
-                  <CardDescription>Dados do seu perfil</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-foreground">Nome Completo</Label>
-                  <Input 
-                    id="fullName" 
-                    value={fullName} 
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Introduza o seu nome"
-                    className="bg-background dark:bg-slate-800 border-border dark:border-slate-700"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-foreground">Email</Label>
-                  <Input 
-                    id="email" 
-                    value={user?.email || ""} 
-                    disabled 
-                    className="bg-muted dark:bg-slate-800/50 border-border dark:border-slate-700"
-                  />
-                </div>
-              </div>
-              
-              {userOrganizations && userOrganizations.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-foreground">Organizações</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {userOrganizations.map((org, index) => (
-                      <Badge key={index} variant="secondary" className="gap-1.5 py-1.5 bg-secondary/50 dark:bg-slate-800">
-                        <Building2 className="h-3 w-3" />
-                        {(org.organizations as any)?.name || "Organização"}
-                        <span className="text-xs text-muted-foreground capitalize">
-                          ({org.role})
-                        </span>
-                      </Badge>
-                    ))}
+            {/* Notifications Section */}
+            <IDCard>
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                    <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-stone-800 dark:text-white">Notificações</h3>
+                    <p className="text-sm text-stone-500">Preferências de alertas e comunicações</p>
                   </div>
                 </div>
-              )}
-
-              {profile?.created_at && (
-                <div className="pt-2 text-sm text-muted-foreground flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    Membro desde {format(new Date(profile.created_at), "d 'de' MMMM 'de' yyyy", { locale: pt })}
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Notifications Section */}
-          <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-amber-500/10 dark:bg-amber-500/20">
-                  <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <CardTitle className="text-foreground">Notificações</CardTitle>
-                  <CardDescription>Preferências de alertas e comunicações</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications" className="font-medium text-foreground">
-                    Notificações por Email
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receber alertas sobre nova legislação
-                  </p>
-                </div>
-                <Switch 
-                  id="email-notifications"
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
-                />
-              </div>
-              <Separator className="bg-border dark:bg-slate-700" />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="font-medium text-foreground">Resumo Semanal</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receber um resumo semanal de atividades
-                  </p>
-                </div>
-                <Switch 
-                  checked={weeklyDigest}
-                  onCheckedChange={setWeeklyDigest}
-                />
-              </div>
-              <Separator className="bg-border dark:bg-slate-700" />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="font-medium text-foreground">Alertas de Prazo</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Notificar sobre prazos próximos de vencer
-                  </p>
-                </div>
-                <Switch 
-                  checked={deadlineAlerts}
-                  onCheckedChange={setDeadlineAlerts}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Security Section */}
-          <Card className="bg-card dark:bg-slate-900 border-border dark:border-slate-800">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
-                  <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <CardTitle className="text-foreground">Segurança</CardTitle>
-                  <CardDescription>Configurações de segurança da conta</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* 2FA Setup - Available for all users, highlighted for admins */}
-              <TwoFactorSetup 
-                isEnabled={is2FAEnabled} 
-                onStatusChange={async () => {
-                  const enabled = await check2FAStatus();
-                  setIs2FAEnabled(enabled);
-                }}
-              />
-              
-              {isAdmin && !is2FAEnabled && (
-                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800">
-                  <div className="flex items-start gap-2">
-                    <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
-                    <div className="text-sm text-amber-800 dark:text-amber-200">
-                      <p className="font-medium">Recomendado para administradores</p>
-                      <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300">Ative a autenticação de dois fatores para maior segurança da sua conta de administrador.</p>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="email-notifications" className="font-medium text-stone-700 dark:text-stone-300">
+                        Notificações por Email
+                      </Label>
+                      <p className="text-sm text-stone-500">
+                        Receber alertas sobre nova legislação
+                      </p>
                     </div>
+                    <Switch 
+                      id="email-notifications"
+                      checked={emailNotifications}
+                      onCheckedChange={setEmailNotifications}
+                    />
+                  </div>
+                  <Separator className="bg-stone-200/60 dark:bg-amber-900/30" />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="font-medium text-stone-700 dark:text-stone-300">Resumo Semanal</Label>
+                      <p className="text-sm text-stone-500">
+                        Receber um resumo semanal de atividades
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={weeklyDigest}
+                      onCheckedChange={setWeeklyDigest}
+                    />
+                  </div>
+                  <Separator className="bg-stone-200/60 dark:bg-amber-900/30" />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="font-medium text-stone-700 dark:text-stone-300">Alertas de Prazo</Label>
+                      <p className="text-sm text-stone-500">
+                        Notificar sobre prazos próximos de vencer
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={deadlineAlerts}
+                      onCheckedChange={setDeadlineAlerts}
+                    />
                   </div>
                 </div>
-              )}
-              
-              <Separator className="bg-border dark:bg-slate-700" />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="font-medium text-foreground">Alterar Password</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Atualizar a password da sua conta
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setShowPasswordDialog(true)} className="border-border dark:border-slate-700 hover:bg-muted dark:hover:bg-slate-800">
-                  <KeyRound className="h-4 w-4 mr-1" />
-                  Alterar
-                </Button>
               </div>
-              <Separator className="bg-border dark:bg-slate-700" />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="font-medium text-foreground">Sessões Ativas</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Gerir dispositivos conectados
-                  </p>
+            </IDCard>
+
+            {/* Security Section */}
+            <IDCard>
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/40">
+                    <Shield className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-stone-800 dark:text-white">Segurança</h3>
+                    <p className="text-sm text-stone-500">Configurações de segurança da conta</p>
+                  </div>
                 </div>
-                <Button variant="outline" size="sm" className="border-border dark:border-slate-700 hover:bg-muted dark:hover:bg-slate-800">
-                  Ver
-                </Button>
+                
+                <div className="space-y-4">
+                  {/* 2FA Setup - Available for all users, highlighted for admins */}
+                  <TwoFactorSetup 
+                    isEnabled={is2FAEnabled} 
+                    onStatusChange={async () => {
+                      const enabled = await check2FAStatus();
+                      setIs2FAEnabled(enabled);
+                    }}
+                  />
+                  
+                  {isAdmin && !is2FAEnabled && (
+                    <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800">
+                      <div className="flex items-start gap-2">
+                        <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="text-sm text-amber-800 dark:text-amber-200">
+                          <p className="font-medium">Recomendado para administradores</p>
+                          <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300">Ative a autenticação de dois fatores para maior segurança da sua conta de administrador.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Separator className="bg-stone-200/60 dark:bg-amber-900/30" />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="font-medium text-stone-700 dark:text-stone-300">Alterar Password</Label>
+                      <p className="text-sm text-stone-500">
+                        Atualizar a password da sua conta
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowPasswordDialog(true)} 
+                      className="bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+                    >
+                      <KeyRound className="h-4 w-4 mr-1" />
+                      Alterar
+                    </Button>
+                  </div>
+                  <Separator className="bg-stone-200/60 dark:bg-amber-900/30" />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="font-medium text-stone-700 dark:text-stone-300">Sessões Ativas</Label>
+                      <p className="text-sm text-stone-500">
+                        Gerir dispositivos conectados
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+                    >
+                      Ver
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+            </IDCard>
+          </div>
+        </main>
+      </div>
 
       {/* Change Password Dialog */}
       <ChangePasswordDialog 
