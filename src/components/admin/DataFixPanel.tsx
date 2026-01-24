@@ -224,28 +224,28 @@ export function DataFixPanel() {
         .is("document_url", null)
         .or("no_digital_version.is.null,no_digital_version.eq.false");
 
-      const [datesResult, titlesResult, summariesResult, categoriesResult] = await Promise.all([
-        // Datas: publication_date OR effective_date is null
+      // Fetch all PT legislation with URL to count titles/summaries correctly
+      const [datesResult, ptLegislationResult, allLegislationResult, categoriesResult] = await Promise.all([
+        // Datas: publication_date OR effective_date is null - ONLY with URL (since we need URL to fix them)
         supabase.from("legislation").select("id", { count: "exact", head: true })
+          .not("document_url", "is", null)
           .or("publication_date.is.null,effective_date.is.null"),
-        // Títulos genéricos PT: fetch PT legislation to count locally
-        supabase.from("legislation").select("id, title, number, origin, summary, document_url")
+        // PT legislation with URL for generic title counting
+        supabase.from("legislation").select("id, title, number, summary, document_url")
           .or("origin.eq.PT,origin.eq.dre")
-          .limit(10000),
-        // Sumários: null OR very short (< 20 chars will be counted in JS)
-        supabase.from("legislation").select("id, summary, document_url").limit(10000),
+          .not("document_url", "is", null),
+        // All legislation with URL for short summary counting
+        supabase.from("legislation").select("id, summary")
+          .not("document_url", "is", null),
         // Legislation without categories
         supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
       // Count generic titles for PT legislation using same logic as edge function
       const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
-      // NOTE: Metadados (títulos/sumários) só são corrigíveis quando existe URL
-      const genericTitles = (titlesResult.data || []).filter(leg => {
-        if (!leg.document_url) return false;
+      const genericTitles = (ptLegislationResult.data || []).filter(leg => {
         const title = leg.title?.trim() || "";
         const number = leg.number?.trim() || "";
-        const summary = leg.summary || "";
         
         // Generic if: title equals number
         const titleEqualsNumber = title === number;
@@ -262,8 +262,7 @@ export function DataFixPanel() {
       }).length;
       
       // Count summaries that are null or very short (< 20 chars)
-      const shortSummaries = (summariesResult.data || []).filter(leg => {
-        if (!leg.document_url) return false;
+      const shortSummaries = (allLegislationResult.data || []).filter(leg => {
         const summary = leg.summary || "";
         return !summary || summary.length < 20;
       }).length;
