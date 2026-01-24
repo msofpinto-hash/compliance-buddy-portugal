@@ -131,29 +131,66 @@ async function searchDREUrl(number: string, firecrawlKey: string): Promise<strin
   }
 }
 
+// Check if URL is a PDF or other binary file that can't be scraped
+function isNonScrapableUrl(url: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.endsWith('.pdf') || 
+         lowerUrl.endsWith('.doc') || 
+         lowerUrl.endsWith('.docx') ||
+         lowerUrl.endsWith('.xls') ||
+         lowerUrl.endsWith('.xlsx') ||
+         lowerUrl.includes('/gratuitos/') || // DRE PDF downloads
+         lowerUrl.includes('files.dre.pt');
+}
+
 // Direct HTML scrape fallback (no Firecrawl) - extracts text from HTML
 async function scrapeUrlDirect(url: string): Promise<string | null> {
+  // Skip PDFs and binary files - they can't be parsed as HTML
+  if (isNonScrapableUrl(url)) {
+    console.log('[DirectScrape] Skipping non-HTML URL:', url);
+    return null;
+  }
+
   try {
     console.log('[DirectScrape] Fetching:', url);
     
-    const response = await fetchWithTimeout(url, {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
       },
-    }, 15000);
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       console.log(`[DirectScrape] HTTP ${response.status}`);
       return null;
     }
     
+    // Check content-type to avoid parsing binary files
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('text/xml') && !contentType.includes('application/xhtml')) {
+      console.log(`[DirectScrape] Skipping non-HTML content-type: ${contentType}`);
+      return null;
+    }
+    
     const html = await response.text();
     
+    // Limit HTML size to prevent memory issues (max 500KB)
+    if (html.length > 500000) {
+      console.log(`[DirectScrape] HTML too large (${html.length} chars), truncating`);
+    }
+    const safeHtml = html.slice(0, 500000);
+    
     // Extract text content from HTML - basic but effective for DRE
-    let text = html
+    let text = safeHtml
       // Remove script and style blocks
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -186,6 +223,12 @@ async function scrapeUrlDirect(url: string): Promise<string | null> {
 
 // Scrape URL content using Firecrawl with timeout, fallback to direct fetch
 async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | null> {
+  // Skip PDFs and binary files entirely - Firecrawl also struggles with them
+  if (isNonScrapableUrl(url)) {
+    console.log('[Scrape] Skipping non-scrapable URL (PDF/binary):', url);
+    return null;
+  }
+
   // Try Firecrawl first
   try {
     console.log('Scraping URL via Firecrawl:', url);
