@@ -60,10 +60,9 @@ import { WelcomeHero } from "@/components/client/WelcomeHero";
 import { ModuleCard } from "@/components/client/ModuleCard";
 import { TechWelcomeHero } from "@/components/client/TechWelcomeHero";
 import { TechModuleCard } from "@/components/client/TechModuleCard";
-import { TechGridBackground, TechParticles, HexPattern } from "@/components/client/TechBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ClientGridBackground, ClientParticles, ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
-import { AnimatedParticles } from "@/components/client/AnimatedParticles";
+import { IDBackground, IDHeroSection, IDCard } from "@/components/client/IDBackground";
+import { IDSidebar } from "@/components/client/IDSidebar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -561,169 +560,72 @@ export default function Dashboard() {
     other: alerts?.filter(a => !["new_legislation", "deadline"].includes(a.type || "")) || [],
   };
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-gradient-to-b from-white to-emerald-50/30 dark:from-slate-900 dark:to-emerald-950/20">
-      {/* Logo/Org - Clickable to Dashboard */}
-      <Link 
-        to="/dashboard" 
-        onClick={() => setSidebarOpen(false)}
-        className="p-4 border-b border-emerald-200/60 dark:border-emerald-900/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors cursor-pointer"
-      >
-        {currentOrg?.logo_url ? (
-          <img 
-            src={currentOrg.logo_url} 
-            alt={currentOrg.name} 
-            className="h-12 w-auto object-contain"
-          />
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30">
-              <Scale className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-slate-100 leading-tight">I&D</span>
-              <span className="text-xs text-cyan-400 leading-tight font-mono tracking-wider">COMPLIANCE</span>
-            </div>
-          </div>
-        )}
-      </Link>
-
-      {/* User Info - Tech Style */}
-      <div className="p-4 border-b border-cyan-500/20">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-slate-800 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/10">
-            <span className="text-sm font-bold text-cyan-400 font-mono">
-              {user?.email?.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-100 truncate">
-              {user?.email?.split("@")[0]}
-            </p>
-            <p className="text-xs text-slate-400 truncate font-mono">
-              {currentOrg?.name || ""}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation - Tech Style */}
-      <ScrollArea className="flex-1 py-4">
-        <nav className="px-3 space-y-1">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.href || 
-              (item.id === "dashboard" && location.pathname === "/dashboard");
-            return (
-              <Link
-                key={item.id}
-                to={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-300",
-                  isActive 
-                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-500/10" 
-                    : "text-slate-300 hover:bg-slate-800/60 hover:text-cyan-300 border border-transparent"
-                )}
-              >
-                <item.icon className="h-5 w-5 shrink-0" />
-                <span>{item.label}</span>
-                {item.count !== undefined && item.count > 0 && (
-                  <Badge className={cn(
-                    "ml-auto text-xs font-mono",
-                    isActive 
-                      ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/30" 
-                      : "bg-slate-700/60 text-slate-300 border border-slate-600/50"
-                  )}>
-                    {item.count}
-                  </Badge>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Admin link if admin */}
-        {isAdmin && (
-          <div className="px-3 mt-4 pt-4 border-t border-cyan-500/20">
-            <Link
-              to="/admin"
-              onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-violet-500/15 hover:text-violet-300 border border-transparent hover:border-violet-500/30 transition-all duration-300"
-            >
-              <Settings className="h-5 w-5 shrink-0" />
-              <span>Administração</span>
-            </Link>
-          </div>
-        )}
-      </ScrollArea>
-
-      {/* Footer - Tech Style */}
-      <div className="p-4 border-t border-cyan-500/20 mt-auto space-y-1">
-        <Link
-          to="/settings"
-          onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all duration-200 w-full"
-        >
-          <User className="h-4 w-4" />
-          <span>Definições</span>
-        </Link>
-        <a
-          href="mailto:suporte@legalcompliance.pt"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-all duration-200 w-full"
-        >
-          <HelpCircle className="h-4 w-4" />
-          <span>Ajuda</span>
-        </a>
-        <LogoutConfirmDialog 
-          onConfirm={signOut} 
-          className="w-full justify-start gap-3 text-slate-400 hover:bg-red-500/15 hover:text-red-400 px-3 border border-transparent hover:border-red-500/30" 
-          variant="ghost"
-        />
-      </div>
-    </div>
-  );
+  // SidebarContent removed - using IDSidebar component instead
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden bg-slate-950">
-      {/* Tech Background */}
-      <TechGridBackground />
-      <TechParticles />
-      <HexPattern />
+    <div className="min-h-screen flex relative overflow-hidden">
+      {/* I&D Background */}
+      <IDBackground />
 
-      {/* Desktop Sidebar - Tech Style */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-cyan-500/20 bg-slate-950/95 backdrop-blur-xl">
-        <SidebarContent />
+      {/* Desktop Sidebar - I&D Style */}
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512] shadow-sm">
+        <IDSidebar currentOrg={currentOrg} />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-cyan-500/20 bg-slate-950/98 backdrop-blur-xl">
-          <SidebarContent />
+        <SheetContent side="left" className="w-64 p-0 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512]">
+          <IDSidebar currentOrg={currentOrg} onCloseMobile={() => setSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 lg:pl-64 relative z-10">
-        {/* Top Header - Tech Style */}
-        <header className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-xl border-b border-cyan-500/20">
+        {/* Top Header - I&D Style */}
+        <header className="sticky top-0 z-20 bg-white/95 dark:bg-[#1a1512]/95 backdrop-blur-md border-b border-stone-200/60 dark:border-amber-900/30">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/15 icon-pulse transition-all duration-200 active:scale-90"
+                className="lg:hidden text-stone-700 dark:text-amber-200 hover:text-stone-800 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-amber-900/30"
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm text-cyan-400/80 font-mono">{currentOrg?.name || "Dashboard"}</p>
-                <h1 className="text-xl font-semibold text-slate-100">
-                  {activeTab === "overview" && "Painel de Controlo"}
-                  {activeTab === "actions" && "Planos de Ação"}
-                  {activeTab === "audits" && "Auditorias"}
-                  {activeTab === "documents" && "Documentos"}
-                  {activeTab === "indicators" && "Indicadores"}
+                <p className="text-xs text-amber-700/70 dark:text-amber-300/60 uppercase tracking-wider font-medium">{currentOrg?.name || "Dashboard"}</p>
+                <h1 className="text-lg font-semibold text-stone-800 dark:text-white flex items-center gap-2">
+                  {activeTab === "overview" && (
+                    <>
+                      <LayoutDashboard className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Painel de Controlo
+                    </>
+                  )}
+                  {activeTab === "actions" && (
+                    <>
+                      <ClipboardList className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Planos de Ação
+                    </>
+                  )}
+                  {activeTab === "audits" && (
+                    <>
+                      <ClipboardCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Auditorias
+                    </>
+                  )}
+                  {activeTab === "documents" && (
+                    <>
+                      <FolderOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Evidências
+                    </>
+                  )}
+                  {activeTab === "indicators" && (
+                    <>
+                      <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Indicadores
+                    </>
+                  )}
                 </h1>
               </div>
             </div>
@@ -736,27 +638,27 @@ export default function Dashboard() {
                 />
               )}
               <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-cyan-500/70" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600 dark:text-amber-400" />
                 <Input 
                   placeholder="Pesquisa" 
-                  className="pl-9 w-64 bg-slate-900/60 border-cyan-500/30 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400/30"
+                  className="pl-9 w-64 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-amber-300/40 focus:border-amber-500 focus:ring-amber-500/20"
                 />
               </div>
               <TooltipProvider>
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <Link to="/legislacao-recente">
-                      <Button variant="ghost" size="icon" className="relative text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/15 icon-pulse transition-all duration-200 hover:scale-110 active:scale-95">
+                      <Button variant="ghost" size="icon" className="relative text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
                         <FileText className="h-5 w-5" />
                         {unreadLegislationCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-cyan-500 text-slate-950 text-xs font-bold flex items-center justify-center shadow-lg shadow-cyan-500/50 animate-pulse-ring">
+                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-emerald-600 dark:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center shadow-md">
                             {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
                           </span>
                         )}
                       </Button>
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-slate-900 border-cyan-500/30 text-cyan-100">
+                  <TooltipContent className="bg-stone-900 text-stone-100">
                     <p>{unreadLegislationCount > 0 ? `${unreadLegislationCount} diplomas por ler` : "Legislação recente"}</p>
                   </TooltipContent>
                 </UITooltip>
@@ -767,7 +669,7 @@ export default function Dashboard() {
         </header>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-8 space-y-8">
+        <main className="p-4 lg:p-8 space-y-5">
           {/* Overview Tab Content */}
           {activeTab === "overview" && (
             <>
@@ -780,13 +682,13 @@ export default function Dashboard() {
                 pendingActions={actionPlanStats.pending + actionPlanStats.inProgress}
               />
 
-              {/* Modules Grid - Tech Style */}
+              {/* Modules Grid - I&D Style */}
               <div>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30">
+                  <div className="p-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-500 dark:to-emerald-600 shadow-md">
                     <Sparkles className="h-5 w-5 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-100">Acesso Rápido</h2>
+                  <h2 className="text-2xl font-bold text-stone-800 dark:text-white">Acesso Rápido</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                   <TechModuleCard
@@ -834,22 +736,22 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Recent Legislation - Tech Style */}
-              <div className="rounded-xl border border-cyan-500/20 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-[0_0_30px_hsl(190_100%_50%/0.1)]">
-                <div className="p-5 border-b border-cyan-500/20 bg-slate-900/40">
+              {/* Recent Legislation - I&D Style */}
+              <IDCard className="overflow-hidden">
+                <div className="p-5 border-b border-stone-200/60 dark:border-amber-900/30">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30">
+                      <div className="p-2.5 rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-500 dark:to-emerald-600 shadow-md">
                         <FileText className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-slate-100">Legislação Recente</h3>
-                        <p className="text-sm text-slate-400">Últimos diplomas publicados</p>
+                        <h3 className="text-lg font-semibold text-stone-800 dark:text-white">Legislação Recente</h3>
+                        <p className="text-sm text-stone-500 dark:text-amber-200/60">Últimos diplomas publicados</p>
                       </div>
                     </div>
                     <Link 
                       to="/legislacao-recente" 
-                      className="group flex items-center gap-1 px-4 py-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-sm font-medium hover:bg-cyan-500/20 hover:border-cyan-400/50 transition-all duration-300 active:scale-95"
+                      className="group flex items-center gap-1 px-4 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all duration-300"
                     >
                       Ver todos <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                     </Link>
@@ -859,41 +761,41 @@ export default function Dashboard() {
                   {loadingLegislation ? (
                     <div className="grid md:grid-cols-4 gap-4">
                       {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-44 w-full rounded-xl bg-slate-800" />
+                        <Skeleton key={i} className="h-44 w-full rounded-xl" />
                       ))}
                     </div>
                   ) : recentLegislation && recentLegislation.length > 0 ? (
                     <div className="grid md:grid-cols-4 gap-4">
                       {recentLegislation.slice(0, 4).map((leg, index) => {
                         const colors = [
-                          { border: "border-cyan-500/30", glow: "shadow-cyan-500/20", accent: "bg-cyan-500" },
-                          { border: "border-violet-500/30", glow: "shadow-violet-500/20", accent: "bg-violet-500" },
-                          { border: "border-amber-500/30", glow: "shadow-amber-500/20", accent: "bg-amber-500" },
-                          { border: "border-rose-500/30", glow: "shadow-rose-500/20", accent: "bg-rose-500" },
+                          { border: "border-emerald-200 dark:border-emerald-800/60", bg: "bg-emerald-50/50 dark:bg-emerald-900/20", accent: "bg-emerald-600", text: "text-emerald-700 dark:text-emerald-300" },
+                          { border: "border-amber-200 dark:border-amber-800/60", bg: "bg-amber-50/50 dark:bg-amber-900/20", accent: "bg-amber-600", text: "text-amber-700 dark:text-amber-300" },
+                          { border: "border-sky-200 dark:border-sky-800/60", bg: "bg-sky-50/50 dark:bg-sky-900/20", accent: "bg-sky-600", text: "text-sky-700 dark:text-sky-300" },
+                          { border: "border-rose-200 dark:border-rose-800/60", bg: "bg-rose-50/50 dark:bg-rose-900/20", accent: "bg-rose-600", text: "text-rose-700 dark:text-rose-300" },
                         ];
                         const color = colors[index % colors.length];
                         return (
                           <Link
                             key={leg.id}
                             to={`/legislacao/${leg.id}`}
-                            className={`group relative rounded-xl border ${color.border} bg-slate-800/60 backdrop-blur-sm overflow-hidden hover:shadow-lg ${color.glow} transition-all duration-300 transform hover:-translate-y-2 active:translate-y-0`}
+                            className={`group relative rounded-xl border ${color.border} ${color.bg} overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1`}
                           >
                             {/* Colored top accent */}
                             <div className={`h-1 ${color.accent}`} />
                             
                             <div className="p-4">
                               <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs text-slate-400 font-mono bg-slate-700/60 px-2 py-1 rounded">
+                                <span className="text-xs text-stone-500 dark:text-amber-200/60 bg-stone-100 dark:bg-stone-800/60 px-2 py-1 rounded">
                                   {leg.publication_date ? format(new Date(leg.publication_date), "d MMM yyyy", { locale: pt }) : ""}
                                 </span>
                                 <div className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${color.accent}`}>
                                   <ExternalLink className="h-3 w-3 text-white" />
                                 </div>
                               </div>
-                              <p className="text-sm font-bold text-slate-100 line-clamp-2 group-hover:text-cyan-300 transition-colors">
+                              <p className={`text-sm font-bold text-stone-800 dark:text-white line-clamp-2 group-hover:${color.text} transition-colors`}>
                                 {leg.number}
                               </p>
-                              <p className="text-xs text-slate-400 line-clamp-2 mt-2">
+                              <p className="text-xs text-stone-500 dark:text-amber-200/60 line-clamp-2 mt-2">
                                 {leg.title}
                               </p>
                             </div>
@@ -903,14 +805,14 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="text-center py-12">
-                      <div className="p-4 rounded-lg bg-slate-800/60 inline-block mb-3">
-                        <FileText className="h-10 w-10 text-slate-500" />
+                      <div className="p-4 rounded-lg bg-stone-100 dark:bg-stone-800/60 inline-block mb-3">
+                        <FileText className="h-10 w-10 text-stone-400 dark:text-stone-500" />
                       </div>
-                      <p className="text-slate-400">Nenhuma legislação disponível</p>
+                      <p className="text-stone-500 dark:text-amber-200/60">Nenhuma legislação disponível</p>
                     </div>
                   )}
                 </div>
-              </div>
+              </IDCard>
 
               {/* Charts and Stats Row - 3 columns */}
               <div className="grid gap-6 lg:grid-cols-3">
