@@ -30,7 +30,7 @@ function sendSSE(controller: ReadableStreamDefaultController<Uint8Array>, event:
 }
 
 // Extract type and number for DRE URL construction
-function extractLegislationParts(number: string): { type: string; num: string; year: string } | null {
+function extractLegislationParts(number: string): { type: string; num: string; year: string; suffix?: string } | null {
   const cleanNumber = number.trim();
   
   // Month names for date parsing (Portuguese)
@@ -58,6 +58,15 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     return year;
   };
   
+  // Helper to extract suffix (e.g., -A, -B, /A, /B from numbers like "165-A" or "165/A")
+  const extractSuffix = (numStr: string): { baseNum: string; suffix?: string } => {
+    const suffixMatch = numStr.match(/^(\d+)[-\/]([A-Za-z]+)$/);
+    if (suffixMatch) {
+      return { baseNum: suffixMatch[1], suffix: suffixMatch[2].toUpperCase() };
+    }
+    return { baseNum: numStr };
+  };
+  
   // Type mappings
   const typeMap: Record<string, string> = {
     'decreto-lei': 'decreto-lei',
@@ -65,6 +74,8 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     'lei constitucional': 'lei-constitucional',
     'lei': 'lei',
     'despacho': 'despacho',
+    'despacho conjunto': 'despacho-conjunto',
+    'despacho normativo': 'despacho-normativo',
     'resolução do conselho de ministros': 'resolucao-do-conselho-de-ministros',
     'rcm': 'resolucao-do-conselho-de-ministros',
     'resolução da assembleia da república': 'resolucao-da-assembleia-da-republica',
@@ -79,14 +90,40 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     'decreto do presidente da república': 'decreto-do-presidente-da-republica',
     'decreto legislativo regional': 'decreto-legislativo-regional',
     'decreto regulamentar': 'decreto-regulamentar',
+    'decreto regulamentar regional': 'decreto-regulamentar-regional',
     'decreto': 'decreto',
   };
   
+  // PATTERN 0: Despachos with suffixes (e.g., "Despacho n.º 4089-A/2025", "Despacho Conjunto n.º 123-B/2020")
+  // Priority because suffixes are commonly missed
+  const despachoSuffixPatterns = [
+    /^(Despacho\s+Conjunto)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Despacho\s+Normativo)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Despacho)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Portaria)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Decreto-Lei)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Lei)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Aviso|Av)\s+n?\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Resolução)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+    /^(Declaração\s+de\s+Reti[fc]icação)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+  ];
+  
+  for (const regex of despachoSuffixPatterns) {
+    const match = cleanNumber.match(regex);
+    if (match) {
+      const typeName = match[1].toLowerCase().replace(/\s+/g, ' ').trim();
+      const type = typeMap[typeName] || typeName.replace(/\s+/g, '-');
+      const suffix = match[3].toUpperCase();
+      return { type, num: match[2], suffix, year: normalizeYear(match[4]) };
+    }
+  }
+  
   // PATTERN 1: NUMBER/YEAR/SERIES format (e.g., "Aviso n.º 5324/2025/2" or "Aviso n.º 1046/2026/2 de 20 de janeiro")
-  // This is priority because it's a common format - handles optional date suffix
   const seriesPatterns = [
     /^(Aviso|Av)\s+n?\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
+    /^(Despacho\s+Conjunto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
+    /^(Despacho\s+Normativo)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
@@ -94,6 +131,9 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     /^(Deliberação)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Regulamento)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Resolução)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
+    /^(Decreto\s+Regulamentar\s+Regional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
+    /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
+    /^(Decreto\s+Legislativo\s+Regional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
     /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{4})[\/\-]\d+/i,
   ];
   
@@ -102,16 +142,19 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     if (match) {
       const typeName = match[1].toLowerCase().replace(/\s+/g, ' ').trim();
       const type = typeMap[typeName] || typeName.replace(/\s+/g, '-');
-      return { type, num: match[2], year: normalizeYear(match[3]) };
+      const { baseNum, suffix } = extractSuffix(match[2]);
+      return { type, num: baseNum, suffix, year: normalizeYear(match[3]) };
     }
   }
   
-  // PATTERN 2: Standard NUMBER/YEAR format (e.g., "Decreto-Lei n.º 97/2008")
+  // PATTERN 2: Standard NUMBER/YEAR format (e.g., "Decreto-Lei n.º 97/2008", "Decreto n.º 15/2020")
   const slashPatterns = [
     { regex: /^(Decreto-Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'decreto-lei' },
     { regex: /^(Portaria)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'portaria' },
     { regex: /^(Lei\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'lei-constitucional' },
     { regex: /^(Lei)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'lei' },
+    { regex: /^(Despacho\s+Conjunto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'despacho-conjunto' },
+    { regex: /^(Despacho\s+Normativo)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'despacho-normativo' },
     { regex: /^(Despacho)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'despacho' },
     { regex: /^(Resolução\s+do\s+Conselho\s+de\s+Ministros)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'resolucao-do-conselho-de-ministros' },
     { regex: /^(RCM)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'resolucao-do-conselho-de-ministros' },
@@ -124,6 +167,7 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     { regex: /^(Acórdão\s+do\s+Tribunal\s+Constitucional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'acordao-do-tribunal-constitucional' },
     { regex: /^(Decreto\s+do\s+Presidente\s+da\s+República)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'decreto-do-presidente-da-republica' },
     { regex: /^(Decreto\s+Legislativo\s+Regional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?:\/[A-Z])?(?!\/)(?:\s|$|,)/i, type: 'decreto-legislativo-regional' },
+    { regex: /^(Decreto\s+Regulamentar\s+Regional)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?:\/[A-Z])?(?!\/)(?:\s|$|,)/i, type: 'decreto-regulamentar-regional' },
     { regex: /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'decreto-regulamentar' },
     { regex: /^(Decreto)\s+n\.?º?\s*(\d+[-A-Za-z]*)[\/\-](\d{2,4})(?!\/)(?:\s|$|,)/i, type: 'decreto' },
   ];
@@ -131,7 +175,8 @@ function extractLegislationParts(number: string): { type: string; num: string; y
   for (const { regex, type } of slashPatterns) {
     const match = cleanNumber.match(regex);
     if (match) {
-      return { type, num: match[2], year: normalizeYear(match[3]) };
+      const { baseNum, suffix } = extractSuffix(match[2]);
+      return { type, num: baseNum, suffix, year: normalizeYear(match[3]) };
     }
   }
   
@@ -142,7 +187,8 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     const typeName = fullDateMatch[1].toLowerCase().replace(/\s+/g, ' ').trim();
     const type = typeMap[typeName];
     if (type) {
-      return { type, num: fullDateMatch[2], year: fullDateMatch[3] };
+      const { baseNum, suffix } = extractSuffix(fullDateMatch[2]);
+      return { type, num: baseNum, suffix, year: fullDateMatch[3] };
     }
   }
   
@@ -154,7 +200,8 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     const typeName = partialDateMatch[1].toLowerCase().replace(/\s+/g, ' ').trim();
     const type = typeMap[typeName];
     if (type) {
-      return { type, num: partialDateMatch[2], year: partialDateMatch[3] };
+      const { baseNum, suffix } = extractSuffix(partialDateMatch[2]);
+      return { type, num: baseNum, suffix, year: partialDateMatch[3] };
     }
   }
   
@@ -180,29 +227,38 @@ function extractLegislationParts(number: string): { type: string; num: string; y
         break;
       }
     }
-    return { type, num: fallbackMatch[1], year: normalizeYear(fallbackMatch[2]) };
+    const { baseNum, suffix } = extractSuffix(fallbackMatch[1]);
+    return { type, num: baseNum, suffix, year: normalizeYear(fallbackMatch[2]) };
   }
   
   return null;
 }
 
-// Build simpler search queries for better results
-function buildSearchQueries(number: string, parts: { type: string; num: string; year: string } | null): string[] {
+// Build simpler search queries for better results - now with suffix support
+function buildSearchQueries(number: string, parts: { type: string; num: string; year: string; suffix?: string } | null): string[] {
   const queries: string[] = [];
   
   if (parts) {
-    // Strategy 1: Simple type + number/year (most effective)
     const simpleType = parts.type.replace(/-/g, ' ');
-    queries.push(`${simpleType} ${parts.num}/${parts.year} site:dre.pt`);
+    const numWithSuffix = parts.suffix ? `${parts.num}-${parts.suffix}` : parts.num;
     
-    // Strategy 2: Use "decreto lei" format without hyphens
+    // Strategy 1: Full reference with suffix (most effective for suffixed legislation)
+    queries.push(`${simpleType} ${numWithSuffix}/${parts.year} site:dre.pt`);
+    
+    // Strategy 2: Quoted full reference with suffix
+    queries.push(`"${simpleType} n.º ${numWithSuffix}/${parts.year}" site:dre.pt`);
+    
+    // Strategy 3: Alternative suffix format (e.g., /A instead of -A)
+    if (parts.suffix) {
+      const altNumWithSuffix = `${parts.num}/${parts.suffix}`;
+      queries.push(`${simpleType} ${altNumWithSuffix}/${parts.year} site:dre.pt`);
+    }
+    
+    // Strategy 4: Without suffix as fallback (sometimes works for base number)
     queries.push(`${simpleType} ${parts.num} ${parts.year} diariodarepublica.pt`);
     
-    // Strategy 3: Quoted full reference
-    queries.push(`"${simpleType} n.º ${parts.num}/${parts.year}" site:dre.pt`);
-    
-    // Strategy 4: Just the core reference on DRE
-    queries.push(`${parts.num}/${parts.year} ${simpleType} site:diariodarepublica.pt`);
+    // Strategy 5: Just the core reference on DRE
+    queries.push(`${numWithSuffix}/${parts.year} ${simpleType} site:diariodarepublica.pt`);
   }
   
   // Fallback: use cleaned number
@@ -217,13 +273,12 @@ function buildSearchQueries(number: string, parts: { type: string; num: string; 
   return queries;
 }
 
-// Validate that URL matches the legislation we're looking for
-function validateUrlMatch(url: string, parts: { type: string; num: string; year: string } | null): boolean {
+// Validate that URL matches the legislation we're looking for - with suffix support
+function validateUrlMatch(url: string, parts: { type: string; num: string; year: string; suffix?: string } | null): boolean {
   if (!url.includes('/dr/detalhe/') && !url.includes('dre.pt/')) {
     return false;
   }
   
-  // Extract the last part of the URL to check the type
   const urlLower = url.toLowerCase();
   
   if (parts) {
@@ -231,11 +286,16 @@ function validateUrlMatch(url: string, parts: { type: string; num: string; year:
     const typeInUrl = urlLower.includes(parts.type.toLowerCase()) ||
                       urlLower.includes(parts.type.replace(/-/g, ''));
     
-    // Check if the number appears in the URL  
+    // Check if the number appears in the URL (with or without suffix)
     const numInUrl = urlLower.includes(parts.num.toLowerCase());
     
-    // If both type and number are in URL, it's likely a good match
-    if (typeInUrl && numInUrl) {
+    // Check if suffix appears when expected
+    const suffixOk = !parts.suffix || 
+                     urlLower.includes(parts.suffix.toLowerCase()) ||
+                     urlLower.includes(`-${parts.suffix.toLowerCase()}`);
+    
+    // If type, number and suffix are in URL, it's a good match
+    if (typeInUrl && numInUrl && suffixOk) {
       return true;
     }
     
