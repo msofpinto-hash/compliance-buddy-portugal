@@ -224,48 +224,22 @@ export function DataFixPanel() {
         .is("document_url", null)
         .or("no_digital_version.is.null,no_digital_version.eq.false");
 
-      // Fetch all PT legislation with URL to count titles/summaries correctly
-      const [datesResult, ptLegislationResult, allLegislationResult, categoriesResult] = await Promise.all([
+      // Use RPC functions for accurate counting (avoids 1000 row limit)
+      const [datesResult, genericTitlesResult, shortSummariesResult, categoriesResult] = await Promise.all([
         // Datas: publication_date OR effective_date is null - ONLY with URL (since we need URL to fix them)
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .not("document_url", "is", null)
           .or("publication_date.is.null,effective_date.is.null"),
-        // PT legislation with URL for generic title counting
-        supabase.from("legislation").select("id, title, number, summary, document_url")
-          .or("origin.eq.PT,origin.eq.dre")
-          .not("document_url", "is", null),
-        // All legislation with URL for short summary counting
-        supabase.from("legislation").select("id, summary")
-          .not("document_url", "is", null),
+        // Generic titles count via RPC (accurate, no row limit)
+        supabase.rpc("count_generic_titles"),
+        // Short summaries count via RPC (accurate, no row limit)
+        supabase.rpc("count_short_summaries"),
         // Legislation without categories
         supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
-      // Count generic titles for PT legislation using same logic as edge function
-      const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
-      const genericTitles = (ptLegislationResult.data || []).filter(leg => {
-        const title = leg.title?.trim() || "";
-        const number = leg.number?.trim() || "";
-        
-        // Generic if: title equals number
-        const titleEqualsNumber = title === number;
-        // Generic if: starts with legislation type but is short and has no description
-        const hasGenericPattern = genericPattern.test(title) && 
-          title.length < 80 && 
-          !title.includes(' - ');
-        // Old patterns
-        const hasOldGenericTitle = title.toLowerCase().includes('diploma referenciado') ||
-          title.toLowerCase().includes('documento ') ||
-          title.length < 10;
-        
-        return titleEqualsNumber || hasGenericPattern || hasOldGenericTitle;
-      }).length;
-      
-      // Count summaries that are null or very short (< 20 chars)
-      const shortSummaries = (allLegislationResult.data || []).filter(leg => {
-        const summary = leg.summary || "";
-        return !summary || summary.length < 20;
-      }).length;
+      const genericTitles = (genericTitlesResult.data as number) || 0;
+      const shortSummaries = (shortSummariesResult.data as number) || 0;
 
       const [totalLegResult, processedRelationsResult, reqLegResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true }),

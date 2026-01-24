@@ -1560,6 +1560,8 @@ export type Database = {
         }
         Returns: Json
       }
+      count_generic_titles: { Args: never; Returns: number }
+      count_short_summaries: { Args: never; Returns: number }
       get_legislation_without_categories_count: { Args: never; Returns: number }
       get_user_modules: {
         Args: { _org_id: string; _user_id: string }
