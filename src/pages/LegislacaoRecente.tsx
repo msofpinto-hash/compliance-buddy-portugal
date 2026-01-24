@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -17,7 +15,6 @@ import {
   ChevronDown,
   ChevronUp,
   CheckSquare,
-  Square,
   Maximize2,
   Search,
   ArrowUpDown,
@@ -34,7 +31,6 @@ import {
   Globe,
   Flag,
   TrendingUp,
-  Clock,
   BookOpen,
   Sparkles,
   LayoutGrid,
@@ -47,6 +43,7 @@ import { format, subDays } from "date-fns";
 import { pt } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { IDBackground, IDCard } from "@/components/client/IDBackground";
 
 export default function LegislacaoRecente() {
   const { user } = useAuth();
@@ -343,199 +340,208 @@ export default function LegislacaoRecente() {
   const readProgress = stats?.total ? Math.round(((readCount || 0) / stats.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background dark:from-slate-950 dark:to-slate-900">
-      {/* Header */}
-      <header className="border-b border-border dark:border-slate-800 bg-card/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto flex items-center gap-4 px-4 py-4">
-          <Link to="/dashboard">
-            <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted dark:hover:bg-slate-800">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold flex items-center gap-2 text-foreground">
-              <BookOpen className="h-5 w-5 text-primary" />
-              Biblioteca de Legislação
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {totalCount || 0} diplomas disponíveis
-            </p>
+    <div className="min-h-screen relative">
+      {/* I&D Background */}
+      <IDBackground />
+      
+      <div className="relative z-10">
+        {/* Header - I&D Style */}
+        <header className="border-b border-stone-200/60 dark:border-amber-900/30 bg-white/95 dark:bg-[#181410]/95 backdrop-blur-sm sticky top-0 z-20">
+          <div className="container mx-auto flex items-center gap-4 px-4 py-4">
+            <Link to="/dashboard">
+              <Button variant="ghost" size="icon" className="text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-amber-900/30">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="flex-1">
+              <h1 className="text-xl font-semibold flex items-center gap-2 text-stone-800 dark:text-white">
+                <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-500" />
+                Biblioteca de Legislação
+              </h1>
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                {totalCount || 0} diplomas disponíveis
+              </p>
+            </div>
+            <div className="relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              <Input 
+                placeholder="Pesquisar diplomas..." 
+                className="pl-9 w-72 bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40 focus:border-emerald-500 focus:ring-emerald-500/20"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Pesquisar diplomas..." 
-              className="pl-9 w-72 bg-background dark:bg-slate-800 border-border dark:border-slate-700"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Stats Cards */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 border-primary/20 dark:border-primary/30">
-            <CardContent className="p-4">
+        {/* Stats Cards - I&D Style */}
+        <div className="container mx-auto px-4 py-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            {/* Total Diplomas */}
+            <IDCard className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/20 dark:bg-primary/30">
-                  <FileText className="h-5 w-5 text-primary" />
+                <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                  <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.total || 0}</p>
-                  <p className="text-xs text-muted-foreground">Total Diplomas</p>
+                  <p className="text-2xl font-bold text-stone-800 dark:text-white">{stats?.total || 0}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">Total Diplomas</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/10 border-blue-500/20 dark:border-blue-500/30">
-            <CardContent className="p-4">
+            </IDCard>
+            
+            {/* Portugal */}
+            <IDCard className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/20 dark:bg-blue-500/30">
-                  <Flag className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                  <Flag className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.pt || 0}</p>
-                  <p className="text-xs text-muted-foreground">Portugal (DRE)</p>
+                  <p className="text-2xl font-bold text-stone-800 dark:text-white">{stats?.pt || 0}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">Portugal (DRE)</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 dark:from-indigo-500/20 dark:to-indigo-500/10 border-indigo-500/20 dark:border-indigo-500/30">
-            <CardContent className="p-4">
+            </IDCard>
+            
+            {/* Europa */}
+            <IDCard className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-indigo-500/20 dark:bg-indigo-500/30">
-                  <Globe className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <div className="p-2 rounded-lg bg-sky-100 dark:bg-sky-900/40">
+                  <Globe className="h-5 w-5 text-sky-600 dark:text-sky-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.eu || 0}</p>
-                  <p className="text-xs text-muted-foreground">Europa (EUR-Lex)</p>
+                  <p className="text-2xl font-bold text-stone-800 dark:text-white">{stats?.eu || 0}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">Europa (EUR-Lex)</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 dark:from-emerald-500/20 dark:to-emerald-500/10 border-emerald-500/20 dark:border-emerald-500/30">
-            <CardContent className="p-4">
+            </IDCard>
+            
+            {/* Last 30 Days */}
+            <IDCard className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-500/20 dark:bg-emerald-500/30">
-                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/40">
+                  <TrendingUp className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stats?.last30Days || 0}</p>
-                  <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
+                  <p className="text-2xl font-bold text-stone-800 dark:text-white">{stats?.last30Days || 0}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">Últimos 30 dias</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/10 border-amber-500/20 dark:border-amber-500/30 col-span-2 md:col-span-1">
-            <CardContent className="p-4">
+            </IDCard>
+            
+            {/* Read Progress */}
+            <IDCard className="p-4 col-span-2 md:col-span-1">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  <span className="text-xs text-muted-foreground">Lidos</span>
+                  <Eye className="h-4 w-4 text-stone-500" />
+                  <span className="text-xs text-stone-500">Lidos</span>
                 </div>
-                <span className="text-sm font-bold text-foreground">{readProgress}%</span>
+                <span className="text-sm font-bold text-stone-800 dark:text-white">{readProgress}%</span>
               </div>
-              <Progress value={readProgress} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">
+              <Progress value={readProgress} className="h-2 bg-stone-200 dark:bg-stone-700" />
+              <p className="text-xs text-stone-500 mt-1">
                 {readCount || 0} de {stats?.total || 0}
               </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Filters */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <Tabs value={originFilter} onValueChange={(v) => { setOriginFilter(v as any); setCurrentPage(1); }}>
-            <TabsList>
-              <TabsTrigger value="all" className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Todos
-              </TabsTrigger>
-              <TabsTrigger value="PT" className="gap-2">
-                🇵🇹 Portugal
-              </TabsTrigger>
-              <TabsTrigger value="EU" className="gap-2">
-                🇪🇺 Europa
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          <div className="flex-1" />
-          
-          <Select value={readFilter} onValueChange={(value: "all" | "read" | "unread") => setReadFilter(value)}>
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="read">
-                <span className="flex items-center gap-2">
-                  <Eye className="h-3 w-3" /> Lidos
-                </span>
-              </SelectItem>
-              <SelectItem value="unread">
-                <span className="flex items-center gap-2">
-                  <EyeOff className="h-3 w-3" /> Não lidos
-                </span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button 
-            variant={showFilters ? "default" : "outline"} 
-            size="sm" 
-            onClick={() => setShowFilters(!showFilters)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filtros
-            {activeFiltersCount > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full">
-                {activeFiltersCount}
-              </Badge>
-            )}
-          </Button>
-          
-          <div className="flex items-center border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              className="rounded-none"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="sm"
-              className="rounded-none"
-              onClick={() => setViewMode("grid")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
+            </IDCard>
           </div>
-        </div>
-        
-        {/* Advanced Filters Panel */}
-        {showFilters && (
-          <Card className="mb-4">
-            <CardContent className="p-4">
+
+          {/* Quick Filters - I&D Style */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <Tabs value={originFilter} onValueChange={(v) => { setOriginFilter(v as any); setCurrentPage(1); }}>
+              <TabsList className="bg-stone-100/80 dark:bg-stone-800/50 border border-stone-200/60 dark:border-amber-900/30">
+                <TabsTrigger value="all" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-stone-700 data-[state=active]:text-stone-800 dark:data-[state=active]:text-white">
+                  <Sparkles className="h-4 w-4" />
+                  Todos
+                </TabsTrigger>
+                <TabsTrigger value="PT" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-stone-700">
+                  <span className="text-sm">PT</span> Portugal
+                </TabsTrigger>
+                <TabsTrigger value="EU" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-stone-700">
+                  <span className="text-sm">EU</span> Europa
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
+            <div className="flex-1" />
+            
+            <Select value={readFilter} onValueChange={(value: "all" | "read" | "unread") => setReadFilter(value)}>
+              <SelectTrigger className="w-[130px] bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="read">
+                  <span className="flex items-center gap-2">
+                    <Eye className="h-3 w-3" /> Lidos
+                  </span>
+                </SelectItem>
+                <SelectItem value="unread">
+                  <span className="flex items-center gap-2">
+                    <EyeOff className="h-3 w-3" /> Não lidos
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button 
+              variant={showFilters ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "gap-2",
+                showFilters 
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                  : "bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+              )}
+            >
+              <Filter className="h-4 w-4" />
+              Filtros
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-emerald-500 text-white">
+                  {activeFiltersCount}
+                </Badge>
+              )}
+            </Button>
+            
+            <div className="flex items-center border border-stone-200 dark:border-amber-900/40 rounded-lg overflow-hidden bg-white dark:bg-stone-900/50">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "rounded-none",
+                  viewMode === "list" && "bg-stone-100 dark:bg-stone-700"
+                )}
+                onClick={() => setViewMode("list")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "rounded-none",
+                  viewMode === "grid" && "bg-stone-100 dark:bg-stone-700"
+                )}
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Advanced Filters Panel */}
+          {showFilters && (
+            <IDCard className="mb-4 p-4">
               <div className="flex flex-wrap gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Data de</label>
+                  <label className="text-sm font-medium text-stone-700 dark:text-stone-300">Data de</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-[140px] justify-start text-left font-normal",
-                          !dateFrom && "text-muted-foreground"
+                          "w-[140px] justify-start text-left font-normal bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40",
+                          !dateFrom && "text-stone-400"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -555,14 +561,14 @@ export default function LegislacaoRecente() {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Data até</label>
+                  <label className="text-sm font-medium text-stone-700 dark:text-stone-300">Data até</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-[140px] justify-start text-left font-normal",
-                          !dateTo && "text-muted-foreground"
+                          "w-[140px] justify-start text-left font-normal bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40",
+                          !dateTo && "text-stone-400"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -588,216 +594,309 @@ export default function LegislacaoRecente() {
                     variant="ghost" 
                     size="sm" 
                     onClick={clearAllFilters}
-                    className="gap-2 text-muted-foreground self-end"
+                    className="gap-2 text-stone-500 self-end hover:text-stone-700"
                   >
                     <X className="h-4 w-4" />
                     Limpar filtros
                   </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </IDCard>
+          )}
 
-        {/* Mobile Search */}
-        <div className="md:hidden mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Pesquisar..." 
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          {/* Mobile Search */}
+          <div className="md:hidden mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              <Input 
+                placeholder="Pesquisar..." 
+                className="pl-9 bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Bulk Actions */}
-        <div className="flex items-center gap-2 mb-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={markAllRead}
-            disabled={markAllAsReadMutation.isPending}
-            className="gap-2"
-          >
-            <CheckSquare className="h-4 w-4" />
-            Marcar página como lida
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={expandAll}
-            className="gap-2"
-          >
-            <Maximize2 className="h-4 w-4" />
-            {expandedItems.size === (legislation?.length || 0) ? "Recolher" : "Expandir"}
-          </Button>
-          
-          <div className="flex-1" />
-          
-          <p className="text-sm text-muted-foreground">
-            Página {currentPage} de {totalPages || 1}
-          </p>
-        </div>
-
-        {/* Content */}
-        {isLoading ? (
-          <div className={cn(
-            "gap-4",
-            viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "space-y-3"
-          )}>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className={viewMode === "grid" ? "h-48" : "h-24"} />
-            ))}
+          {/* Bulk Actions */}
+          <div className="flex items-center gap-2 mb-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={markAllRead}
+              disabled={markAllAsReadMutation.isPending}
+              className="gap-2 bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40 text-stone-700 dark:text-stone-300 hover:bg-stone-50"
+            >
+              <CheckSquare className="h-4 w-4" />
+              Marcar página como lida
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={expandAll}
+              className="gap-2 text-stone-600 dark:text-stone-400 hover:text-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800"
+            >
+              <Maximize2 className="h-4 w-4" />
+              {expandedItems.size === (legislation?.length || 0) ? "Recolher" : "Expandir"}
+            </Button>
+            
+            <div className="flex-1" />
+            
+            <p className="text-sm text-stone-500">
+              Página {currentPage} de {totalPages || 1}
+            </p>
           </div>
-        ) : viewMode === "grid" ? (
-          /* Grid View */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredLegislation?.map((leg) => {
-              const isRead = readItems.has(leg.id);
-              const isRevoked = !!leg.revocation_date;
-              return (
-                <Card
-                  key={leg.id}
-                  className={cn(
-                    "group hover:shadow-lg transition-all duration-300 overflow-hidden",
-                    isRevoked ? "opacity-75 bg-muted/50" : "",
-                    isRead && !isRevoked ? "bg-muted/30 border-muted" : "bg-card"
-                  )}
-                >
-                  <div className={cn(
-                    "h-2",
-                    leg.source === "dre" ? "bg-gradient-to-r from-green-500 to-green-600" : "bg-gradient-to-r from-blue-500 to-indigo-600"
-                  )} />
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge variant={leg.source === "dre" ? "default" : "secondary"} className="shrink-0">
-                          {leg.source === "dre" ? "🇵🇹 PT" : "🇪🇺 EU"}
-                        </Badge>
-                        {isRevoked && (
-                          <Badge variant="outline" className="shrink-0 bg-destructive/10 text-destructive border-destructive/30">
-                            Revogado
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {leg.document_url && (
-                          <a
-                            href={leg.document_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                          >
-                            <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => toggleRead(leg.id)}
-                          className={cn(
-                            "p-1.5 rounded-lg transition-colors",
-                            isRead ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted"
-                          )}
-                        >
-                          {isRead ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <Link to={`/legislacao/${leg.id}`} className={cn("block group-hover:text-primary transition-colors", isRevoked && "text-muted-foreground")}>
-                      <h3 className={cn("font-semibold text-sm mb-1 line-clamp-1", isRevoked && "line-through decoration-destructive/50")}>{leg.number}</h3>
-                    </Link>
-                    
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {leg.publication_date 
-                        ? format(new Date(leg.publication_date), "d 'de' MMMM 'de' yyyy", { locale: pt })
-                        : "Data não disponível"
-                      }
-                    </p>
-                    
-                    <p className={cn("text-sm text-muted-foreground line-clamp-3", isRevoked && "line-through decoration-destructive/50")}>
-                      {leg.title}
-                      {leg.summary && ` - ${leg.summary}`}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          /* List View */
-          <Card>
-            <div className="divide-y">
-              {/* Table Header */}
-              <div className="hidden md:grid md:grid-cols-[100px_1fr_2fr_80px] bg-muted/50 text-sm font-medium text-muted-foreground">
-                <button 
-                  onClick={() => handleSort("date")}
-                  className="px-4 py-3 text-left flex items-center gap-1 hover:text-foreground"
-                >
-                  Data <ArrowUpDown className="h-3 w-3" />
-                </button>
-                <button 
-                  onClick={() => handleSort("title")}
-                  className="px-4 py-3 text-left flex items-center gap-1 hover:text-foreground"
-                >
-                  Diploma <ArrowUpDown className="h-3 w-3" />
-                </button>
-                <div className="px-4 py-3">Sumário</div>
-                <div className="px-4 py-3 text-center">Ações</div>
-              </div>
 
-              {/* Table Body */}
+          {/* Content */}
+          {isLoading ? (
+            <div className={cn(
+              "gap-4",
+              viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "space-y-3"
+            )}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className={cn(viewMode === "grid" ? "h-48" : "h-24", "bg-stone-200/50 dark:bg-stone-700/30")} />
+              ))}
+            </div>
+          ) : viewMode === "grid" ? (
+            /* Grid View */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredLegislation?.map((leg) => {
-                const isExpanded = expandedItems.has(leg.id);
                 const isRead = readItems.has(leg.id);
                 const isRevoked = !!leg.revocation_date;
-                
                 return (
-                  <div 
-                    key={leg.id} 
+                  <IDCard
+                    key={leg.id}
                     className={cn(
-                      "transition-colors",
-                      isRevoked ? "bg-muted/30 opacity-75" : "",
-                      isRead && !isRevoked ? "bg-muted/20" : "bg-background"
+                      "group hover:shadow-lg transition-all duration-300 overflow-hidden",
+                      isRevoked ? "opacity-75" : "",
+                      isRead && !isRevoked ? "bg-stone-50/80 dark:bg-stone-800/40" : ""
                     )}
                   >
-                    {/* Desktop Row */}
-                    <div className="hidden md:grid md:grid-cols-[100px_1fr_2fr_80px] items-start">
-                      <div className="px-4 py-4 text-sm text-muted-foreground">
-                        {leg.publication_date 
-                          ? format(new Date(leg.publication_date), "dd-MM-yyyy", { locale: pt })
-                          : "-"
-                        }
-                      </div>
-                      <div className="px-4 py-4">
-                        <Link 
-                          to={`/legislacao/${leg.id}`}
-                          className={cn("text-sm font-medium text-primary hover:underline", isRevoked && "line-through decoration-destructive/50 text-muted-foreground")}
-                        >
-                          {leg.number}
-                        </Link>
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          {leg.source === "dre" ? "🇵🇹" : "🇪🇺"}
-                        </Badge>
-                        {isRevoked && (
-                          <Badge variant="outline" className="ml-2 text-xs bg-destructive/10 text-destructive border-destructive/30">
-                            Revogado
+                    <div className={cn(
+                      "h-1.5",
+                      leg.source === "dre" ? "bg-gradient-to-r from-amber-500 to-orange-500" : "bg-gradient-to-r from-sky-500 to-blue-600"
+                    )} />
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className={cn(
+                            "shrink-0 border-stone-300 dark:border-stone-600",
+                            leg.source === "dre" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+                          )}>
+                            {leg.source === "dre" ? "PT" : "EU"}
                           </Badge>
-                        )}
+                          {isRevoked && (
+                            <Badge variant="outline" className="shrink-0 bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
+                              Revogado
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {leg.document_url && (
+                            <a
+                              href={leg.document_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+                            >
+                              <ExternalLink className="h-4 w-4 text-stone-400" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => toggleRead(leg.id)}
+                            className={cn(
+                              "p-1.5 rounded-lg transition-colors",
+                              isRead ? "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-400" : "text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700"
+                            )}
+                          >
+                            {isRead ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </div>
-                      <div className="px-4 py-4">
+                      
+                      <Link to={`/legislacao/${leg.id}`} className={cn("block group-hover:text-emerald-600 transition-colors", isRevoked && "text-stone-400")}>
+                        <h3 className={cn("font-semibold text-sm mb-1 line-clamp-1 text-stone-800 dark:text-white", isRevoked && "line-through decoration-red-400/50")}>{leg.number}</h3>
+                      </Link>
+                      
+                      <p className="text-xs text-stone-500 mb-2">
+                        {leg.publication_date 
+                          ? format(new Date(leg.publication_date), "d 'de' MMMM 'de' yyyy", { locale: pt })
+                          : "Data não disponível"
+                        }
+                      </p>
+                      
+                      <p className={cn("text-sm text-stone-600 dark:text-stone-400 line-clamp-3", isRevoked && "line-through decoration-red-400/50")}>
+                        {leg.title}
+                        {leg.summary && ` - ${leg.summary}`}
+                      </p>
+                    </div>
+                  </IDCard>
+                );
+              })}
+            </div>
+          ) : (
+            /* List View */
+            <IDCard>
+              <div className="divide-y divide-stone-200/60 dark:divide-amber-900/30">
+                {/* Table Header */}
+                <div className="hidden md:grid md:grid-cols-[100px_1fr_2fr_80px] bg-stone-100/50 dark:bg-stone-800/30 text-sm font-medium text-stone-600 dark:text-stone-400">
+                  <button 
+                    onClick={() => handleSort("date")}
+                    className="px-4 py-3 text-left flex items-center gap-1 hover:text-stone-800 dark:hover:text-white"
+                  >
+                    Data <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                  <button 
+                    onClick={() => handleSort("title")}
+                    className="px-4 py-3 text-left flex items-center gap-1 hover:text-stone-800 dark:hover:text-white"
+                  >
+                    Diploma <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                  <div className="px-4 py-3">Sumário</div>
+                  <div className="px-4 py-3 text-center">Ações</div>
+                </div>
+
+                {/* Table Body */}
+                {filteredLegislation?.map((leg) => {
+                  const isExpanded = expandedItems.has(leg.id);
+                  const isRead = readItems.has(leg.id);
+                  const isRevoked = !!leg.revocation_date;
+                  
+                  return (
+                    <div 
+                      key={leg.id} 
+                      className={cn(
+                        "transition-colors",
+                        isRevoked ? "bg-stone-100/50 dark:bg-stone-800/20 opacity-75" : "",
+                        isRead && !isRevoked ? "bg-stone-50/50 dark:bg-stone-800/30" : "bg-white dark:bg-transparent"
+                      )}
+                    >
+                      {/* Desktop Row */}
+                      <div className="hidden md:grid md:grid-cols-[100px_1fr_2fr_80px] items-start">
+                        <div className="px-4 py-4 text-sm text-stone-500">
+                          {leg.publication_date 
+                            ? format(new Date(leg.publication_date), "dd-MM-yyyy", { locale: pt })
+                            : "-"
+                          }
+                        </div>
+                        <div className="px-4 py-4">
+                          <Link 
+                            to={`/legislacao/${leg.id}`}
+                            className={cn("text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-500 dark:hover:text-emerald-400", isRevoked && "line-through decoration-red-400/50 text-stone-400")}
+                          >
+                            {leg.number}
+                          </Link>
+                          <Badge variant="outline" className={cn(
+                            "ml-2 text-xs border-stone-300 dark:border-stone-600",
+                            leg.source === "dre" ? "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" : "bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"
+                          )}>
+                            {leg.source === "dre" ? "PT" : "EU"}
+                          </Badge>
+                          {isRevoked && (
+                            <Badge variant="outline" className="ml-2 text-xs bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400">
+                              Revogado
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="px-4 py-4">
+                          <p className={cn(
+                            "text-sm text-stone-600 dark:text-stone-400",
+                            !isExpanded && "line-clamp-2",
+                            isRevoked && "line-through decoration-red-400/50"
+                          )}>
+                            {leg.title}
+                            {leg.summary && ` - ${leg.summary}`}
+                          </p>
+                          <button
+                            onClick={() => toggleExpand(leg.id)}
+                            className="text-xs text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 mt-1"
+                          >
+                            {isExpanded ? (
+                              <>Recolher <ChevronUp className="h-3 w-3" /></>
+                            ) : (
+                              <>Ver mais <ChevronDown className="h-3 w-3" /></>
+                            )}
+                          </button>
+                        </div>
+                        <div className="px-4 py-4 flex justify-center gap-1">
+                          {leg.document_url && (
+                            <a
+                              href={leg.document_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded hover:bg-stone-100 dark:hover:bg-stone-700"
+                            >
+                              <ExternalLink className="h-4 w-4 text-stone-400" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => toggleRead(leg.id)}
+                            className={cn(
+                              "p-1.5 rounded transition-colors",
+                              isRead ? "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-400" : "text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700"
+                            )}
+                          >
+                            {isRead ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Mobile Row */}
+                      <div className="md:hidden p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs text-stone-500">
+                                {leg.publication_date 
+                                  ? format(new Date(leg.publication_date), "dd-MM-yyyy", { locale: pt })
+                                  : "-"
+                                }
+                              </span>
+                              <Badge variant="outline" className={cn(
+                                "text-xs border-stone-300",
+                                leg.source === "dre" ? "bg-amber-50 text-amber-600" : "bg-sky-50 text-sky-600"
+                              )}>
+                                {leg.source === "dre" ? "PT" : "EU"}
+                              </Badge>
+                            </div>
+                            <Link 
+                              to={`/legislacao/${leg.id}`}
+                              className="text-sm font-medium text-emerald-600 hover:underline"
+                            >
+                              {leg.number}
+                            </Link>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {leg.document_url && (
+                              <a
+                                href={leg.document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded hover:bg-stone-100"
+                              >
+                                <ExternalLink className="h-4 w-4 text-stone-400" />
+                              </a>
+                            )}
+                            <button
+                              onClick={() => toggleRead(leg.id)}
+                              className={cn(
+                                "p-1.5 rounded transition-colors",
+                                isRead ? "text-emerald-600 bg-emerald-100" : "text-stone-400 hover:bg-stone-100"
+                              )}
+                            >
+                              {isRead ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
                         <p className={cn(
-                          "text-sm text-muted-foreground",
-                          !isExpanded && "line-clamp-2",
-                          isRevoked && "line-through decoration-destructive/50"
+                          "text-sm text-stone-600",
+                          !isExpanded && "line-clamp-2"
                         )}>
                           {leg.title}
                           {leg.summary && ` - ${leg.summary}`}
                         </p>
                         <button
                           onClick={() => toggleExpand(leg.id)}
-                          className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+                          className="text-xs text-emerald-600 hover:underline flex items-center gap-1"
                         >
                           {isExpanded ? (
                             <>Recolher <ChevronUp className="h-3 w-3" /></>
@@ -806,132 +905,36 @@ export default function LegislacaoRecente() {
                           )}
                         </button>
                       </div>
-                      <div className="px-4 py-4 flex justify-center gap-1">
-                        {leg.document_url && (
-                          <a
-                            href={leg.document_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded hover:bg-muted"
-                          >
-                            <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => toggleRead(leg.id)}
-                          className={cn(
-                            "p-1.5 rounded transition-colors",
-                            isRead ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted"
-                          )}
-                        >
-                          {isRead ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        </button>
-                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            </IDCard>
+          )}
 
-                    {/* Mobile Row */}
-                    <div className="md:hidden p-4 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-muted-foreground">
-                              {leg.publication_date 
-                                ? format(new Date(leg.publication_date), "dd-MM-yyyy", { locale: pt })
-                                : "-"
-                              }
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {leg.source === "dre" ? "🇵🇹" : "🇪🇺"}
-                            </Badge>
-                          </div>
-                          <Link 
-                            to={`/legislacao/${leg.id}`}
-                            className="text-sm font-medium text-primary hover:underline"
-                          >
-                            {leg.number}
-                          </Link>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {leg.document_url && (
-                            <a
-                              href={leg.document_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 rounded hover:bg-muted"
-                            >
-                              <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                            </a>
-                          )}
-                          <button
-                            onClick={() => toggleRead(leg.id)}
-                            className={cn(
-                              "p-1.5 rounded transition-colors",
-                              isRead ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted"
-                            )}
-                          >
-                            {isRead ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <p className={cn(
-                        "text-sm text-muted-foreground",
-                        !isExpanded && "line-clamp-2"
-                      )}>
-                        {leg.title}
-                        {leg.summary && ` - ${leg.summary}`}
-                      </p>
-                      <button
-                        onClick={() => toggleExpand(leg.id)}
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        {isExpanded ? (
-                          <>Recolher <ChevronUp className="h-3 w-3" /></>
-                        ) : (
-                          <>Ver mais <ChevronDown className="h-3 w-3" /></>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {filteredLegislation?.length === 0 && (
-                <div className="p-12 text-center">
-                  <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                  <p className="text-muted-foreground">Nenhuma legislação encontrada</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 px-2">
-            <p className="text-sm text-muted-foreground">
-              A mostrar {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, totalCount || 0)} de {totalCount || 0}
-            </p>
-            <div className="flex items-center gap-1">
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
                 onClick={() => goToPage(1)}
                 disabled={currentPage === 1}
+                className="bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40"
               >
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
+                className="bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               
-              <div className="flex items-center gap-1 mx-2">
+              <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum: number;
                   if (totalPages <= 5) {
@@ -943,41 +946,47 @@ export default function LegislacaoRecente() {
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
+                  
                   return (
                     <Button
                       key={pageNum}
                       variant={currentPage === pageNum ? "default" : "outline"}
-                      size="icon"
-                      className="h-8 w-8"
+                      size="sm"
                       onClick={() => goToPage(pageNum)}
+                      className={cn(
+                        "w-9 h-9",
+                        currentPage === pageNum 
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                          : "bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40"
+                      )}
                     >
                       {pageNum}
                     </Button>
                   );
                 })}
               </div>
-
+              
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
+                className="bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
                 onClick={() => goToPage(totalPages)}
                 disabled={currentPage === totalPages}
+                className="bg-white dark:bg-stone-900/50 border-stone-200 dark:border-amber-900/40"
               >
                 <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
