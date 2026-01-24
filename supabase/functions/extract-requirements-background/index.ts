@@ -879,7 +879,8 @@ Deno.serve(async (req) => {
     }
 
     // Body was already parsed above for auth check
-    const { batchSize = 50, maxBatches = 20, origin, useUrl = false, legislationIds, onlyWithoutRequirements = false, forceReplace = false } = body;
+    // useUrl = true by default - always try to scrape from URL for better quality
+    const { batchSize = 50, maxBatches = 20, origin, useUrl = true, legislationIds, onlyWithoutRequirements = false, forceReplace = false } = body;
 
     // Validate useUrl - needs Firecrawl API key
     if (useUrl && !firecrawlApiKey) {
