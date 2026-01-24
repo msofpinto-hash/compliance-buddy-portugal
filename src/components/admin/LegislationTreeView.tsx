@@ -206,6 +206,18 @@ const getThemeConfigForCategory = (categoryId: string, themes: ThemeWithCategori
   return defaultThemeConfig;
 };
 
+// Get theme name for a category
+const getThemeNameForCategory = (categoryId: string, themes: ThemeWithCategories[] | undefined): string => {
+  if (!themes) return "";
+  
+  for (const theme of themes) {
+    if (theme.categories.some(c => c.id === categoryId)) {
+      return theme.name;
+    }
+  }
+  return "";
+};
+
 // Helper to detect if title is redundant with number (e.g., "Decreto-Lei n.º 152/2017" appears in both)
 const isTitleRedundant = (number: string, title: string): boolean => {
   if (!title || !number) return false;
@@ -1248,11 +1260,27 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                           </div>
                           {leg.categories.length > 0 && (() => {
                             const catConfig = getThemeConfigForCategory(leg.categories[0].id, themesWithCategories);
+                            const themeName = getThemeNameForCategory(leg.categories[0].id, themesWithCategories);
                             return (
-                              <Badge variant="outline" className={`text-xs h-5 ${catConfig.badge} ${catConfig.badgeDark}`}>
-                                {leg.categories[0].name}
-                                {leg.categories.length > 1 && ` +${leg.categories.length - 1}`}
-                              </Badge>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-xs h-5 cursor-default transition-all hover:scale-105 hover:shadow-sm ${catConfig.badge} ${catConfig.badgeDark}`}
+                                  >
+                                    {leg.categories[0].name}
+                                    {leg.categories.length > 1 && ` +${leg.categories.length - 1}`}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent 
+                                  side="top" 
+                                  className="bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 text-xs"
+                                >
+                                  <span className="text-stone-400 dark:text-stone-600">{themeName}</span>
+                                  <span className="mx-1.5 text-stone-500">›</span>
+                                  <span className="font-medium">{leg.categories[0].name}</span>
+                                </TooltipContent>
+                              </Tooltip>
                             );
                           })()}
                         </div>
@@ -1689,14 +1717,26 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                               <div className="flex items-center gap-1 flex-wrap">
                                 {leg.categories.slice(0, 2).map(cat => {
                                   const catConfig = getThemeConfigForCategory(cat.id, themesWithCategories);
+                                  const themeName = getThemeNameForCategory(cat.id, themesWithCategories);
                                   return (
-                                    <Badge 
-                                      key={cat.id}
-                                      variant="outline" 
-                                      className={`text-[10px] px-1.5 py-0 h-4 ${catConfig.badge} ${catConfig.badgeDark}`}
-                                    >
-                                      {cat.name}
-                                    </Badge>
+                                    <Tooltip key={cat.id}>
+                                      <TooltipTrigger asChild>
+                                        <Badge 
+                                          variant="outline" 
+                                          className={`text-[10px] px-1.5 py-0 h-4 cursor-default transition-all hover:scale-105 hover:shadow-sm ${catConfig.badge} ${catConfig.badgeDark}`}
+                                        >
+                                          {cat.name}
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent 
+                                        side="top" 
+                                        className="bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 text-xs"
+                                      >
+                                        <span className="text-stone-400 dark:text-stone-600">{themeName}</span>
+                                        <span className="mx-1.5 text-stone-500">›</span>
+                                        <span className="font-medium">{cat.name}</span>
+                                      </TooltipContent>
+                                    </Tooltip>
                                   );
                                 })}
                                 {leg.categories.length > 2 && (
