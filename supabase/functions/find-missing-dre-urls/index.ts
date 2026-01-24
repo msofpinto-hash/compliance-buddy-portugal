@@ -59,12 +59,19 @@ function extractLegislationParts(number: string): { type: string; num: string; y
   };
   
   // Helper to extract suffix (e.g., -A, -B, /A, /B from numbers like "165-A" or "165/A")
+  // Also handles multi-letter suffixes like "-AA", "-AB", "-Z"
   const extractSuffix = (numStr: string): { baseNum: string; suffix?: string } => {
-    const suffixMatch = numStr.match(/^(\d+)[-\/]([A-Za-z]+)$/);
+    // Pattern: number followed by dash/slash and 1-2 letters (not followed by more digits)
+    const suffixMatch = numStr.match(/^(\d+)[-\/]([A-Za-z]{1,2})$/);
     if (suffixMatch) {
       return { baseNum: suffixMatch[1], suffix: suffixMatch[2].toUpperCase() };
     }
-    return { baseNum: numStr };
+    // Also check for suffix at the end of a longer string (e.g., "1092-G" in "1092-G/95")
+    const embeddedSuffixMatch = numStr.match(/^(\d+)-([A-Za-z]{1,2})$/);
+    if (embeddedSuffixMatch) {
+      return { baseNum: embeddedSuffixMatch[1], suffix: embeddedSuffixMatch[2].toUpperCase() };
+    }
+    return { baseNum: numStr.replace(/[^0-9]/g, '') };
   };
   
   // Type mappings
@@ -94,21 +101,49 @@ function extractLegislationParts(number: string): { type: string; num: string; y
     'decreto': 'decreto',
   };
   
-  // PATTERN 0: Despachos with suffixes (e.g., "Despacho n.º 4089-A/2025", "Despacho Conjunto n.º 123-B/2020")
-  // Priority because suffixes are commonly missed
-  const despachoSuffixPatterns = [
-    /^(Despacho\s+Conjunto)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Despacho\s+Normativo)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Despacho)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Portaria)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Decreto-Lei)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Lei)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Aviso|Av)\s+n?\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Resolução)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
-    /^(Declaração\s+de\s+Reti[fc]icação)\s+n\.?º?\s*(\d+)[-\/]([A-Za-z]+)[\/\-](\d{2,4})(?:\s|$|,)/i,
+  // PATTERN 0: Suffixed legislation (e.g., "Despacho n.º 4089-A/2025", "Portaria n.º 1092-G/95 de 6 de setembro")
+  // Priority because suffixes are commonly missed by simpler patterns
+  // Supports: NUMBER-SUFFIX/YEAR or NUMBER-SUFFIX/YEAR de DATE
+  const suffixPatterns = [
+    // Format: TYPE n.º NUMBER-SUFFIX/YEAR (with optional date)
+    /^(Despacho\s+Conjunto)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Despacho\s+Normativo)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Despacho)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Portaria)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Decreto-Lei)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Lei)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Aviso|Av)\s+n?\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Resolução)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Declaração\s+de\s+Reti[fc]icação)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Declaração)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Decreto\s+Regulamentar\s+Regional)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Decreto\s+Regulamentar)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Decreto\s+Legislativo\s+Regional)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Decreto)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Regulamento)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Deliberação)\s+n\.?º?\s*(\d+)[-]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
   ];
   
-  for (const regex of despachoSuffixPatterns) {
+  for (const regex of suffixPatterns) {
+    const match = cleanNumber.match(regex);
+    if (match) {
+      const typeName = match[1].toLowerCase().replace(/\s+/g, ' ').trim();
+      const type = typeMap[typeName] || typeName.replace(/\s+/g, '-');
+      const suffix = match[3].toUpperCase();
+      return { type, num: match[2], suffix, year: normalizeYear(match[4]) };
+    }
+  }
+  
+  // PATTERN 0b: Slash-based suffixes (e.g., "Portaria n.º 1467/C/2001" or "Aviso n.º 1804/Z/2007")
+  const slashSuffixPatterns = [
+    /^(Portaria)\s+n\.?º?\s*(\d+)[\/]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Aviso|Av)\s+n?\.?º?\s*(\d+)[\/]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Despacho)\s+n\.?º?\s*(\d+)[\/]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Decreto-Lei)\s+n\.?º?\s*(\d+)[\/]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+    /^(Lei)\s+n\.?º?\s*(\d+)[\/]([A-Za-z]{1,2})[\/](\d{2,4})(?:\s|$|,)/i,
+  ];
+  
+  for (const regex of slashSuffixPatterns) {
     const match = cleanNumber.match(regex);
     if (match) {
       const typeName = match[1].toLowerCase().replace(/\s+/g, ' ').trim();
@@ -234,34 +269,43 @@ function extractLegislationParts(number: string): { type: string; num: string; y
   return null;
 }
 
-// Build simpler search queries for better results - now with suffix support
+// Build simpler search queries for better results - now with improved suffix support
 function buildSearchQueries(number: string, parts: { type: string; num: string; year: string; suffix?: string } | null): string[] {
   const queries: string[] = [];
   
   if (parts) {
     const simpleType = parts.type.replace(/-/g, ' ');
-    const numWithSuffix = parts.suffix ? `${parts.num}-${parts.suffix}` : parts.num;
+    const numWithSuffixDash = parts.suffix ? `${parts.num}-${parts.suffix}` : parts.num;
+    const numWithSuffixSlash = parts.suffix ? `${parts.num}/${parts.suffix}` : parts.num;
     
-    // Strategy 1: Full reference with suffix (most effective for suffixed legislation)
-    queries.push(`${simpleType} ${numWithSuffix}/${parts.year} site:dre.pt`);
-    
-    // Strategy 2: Quoted full reference with suffix
-    queries.push(`"${simpleType} n.º ${numWithSuffix}/${parts.year}" site:dre.pt`);
-    
-    // Strategy 3: Alternative suffix format (e.g., /A instead of -A)
+    // For suffixed legislation, try multiple format variations
     if (parts.suffix) {
-      const altNumWithSuffix = `${parts.num}/${parts.suffix}`;
-      queries.push(`${simpleType} ${altNumWithSuffix}/${parts.year} site:dre.pt`);
+      // Strategy 1: NUMBER-SUFFIX/YEAR format (most common)
+      queries.push(`"${simpleType} n.º ${numWithSuffixDash}/${parts.year}" site:dre.pt`);
+      
+      // Strategy 2: NUMBER/SUFFIX/YEAR format (alternative)
+      queries.push(`"${simpleType} n.º ${numWithSuffixSlash}/${parts.year}" site:dre.pt`);
+      
+      // Strategy 3: Simple search with dash suffix
+      queries.push(`${simpleType} ${numWithSuffixDash} ${parts.year} site:dre.pt`);
+      
+      // Strategy 4: Simple search with slash suffix
+      queries.push(`${simpleType} ${numWithSuffixSlash} ${parts.year} site:dre.pt`);
+      
+      // Strategy 5: Just the reference without type
+      queries.push(`"${numWithSuffixDash}/${parts.year}" site:diariodarepublica.pt`);
+    } else {
+      // Non-suffixed legislation
+      queries.push(`${simpleType} ${parts.num}/${parts.year} site:dre.pt`);
+      queries.push(`"${simpleType} n.º ${parts.num}/${parts.year}" site:dre.pt`);
+      queries.push(`${simpleType} ${parts.num} ${parts.year} diariodarepublica.pt`);
     }
     
-    // Strategy 4: Without suffix as fallback (sometimes works for base number)
-    queries.push(`${simpleType} ${parts.num} ${parts.year} diariodarepublica.pt`);
-    
-    // Strategy 5: Just the core reference on DRE
-    queries.push(`${numWithSuffix}/${parts.year} ${simpleType} site:diariodarepublica.pt`);
+    // Final fallback: core reference
+    queries.push(`${numWithSuffixDash}/${parts.year} ${simpleType} site:diariodarepublica.pt`);
   }
   
-  // Fallback: use cleaned number
+  // Fallback: use cleaned number from original string
   const cleanNumber = number.split(',')[0].trim()
     .replace(/n\.º\s*/gi, '')
     .replace(/\s+de\s+\d+.*$/, ''); // Remove date suffix
