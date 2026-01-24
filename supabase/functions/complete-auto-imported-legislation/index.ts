@@ -842,8 +842,9 @@ async function runBackgroundCompletion(params: {
   mode: string;
   extractRequirements: boolean;
   requireUrl: boolean;
+  randomOffset?: boolean;
 }) {
-  const { limit, dryRun, includePT, includeEU, fixDates, mode, extractRequirements, requireUrl } = params;
+  const { limit, dryRun, includePT, includeEU, fixDates, mode, extractRequirements, requireUrl, randomOffset } = params;
   
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -926,9 +927,18 @@ async function runBackgroundCompletion(params: {
       query = query.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
     }
     
+    // Generate random offset when parallel jobs are running to avoid processing same records
+    // This spreads the jobs across different segments of the result set
+    let queryOffset = 0;
+    if (randomOffset) {
+      // Random offset between 0 and 500 to spread load across different records
+      queryOffset = Math.floor(Math.random() * 500);
+      console.log(`Using random offset: ${queryOffset} to avoid parallel job overlap`);
+    }
+    
     const { data: legislation, error: fetchError } = await query
       .order('created_at', { ascending: false })
-      .limit(limit * 3);
+      .range(queryOffset, queryOffset + (limit * 3) - 1);
     
     if (fetchError) {
       if (syncLogId) {
@@ -1331,6 +1341,7 @@ Deno.serve(async (req) => {
       extractRequirements = false,
       background = true,
       requireUrl = false,
+      randomOffset = true, // Enable by default to avoid parallel job overlap
     } = await req.json().catch(() => ({}));
     
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
@@ -1385,6 +1396,7 @@ Deno.serve(async (req) => {
         mode,
         extractRequirements,
         requireUrl,
+        randomOffset,
       }));
       
       return new Response(
@@ -1395,6 +1407,7 @@ Deno.serve(async (req) => {
           limit,
           mode,
           background: true,
+          randomOffset,
           trackingType: 'complete_auto_imported'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1410,6 +1423,7 @@ Deno.serve(async (req) => {
       mode,
       extractRequirements,
       requireUrl,
+      randomOffset,
     });
     
     return new Response(
