@@ -131,10 +131,64 @@ async function searchDREUrl(number: string, firecrawlKey: string): Promise<strin
   }
 }
 
-// Scrape URL content using Firecrawl with timeout
-async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | null> {
+// Direct HTML scrape fallback (no Firecrawl) - extracts text from HTML
+async function scrapeUrlDirect(url: string): Promise<string | null> {
   try {
-    console.log('Scraping URL:', url);
+    console.log('[DirectScrape] Fetching:', url);
+    
+    const response = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+      },
+    }, 15000);
+    
+    if (!response.ok) {
+      console.log(`[DirectScrape] HTTP ${response.status}`);
+      return null;
+    }
+    
+    const html = await response.text();
+    
+    // Extract text content from HTML - basic but effective for DRE
+    let text = html
+      // Remove script and style blocks
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      // Remove HTML comments
+      .replace(/<!--[\s\S]*?-->/g, '')
+      // Convert common elements to newlines
+      .replace(/<\/?(div|p|h[1-6]|br|li|tr)[^>]*>/gi, '\n')
+      // Remove remaining tags
+      .replace(/<[^>]+>/g, ' ')
+      // Decode HTML entities
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
+      // Clean whitespace
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s+/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    
+    console.log(`[DirectScrape] Extracted ${text.length} chars`);
+    return text.length > 100 ? text : null;
+  } catch (error) {
+    console.error('[DirectScrape] Error:', error);
+    return null;
+  }
+}
+
+// Scrape URL content using Firecrawl with timeout, fallback to direct fetch
+async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | null> {
+  // Try Firecrawl first
+  try {
+    console.log('Scraping URL via Firecrawl:', url);
     
     const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -146,21 +200,26 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
         url,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 2000, // Reduced from 3000
+        waitFor: 2000,
       }),
-    });
+    }, 20000);
     
-    if (!response.ok) {
-      console.error('Scrape error:', response.status);
-      return null;
+    if (response.ok) {
+      const data = await response.json();
+      const markdown = data.data?.markdown || data.markdown || null;
+      if (markdown && markdown.length > 100) {
+        console.log('[Firecrawl] Success');
+        return markdown;
+      }
+    } else {
+      console.log(`[Firecrawl] Failed with ${response.status}, trying direct fetch...`);
     }
-    
-    const data = await response.json();
-    return data.data?.markdown || data.markdown || null;
   } catch (error) {
-    console.error('Scrape error (timeout?):', error);
-    return null;
+    console.log(`[Firecrawl] Error: ${error}, trying direct fetch...`);
   }
+  
+  // Fallback to direct fetch
+  return await scrapeUrlDirect(url);
 }
 
 // List of invalid entity values to filter out
