@@ -63,11 +63,8 @@ export function DataQualityConsolidatedPanel() {
           .select("id", { count: "exact", head: true })
           .is("publication_date", null),
         supabase.rpc("get_legislation_without_categories_count"),
-        // Generic titles (pending import)
-        supabase
-          .from("legislation")
-          .select("id", { count: "exact", head: true })
-          .or("title.ilike.%Documento %,title.ilike.%Diploma referenciado%,title.ilike.%a aguardar importação%"),
+        // Generic titles count via RPC (accurate, consistent with DataFixPanel)
+        supabase.rpc("count_generic_titles"),
         // Problems: missing origin
         supabase
           .from("legislation")
@@ -76,7 +73,7 @@ export function DataQualityConsolidatedPanel() {
       ]);
 
       const noCategories = typeof noCategoriesData.data === 'number' ? noCategoriesData.data : 0;
-      const genericTitles = genericTitlesData.count || 0;
+      const genericTitles = typeof genericTitlesData.data === 'number' ? genericTitlesData.data : 0;
       const missingOrigin = problemsData.count || 0;
       const missingDates = dateAnomaliesData.count || 0;
       
