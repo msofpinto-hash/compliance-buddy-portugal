@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.bulk-generate-dre-urls]
 verify_jwt = false
+
+[functions.auto-retry-failed-jobs]
+verify_jwt = false
