@@ -55,6 +55,10 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<string |
       formattedUrl = `https://${formattedUrl}`;
     }
 
+    // Use AbortController for timeout (15 seconds max)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -65,9 +69,12 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<string |
         url: formattedUrl,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,
+        waitFor: 2000,
       }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error('Firecrawl error:', response.status);
@@ -92,6 +99,10 @@ async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string
     
     console.log('Scraping DRE Análise Jurídica:', analiseUrl);
     
+    // Use AbortController for timeout (15 seconds max)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -102,9 +113,12 @@ async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string
         url: analiseUrl,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,
+        waitFor: 2000,
       }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error('Firecrawl Análise Jurídica error:', response.status);
@@ -1776,7 +1790,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { legislationIds, limit = 20, dryRun = false, origin, autoImport = true, background = false, force = false } = await req.json();
+    const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true, background = false, force = false } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
