@@ -504,26 +504,19 @@ async function extractRelationsWithAI(
                determineOrigin(legislation.number) === 'PT';
   
   if (isPT) {
-    console.log(`[PT EXTRACTION] Using DRE panel parsing for: ${legislation.number}`);
+    console.log(`[PT EXTRACTION] Using DRE Análise Jurídica ONLY for: ${legislation.number}`);
     
-    // First try to extract from the scraped DRE content (Análise Jurídica panel)
+    // Extract ONLY from the scraped DRE Análise Jurídica content - NO FALLBACKS
     const dreRelations = extractRelationsFromDREContent(fullText);
     
     if (dreRelations.length > 0) {
-      console.log(`[PT EXTRACTION] Found ${dreRelations.length} relations from DRE panel for ${legislation.number}`);
-      return dreRelations;
+      console.log(`[PT EXTRACTION] Found ${dreRelations.length} relations from DRE Análise Jurídica for ${legislation.number}`);
+    } else {
+      console.log(`[PT EXTRACTION] No relations found in DRE Análise Jurídica for ${legislation.number} - this is final (no fallback)`);
     }
     
-    // Fallback to regex if DRE panel extraction found nothing
-    console.log(`[PT EXTRACTION] No DRE panel relations, falling back to regex for ${legislation.number}`);
-    const regexRelations = extractRelationsWithRegex(legislation, fullText);
-    
-    if (regexRelations.length > 0) {
-      return regexRelations;
-    }
-    
-    // If still nothing, try AI as last resort
-    console.log(`[PT EXTRACTION] No regex relations, trying AI for ${legislation.number}`);
+    // Return DRE relations only - NO regex or AI fallback for PT legislation
+    return dreRelations;
   }
   
   // For EU legislation or as fallback, use AI extraction
