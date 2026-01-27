@@ -646,36 +646,39 @@ export function DataFixPanel() {
               <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
             ) : (
               <>
+                {/* Manual launch button - always visible */}
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-6 sm:h-7 px-1.5 sm:px-2 gap-0.5 sm:gap-1 text-[10px] sm:text-xs bg-primary hover:bg-primary/90"
+                  onClick={() => launchManualBatch(type)}
+                  disabled={blocked || isActiveType}
+                  title={`Lançar ${parallelJobs} job(s) de ${batchSize} itens`}
+                >
+                  <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                  <span className="hidden sm:inline">Lançar</span>
+                </Button>
+                {/* Auto mode toggle */}
                 <Button
                   variant={isActiveType ? "destructive" : "outline"}
                   size="sm"
                   className="h-6 sm:h-7 px-1.5 sm:px-2 gap-0.5 sm:gap-1 text-[10px] sm:text-xs"
                   onClick={() => toggleFixType(type)}
                   disabled={blocked && !isActiveType}
+                  title={isActiveType ? "Parar modo automático" : "Iniciar modo automático contínuo"}
                 >
                   {isActiveType ? (
                     <>
                       <Pause className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      <span className="hidden xs:inline">Parar</span>
+                      <span className="hidden sm:inline">Auto</span>
                     </>
                   ) : (
                     <>
                       <Play className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      <span className="hidden xs:inline">Iniciar</span>
+                      <span className="hidden sm:inline">Auto</span>
                     </>
                   )}
                 </Button>
-                {!isActiveType && !hasRunningJobs && !blocked && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 sm:h-7 px-1.5 sm:px-2 hidden sm:flex"
-                    onClick={() => launchManualBatch(type)}
-                    title="Lançar um lote manualmente"
-                  >
-                    <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                  </Button>
-                )}
                 <Badge variant={count > 100 ? "destructive" : "secondary"} className="text-[10px] sm:text-sm px-1 sm:px-2">
                   {count}
                 </Badge>
