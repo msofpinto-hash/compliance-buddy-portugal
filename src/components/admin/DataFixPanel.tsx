@@ -43,14 +43,14 @@ interface RunningJob {
 type FixType = "duplicates" | "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations" | "categories";
 
 const FIX_LABELS: Record<FixType, string> = {
-  duplicates: "0. Duplicados",
-  urls: "1. URLs",
-  dates: "2. Datas",
-  titles: "2. Títulos",
-  summaries: "2. Sumários",
-  requirements: "3. Requisitos",
-  relations: "4. Relações",
-  categories: "5. Categorias",
+  duplicates: "Duplicados",
+  urls: "URLs",
+  dates: "Datas",
+  titles: "Títulos",
+  summaries: "Sumários",
+  requirements: "Requisitos",
+  relations: "Relações",
+  categories: "Categorias",
 };
 
 const FIX_DESCRIPTIONS: Record<FixType, string> = {
