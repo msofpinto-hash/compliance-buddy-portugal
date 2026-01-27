@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 20, dryRun = false, stream = false } = await req.json().catch(() => ({}));
+    const { limit = 20, dryRun = false, stream = false, randomOffset = 0 } = await req.json().catch(() => ({}));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -290,37 +290,65 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get legislation with generic titles (PT origin only - EU uses EUR-Lex)
+    // Calculate fetch limit to accommodate randomOffset - fetch all candidates at once
+    const fetchLimit = 1000;
+    
+    // Get legislation with generic titles using the same logic as count_generic_titles()
+    // Order by created_at for consistent pagination across parallel jobs
     const { data: legislation, error: fetchError } = await supabase
       .from('legislation')
-      .select('id, number, title, summary, entity, document_url, origin')
+      .select('id, number, title, summary, entity, document_url, origin, no_digital_version')
       .or('origin.eq.PT,origin.eq.dre')
-      .limit(1000);
+      .not('document_url', 'is', null)
+      .or('no_digital_version.is.null,no_digital_version.eq.false')
+      .like('document_url', '%/dr/detalhe/%')
+      .order('created_at', { ascending: true })
+      .limit(fetchLimit);
     
     if (fetchError) {
       throw fetchError;
     }
     
-    const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
-    
-    // Filter to PT legislation with generic titles and has document_url
+    // Filter using the EXACT same logic as count_generic_titles() SQL function
     const toProcess = (legislation || [])
       .filter(leg => {
         // Skip if no origin or not PT
         if (!leg.origin || !['PT', 'dre'].includes(leg.origin)) return false;
         
-        // Has generic title (title equals number or matches pattern without description)
-        const titleEqualsNumber = leg.title === leg.number;
-        const hasGenericPattern = genericPattern.test(leg.title) && 
-          leg.title.length < 80 && 
-          !leg.title.includes(' - ');
+        // Must have a document_url
+        if (!leg.document_url) return false;
         
-        // Must have a document_url to scrape from
-        const hasUrl = leg.document_url && leg.document_url.includes('/dr/detalhe/');
+        // Skip if marked as no_digital_version
+        if (leg.no_digital_version === true) return false;
         
-        return (titleEqualsNumber || hasGenericPattern) && hasUrl;
+        const title = leg.title || '';
+        const number = leg.number || '';
+        const trimmedTitle = title.trim();
+        
+        // Match the SQL function logic exactly:
+        // 1. Title equals the number (definitely generic)
+        if (title === number) return true;
+        
+        // 2. Very short titles are generic
+        if (trimmedTitle.length < 15) return true;
+        
+        // 3. Placeholder titles
+        if (title.toLowerCase().includes('diploma referenciado')) return true;
+        
+        // 4. Only treat "Documento ..." as placeholder when it's at the START
+        if (/^documento\b/i.test(title)) return true;
+        
+        // 5. Titles that are just the document type without description
+        const typePattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer|Deliberação)\s*(n\.?[ºo°]?\s*\d|$)/i;
+        if (typePattern.test(title) && title.length < 50) return true;
+        
+        // 6. Titles starting with # (markdown remnants)
+        if (title.startsWith('#')) return true;
+        
+        return false;
       })
-      .slice(0, limit);
+      // Apply randomOffset to avoid conflicts between parallel jobs
+      .slice(randomOffset, randomOffset + limit);
     
     console.log(`Found ${toProcess.length} items with generic titles to process`);
     
