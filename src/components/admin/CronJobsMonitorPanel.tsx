@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -33,10 +33,12 @@ import {
   Timer,
   TrendingUp,
   Activity,
-  Bell
+  Bell,
+  RotateCcw
 } from "lucide-react";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
+import { JobRetryMonitorPanel } from "./JobRetryMonitorPanel";
 
 interface CronJob {
   id: string;
@@ -196,299 +198,322 @@ export function CronJobsMonitorPanel() {
     );
   }
 
+  const [activeTab, setActiveTab] = useState("scheduled");
+
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Activity className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalExecutions}</p>
-                <p className="text-sm text-muted-foreground">Execuções totais</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-stone-100/80 dark:bg-stone-800/50">
+          <TabsTrigger value="scheduled" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+            <Calendar className="h-4 w-4" />
+            Jobs Agendados
+          </TabsTrigger>
+          <TabsTrigger value="retry" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+            <RotateCcw className="h-4 w-4" />
+            Monitor de Retry
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.successfulToday}</p>
-                <p className="text-sm text-muted-foreground">Sucesso hoje</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-500/10">
-                <XCircle className="h-5 w-5 text-red-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.failedToday}</p>
-                <p className="text-sm text-muted-foreground">Falhas hoje</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Timer className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">
-                  {stats.lastExecution
-                    ? formatDistanceToNow(parseISO(stats.lastExecution.started_at), {
-                        addSuffix: true,
-                        locale: pt,
-                      })
-                    : "N/A"}
-                </p>
-                <p className="text-sm text-muted-foreground">Última execução</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Scheduled Jobs */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Jobs Agendados
-              </CardTitle>
-              <CardDescription>
-                Tarefas automáticas executadas diariamente
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Atualizar
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {CRON_JOBS.map((job) => {
-              const lastRun = getLastRun(job.syncType);
-              
-              return (
-                <div
-                  key={job.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-lg bg-muted">
-                      <Calendar className="h-5 w-5 text-muted-foreground" />
+        <TabsContent value="scheduled" className="mt-4">
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Activity className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{job.name}</h4>
-                        <Badge variant="outline" className="text-xs">
-                          {formatSchedule(job.schedule)}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {job.description}
-                      </p>
-                      {lastRun && (
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          {getStatusIcon(lastRun.status)}
-                          <span>
-                            Última execução:{" "}
-                            {formatDistanceToNow(parseISO(lastRun.started_at), {
+                      <p className="text-2xl font-bold">{stats.totalExecutions}</p>
+                      <p className="text-sm text-muted-foreground">Execuções totais</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats.successfulToday}</p>
+                      <p className="text-sm text-muted-foreground">Sucesso hoje</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-red-500/10">
+                      <XCircle className="h-5 w-5 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats.failedToday}</p>
+                      <p className="text-sm text-muted-foreground">Falhas hoje</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                      <Timer className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {stats.lastExecution
+                          ? formatDistanceToNow(parseISO(stats.lastExecution.started_at), {
                               addSuffix: true,
                               locale: pt,
-                            })}
-                          </span>
-                          {lastRun.items_added !== null && lastRun.items_added > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{lastRun.items_added} items
-                            </Badge>
+                            })
+                          : "N/A"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Última execução</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Scheduled Jobs */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5" />
+                      Jobs Agendados
+                    </CardTitle>
+                    <CardDescription>
+                      Tarefas automáticas executadas diariamente
+                    </CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Atualizar
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {CRON_JOBS.map((job) => {
+                    const lastRun = getLastRun(job.syncType);
+                    
+                    return (
+                      <div
+                        key={job.id}
+                        className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 rounded-lg bg-muted">
+                            <Calendar className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium">{job.name}</h4>
+                              <Badge variant="outline" className="text-xs">
+                                {formatSchedule(job.schedule)}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {job.description}
+                            </p>
+                            {lastRun && (
+                              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                {getStatusIcon(lastRun.status)}
+                                <span>
+                                  Última execução:{" "}
+                                  {formatDistanceToNow(parseISO(lastRun.started_at), {
+                                    addSuffix: true,
+                                    locale: pt,
+                                  })}
+                                </span>
+                                {lastRun.items_added !== null && lastRun.items_added > 0 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{lastRun.items_added} items
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleManualRun(job)}
+                                disabled={runningJob === job.id}
+                              >
+                                {runningJob === job.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Play className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Executar manualmente</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Execution History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Histórico de Execuções
+                </CardTitle>
+                <CardDescription>
+                  Últimas 100 execuções de jobs agendados
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[400px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Início</TableHead>
+                        <TableHead>Duração</TableHead>
+                        <TableHead>Processados</TableHead>
+                        <TableHead>Adicionados</TableHead>
+                        <TableHead>Erro</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {executionHistory?.map((execution) => {
+                        const duration = execution.completed_at
+                          ? Math.round(
+                              (new Date(execution.completed_at).getTime() -
+                                new Date(execution.started_at).getTime()) /
+                                1000
+                            )
+                          : null;
+
+                        return (
+                          <TableRow key={execution.id}>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono text-xs">
+                                {execution.sync_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(execution.status)}</TableCell>
+                            <TableCell className="text-sm">
+                              {format(parseISO(execution.started_at), "dd/MM HH:mm", {
+                                locale: pt,
+                              })}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {duration !== null ? `${duration}s` : "-"}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {execution.items_processed ?? "-"}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {execution.items_added ?? "-"}
+                            </TableCell>
+                            <TableCell>
+                              {execution.error_message && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Badge variant="destructive" className="text-xs">
+                                        <Bell className="h-3 w-3 mr-1" />
+                                        Ver erro
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-md">
+                                      <p className="text-xs whitespace-pre-wrap">
+                                        {execution.error_message}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {(!executionHistory || executionHistory.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            Nenhuma execução registada
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* Alerts for Recent Failures */}
+            {stats.failedToday > 0 && (
+              <Card className="border-red-500/50 bg-red-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-600">
+                    <AlertTriangle className="h-5 w-5" />
+                    Alertas de Falha
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {executionHistory
+                      ?.filter(
+                        (e) =>
+                          (e.status === "failed" || e.status === "completed_with_errors") &&
+                          new Date(e.started_at).toDateString() === new Date().toDateString()
+                      )
+                      .map((failure) => (
+                        <div
+                          key={failure.id}
+                          className="p-3 rounded-lg border border-red-500/30 bg-background"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <XCircle className="h-4 w-4 text-red-500" />
+                              <span className="font-medium">{failure.sync_type}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {format(parseISO(failure.started_at), "HH:mm", { locale: pt })}
+                            </span>
+                          </div>
+                          {failure.error_message && (
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {failure.error_message.substring(0, 200)}
+                              {failure.error_message.length > 200 ? "..." : ""}
+                            </p>
                           )}
                         </div>
-                      )}
-                    </div>
+                      ))}
                   </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleManualRun(job)}
-                          disabled={runningJob === job.id}
-                        >
-                          {runningJob === job.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Play className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Executar manualmente</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              );
-            })}
+                </CardContent>
+              </Card>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Execution History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Histórico de Execuções
-          </CardTitle>
-          <CardDescription>
-            Últimas 100 execuções de jobs agendados
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[400px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Início</TableHead>
-                  <TableHead>Duração</TableHead>
-                  <TableHead>Processados</TableHead>
-                  <TableHead>Adicionados</TableHead>
-                  <TableHead>Erro</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {executionHistory?.map((execution) => {
-                  const duration = execution.completed_at
-                    ? Math.round(
-                        (new Date(execution.completed_at).getTime() -
-                          new Date(execution.started_at).getTime()) /
-                          1000
-                      )
-                    : null;
-
-                  return (
-                    <TableRow key={execution.id}>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {execution.sync_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(execution.status)}</TableCell>
-                      <TableCell className="text-sm">
-                        {format(parseISO(execution.started_at), "dd/MM HH:mm", {
-                          locale: pt,
-                        })}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {duration !== null ? `${duration}s` : "-"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {execution.items_processed ?? "-"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {execution.items_added ?? "-"}
-                      </TableCell>
-                      <TableCell>
-                        {execution.error_message && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Badge variant="destructive" className="text-xs">
-                                  <Bell className="h-3 w-3 mr-1" />
-                                  Ver erro
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-md">
-                                <p className="text-xs whitespace-pre-wrap">
-                                  {execution.error_message}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {(!executionHistory || executionHistory.length === 0) && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma execução registada
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      {/* Alerts for Recent Failures */}
-      {stats.failedToday > 0 && (
-        <Card className="border-red-500/50 bg-red-500/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              Alertas de Falha
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {executionHistory
-                ?.filter(
-                  (e) =>
-                    (e.status === "failed" || e.status === "completed_with_errors") &&
-                    new Date(e.started_at).toDateString() === new Date().toDateString()
-                )
-                .map((failure) => (
-                  <div
-                    key={failure.id}
-                    className="p-3 rounded-lg border border-red-500/30 bg-background"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <XCircle className="h-4 w-4 text-red-500" />
-                        <span className="font-medium">{failure.sync_type}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {format(parseISO(failure.started_at), "HH:mm", { locale: pt })}
-                      </span>
-                    </div>
-                    {failure.error_message && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {failure.error_message.substring(0, 200)}
-                        {failure.error_message.length > 200 ? "..." : ""}
-                      </p>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="retry" className="mt-4">
+          <JobRetryMonitorPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
