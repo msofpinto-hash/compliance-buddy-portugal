@@ -1776,7 +1776,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true, background = false, force = false } = await req.json();
+    const { legislationIds, limit = 20, dryRun = false, origin, autoImport = true, background = false, force = false } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
