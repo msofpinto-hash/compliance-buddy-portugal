@@ -297,12 +297,21 @@ export function DataFixPanel() {
         }
       }
 
-      // URLs: document_url is null AND (no_digital_version is null OR no_digital_version is false)
+      // URLs: count records with NULL urls OR old/legacy URL formats that need fixing
+      // This matches what fix-broken-urls actually processes
       const urlsResult = await supabase
         .from("legislation")
         .select("id", { count: "exact", head: true })
-        .is("document_url", null)
-        .or("no_digital_version.is.null,no_digital_version.eq.false");
+        .or("no_digital_version.is.null,no_digital_version.eq.false")
+        .or(
+          "document_url.is.null," +
+          "document_url.like.%dre.pt/dre/detalhe%," +
+          "document_url.like.%data.dre.pt/eli%," +
+          "document_url.like.%dre.pt/web/guest%," +
+          "document_url.like.%dre.pt/application/file%," +
+          "document_url.like.%dre.pt/home%," +
+          "document_url.like.%dre.pt/util/getdiplomas%"
+        );
 
       // Use RPC functions for accurate counting (avoids 1000 row limit)
       const [datesResult, genericTitlesResult, shortSummariesResult, categoriesResult] = await Promise.all([

@@ -1414,10 +1414,10 @@ async function runBackgroundCompletion(params: {
         .in('origin', ['PT', 'dre'])
         .or('no_digital_version.is.null,no_digital_version.eq.false');
     } else if (mode === 'short_summary') {
-      // Prefer to narrow to likely candidates; length < 20 is done in JS.
+      // Fetch ALL records with URLs - JS filter will check length < 20
+      // We need to fetch records that HAVE summaries but are too short
       query = query
-        .not('document_url', 'is', null)
-        .or('summary.is.null,summary.eq.,summary.ilike.%Diploma referenciado%');
+        .not('document_url', 'is', null);
     } else if (mode === 'missing_summary') {
       // Only records missing summary
       query = query.or('summary.is.null,summary.eq.');
