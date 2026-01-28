@@ -505,35 +505,174 @@ function extractDREContent(html: string): string {
 function extractEurLexContent(html: string): string {
   const parts: string[] = [];
   
-  // Meta tags
+  // Priority 1: Meta description (often contains good summary)
   const metaDesc = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
-  if (metaDesc?.[1]) parts.push(`META_DESCRIPTION: ${metaDesc[1].trim()}`);
+  const metaDescAlt = html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
+  const description = metaDesc?.[1] || metaDescAlt?.[1];
+  if (description && description.length > 30) {
+    parts.push(`Sumário: ${description.trim()}`);
+  }
   
-  // EUR-Lex specific: DocumentTitle
-  const docTitlePattern = /<(?:div|p)[^>]*class=["'][^"']*(?:DocumentTitle|title-document)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p)>/gi;
+  // Priority 2: OG description (backup for summary)
+  const ogDesc = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+  const ogDescAlt = html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:description["']/i);
+  const ogDescription = ogDesc?.[1] || ogDescAlt?.[1];
+  if (ogDescription && ogDescription.length > 30 && ogDescription !== description) {
+    parts.push(`Sumário: ${ogDescription.trim()}`);
+  }
+  
+  // Priority 3: EUR-Lex specific: Summary section (id="summary" or class contains "summary")
+  const summaryPatterns = [
+    /<(?:div|section)[^>]*id=["']summary["'][^>]*>([\s\S]*?)<\/(?:div|section)>/gi,
+    /<(?:div|section)[^>]*class=["'][^"']*summary[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section)>/gi,
+    /<(?:div)[^>]*class=["'][^"']*eli-main-title[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,
+  ];
+  
+  for (const pattern of summaryPatterns) {
+    let match;
+    while ((match = pattern.exec(html)) !== null) {
+      const content = stripHtmlTags(match[1]).trim();
+      if (content.length > 50 && content.length < 3000) {
+        parts.push(`Sumário: ${content}`);
+        break;
+      }
+    }
+    if (parts.some(p => p.startsWith('Sumário:'))) break;
+  }
+  
+  // Priority 4: EUR-Lex DocumentTitle
+  const docTitlePattern = /<(?:div|p)[^>]*class=["'][^"']*(?:DocumentTitle|title-document|eli-title)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p)>/gi;
   let titleMatch;
   while ((titleMatch = docTitlePattern.exec(html)) !== null) {
     const content = stripHtmlTags(titleMatch[1]).trim();
     if (content.length > 20) {
       parts.push(`DOC_TITLE: ${content}`);
+      break;
     }
   }
   
-  // EUR-Lex: Preamble/recitals
+  // Priority 5: OG title
+  const ogTitle = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+  const ogTitleAlt = html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']/i);
+  const title = ogTitle?.[1] || ogTitleAlt?.[1];
+  if (title && title.length > 20) parts.push(`OG_TITLE: ${title.trim()}`);
+  
+  // Priority 6: Title tag
+  const titleTag = html.match(/<title>([^<]+)<\/title>/i);
+  if (titleTag?.[1] && titleTag[1].length > 20) {
+    parts.push(`TITLE: ${titleTag[1].trim()}`);
+  }
+  
+  // Priority 7: Preamble/recitals (backup for context)
   const preamblePattern = /<(?:div)[^>]*id=["']preamble["'][^>]*>([\s\S]*?)<\/div>/gi;
   let preambleMatch;
   while ((preambleMatch = preamblePattern.exec(html)) !== null) {
     const content = stripHtmlTags(preambleMatch[1]).trim();
     if (content.length > 100) {
-      parts.push(`PREAMBLE: ${content.substring(0, 2000)}`);
+      // Extract first paragraph as potential summary
+      const firstPara = content.split('\n').find(p => p.trim().length > 50);
+      if (firstPara && !parts.some(p => p.includes(firstPara.substring(0, 50)))) {
+        parts.push(`PREAMBLE_SUMMARY: ${firstPara.trim().substring(0, 500)}`);
+      }
+      break;
     }
   }
   
-  // OG title
-  const ogTitle = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
-  if (ogTitle?.[1]) parts.push(`OG_TITLE: ${ogTitle[1].trim()}`);
-  
   return parts.join('\n\n');
+}
+
+// Extract structured metadata from EUR-Lex content
+function extractMetadataFromEurLex(content: string, currentNumber: string, existingTitle?: string): LegislationUpdate {
+  const update: LegislationUpdate = {};
+  
+  console.log(`[extractMetadataFromEurLex] Processing content for: ${currentNumber}, length: ${content.length}`);
+  
+  // Extract summary - look for "Sumário:" prefix or META_DESCRIPTION
+  const summaryPatterns = [
+    /Sumário:\s*([^\n]{30,})/i,
+    /META_DESCRIPTION:\s*([^\n]{30,})/i,
+    /PREAMBLE_SUMMARY:\s*([^\n]{30,})/i,
+  ];
+  
+  for (const pattern of summaryPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) {
+      let summary = match[1].trim();
+      // Clean up EUR-Lex specific noise
+      summary = summary
+        .replace(/\s*\|\s*/g, ' ')
+        .replace(/EUR-Lex[^\n]*/gi, '')
+        .replace(/Official Journal[^\n]*/gi, '')
+        .replace(/CELEX[^\n]*/gi, '')
+        .trim();
+      
+      if (summary.length >= 20 && !summary.toLowerCase().includes('eur-lex') && !summary.toLowerCase().includes('cookies')) {
+        update.summary = summary.substring(0, 2000);
+        console.log(`[extractMetadataFromEurLex] Found summary (${summary.length} chars): ${summary.substring(0, 80)}...`);
+        break;
+      }
+    }
+  }
+  
+  // Extract title
+  const titlePatterns = [
+    /DOC_TITLE:\s*([^\n]{30,})/i,
+    /OG_TITLE:\s*([^\n]{30,})/i,
+    /TITLE:\s*([^\n]{30,})/i,
+  ];
+  
+  for (const pattern of titlePatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) {
+      let title = match[1].trim();
+      // Clean EUR-Lex noise from title
+      title = title
+        .replace(/\s*-\s*EUR-Lex$/i, '')
+        .replace(/\s*\|\s*EUR-Lex$/i, '')
+        .trim();
+      
+      if (title.length > 20 && !title.toLowerCase().includes('cookies') && !title.toLowerCase().includes('europa.eu')) {
+        update.title = title.substring(0, 500);
+        console.log(`[extractMetadataFromEurLex] Found title: ${title.substring(0, 80)}...`);
+        break;
+      }
+    }
+  }
+  
+  // FALLBACK: If no summary found but we have a descriptive title, extract summary from title
+  // EU legislation titles often contain the full description after "que" or ", relativ"
+  if (!update.summary) {
+    const titleToUse = update.title || existingTitle;
+    if (titleToUse && titleToUse.length > 80) {
+      const summaryExtractPatterns = [
+        // Pattern 1: "que estabelece...", "que altera...", "que revoga...", etc.
+        /,?\s*que\s+([a-záéíóúàèìòùâêîôûãõ][^,]{30,})/i,
+        // Pattern 2: "relativo a...", "relativa a...", "relativas aos..."
+        /\s+(relativ[oa]s?\s+[aào]s?\s+[^,]{30,})/i,
+        // Pattern 3: After the date, get the descriptive part
+        /de\s+\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}\s*,?\s+(.{30,})/i,
+      ];
+      
+      for (const pattern of summaryExtractPatterns) {
+        const match = titleToUse.match(pattern);
+        if (match && match[1]) {
+          let extractedSummary = match[1].trim();
+          // Capitalize first letter
+          extractedSummary = extractedSummary.charAt(0).toUpperCase() + extractedSummary.slice(1);
+          // Remove trailing incomplete sentences
+          extractedSummary = extractedSummary.replace(/\s*\([^)]*$/, '').trim();
+          
+          if (extractedSummary.length >= 30) {
+            update.summary = extractedSummary.substring(0, 2000);
+            console.log(`[extractMetadataFromEurLex] Extracted summary from title (${extractedSummary.length} chars): ${extractedSummary.substring(0, 80)}...`);
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  return update;
 }
 
 // Helper: Strip HTML tags and decode entities
@@ -1694,7 +1833,47 @@ async function runBackgroundCompletion(params: {
           
           const urlToScrape = updates.document_url || leg.document_url;
           if (urlToScrape && urlToScrape.includes('eur-lex')) {
-            const metadata = await scrapeEurLexMetadata(urlToScrape, firecrawlKey);
+            let metadata: LegislationUpdate | null = null;
+            
+            // STRATEGY 1: Try native scraping first (no rate limits!)
+            const nativeContent = await scrapeUrlDirect(urlToScrape, 10000);
+            if (nativeContent && nativeContent.length > 50) {
+              console.log(`[EUR-Lex] Native scrape got ${nativeContent.length} chars`);
+              metadata = extractMetadataFromEurLex(nativeContent, leg.number, leg.title);
+            }
+            
+            // STRATEGY 2: Only use Firecrawl as backup if native failed
+            const needsTitle = !leg.title || leg.title === leg.number || 
+                             (mode === 'generic_titles' && isGenericPTTitle(leg.title, leg.number));
+            const needsSummary = !leg.summary || leg.summary.includes('Diploma referenciado') ||
+                               (mode === 'short_summary' && (leg.summary?.length || 0) < 20);
+            
+            const hasGoodTitle = metadata?.title && metadata.title.length > 20;
+            const hasGoodSummary = metadata?.summary && isValidSummary(metadata?.summary);
+            
+            if ((!hasGoodTitle && needsTitle) || (!hasGoodSummary && needsSummary)) {
+              console.log('[EUR-Lex] Native insufficient, trying Firecrawl...');
+              const firecrawlMeta = await scrapeEurLexMetadata(urlToScrape, firecrawlKey);
+              if (firecrawlMeta) {
+                // Merge with native results - Firecrawl fills gaps
+                if (!hasGoodTitle && firecrawlMeta.title) {
+                  metadata = metadata || {};
+                  metadata.title = firecrawlMeta.title;
+                }
+                if (!hasGoodSummary && firecrawlMeta.summary && isValidSummary(firecrawlMeta.summary)) {
+                  metadata = metadata || {};
+                  metadata.summary = firecrawlMeta.summary;
+                }
+                if (firecrawlMeta.entity && !metadata?.entity) {
+                  metadata = metadata || {};
+                  metadata.entity = firecrawlMeta.entity;
+                }
+                if (firecrawlMeta.publication_date && !metadata?.publication_date) {
+                  metadata = metadata || {};
+                  metadata.publication_date = firecrawlMeta.publication_date;
+                }
+              }
+            }
             
             if (metadata) {
               const shouldUpdateTitle =
@@ -1710,7 +1889,7 @@ async function runBackgroundCompletion(params: {
               const shouldUpdateSummary = !leg.summary || 
                                           leg.summary.includes('Diploma referenciado') ||
                                           (mode === 'short_summary' && (leg.summary?.length || 0) < 20);
-              if (metadata.summary && shouldUpdateSummary) {
+              if (metadata.summary && isValidSummary(metadata.summary) && shouldUpdateSummary) {
                 updates.summary = metadata.summary;
                 hasUpdates = true;
               }
@@ -1733,7 +1912,7 @@ async function runBackgroundCompletion(params: {
               console.log(`Extracted EUR-Lex metadata:`, metadata);
             }
             
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, 800));
           }
         } else {
           if (!leg.document_url) {
