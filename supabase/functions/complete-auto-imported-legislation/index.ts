@@ -1332,9 +1332,11 @@ async function runBackgroundCompletion(params: {
     } else if (mode === 'missing_dates') {
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
-      // Fetch broadly, then filter using isGenericPTTitle (kept aligned with SQL count)
+      // Fetch PT legislation with URLs for title correction
+      // Must have URL (for scraping), be PT origin, and not marked as no_digital_version
       query = query
-        .or('origin.eq.PT,origin.eq.dre')
+        .not('document_url', 'is', null)
+        .in('origin', ['PT', 'dre'])
         .or('no_digital_version.is.null,no_digital_version.eq.false');
     } else if (mode === 'short_summary') {
       // Prefer to narrow to likely candidates; length < 20 is done in JS.
