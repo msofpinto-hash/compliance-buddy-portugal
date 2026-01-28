@@ -59,7 +59,76 @@ function extractLegislationParts(number: string): { type: string; num: string; y
 }
 
 // Timeout wrapper for fetch operations - CRITICAL to prevent blocking
-const ITEM_TIMEOUT_MS = 25000; // 25 seconds max per external call
+// Keep individual external calls <= 15s to avoid long-running jobs and timeouts.
+const ITEM_TIMEOUT_MS = 15000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function acquireRateLimitSlot(
+  supabase: any,
+  opts: { identifier: string; functionName: string; maxRequests?: number; windowSeconds?: number; maxWaitMs?: number }
+): Promise<boolean> {
+  const { identifier, functionName } = opts;
+  const maxRequests = opts.maxRequests ?? 25;
+  const windowSeconds = opts.windowSeconds ?? 60;
+  const maxWaitMs = opts.maxWaitMs ?? 12000;
+
+  const start = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const { data, error } = await supabase.rpc('check_rate_limit', {
+        p_identifier: identifier,
+        p_function_name: functionName,
+        p_max_requests: maxRequests,
+        p_window_seconds: windowSeconds,
+      });
+      if (error) {
+        console.log('[RateLimit] RPC error, skipping limiter:', error);
+        return true; // fail-open to avoid blocking jobs entirely
+      }
+      if (data?.allowed) return true;
+
+      const resetAt = data?.reset_at ? new Date(data.reset_at).getTime() : Date.now() + 1000;
+      const waitMs = Math.max(250, Math.min(1500, resetAt - Date.now()));
+      await sleep(waitMs);
+    } catch (e) {
+      console.log('[RateLimit] Unexpected error, skipping limiter:', e);
+      return true;
+    }
+  }
+  return false;
+}
+
+function extractDreIdCandidates(dreUrl: string): { slug: string; numeric?: string } | null {
+  const dreIdMatch = dreUrl.match(/\/detalhe\/[^\/]+\/([^\/?]+)/);
+  if (!dreIdMatch?.[1]) return null;
+  const slug = dreIdMatch[1];
+
+  // Many DRE URLs embed a numeric internal ID at the end: {number}-{year}-{id}
+  // Example: 165-1983-311467 -> numeric id = 311467
+  const parts = slug.split("-").filter(Boolean);
+  const last = parts[parts.length - 1];
+  const numeric = last && /^\d{5,}$/.test(last) ? last : undefined;
+  return { slug, numeric };
+}
+
+async function safeJsonFromResponse(res: Response): Promise<any | null> {
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
+  const text = await res.text(); // Always consume body
+  if (!res.ok) return null;
+  if (!contentType.includes("application/json") && !contentType.includes("json")) {
+    console.log(`[DRE OpenData] Non-JSON response (content-type=${contentType}). Snippet: ${text.slice(0, 120)}`);
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.log(`[DRE OpenData] JSON parse error. Snippet: ${text.slice(0, 120)}`);
+    console.log(e);
+    return null;
+  }
+}
 
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = ITEM_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -95,54 +164,58 @@ interface DREOpenDataResult {
 // This is the preferred method for Portuguese legislation as it doesn't require JS rendering
 async function fetchDREOpenData(dreUrl: string): Promise<DREOpenDataResult | null> {
   try {
-    // Extract the DRE document ID from the URL
-    // URLs can be like:
-    // - https://diariodarepublica.pt/dr/detalhe/decreto-lei/48-a-2024-873616105
-    // - https://dre.pt/dre/detalhe/decreto-lei/48-a-2024-873616105
-    const dreIdMatch = dreUrl.match(/\/detalhe\/[^\/]+\/([^\/?]+)/);
-    if (!dreIdMatch) {
+    const ids = extractDreIdCandidates(dreUrl);
+    if (!ids) {
       console.log('[DRE OpenData] Could not extract ID from URL:', dreUrl);
       return null;
     }
-    
-    const dreId = dreIdMatch[1];
-    
-    // Try the OpenData API endpoint
-    const apiUrl = `https://data.dre.pt/opendata/diploma/${dreId}`;
-    console.log('[DRE OpenData] Fetching:', apiUrl);
-    
-    const response = await fetchWithTimeout(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
-      },
-    }, 10000);
-    
-    if (!response.ok) {
-      // Try alternative API format
-      const altApiUrl = `https://data.dre.pt/opendata/document?q=${encodeURIComponent(dreId)}`;
-      console.log('[DRE OpenData] Primary failed, trying:', altApiUrl);
-      
-      const altResponse = await fetchWithTimeout(altApiUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+
+    // Prefer numeric id if present; OpenData commonly expects the internal numeric identifier.
+    const primaryId = ids.numeric || ids.slug;
+    const candidates = [primaryId, ids.slug].filter((v, i, arr) => v && arr.indexOf(v) === i) as string[];
+
+    for (const cand of candidates) {
+      const apiUrl = `https://data.dre.pt/opendata/diploma/${cand}`;
+      console.log('[DRE OpenData] Fetching:', apiUrl);
+
+      const response = await fetchWithTimeout(
+        apiUrl,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+          },
         },
-      }, 10000);
-      
-      if (!altResponse.ok) {
-        console.log(`[DRE OpenData] API error: ${altResponse.status}`);
-        return null;
-      }
-      
-      const altData = await altResponse.json();
-      return parseDREApiResponse(altData);
+        10000
+      );
+
+      const data = await safeJsonFromResponse(response);
+      const parsed = data ? parseDREApiResponse(data) : null;
+      if (parsed) return parsed;
     }
-    
-    const data = await response.json();
-    return parseDREApiResponse(data);
+
+    // Try alternative search endpoint (sometimes more forgiving)
+    for (const cand of candidates) {
+      const altApiUrl = `https://data.dre.pt/opendata/document?q=${encodeURIComponent(cand)}`;
+      console.log('[DRE OpenData] Primary failed, trying:', altApiUrl);
+      const altResponse = await fetchWithTimeout(
+        altApiUrl,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+          },
+        },
+        10000
+      );
+      const altData = await safeJsonFromResponse(altResponse);
+      const parsed = altData ? parseDREApiResponse(altData) : null;
+      if (parsed) return parsed;
+    }
+
+    return null;
   } catch (error) {
     console.log('[DRE OpenData] Error:', error);
     return null;
@@ -231,7 +304,7 @@ function parseDate(dateStr: string): string | null {
 }
 
 // Search DRE for a legislation URL using Firecrawl
-async function searchDREUrl(number: string, firecrawlKey: string): Promise<string | null> {
+async function searchDREUrl(number: string, firecrawlKey: string, supabase: any): Promise<string | null> {
   try {
     const parts = extractLegislationParts(number);
     let searchQuery: string;
@@ -245,6 +318,18 @@ async function searchDREUrl(number: string, firecrawlKey: string): Promise<strin
     
     console.log(`Searching DRE: ${searchQuery}`);
     
+    const allowed = await acquireRateLimitSlot(supabase, {
+      identifier: 'firecrawl',
+      functionName: 'firecrawl_search',
+      maxRequests: 25,
+      windowSeconds: 60,
+      maxWaitMs: 12000,
+    });
+    if (!allowed) {
+      console.log('[RateLimit] Firecrawl search throttled - skipping for now');
+      return null;
+    }
+
     const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
@@ -555,7 +640,7 @@ function requiresJavaScript(url: string): boolean {
 
 // Scrape URL content - DIRECT FIRST for static sites, Firecrawl for SPAs
 // DRE requires Firecrawl (SPA), EUR-Lex works with direct fetch (static HTML)
-async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | null> {
+async function scrapeUrl(url: string, firecrawlKey: string, supabase: any): Promise<string | null> {
   // Skip PDFs and binary files entirely - immediate return
   if (isNonScrapableUrl(url)) {
     console.log('[Scrape] SKIP: Non-scrapable URL (PDF/binary):', url);
@@ -580,6 +665,18 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
     if (!directResult) {
       console.log('[Scrape] Direct failed, trying Firecrawl fallback...');
       try {
+        const allowed = await acquireRateLimitSlot(supabase, {
+          identifier: 'firecrawl',
+          functionName: 'firecrawl_scrape',
+          maxRequests: 25,
+          windowSeconds: 60,
+          maxWaitMs: 12000,
+        });
+        if (!allowed) {
+          console.log('[RateLimit] Firecrawl throttled - skipping scrape for now');
+          return directResult;
+        }
+
         const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
           method: 'POST',
           headers: {
@@ -613,6 +710,18 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
   // For domains that require JS (DRE/SPA), use Firecrawl ONLY (no fallback)
   console.log('[Scrape] Using Firecrawl for JS-rendered site:', url);
   try {
+    const allowed = await acquireRateLimitSlot(supabase, {
+      identifier: 'firecrawl',
+      functionName: 'firecrawl_scrape',
+      maxRequests: 25,
+      windowSeconds: 60,
+      maxWaitMs: 12000,
+    });
+    if (!allowed) {
+      console.log('[RateLimit] Firecrawl throttled - skipping scrape for now');
+      return null;
+    }
+
     const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -623,9 +732,9 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
         url,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 2000,
+        waitFor: 1500,
       }),
-    }, 18000);
+    }, 15000);
     
     if (response.ok) {
       const data = await response.json();
@@ -1556,7 +1665,7 @@ async function runBackgroundCompletion(params: {
           }
         } else {
           if (!leg.document_url) {
-            const dreUrl = await searchDREUrl(leg.number, firecrawlKey);
+            const dreUrl = await searchDREUrl(leg.number, firecrawlKey, supabase);
             if (dreUrl) {
               updates.document_url = dreUrl;
               updates.origin = 'PT';
@@ -1575,7 +1684,7 @@ async function runBackgroundCompletion(params: {
           let urlToScrape = updates.document_url || leg.document_url;
           if (urlToScrape && (isNonScrapableUrl(urlToScrape) || !urlToScrape.includes('/dr/detalhe/'))) {
             console.log('[URL] Current URL not suitable for metadata, trying to recover /dr/detalhe/...');
-            const recovered = await searchDREUrl(leg.number, firecrawlKey);
+            const recovered = await searchDREUrl(leg.number, firecrawlKey, supabase);
             if (recovered) {
               updates.document_url = recovered;
               urlToScrape = recovered;
@@ -1612,7 +1721,7 @@ async function runBackgroundCompletion(params: {
             
             if ((!hasGoodTitle && needsTitle) || (!hasGoodSummary && needsSummary)) {
               console.log('[Processing] API data insufficient, trying scraping fallback...');
-              const markdown = await scrapeUrl(urlToScrape, firecrawlKey);
+              const markdown = await scrapeUrl(urlToScrape, firecrawlKey, supabase);
               if (markdown && markdown.length > 100) {
                 const scrapedMetadata = extractMetadataFromDRE(markdown, leg.number);
                 // Merge scraped data with API data (API takes precedence)
