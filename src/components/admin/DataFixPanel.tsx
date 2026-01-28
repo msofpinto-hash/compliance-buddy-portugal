@@ -521,46 +521,37 @@ export function DataFixPanel() {
   };
 
   // Check if a fix type is blocked by dependencies
+  // NOTE: Metadata fixes (dates/titles/summaries) are NOT blocked by missing URLs
+  // because records without URLs simply won't be processed (the edge function filters them)
+  // This allows making progress on records that DO have URLs
   const isBlocked = (type: FixType): boolean => {
-    const urlCount = stats?.urls || 0;
     const metadataCount = (stats?.dates || 0) + (stats?.titles || 0) + (stats?.summaries || 0);
     
-    // Metadata fixes are blocked if there are many URLs missing
-    if (["dates", "titles", "summaries"].includes(type) && urlCount > 50) {
-      return true;
-    }
-    // Requirements are blocked if there are many URLs or metadata missing
-    if (type === "requirements" && (urlCount > 20 || metadataCount > 100)) {
+    // Requirements are blocked if there are many metadata issues (need clean data first)
+    if (type === "requirements" && metadataCount > 500) {
       return true;
     }
     // Relations are blocked if there are many requirements missing
-    if (type === "relations" && (stats?.requirements || 0) > 50) {
+    if (type === "relations" && (stats?.requirements || 0) > 200) {
       return true;
     }
     // Categories are blocked if there are many summaries missing (IA needs summaries)
-    if (type === "categories" && (stats?.summaries || 0) > 50) {
+    if (type === "categories" && (stats?.summaries || 0) > 200) {
       return true;
     }
     return false;
   };
 
   const getBlockReason = (type: FixType): string | null => {
-    const urlCount = stats?.urls || 0;
     const metadataCount = (stats?.dates || 0) + (stats?.titles || 0) + (stats?.summaries || 0);
     
-    if (["dates", "titles", "summaries"].includes(type) && urlCount > 50) {
-      return `Corrija primeiro os URLs (${urlCount} em falta)`;
-    }
-    if (type === "requirements" && urlCount > 20) {
-      return `Corrija primeiro os URLs (${urlCount} em falta)`;
-    }
-    if (type === "requirements" && metadataCount > 100) {
+    if (type === "requirements" && metadataCount > 500) {
       return `Corrija primeiro os metadados (${metadataCount} em falta)`;
     }
-    if (type === "relations" && (stats?.requirements || 0) > 50) {
+    if (type === "relations" && (stats?.requirements || 0) > 200) {
       return `Extraia primeiro os requisitos (${stats?.requirements} em falta)`;
     }
-    if (type === "categories" && (stats?.summaries || 0) > 50) {
+    if (type === "categories" && (stats?.summaries || 0) > 200) {
       return `Corrija primeiro os sumários (${stats?.summaries} em falta)`;
     }
     return null;
