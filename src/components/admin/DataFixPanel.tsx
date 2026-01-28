@@ -443,7 +443,7 @@ export function DataFixPanel() {
           break;
         case "dates":
           functionName = "complete-auto-imported-legislation";
-          body = { mode: "missing_dates", limit: batchSize, dryRun: false };
+          body = { mode: "missing_dates", limit: batchSize, dryRun: false, requireUrl: true };
           break;
         case "requirements":
           functionName = "extract-requirements-background";
