@@ -1562,6 +1562,15 @@ export type Database = {
       }
       count_generic_titles: { Args: never; Returns: number }
       count_short_summaries: { Args: never; Returns: number }
+      get_generic_title_ids: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          document_url: string
+          id: string
+          number: string
+          title: string
+        }[]
+      }
       get_legislation_without_categories_count: { Args: never; Returns: number }
       get_user_modules: {
         Args: { _org_id: string; _user_id: string }

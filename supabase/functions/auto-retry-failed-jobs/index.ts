@@ -14,22 +14,109 @@ interface JobConfig {
   functionName: string;
   defaultPayload: Record<string, unknown>;
   maxParallelJobs: number;
+  checkPendingWork?: (supabase: any) => Promise<{ hasPending: boolean; count: number }>;
+}
+
+// Helper to check pending metadata corrections
+async function checkPendingMetadataCorrection(
+  supabase: any,
+  mode: 'missing_dates' | 'generic_titles' | 'short_summary'
+): Promise<{ hasPending: boolean; count: number }> {
+  if (mode === 'missing_dates') {
+    const { count } = await supabase
+      .from('legislation')
+      .select('id', { count: 'exact', head: true })
+      .not('document_url', 'is', null)
+      .is('publication_date', null)
+      .or('no_digital_version.is.null,no_digital_version.eq.false');
+    
+    return { hasPending: (count || 0) > 0, count: count || 0 };
+  }
+  
+  if (mode === 'generic_titles') {
+    const { data } = await supabase.rpc('count_generic_titles');
+    const count = data || 0;
+    return { hasPending: count > 0, count };
+  }
+  
+  if (mode === 'short_summary') {
+    const { data } = await supabase.rpc('count_short_summaries');
+    const count = data || 0;
+    return { hasPending: count > 0, count };
+  }
+  
+  return { hasPending: false, count: 0 };
 }
 
 const JOB_CONFIGS: JobConfig[] = [
+  // Metadata correction jobs - run sequentially with low parallelism to avoid rate limits
+  {
+    syncType: 'fix_missing_dates',
+    functionName: 'complete-auto-imported-legislation',
+    defaultPayload: { mode: 'missing_dates', batchSize: 10, parallelJobs: 1 },
+    maxParallelJobs: 2,
+    checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'missing_dates'),
+  },
+  {
+    syncType: 'fix_generic_titles',
+    functionName: 'complete-auto-imported-legislation',
+    defaultPayload: { mode: 'generic_titles', batchSize: 10, parallelJobs: 1 },
+    maxParallelJobs: 2,
+    checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'generic_titles'),
+  },
+  {
+    syncType: 'fix_short_summary',
+    functionName: 'complete-auto-imported-legislation',
+    defaultPayload: { mode: 'short_summary', batchSize: 10, parallelJobs: 1 },
+    maxParallelJobs: 2,
+    checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'short_summary'),
+  },
+  // Legacy extraction jobs - currently suspended for focus on metadata corrections
   {
     syncType: 'extract_relations',
     functionName: 'extract-legislation-relations',
     defaultPayload: { origin: 'PT', background: true, limit: BATCH_SIZE },
     maxParallelJobs: 15,
+    checkPendingWork: async (supabase) => {
+      const { data: allLeg } = await supabase
+        .from('legislation')
+        .select('id')
+        .or('origin.eq.PT,origin.eq.dre,origin.is.null')
+        .not('document_url', 'is', null);
+      
+      const { data: processed } = await supabase
+        .from('legislation_relations_processed')
+        .select('legislation_id');
+      
+      const processedIds = new Set(processed?.map((p: any) => p.legislation_id) || []);
+      const pending = (allLeg || []).filter((l: any) => !processedIds.has(l.id));
+      return { hasPending: pending.length > 0, count: pending.length };
+    },
   },
   {
     syncType: 'background-requirements-extraction',
     functionName: 'extract-requirements-background',
     defaultPayload: { batchSize: 5, maxBatches: 20, useUrl: true },
     maxParallelJobs: 5,
+    checkPendingWork: async (supabase) => {
+      const { data: withReqs } = await supabase
+        .from('legal_requirements')
+        .select('legislation_id');
+      
+      const { data: allLeg } = await supabase
+        .from('legislation')
+        .select('id')
+        .not('document_url', 'is', null);
+      
+      const idsWithReqs = new Set(withReqs?.map((r: any) => r.legislation_id) || []);
+      const pending = (allLeg || []).filter((l: any) => !idsWithReqs.has(l.id));
+      return { hasPending: pending.length > 0, count: pending.length };
+    },
   },
 ];
+
+// Jobs to skip by default (can be enabled with specific syncType or force)
+const SUSPENDED_JOBS = ['extract_relations', 'background-requirements-extraction'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -44,6 +131,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const targetSyncType = body.syncType as string | undefined;
     const forceRestart = body.force === true;
+    const includeAll = body.includeAll === true; // Include suspended jobs
 
     console.log('🔄 Auto-retry: Checking for stuck/failed jobs...');
 
@@ -51,12 +139,26 @@ Deno.serve(async (req) => {
       syncType: string;
       stuckFixed: number;
       restarted: number;
+      pendingCount?: number;
       error?: string;
+      skipped?: boolean;
     }> = [];
 
     for (const config of JOB_CONFIGS) {
       // Skip if targeting a specific sync type
       if (targetSyncType && config.syncType !== targetSyncType) {
+        continue;
+      }
+
+      // Skip suspended jobs unless explicitly requested
+      if (!targetSyncType && !includeAll && SUSPENDED_JOBS.includes(config.syncType)) {
+        console.log(`⏸️ Skipping suspended job: ${config.syncType}`);
+        results.push({
+          syncType: config.syncType,
+          stuckFixed: 0,
+          restarted: 0,
+          skipped: true,
+        });
         continue;
       }
 
@@ -103,8 +205,8 @@ async function processJobType(
   supabaseServiceKey: string,
   config: JobConfig,
   forceRestart: boolean
-): Promise<{ stuckFixed: number; restarted: number }> {
-  const { syncType, functionName, defaultPayload, maxParallelJobs } = config;
+): Promise<{ stuckFixed: number; restarted: number; pendingCount?: number }> {
+  const { syncType, functionName, defaultPayload, maxParallelJobs, checkPendingWork } = config;
 
   console.log(`\n📋 Processing ${syncType}...`);
 
@@ -170,56 +272,32 @@ async function processJobType(
     return { stuckFixed, restarted: 0 };
   }
 
-  // 4. Check if there's pending work
+  // 4. Check if there's pending work using the custom checker
   let hasPendingWork = false;
+  let pendingCount = 0;
   
-  if (syncType === 'extract_relations') {
-    // Check for PT legislation without processed relations
-    const { data: allLeg } = await supabase
-      .from('legislation')
-      .select('id')
-      .or('origin.eq.PT,origin.eq.dre,origin.is.null')
-      .not('document_url', 'is', null);
-    
-    const { data: processed } = await supabase
-      .from('legislation_relations_processed')
-      .select('legislation_id');
-    
-    const processedIds = new Set(processed?.map((p: any) => p.legislation_id) || []);
-    const pending = (allLeg || []).filter((l: any) => !processedIds.has(l.id));
-    hasPendingWork = pending.length > 0;
-    console.log(`📊 Pending relations extraction: ${pending.length} diplomas`);
-  } else if (syncType === 'background-requirements-extraction') {
-    // Check for legislation without requirements
-    const { data: withReqs } = await supabase
-      .from('legal_requirements')
-      .select('legislation_id');
-    
-    const { data: allLeg } = await supabase
-      .from('legislation')
-      .select('id')
-      .not('document_url', 'is', null);
-    
-    const idsWithReqs = new Set(withReqs?.map((r: any) => r.legislation_id) || []);
-    const pending = (allLeg || []).filter((l: any) => !idsWithReqs.has(l.id));
-    hasPendingWork = pending.length > 0;
-    console.log(`📊 Pending requirements extraction: ${pending.length} diplomas`);
+  if (checkPendingWork) {
+    const result = await checkPendingWork(supabase);
+    hasPendingWork = result.hasPending;
+    pendingCount = result.count;
+    console.log(`📊 Pending ${syncType}: ${pendingCount} items`);
   }
 
   if (!hasPendingWork) {
     console.log(`✅ No pending work for ${syncType}`);
-    return { stuckFixed, restarted: 0 };
+    return { stuckFixed, restarted: 0, pendingCount: 0 };
   }
 
   // 5. Calculate how many new jobs to start
   const slotsAvailable = maxParallelJobs - currentRunning;
   if (slotsAvailable <= 0) {
     console.log(`⏳ No slots available for ${syncType} (${currentRunning}/${maxParallelJobs} running)`);
-    return { stuckFixed, restarted: 0 };
+    return { stuckFixed, restarted: 0, pendingCount };
   }
 
-  // Start new jobs to fill available slots
-  const jobsToStart = Math.min(slotsAvailable, 5); // Start up to 5 jobs at a time
+  // Start new jobs to fill available slots (max 2 at a time for metadata jobs to respect rate limits)
+  const isMetadataJob = syncType.startsWith('fix_');
+  const jobsToStart = Math.min(slotsAvailable, isMetadataJob ? 2 : 5);
   console.log(`🚀 Starting ${jobsToStart} new ${syncType} jobs...`);
 
   let restarted = 0;
@@ -238,15 +316,17 @@ async function processJobType(
         restarted++;
         console.log(`✅ Started ${syncType} job ${i + 1}/${jobsToStart}`);
       } else {
-        console.error(`❌ Failed to start ${syncType} job: ${response.status}`);
+        const errorText = await response.text().catch(() => '');
+        console.error(`❌ Failed to start ${syncType} job: ${response.status} - ${errorText}`);
       }
 
-      // Small delay between job starts
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Longer delay for metadata jobs to avoid rate limiting
+      const delayMs = isMetadataJob ? 2000 : 500;
+      await new Promise(resolve => setTimeout(resolve, delayMs));
     } catch (error) {
       console.error(`❌ Error starting ${syncType} job:`, error);
     }
   }
 
-  return { stuckFixed, restarted };
+  return { stuckFixed, restarted, pendingCount };
 }
