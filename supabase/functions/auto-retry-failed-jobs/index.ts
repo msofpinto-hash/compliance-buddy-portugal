@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const TIMEOUT_MINUTES = 6; // Mark jobs as timeout after 6 minutes
-const MAX_RETRIES_PER_HOUR = 50; // Prevent infinite restart loops
+const MAX_RETRIES_PER_HOUR = 80; // Increase limit for aggressive processing
 const BATCH_SIZE = 10; // Items per job for relations extraction
 
 interface JobConfig {
@@ -14,7 +14,20 @@ interface JobConfig {
   functionName: string;
   defaultPayload: Record<string, unknown>;
   maxParallelJobs: number;
+  priority: number; // Lower = higher priority
   checkPendingWork?: (supabase: any) => Promise<{ hasPending: boolean; count: number }>;
+}
+
+// Helper to check pending URL corrections
+async function checkPendingUrlCorrection(supabase: any): Promise<{ hasPending: boolean; count: number }> {
+  const { count } = await supabase
+    .from('legislation')
+    .select('id', { count: 'exact', head: true })
+    .is('document_url', null)
+    .or('no_digital_version.is.null,no_digital_version.eq.false')
+    .in('origin', ['PT', 'dre']);
+  
+  return { hasPending: (count || 0) > 0, count: count || 0 };
 }
 
 // Helper to check pending metadata corrections
@@ -48,35 +61,51 @@ async function checkPendingMetadataCorrection(
   return { hasPending: false, count: 0 };
 }
 
+// Ordered by priority - URLs first, then dates, then titles, then summaries
 const JOB_CONFIGS: JobConfig[] = [
-  // Metadata correction jobs - run sequentially with low parallelism to avoid rate limits
+  // URL recovery - highest priority (others depend on having URLs)
+  {
+    syncType: 'fix_missing_urls',
+    functionName: 'find-missing-dre-urls',
+    defaultPayload: { limit: 20, background: true, dryRun: false },
+    maxParallelJobs: 3,
+    priority: 1,
+    checkPendingWork: checkPendingUrlCorrection,
+  },
+  // Date corrections - second priority
   {
     syncType: 'fix_missing_dates',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'missing_dates', batchSize: 10, parallelJobs: 1 },
-    maxParallelJobs: 2,
+    defaultPayload: { mode: 'missing_dates', batchSize: 15, parallelJobs: 1 },
+    maxParallelJobs: 3,
+    priority: 2,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'missing_dates'),
   },
+  // Title corrections - third priority
   {
     syncType: 'fix_generic_titles',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'generic_titles', batchSize: 10, parallelJobs: 1 },
-    maxParallelJobs: 2,
+    defaultPayload: { mode: 'generic_titles', batchSize: 15, parallelJobs: 1 },
+    maxParallelJobs: 3,
+    priority: 3,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'generic_titles'),
   },
+  // Summary corrections - fourth priority
   {
     syncType: 'fix_short_summary',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'short_summary', batchSize: 10, parallelJobs: 1 },
-    maxParallelJobs: 2,
+    defaultPayload: { mode: 'short_summary', batchSize: 15, parallelJobs: 1 },
+    maxParallelJobs: 3,
+    priority: 4,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'short_summary'),
   },
-  // Legacy extraction jobs - currently suspended for focus on metadata corrections
+  // Legacy extraction jobs - lower priority, suspended by default
   {
     syncType: 'extract_relations',
     functionName: 'extract-legislation-relations',
     defaultPayload: { origin: 'PT', background: true, limit: BATCH_SIZE },
     maxParallelJobs: 15,
+    priority: 10,
     checkPendingWork: async (supabase) => {
       const { data: allLeg } = await supabase
         .from('legislation')
@@ -98,6 +127,7 @@ const JOB_CONFIGS: JobConfig[] = [
     functionName: 'extract-requirements-background',
     defaultPayload: { batchSize: 5, maxBatches: 20, useUrl: true },
     maxParallelJobs: 5,
+    priority: 11,
     checkPendingWork: async (supabase) => {
       const { data: withReqs } = await supabase
         .from('legal_requirements')
@@ -295,9 +325,11 @@ async function processJobType(
     return { stuckFixed, restarted: 0, pendingCount };
   }
 
-  // Start new jobs to fill available slots (max 2 at a time for metadata jobs to respect rate limits)
+  // Start new jobs to fill available slots
+  // Higher parallelism for faster completion
+  const isUrlJob = syncType === 'fix_missing_urls';
   const isMetadataJob = syncType.startsWith('fix_');
-  const jobsToStart = Math.min(slotsAvailable, isMetadataJob ? 2 : 5);
+  const jobsToStart = Math.min(slotsAvailable, isUrlJob ? 3 : isMetadataJob ? 3 : 5);
   console.log(`🚀 Starting ${jobsToStart} new ${syncType} jobs...`);
 
   let restarted = 0;
@@ -317,11 +349,18 @@ async function processJobType(
         console.log(`✅ Started ${syncType} job ${i + 1}/${jobsToStart}`);
       } else {
         const errorText = await response.text().catch(() => '');
+        
+        // Detect rate limit or credit exhaustion and back off
+        if (response.status === 429 || response.status === 402) {
+          console.log(`⚠️ Rate limit/credits exhausted for ${syncType}. Backing off.`);
+          break; // Stop launching more jobs for this type
+        }
+        
         console.error(`❌ Failed to start ${syncType} job: ${response.status} - ${errorText}`);
       }
 
-      // Longer delay for metadata jobs to avoid rate limiting
-      const delayMs = isMetadataJob ? 2000 : 500;
+      // Delay between job launches - shorter for faster completion
+      const delayMs = isUrlJob ? 1500 : isMetadataJob ? 1000 : 500;
       await new Promise(resolve => setTimeout(resolve, delayMs));
     } catch (error) {
       console.error(`❌ Error starting ${syncType} job:`, error);
