@@ -152,8 +152,9 @@ const URL_SPEED_PRESETS: Record<UrlSpeedPreset, UrlSpeedConfig> = {
 
 export function DataFixPanel() {
   const queryClient = useQueryClient();
-  const [batchSize, setBatchSize] = useState(100);
-  const [parallelJobs, setParallelJobs] = useState(10);
+  // Reduced defaults to avoid Firecrawl rate limiting (429 errors)
+  const [batchSize, setBatchSize] = useState(20);
+  const [parallelJobs, setParallelJobs] = useState(3);
   const [showSettings, setShowSettings] = useState(false);
   const [activeFixType, setActiveFixType] = useState<FixType | null>(null);
   const [urlSpeedPreset, setUrlSpeedPreset] = useState<UrlSpeedPreset>("rapido");

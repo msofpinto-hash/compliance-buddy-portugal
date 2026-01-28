@@ -81,6 +81,155 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: nu
   }
 }
 
+// Interface for DRE OpenData API response
+interface DREOpenDataResult {
+  title?: string;
+  summary?: string;
+  entity?: string;
+  publicationDate?: string;
+  effectiveDate?: string;
+  documentUrl?: string;
+}
+
+// Try to fetch metadata from DRE OpenData API (free, no rate limits, structured data)
+// This is the preferred method for Portuguese legislation as it doesn't require JS rendering
+async function fetchDREOpenData(dreUrl: string): Promise<DREOpenDataResult | null> {
+  try {
+    // Extract the DRE document ID from the URL
+    // URLs can be like:
+    // - https://diariodarepublica.pt/dr/detalhe/decreto-lei/48-a-2024-873616105
+    // - https://dre.pt/dre/detalhe/decreto-lei/48-a-2024-873616105
+    const dreIdMatch = dreUrl.match(/\/detalhe\/[^\/]+\/([^\/?]+)/);
+    if (!dreIdMatch) {
+      console.log('[DRE OpenData] Could not extract ID from URL:', dreUrl);
+      return null;
+    }
+    
+    const dreId = dreIdMatch[1];
+    
+    // Try the OpenData API endpoint
+    const apiUrl = `https://data.dre.pt/opendata/diploma/${dreId}`;
+    console.log('[DRE OpenData] Fetching:', apiUrl);
+    
+    const response = await fetchWithTimeout(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+      },
+    }, 10000);
+    
+    if (!response.ok) {
+      // Try alternative API format
+      const altApiUrl = `https://data.dre.pt/opendata/document?q=${encodeURIComponent(dreId)}`;
+      console.log('[DRE OpenData] Primary failed, trying:', altApiUrl);
+      
+      const altResponse = await fetchWithTimeout(altApiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+        },
+      }, 10000);
+      
+      if (!altResponse.ok) {
+        console.log(`[DRE OpenData] API error: ${altResponse.status}`);
+        return null;
+      }
+      
+      const altData = await altResponse.json();
+      return parseDREApiResponse(altData);
+    }
+    
+    const data = await response.json();
+    return parseDREApiResponse(data);
+  } catch (error) {
+    console.log('[DRE OpenData] Error:', error);
+    return null;
+  }
+}
+
+// Parse DRE API response into our format
+function parseDREApiResponse(data: any): DREOpenDataResult | null {
+  if (!data) return null;
+  
+  // Handle array responses
+  const doc = Array.isArray(data) ? data[0] : (data.results?.[0] || data);
+  if (!doc) return null;
+  
+  const result: DREOpenDataResult = {};
+  
+  // Extract title (various field names used by DRE API)
+  const title = doc.titulo || doc.title || doc.descricao || doc.sumario || doc.summary;
+  if (title && typeof title === 'string' && title.length > 15) {
+    result.title = title.trim();
+  }
+  
+  // Extract summary
+  const summary = doc.sumario || doc.summary || doc.descricao || doc.resumo || doc.objeto;
+  if (summary && typeof summary === 'string' && summary.length > 20 && summary !== title) {
+    result.summary = summary.trim();
+  }
+  
+  // Extract entity
+  const entity = doc.emissor || doc.entidade || doc.entity || doc.fonte || doc.organismo;
+  if (entity && typeof entity === 'string' && entity.length > 3) {
+    result.entity = entity.trim();
+  }
+  
+  // Extract dates
+  const pubDate = doc.dataPublicacao || doc.publicationDate || doc.data || doc.dataEmissao;
+  if (pubDate) {
+    const dateStr = typeof pubDate === 'string' ? pubDate : pubDate.toString();
+    // Try to parse various date formats
+    const parsedDate = parseDate(dateStr);
+    if (parsedDate) result.publicationDate = parsedDate;
+  }
+  
+  const effDate = doc.dataEntradaVigor || doc.effectiveDate || doc.dataVigor || doc.vigencia;
+  if (effDate) {
+    const dateStr = typeof effDate === 'string' ? effDate : effDate.toString();
+    const parsedDate = parseDate(dateStr);
+    if (parsedDate) result.effectiveDate = parsedDate;
+  }
+  
+  // Extract document URL
+  const url = doc.url || doc.link || doc.ligacao || doc.urlPdf || doc.urlTexto;
+  if (url && typeof url === 'string') {
+    result.documentUrl = url;
+  }
+  
+  console.log('[DRE OpenData] Parsed:', result);
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+// Helper to parse date strings into YYYY-MM-DD format
+function parseDate(dateStr: string): string | null {
+  if (!dateStr) return null;
+  
+  // Try ISO format first
+  const isoMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  
+  // Try DD/MM/YYYY or DD-MM-YYYY
+  const euMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (euMatch) {
+    const day = euMatch[1].padStart(2, '0');
+    const month = euMatch[2].padStart(2, '0');
+    return `${euMatch[3]}-${month}-${day}`;
+  }
+  
+  // Try YYYY/MM/DD
+  const usMatch = dateStr.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (usMatch) {
+    const month = usMatch[2].padStart(2, '0');
+    const day = usMatch[3].padStart(2, '0');
+    return `${usMatch[1]}-${month}-${day}`;
+  }
+  
+  return null;
+}
+
 // Search DRE for a legislation URL using Firecrawl
 async function searchDREUrl(number: string, firecrawlKey: string): Promise<string | null> {
   try {
@@ -397,8 +546,15 @@ async function scrapeUrlDirect(url: string, timeoutMs: number = 10000): Promise<
   }
 }
 
-// Scrape URL content - DIRECT FIRST for DRE/EUR-Lex, Firecrawl as fallback
-// This reduces timeouts and is faster since direct fetch takes ~1-3s vs Firecrawl's ~5-20s
+// Check if URL requires JavaScript rendering (SPAs like DRE)
+function requiresJavaScript(url: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  // DRE is a React SPA - requires JS rendering, direct fetch won't work
+  return lowerUrl.includes('dre.pt') || lowerUrl.includes('diariodarepublica.pt');
+}
+
+// Scrape URL content - DIRECT FIRST for static sites, Firecrawl for SPAs
+// DRE requires Firecrawl (SPA), EUR-Lex works with direct fetch (static HTML)
 async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | null> {
   // Skip PDFs and binary files entirely - immediate return
   if (isNonScrapableUrl(url)) {
@@ -406,8 +562,9 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
     return null;
   }
 
-  // STRATEGY: Direct-first for known domains, Firecrawl for others
+  // STRATEGY: Direct-first for static sites (EUR-Lex), Firecrawl-only for SPAs (DRE)
   const useDirectFirst = isDirectScrapableDomain(url);
+  const needsJavaScript = requiresJavaScript(url);
   
   if (useDirectFirst) {
     console.log('[Scrape] Using direct-first strategy for:', url);
@@ -453,8 +610,8 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
     return directResult; // Return whatever direct got (may be null)
   }
   
-  // For unknown domains, use Firecrawl first (might need JS rendering)
-  console.log('[Scrape] Using Firecrawl-first for unknown domain:', url);
+  // For domains that require JS (DRE/SPA), use Firecrawl ONLY (no fallback)
+  console.log('[Scrape] Using Firecrawl for JS-rendered site:', url);
   try {
     const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -477,15 +634,32 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
         console.log('[Scrape] Firecrawl SUCCESS');
         return markdown;
       }
+    } else if (response.status === 429 || response.status === 402) {
+      // Rate limit or credits exhausted - DON'T fallback for SPA sites
+      // Return null so item can be retried later
+      console.log(`[Scrape] Firecrawl rate limited (${response.status}), will retry later`);
+      if (needsJavaScript) {
+        console.log('[Scrape] SPA site requires Firecrawl - skipping direct fallback');
+        return null;
+      }
     } else {
-      console.log(`[Scrape] Firecrawl failed (${response.status}), trying direct...`);
+      console.log(`[Scrape] Firecrawl failed (${response.status})`);
     }
   } catch (error) {
-    console.log(`[Scrape] Firecrawl error: ${error}, trying direct...`);
+    console.log(`[Scrape] Firecrawl error: ${error}`);
+    if (needsJavaScript) {
+      console.log('[Scrape] SPA site requires Firecrawl - skipping direct fallback');
+      return null;
+    }
   }
   
-  // Fallback to direct fetch
-  return await scrapeUrlDirect(url);
+  // Only fallback to direct fetch for non-SPA sites
+  if (!needsJavaScript) {
+    console.log('[Scrape] Trying direct fallback for static site...');
+    return await scrapeUrlDirect(url);
+  }
+  
+  return null;
 }
 
 // List of invalid entity values to filter out
@@ -1133,13 +1307,12 @@ async function runBackgroundCompletion(params: {
     } else if (mode === 'missing_dates') {
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
-      // Fetch PT legislation - will filter for generic titles in JS
-      // Generic titles: title = number OR title matches pattern without description
-      // IMPORTANT: Exclude no_digital_version records as they can't be scraped
-      // Use neq(true) which handles both null and false cases
+      // Query matches the SQL function count_generic_titles for consistency
+      // Use database-level filtering to find generic titles
       query = query
         .or('origin.eq.PT,origin.eq.dre')
-        .neq('no_digital_version', true);
+        .neq('no_digital_version', true)
+        .or('title.ilike.%diploma referenciado%,title.ilike.documento %');
     } else if (mode === 'short_summary') {
       // Diplomas with NULL, empty, or very short summaries that have valid URLs
       // We fetch more broadly and filter in JS for length < 20 chars
@@ -1378,27 +1551,60 @@ async function runBackgroundCompletion(params: {
           
           const urlToScrape = updates.document_url || leg.document_url;
           if (urlToScrape) {
-            const markdown = await scrapeUrl(urlToScrape, firecrawlKey);
-            if (markdown && markdown.length > 100) {
-              const metadata = extractMetadataFromDRE(markdown, leg.number);
-
-              const shouldUpdateTitle =
-                !leg.title ||
-                leg.title === leg.number ||
-                (mode === 'generic_titles' && isGenericPTTitle(leg.title, leg.number));
-
+            let metadata: LegislationUpdate | null = null;
+            
+            // STRATEGY 1: Try DRE OpenData API first (no rate limits, structured data)
+            const dreOpenData = await fetchDREOpenData(urlToScrape);
+            if (dreOpenData) {
+              console.log('[Processing] Got data from DRE OpenData API');
+              metadata = {
+                title: dreOpenData.title,
+                summary: dreOpenData.summary,
+                entity: dreOpenData.entity,
+                publication_date: dreOpenData.publicationDate,
+                effective_date: dreOpenData.effectiveDate,
+              };
+            }
+            
+            // STRATEGY 2: If API failed or insufficient, try scraping
+            const needsTitle = !leg.title || leg.title === leg.number || 
+                             (mode === 'generic_titles' && isGenericPTTitle(leg.title, leg.number));
+            const needsSummary = !leg.summary || leg.summary.includes('Diploma referenciado') ||
+                               (mode === 'short_summary' && (leg.summary?.length || 0) < 20);
+            
+            const hasGoodTitle = metadata?.title && metadata.title.length > 20;
+            const hasGoodSummary = metadata?.summary && metadata.summary.length > 30;
+            
+            if ((!hasGoodTitle && needsTitle) || (!hasGoodSummary && needsSummary)) {
+              console.log('[Processing] API data insufficient, trying scraping fallback...');
+              const markdown = await scrapeUrl(urlToScrape, firecrawlKey);
+              if (markdown && markdown.length > 100) {
+                const scrapedMetadata = extractMetadataFromDRE(markdown, leg.number);
+                // Merge scraped data with API data (API takes precedence)
+                metadata = {
+                  title: metadata?.title || scrapedMetadata.title,
+                  summary: metadata?.summary || scrapedMetadata.summary,
+                  entity: metadata?.entity || scrapedMetadata.entity,
+                  publication_date: metadata?.publication_date || scrapedMetadata.publication_date,
+                  effective_date: metadata?.effective_date || scrapedMetadata.effective_date,
+                };
+              }
+            }
+            
+            // Apply metadata updates
+            if (metadata) {
+              const shouldUpdateTitle = needsTitle;
               if (metadata.title && shouldUpdateTitle) {
                 updates.title = metadata.title;
                 hasUpdates = true;
               }
-              // In short_summary mode, always overwrite malformed summaries
-              const shouldUpdateSummary = !leg.summary || 
-                                          leg.summary.includes('Diploma referenciado') ||
-                                          (mode === 'short_summary' && (leg.summary?.length || 0) < 20);
+              
+              const shouldUpdateSummary = needsSummary;
               if (metadata.summary && shouldUpdateSummary) {
                 updates.summary = metadata.summary;
                 hasUpdates = true;
               }
+              
               if (metadata.entity && !leg.entity) {
                 updates.entity = metadata.entity;
                 hasUpdates = true;
@@ -1408,18 +1614,18 @@ async function runBackgroundCompletion(params: {
                 hasUpdates = true;
               }
               
-              // Handle effective_date - extract from scraping or calculate as day after publication
+              // Handle effective_date
               if (metadata.effective_date && !leg.effective_date) {
                 updates.effective_date = metadata.effective_date;
                 hasUpdates = true;
-                console.log(`Found effective date from scraping: ${metadata.effective_date}`);
+                console.log(`Found effective date: ${metadata.effective_date}`);
               }
               
               totalMetadataExtracted++;
               console.log(`Extracted metadata:`, metadata);
             }
             
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 500)); // Shorter delay for API calls
           }
         }
         
