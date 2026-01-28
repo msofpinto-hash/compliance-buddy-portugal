@@ -59,7 +59,9 @@ function generateDreUrl(number: string): string | null {
     else if (/PORTARIA/i.test(text)) docType = "portaria";
     else if (/AVISO/i.test(text)) docType = "aviso";
     else if (/DESPACHO/i.test(text)) docType = "despacho";
+    else if (/REGULAMENTO/i.test(text)) docType = "regulamento";
     else if (/RESOLUÇÃO/i.test(text)) docType = "resolucao-do-conselho-de-ministros";
+    else if (/DECLARAÇÃO\s+DE\s+RETI[FC]ICAÇÃO/i.test(text)) docType = "declaracao-de-retificacao";
     
     // Detailed page format
     // Examples (observed): /dr/detalhe/portaria/474-2025, sometimes with suffixes
@@ -146,7 +148,7 @@ function generateEurlexUrl(number: string, title: string): string | null {
   return null;
 }
 
-// Check if URL is accessible
+// Check if URL is accessible - use GET with range header for better compatibility
 async function checkUrl(
   url: string,
   opts?: { timeoutMs?: number }
@@ -156,21 +158,51 @@ async function checkUrl(
     const timeoutMs = Math.max(1000, Math.min(20000, opts?.timeoutMs ?? 5000));
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    // Use GET with Range header instead of HEAD - some sites don't support HEAD
     const response = await fetch(url, {
-      method: "HEAD",
+      method: "GET",
       signal: controller.signal,
       redirect: "follow",
+      headers: {
+        "Range": "bytes=0-0",
+        "User-Agent": "Mozilla/5.0 (compatible; LegislationBot/1.0)",
+      },
     });
 
     clearTimeout(timeoutId);
     
+    // Accept 200, 206 (partial content), and 3xx as valid
+    const valid = (response.status >= 200 && response.status < 400);
+    
     return {
-      valid: response.status >= 200 && response.status < 400,
+      valid,
       statusCode: response.status,
     };
-  } catch {
+  } catch (err) {
+    console.log(`URL check failed for ${url}: ${err instanceof Error ? err.message : 'unknown'}`);
     return { valid: false };
   }
+}
+
+// Check if URL is in an old/invalid format that needs recovery
+function isOldUrlFormat(url: string | null): boolean {
+  if (!url) return true;
+  const oldPatterns = [
+    /dre\.pt\/web\/guest/i,
+    /dre\.pt\/application\/file/i,
+    /dre\.pt\/home/i,
+    /dre\.pt\/dre\/detalhe/i,  // Old format without /dr/
+    /data\.dre\.pt\/eli/i,
+    /dre\.pt\/util\/getdiplomas/i,
+  ];
+  return oldPatterns.some(pattern => pattern.test(url));
+}
+
+// Check if URL is in the modern DRE format
+function isModernDreUrl(url: string | null): boolean {
+  if (!url) return false;
+  // Modern format: diariodarepublica.pt/dr/detalhe/TYPE/NUMBER-YEAR
+  return /diariodarepublica\.pt\/dr\/detalhe\//i.test(url);
 }
 
 // Process a single legislation item
@@ -189,44 +221,11 @@ async function processLegislationUrl(
 
   try {
     const isPT = leg.origin === "PT" || leg.origin === "dre";
+    const hasOldUrl = isOldUrlFormat(leg.document_url);
+    const needsRecovery = !leg.document_url || hasOldUrl;
 
-    // Case 1: Has URL - validate it
-    if (leg.document_url && options.validateExisting) {
-      const check = await checkUrl(leg.document_url, { timeoutMs: options.requestTimeoutMs });
-      
-      if (check.valid) {
-        result.action = "validated";
-      } else if (options.clearInvalid) {
-        // Try to recover before clearing
-        const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
-        
-        if (newUrl) {
-            const newCheck = await checkUrl(newUrl, { timeoutMs: options.requestTimeoutMs });
-          if (newCheck.valid) {
-            await supabase
-              .from("legislation")
-              .update({ document_url: newUrl })
-              .eq("id", leg.id);
-            result.newUrl = newUrl;
-            result.action = "recovered";
-          } else {
-            await supabase
-              .from("legislation")
-              .update({ document_url: null })
-              .eq("id", leg.id);
-            result.action = "cleared";
-          }
-        } else {
-          await supabase
-            .from("legislation")
-            .update({ document_url: null })
-            .eq("id", leg.id);
-          result.action = "cleared";
-        }
-      }
-    }
-    // Case 2: No URL - try to recover
-    else if (!leg.document_url && options.recoverMissing) {
+    // Case 1: URL is missing or in old format - try to recover with modern URL
+    if (needsRecovery && options.recoverMissing) {
       const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
       
       if (newUrl) {
@@ -238,7 +237,47 @@ async function processLegislationUrl(
             .eq("id", leg.id);
           result.newUrl = newUrl;
           result.action = "recovered";
+          console.log(`Recovered ${leg.number}: ${leg.document_url || 'null'} -> ${newUrl}`);
+          return result;
         }
+      }
+      
+      // If we couldn't recover and had an old URL, mark as cleared if option enabled
+      if (hasOldUrl && options.clearInvalid) {
+        // Keep the old URL for now - it might still work even if old format
+        result.action = "unchanged";
+      }
+    }
+    
+    // Case 2: Has URL in modern format - validate it
+    else if (leg.document_url && options.validateExisting && isModernDreUrl(leg.document_url)) {
+      const check = await checkUrl(leg.document_url, { timeoutMs: options.requestTimeoutMs });
+      
+      if (check.valid) {
+        result.action = "validated";
+      } else if (options.clearInvalid) {
+        // Try to regenerate before clearing
+        const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
+        
+        if (newUrl && newUrl !== leg.document_url) {
+          const newCheck = await checkUrl(newUrl, { timeoutMs: options.requestTimeoutMs });
+          if (newCheck.valid) {
+            await supabase
+              .from("legislation")
+              .update({ document_url: newUrl })
+              .eq("id", leg.id);
+            result.newUrl = newUrl;
+            result.action = "recovered";
+            return result;
+          }
+        }
+        
+        // Clear if validation failed and couldn't recover
+        await supabase
+          .from("legislation")
+          .update({ document_url: null })
+          .eq("id", leg.id);
+        result.action = "cleared";
       }
     }
   } catch (err) {
@@ -361,9 +400,19 @@ Deno.serve(async (req) => {
       .select("id, number, title, document_url, origin")
       .or("no_digital_version.is.null,no_digital_version.eq.false");
 
-    // For recover mode, only get items without URLs
+    // For recover mode: get items without URLs OR with old/invalid URL formats
     if (mode === "recover") {
-      query = query.is("document_url", null);
+      // Include records with null URLs, empty URLs, or old DRE URL formats that need updating
+      query = query.or(
+        "document_url.is.null," +
+        "document_url.eq.," +
+        "document_url.like.%dre.pt/web/guest%," +
+        "document_url.like.%dre.pt/application/file%," +
+        "document_url.like.%dre.pt/home%," +
+        "document_url.like.%dre.pt/dre/detalhe%," +
+        "document_url.like.%data.dre.pt/eli%," +
+        "document_url.like.%dre.pt/util/getdiplomas%"
+      );
     }
 
     // Filter by origin if specified
@@ -428,12 +477,18 @@ Deno.serve(async (req) => {
 
     for (const leg of legislation) {
       const isPT = leg.origin === "PT" || leg.origin === "dre";
+      const hasOldUrl = isOldUrlFormat(leg.document_url);
+      const needsRecovery = !leg.document_url || hasOldUrl;
       
-      if (!leg.document_url && options.recoverMissing) {
+      if (needsRecovery && options.recoverMissing) {
         const newUrl = isPT ? generateDreUrl(leg.number) : generateEurlexUrl(leg.number, leg.title);
         
+        console.log(`Processing ${leg.number}: oldUrl=${leg.document_url?.substring(0, 50) || 'null'}, newUrl=${newUrl || 'null'}`);
+        
         if (newUrl) {
-          const check = await checkUrl(newUrl);
+          const check = await checkUrl(newUrl, { timeoutMs: options.requestTimeoutMs });
+          console.log(`URL check for ${leg.number}: ${newUrl} -> status=${check.statusCode}, valid=${check.valid}`);
+          
           if (check.valid) {
             await supabase
               .from("legislation")
@@ -442,7 +497,7 @@ Deno.serve(async (req) => {
             results.push({
               id: leg.id,
               number: leg.number,
-              oldUrl: null,
+              oldUrl: leg.document_url,
               newUrl,
               action: "recovered",
             });
