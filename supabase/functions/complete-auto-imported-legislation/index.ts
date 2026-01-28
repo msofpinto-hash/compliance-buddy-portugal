@@ -1405,7 +1405,12 @@ async function runBackgroundCompletion(params: {
       // Fix PDF imports: invalid dates, missing URLs, missing summaries
       query = query.eq('source', 'pdf-import');
     } else if (mode === 'missing_dates') {
-      query = query.or('publication_date.is.null,effective_date.is.null');
+      // CRITICAL: For missing_dates, we MUST require URL since we need to scrape metadata
+      // Always filter by document_url here, regardless of requireUrl parameter
+      query = query
+        .not('document_url', 'is', null)
+        .or('no_digital_version.is.null,no_digital_version.eq.false')
+        .or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
       // Fetch PT legislation with URLs for title correction
       // Must have URL (for scraping), be PT origin, and not marked as no_digital_version

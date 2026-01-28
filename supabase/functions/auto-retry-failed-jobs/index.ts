@@ -76,7 +76,7 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_missing_dates',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'missing_dates', batchSize: 15, parallelJobs: 1 },
+    defaultPayload: { mode: 'missing_dates', limit: 15, dryRun: false, requireUrl: true },
     maxParallelJobs: 3,
     priority: 2,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'missing_dates'),
