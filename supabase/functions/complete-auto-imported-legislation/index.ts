@@ -1463,23 +1463,54 @@ async function runBackgroundCompletion(params: {
     // This spreads the jobs across different segments of the result set
     let queryOffset = 0;
     if (randomOffset) {
-      // Random offset between 0 and 2000 to spread load across different records
-      // With 2500+ pending items, we need a larger range
-      queryOffset = Math.floor(Math.random() * 2000);
+      // For generic_titles mode, use smaller offset since the dataset is already filtered
+      const maxOffset = mode === 'generic_titles' ? 200 : 2000;
+      queryOffset = Math.floor(Math.random() * maxOffset);
       console.log(`Using random offset: ${queryOffset} to avoid parallel job overlap`);
     }
     
-    // For summary/title jobs, we need a larger candidate pool to reliably find
-    // “fixable” items in a single request (since we do length/heuristic checks in JS).
-    const candidateMultiplier =
-      mode === 'short_summary' || mode === 'missing_summary' || mode === 'generic_titles'
-        ? 50
-        : 5;
-    const candidateCount = Math.min(1000, Math.max(limit * candidateMultiplier, limit));
+    // For generic_titles mode, use the dedicated RPC that already applies SQL filters
+    // This is much more efficient than fetching all PT legislation and filtering in JS
+    let legislation: any[] = [];
+    let fetchError: any = null;
+    
+    if (mode === 'generic_titles') {
+      console.log(`Fetching generic titles via RPC (limit=${limit}, offset=${queryOffset})`);
+      const { data, error } = await supabase.rpc('get_generic_title_ids', {
+        p_limit: limit,
+        p_offset: queryOffset
+      });
+      if (error) {
+        fetchError = error;
+      } else {
+        // RPC returns { id, number, title, document_url } - add default values for other fields
+        legislation = (data || []).map((row: any) => ({
+          id: row.id,
+          number: row.number,
+          title: row.title,
+          document_url: row.document_url,
+          summary: null,
+          entity: null,
+          publication_date: null,
+          effective_date: null,
+          origin: 'PT',
+          source: null
+        }));
+        console.log(`RPC returned ${legislation.length} records`);
+      }
+    } else {
+      // For other modes, use the regular query approach
+      const candidateMultiplier =
+        mode === 'short_summary' || mode === 'missing_summary' ? 50 : 5;
+      const candidateCount = Math.min(1000, Math.max(limit * candidateMultiplier, limit));
 
-    const { data: legislation, error: fetchError } = await query
-      .order('created_at', { ascending: false })
-      .range(queryOffset, queryOffset + candidateCount - 1);
+      const result = await query
+        .order('created_at', { ascending: false })
+        .range(queryOffset, queryOffset + candidateCount - 1);
+      
+      legislation = result.data || [];
+      fetchError = result.error;
+    }
     
     if (fetchError) {
       if (syncLogId) {
@@ -1506,44 +1537,45 @@ async function runBackgroundCompletion(params: {
     
     const currentYear = new Date().getFullYear();
     
-    const toProcess = legislation
-      .filter(leg => {
-        if (mode === 'pdf_import_fix') {
-          // Process PDF imports that need fixing:
-          // 1. Invalid dates (year < 1950 or > current+1)
-          // 2. Missing URLs
-          // 3. Missing or very short summaries
-          const hasInvalidDate = leg.publication_date && (() => {
-            const year = parseInt(leg.publication_date.substring(0, 4));
-            return year < 1950 || year > currentYear + 1;
-          })();
-          const missingUrl = !leg.document_url;
-          const missingSummary = !leg.summary || leg.summary.length < 30;
+    // For generic_titles mode, RPC already filters, so skip JS filter
+    const toProcess = mode === 'generic_titles' 
+      ? legislation.slice(0, limit)
+      : legislation
+        .filter(leg => {
+          if (mode === 'pdf_import_fix') {
+            // Process PDF imports that need fixing:
+            // 1. Invalid dates (year < 1950 or > current+1)
+            // 2. Missing URLs
+            // 3. Missing or very short summaries
+            const hasInvalidDate = leg.publication_date && (() => {
+              const year = parseInt(leg.publication_date.substring(0, 4));
+              return year < 1950 || year > currentYear + 1;
+            })();
+            const missingUrl = !leg.document_url;
+            const missingSummary = !leg.summary || leg.summary.length < 30;
+            
+            if (!hasInvalidDate && !missingUrl && !missingSummary) return false;
+          } else if (mode === 'missing_dates') {
+            if (leg.publication_date && leg.effective_date) return false;
+          } else if (mode === 'short_summary') {
+            // Process diplomas with NULL, empty, or very short summaries (< 20 chars)
+            const summaryLength = leg.summary?.length || 0;
+            if (summaryLength >= 20) return false;
+          } else {
+            const isIncomplete = !leg.document_url || 
+                                (leg.summary && leg.summary.includes('Diploma referenciado')) ||
+                                !leg.summary ||
+                                leg.title === leg.number;
+            if (!isIncomplete) return false;
+          }
           
-          if (!hasInvalidDate && !missingUrl && !missingSummary) return false;
-        } else if (mode === 'missing_dates') {
-          if (leg.publication_date && leg.effective_date) return false;
-        } else if (mode === 'generic_titles') {
-          if (!isGenericPTTitle(leg.title, leg.number)) return false;
-        } else if (mode === 'short_summary') {
-          // Process diplomas with NULL, empty, or very short summaries (< 20 chars)
-          const summaryLength = leg.summary?.length || 0;
-          if (summaryLength >= 20) return false;
-        } else {
-          const isIncomplete = !leg.document_url || 
-                              (leg.summary && leg.summary.includes('Diploma referenciado')) ||
-                              !leg.summary ||
-                              leg.title === leg.number;
-          if (!isIncomplete) return false;
-        }
-        
-        const isEU = isEULegislationRecord(leg);
-        if (isEU && !includeEU) return false;
-        if (!isEU && !includePT) return false;
-        
-        return true;
-      })
-      .slice(0, limit);
+          const isEU = isEULegislationRecord(leg);
+          if (isEU && !includeEU) return false;
+          if (!isEU && !includePT) return false;
+          
+          return true;
+        })
+        .slice(0, limit);
     
     console.log(`Found ${toProcess.length} incomplete legislation to complete`);
     
