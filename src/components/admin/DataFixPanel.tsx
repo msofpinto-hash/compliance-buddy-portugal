@@ -374,10 +374,8 @@ export function DataFixPanel() {
           table: 'legislation',
         },
         () => {
-          // Debounce: only refetch if we have running jobs
-          if ((runningJobs?.length ?? 0) > 0) {
-            refetch();
-          }
+          // Always refetch on legislation changes to keep counters accurate
+          refetch();
         }
       )
       .subscribe();
