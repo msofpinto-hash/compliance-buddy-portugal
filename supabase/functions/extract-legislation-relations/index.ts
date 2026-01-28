@@ -45,17 +45,114 @@ interface RelationResult {
 
 const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
-// Scrape URL using Firecrawl
+// Direct HTML scrape (no Firecrawl) - for extracting meta tags and basic content
+async function scrapeUrlDirect(url: string, timeoutMs: number = 8000): Promise<string | null> {
+  try {
+    console.log('[DirectScrape] Fetching:', url);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+      },
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.log(`[DirectScrape] HTTP ${response.status}`);
+      return null;
+    }
+    
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('text/xml')) {
+      console.log(`[DirectScrape] Skipping non-HTML: ${contentType}`);
+      return null;
+    }
+    
+    const html = await response.text();
+    const safeHtml = html.slice(0, 500000);
+    
+    // Extract useful content from HTML
+    const parts: string[] = [];
+    
+    // Meta tags - always available even in SPAs
+    const metaDesc = safeHtml.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ||
+                     safeHtml.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
+    if (metaDesc?.[1]) parts.push(`META_DESCRIPTION: ${metaDesc[1].trim()}`);
+    
+    const ogDesc = safeHtml.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+    if (ogDesc?.[1]) parts.push(`OG_DESCRIPTION: ${ogDesc[1].trim()}`);
+    
+    const ogTitle = safeHtml.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+    if (ogTitle?.[1]) parts.push(`OG_TITLE: ${ogTitle[1].trim()}`);
+    
+    const titleTag = safeHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleTag?.[1]) parts.push(`TITLE: ${titleTag[1].trim()}`);
+    
+    // For relation extraction, look for link patterns in HTML
+    const linkPattern = /<a[^>]*href=["']([^"']*diariodarepublica[^"']*)["'][^>]*>([^<]*)</gi;
+    let linkMatch;
+    while ((linkMatch = linkPattern.exec(safeHtml)) !== null) {
+      const linkText = linkMatch[2].trim();
+      if (linkText.length > 5 && linkText.length < 100) {
+        parts.push(`LINK: ${linkText}`);
+      }
+    }
+    
+    // Look for legislation references in text
+    const textContent = safeHtml
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ');
+    
+    // Extract legislation number patterns
+    const legPattern = /(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Aviso)\s+n\.?º?\s*\d+[-A-Za-z\/]*\d*/gi;
+    const legMatches = textContent.match(legPattern) || [];
+    for (const match of legMatches.slice(0, 50)) {
+      parts.push(`REF: ${match.trim()}`);
+    }
+    
+    const content = parts.join('\n');
+    console.log(`[DirectScrape] Extracted ${content.length} chars`);
+    return content.length > 50 ? content : null;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('[DirectScrape] Timeout');
+    } else {
+      console.error('[DirectScrape] Error:', error);
+    }
+    return null;
+  }
+}
+
+// Scrape URL using native-first strategy with Firecrawl as fallback
 async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<string | null> {
   try {
-    console.log('Scraping URL:', url);
+    console.log('[Scrape] NATIVE-FIRST for:', url);
     
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    // Use AbortController for timeout (15 seconds max)
+    // Step 1: Try native scraping first
+    const directResult = await scrapeUrlDirect(formattedUrl);
+    if (directResult && directResult.length > 100) {
+      console.log(`[Scrape] Native SUCCESS (${directResult.length} chars)`);
+      return directResult;
+    }
+    
+    // Step 2: Firecrawl as LAST RESORT only
+    console.log('[Scrape] Native insufficient - trying Firecrawl fallback...');
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -78,28 +175,41 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<string |
 
     if (!response.ok) {
       console.error('Firecrawl error:', response.status);
-      return null;
+      return directResult; // Return native result even if weak
     }
 
     const data = await response.json();
-    return data.data?.markdown || data.markdown || '';
+    return data.data?.markdown || data.markdown || directResult;
   } catch (error) {
     console.error('Scrape error:', error);
     return null;
   }
 }
 
-// Scrape DRE Análise Jurídica page to get structured relation information
+// Scrape DRE Análise Jurídica page - native first, Firecrawl fallback
 async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string): Promise<string | null> {
   try {
     // Convert /dr/detalhe/ URL to /dr/analise-juridica/ URL
-    // Example: https://diariodarepublica.pt/dr/detalhe/decreto-lei/24-2024-857366010
-    // becomes: https://diariodarepublica.pt/dr/analise-juridica/decreto-lei/24-2024-857366010
     let analiseUrl = baseUrl.replace('/dr/detalhe/', '/dr/analise-juridica/');
     
-    console.log('Scraping DRE Análise Jurídica:', analiseUrl);
+    console.log('[AnaliseJuridica] NATIVE-FIRST for:', analiseUrl);
     
-    // Use AbortController for timeout (15 seconds max)
+    // Step 1: Try native scraping first
+    const directResult = await scrapeUrlDirect(analiseUrl, 10000);
+    if (directResult && directResult.length > 100) {
+      // Check if it contains relation keywords
+      const hasRelations = directResult.toLowerCase().includes('alteração') || 
+                          directResult.toLowerCase().includes('revoga') ||
+                          directResult.toLowerCase().includes('transpõe');
+      if (hasRelations) {
+        console.log(`[AnaliseJuridica] Native SUCCESS with relations (${directResult.length} chars)`);
+        return directResult;
+      }
+    }
+    
+    // Step 2: Firecrawl fallback for JS-rendered content
+    console.log('[AnaliseJuridica] Native insufficient - trying Firecrawl...');
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -122,8 +232,8 @@ async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string
 
     if (!response.ok) {
       console.error('Firecrawl Análise Jurídica error:', response.status);
-      // Fallback to original URL with full content
-      return await scrapeUrl(baseUrl, firecrawlApiKey);
+      // Return native result or fallback to original URL
+      return directResult || await scrapeUrl(baseUrl, firecrawlApiKey);
     }
 
     const data = await response.json();
@@ -144,9 +254,49 @@ async function scrapeDREAnaliseJuridica(baseUrl: string, firecrawlApiKey: string
   }
 }
 
-// Search DRE for a legislation URL using Firecrawl
+// Build direct DRE URL from legislation number (no external API needed)
+function buildDREUrl(number: string): string | null {
+  const parts = extractLegislationParts(number);
+  if (!parts) return null;
+  
+  // Build standard DRE URL pattern: /dr/detalhe/{type}/{num}-{year}
+  const slug = `${parts.type}/${parts.num}-${parts.year}`;
+  return `https://diariodarepublica.pt/dr/detalhe/${slug}`;
+}
+
+// Search DRE for a legislation URL - try direct URL first, Firecrawl as fallback
 async function searchDREUrl(number: string, firecrawlApiKey: string): Promise<string | null> {
   try {
+    // Step 1: Try to build direct URL (no external API needed!)
+    const directUrl = buildDREUrl(number);
+    if (directUrl) {
+      console.log(`[DRE Search] Trying direct URL: ${directUrl}`);
+      
+      // Verify URL exists with a HEAD request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      try {
+        const headResponse = await fetch(directUrl, {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        if (headResponse.ok || headResponse.status === 301 || headResponse.status === 302) {
+          console.log(`[DRE Search] Direct URL valid: ${directUrl}`);
+          return directUrl;
+        }
+      } catch {
+        clearTimeout(timeoutId);
+        // Continue to Firecrawl search
+      }
+    }
+    
+    // Step 2: Firecrawl search as fallback only
     const parts = extractLegislationParts(number);
     let searchQuery: string;
     
@@ -157,7 +307,7 @@ async function searchDREUrl(number: string, firecrawlApiKey: string): Promise<st
       searchQuery = `site:diariodarepublica.pt/dr/detalhe "${cleanNumber}"`;
     }
     
-    console.log(`Searching DRE: ${searchQuery}`);
+    console.log(`[DRE Search] Firecrawl fallback: ${searchQuery}`);
     
     const response = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
@@ -173,7 +323,7 @@ async function searchDREUrl(number: string, firecrawlApiKey: string): Promise<st
     
     if (!response.ok) {
       console.log(`Search failed: ${response.status}`);
-      return null;
+      return directUrl; // Return direct URL even if unverified
     }
     
     const data = await response.json();
@@ -187,10 +337,10 @@ async function searchDREUrl(number: string, firecrawlApiKey: string): Promise<st
       }
     }
     
-    return null;
+    return directUrl; // Return direct URL as fallback
   } catch (error) {
     console.error(`DRE search error: ${error}`);
-    return null;
+    return buildDREUrl(number); // Return direct URL on error
   }
 }
 

@@ -379,12 +379,16 @@ function isNonScrapableUrl(url: string): boolean {
 }
 
 // Check if URL is from a domain that supports direct scraping (static HTML, no JS rendering)
-// NOTE: DRE uses a SPA/React app that requires JavaScript execution - Firecrawl is required
+// NOTE: DRE uses a SPA/React app BUT meta tags are available in initial HTML without JS!
+// This allows us to extract title, description, and other metadata without Firecrawl
 // EUR-Lex serves static HTML so direct scraping works well
 function isDirectScrapableDomain(url: string): boolean {
   const lowerUrl = url.toLowerCase();
-  // Only EUR-Lex supports direct scraping - DRE requires JS rendering
-  return lowerUrl.includes('eur-lex.europa.eu');
+  // BOTH DRE and EUR-Lex support direct meta-tag scraping
+  // DRE's main content requires JS, but meta tags don't!
+  return lowerUrl.includes('eur-lex.europa.eu') || 
+         lowerUrl.includes('dre.pt') || 
+         lowerUrl.includes('diariodarepublica.pt');
 }
 
 // Extract content using semantic selectors for DRE pages
@@ -631,11 +635,13 @@ async function scrapeUrlDirect(url: string, timeoutMs: number = 10000): Promise<
   }
 }
 
-// Check if URL requires JavaScript rendering (SPAs like DRE)
+// Check if URL requires JavaScript rendering for FULL content (SPAs like DRE)
+// Note: Even SPAs often have meta tags in initial HTML that we can extract!
 function requiresJavaScript(url: string): boolean {
   const lowerUrl = url.toLowerCase();
-  // DRE is a React SPA - requires JS rendering, direct fetch won't work
-  return lowerUrl.includes('dre.pt') || lowerUrl.includes('diariodarepublica.pt');
+  // DRE is a React SPA - but meta tags work without JS!
+  // Only return true when we need the FULL page content (not just metadata)
+  return false; // We now try native-first for ALL sites
 }
 
 // Scrape URL content - DIRECT FIRST for static sites, Firecrawl for SPAs
@@ -647,79 +653,60 @@ async function scrapeUrl(url: string, firecrawlKey: string, supabase: any): Prom
     return null;
   }
 
-  // STRATEGY: Direct-first for static sites (EUR-Lex), Firecrawl-only for SPAs (DRE)
-  const useDirectFirst = isDirectScrapableDomain(url);
-  const needsJavaScript = requiresJavaScript(url);
+  // STRATEGY: ALWAYS try native-first (meta tags, direct fetch)
+  // Firecrawl is ONLY used as last resort when native extraction fails
+  console.log('[Scrape] NATIVE-FIRST strategy for:', url);
   
-  if (useDirectFirst) {
-    console.log('[Scrape] Using direct-first strategy for:', url);
-    
-    // Try direct fetch first (faster, no rate-limit)
-    const directResult = await scrapeUrlDirect(url, 8000);
-    if (directResult && directResult.length > 200) {
-      console.log('[Scrape] Direct fetch SUCCESS');
-      return directResult;
-    }
-    
-    // Only fallback to Firecrawl if direct failed AND content looks like it needs JS rendering
-    if (!directResult) {
-      console.log('[Scrape] Direct failed, trying Firecrawl fallback...');
-      try {
-        const allowed = await acquireRateLimitSlot(supabase, {
-          identifier: 'firecrawl',
-          functionName: 'firecrawl_scrape',
-          maxRequests: 25,
-          windowSeconds: 60,
-          maxWaitMs: 12000,
-        });
-        if (!allowed) {
-          console.log('[RateLimit] Firecrawl throttled - skipping scrape for now');
-          return directResult;
-        }
-
-        const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url,
-            formats: ['markdown'],
-            onlyMainContent: true,
-            waitFor: 1500, // Reduced wait time
-          }),
-        }, 15000); // Reduced timeout
-        
-        if (response.ok) {
-          const data = await response.json();
-          const markdown = data.data?.markdown || data.markdown || null;
-          if (markdown && markdown.length > 100) {
-            console.log('[Scrape] Firecrawl fallback SUCCESS');
-            return markdown;
-          }
-        }
-      } catch (error) {
-        console.log('[Scrape] Firecrawl fallback failed:', error);
-      }
-    }
-    
-    return directResult; // Return whatever direct got (may be null)
+  // Step 1: Try direct fetch with meta-tag extraction (works for ALL sites!)
+  const directResult = await scrapeUrlDirect(url, 8000);
+  
+  // If we got sufficient content from meta tags, use it immediately
+  if (directResult && directResult.length > 150) {
+    console.log(`[Scrape] Native extraction SUCCESS (${directResult.length} chars)`);
+    return directResult;
   }
   
-  // For domains that require JS (DRE/SPA), use Firecrawl ONLY (no fallback)
-  console.log('[Scrape] Using Firecrawl for JS-rendered site:', url);
+  // Step 2: Check if this is a DRE URL - try OpenData API as alternative
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('dre.pt') || lowerUrl.includes('diariodarepublica.pt')) {
+    console.log('[Scrape] DRE detected - trying OpenData API...');
+    const openDataResult = await fetchDREOpenData(url);
+    if (openDataResult) {
+      // Convert OpenData result to text format for parsing
+      const parts: string[] = [];
+      if (openDataResult.title) parts.push(`TITLE: ${openDataResult.title}`);
+      if (openDataResult.summary) parts.push(`SUMMARY: ${openDataResult.summary}`);
+      if (openDataResult.entity) parts.push(`ENTITY: ${openDataResult.entity}`);
+      if (openDataResult.publicationDate) parts.push(`PUB_DATE: ${openDataResult.publicationDate}`);
+      if (openDataResult.effectiveDate) parts.push(`EFF_DATE: ${openDataResult.effectiveDate}`);
+      
+      const apiContent = parts.join('\n');
+      if (apiContent.length > 50) {
+        console.log(`[Scrape] DRE OpenData API SUCCESS (${apiContent.length} chars)`);
+        return apiContent;
+      }
+    }
+  }
+  
+  // Step 3: If native extraction got some content (even if weak), prefer it over Firecrawl
+  if (directResult && directResult.length > 50) {
+    console.log(`[Scrape] Using weak native result (${directResult.length} chars) to avoid Firecrawl`);
+    return directResult;
+  }
+  
+  // Step 4: LAST RESORT - Use Firecrawl only when native methods completely failed
+  console.log('[Scrape] Native methods failed - trying Firecrawl as LAST RESORT...');
   try {
     const allowed = await acquireRateLimitSlot(supabase, {
       identifier: 'firecrawl',
       functionName: 'firecrawl_scrape',
       maxRequests: 25,
       windowSeconds: 60,
-      maxWaitMs: 12000,
+      maxWaitMs: 8000, // Reduced wait time
     });
     if (!allowed) {
-      console.log('[RateLimit] Firecrawl throttled - skipping scrape for now');
-      return null;
+      console.log('[RateLimit] Firecrawl throttled - returning weak native result');
+      return directResult; // Return whatever we got from native
     }
 
     const response = await fetchWithTimeout('https://api.firecrawl.dev/v1/scrape', {
@@ -734,48 +721,27 @@ async function scrapeUrl(url: string, firecrawlKey: string, supabase: any): Prom
         onlyMainContent: true,
         waitFor: 1500,
       }),
-    }, 15000);
+    }, 12000); // Reduced timeout
     
     if (response.ok) {
       const data = await response.json();
       const markdown = data.data?.markdown || data.markdown || null;
       if (markdown && markdown.length > 100) {
-        console.log('[Scrape] Firecrawl SUCCESS');
+        console.log('[Scrape] Firecrawl fallback SUCCESS');
         return markdown;
       }
     } else if (response.status === 429 || response.status === 402) {
-      // Rate limit or credits exhausted
-      // TRY META TAG EXTRACTION from DRE - meta tags are in initial HTML even without JS!
-      console.log(`[Scrape] Firecrawl rate limited (${response.status}), trying meta tag fallback...`);
-      const metaResult = await scrapeUrlDirect(url, 8000);
-      if (metaResult && metaResult.length > 50) {
-        console.log('[Scrape] Meta tag extraction succeeded despite SPA');
-        return metaResult;
-      }
-      console.log('[Scrape] Meta tag extraction failed, will retry with Firecrawl later');
-      return null;
+      console.log(`[Scrape] Firecrawl rate limited (${response.status}) - using native result`);
+      return directResult;
     } else {
       console.log(`[Scrape] Firecrawl failed (${response.status})`);
     }
   } catch (error) {
     console.log(`[Scrape] Firecrawl error: ${error}`);
-    // TRY META TAG EXTRACTION as fallback even for SPAs
-    console.log('[Scrape] Trying meta tag extraction as fallback...');
-    const metaResult = await scrapeUrlDirect(url, 8000);
-    if (metaResult && metaResult.length > 50) {
-      console.log('[Scrape] Meta tag fallback succeeded');
-      return metaResult;
-    }
-    return null;
   }
   
-  // Only fallback to direct fetch for non-SPA sites
-  if (!needsJavaScript) {
-    console.log('[Scrape] Trying direct fallback for static site...');
-    return await scrapeUrlDirect(url);
-  }
-  
-  return null;
+  // Return whatever native extraction got (may be null)
+  return directResult;
 }
 
 // List of invalid entity values to filter out
