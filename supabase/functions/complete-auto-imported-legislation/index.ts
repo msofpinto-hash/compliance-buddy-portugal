@@ -1006,20 +1006,29 @@ function isEULegislationRecord(leg: { number: string; origin?: string | null; do
 }
 
 function isGenericPTTitle(title: string | null | undefined, number: string): boolean {
+  // Keep this aligned with the SQL function public.count_generic_titles()
+  // (used by the Admin counters), so the job actually processes what the UI reports.
   const t = (title || '').trim();
   const n = (number || '').trim();
   if (!t) return true;
   if (t === n) return true;
 
+  // Markdown remnants
+  if (t.startsWith('#')) return true;
+
   const lower = t.toLowerCase();
   if (lower.includes('diploma referenciado')) return true;
-  if (lower.includes('documento ')) return true;
-  if (t.length < 10) return true;
+  // Only treat Documento... as generic when it starts the title
+  if (/^documento\b/i.test(t)) return true;
 
-  // Matches "Decreto-Lei n.º ..." without description
-  const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
-  const hasGenericPattern = genericPattern.test(t) && t.length < 80 && !t.includes(' - ');
-  return hasGenericPattern;
+  // Short titles are generic
+  if (t.length < 15) return true;
+
+  // Titles that are just the document type without description
+  const typePattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer|Deliberação)\s*(n\.?[ºo°]?\s*\d|$)/i;
+  if (typePattern.test(t) && t.length < 50) return true;
+
+  return false;
 }
 
 
@@ -1307,18 +1316,15 @@ async function runBackgroundCompletion(params: {
     } else if (mode === 'missing_dates') {
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
-      // Query matches the SQL function count_generic_titles for consistency
-      // Use database-level filtering to find generic titles
+      // Fetch broadly, then filter using isGenericPTTitle (kept aligned with SQL count)
       query = query
         .or('origin.eq.PT,origin.eq.dre')
-        .neq('no_digital_version', true)
-        .or('title.ilike.%diploma referenciado%,title.ilike.documento %');
+        .or('no_digital_version.is.null,no_digital_version.eq.false');
     } else if (mode === 'short_summary') {
-      // Diplomas with NULL, empty, or very short summaries that have valid URLs
-      // We fetch more broadly and filter in JS for length < 20 chars
-      // Remove the IS NULL filter to catch short summaries too
+      // Prefer to narrow to likely candidates; length < 20 is done in JS.
       query = query
-        .not('document_url', 'is', null);
+        .not('document_url', 'is', null)
+        .or('summary.is.null,summary.eq.,summary.ilike.%Diploma referenciado%');
     } else if (mode === 'missing_summary') {
       // Only records missing summary
       query = query.or('summary.is.null,summary.eq.');
@@ -1336,9 +1342,17 @@ async function runBackgroundCompletion(params: {
       console.log(`Using random offset: ${queryOffset} to avoid parallel job overlap`);
     }
     
+    // For summary/title jobs, we need a larger candidate pool to reliably find
+    // “fixable” items in a single request (since we do length/heuristic checks in JS).
+    const candidateMultiplier =
+      mode === 'short_summary' || mode === 'missing_summary' || mode === 'generic_titles'
+        ? 50
+        : 5;
+    const candidateCount = Math.min(1000, Math.max(limit * candidateMultiplier, limit));
+
     const { data: legislation, error: fetchError } = await query
       .order('created_at', { ascending: false })
-      .range(queryOffset, queryOffset + (limit * 5) - 1);
+      .range(queryOffset, queryOffset + candidateCount - 1);
     
     if (fetchError) {
       if (syncLogId) {
@@ -1383,18 +1397,7 @@ async function runBackgroundCompletion(params: {
         } else if (mode === 'missing_dates') {
           if (leg.publication_date && leg.effective_date) return false;
         } else if (mode === 'generic_titles') {
-          // Generic titles for PT legislation:
-          // 1. Title equals number
-          // 2. Title matches legislation pattern but is short and has no description
-          const genericPattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer)/i;
-          const titleEqualsNumber = leg.title === leg.number;
-          const hasGenericPattern = genericPattern.test(leg.title || '') && 
-            (leg.title?.length || 0) < 80 && 
-            !(leg.title || '').includes(' - ');
-          const hasOldGenericTitle = leg.title?.toLowerCase().includes('diploma referenciado') ||
-                                  leg.title?.toLowerCase().includes('documento ') ||
-                                  (leg.title && leg.title.length < 10);
-          if (!titleEqualsNumber && !hasGenericPattern && !hasOldGenericTitle) return false;
+          if (!isGenericPTTitle(leg.title, leg.number)) return false;
         } else if (mode === 'short_summary') {
           // Process diplomas with NULL, empty, or very short summaries (< 20 chars)
           const summaryLength = leg.summary?.length || 0;
@@ -1549,7 +1552,21 @@ async function runBackgroundCompletion(params: {
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
           
-          const urlToScrape = updates.document_url || leg.document_url;
+          // If we already have a URL but it's a PDF/binary or not a /dr/detalhe/ page,
+          // try to recover a proper detail URL first so titles/summaries can be extracted.
+          let urlToScrape = updates.document_url || leg.document_url;
+          if (urlToScrape && (isNonScrapableUrl(urlToScrape) || !urlToScrape.includes('/dr/detalhe/'))) {
+            console.log('[URL] Current URL not suitable for metadata, trying to recover /dr/detalhe/...');
+            const recovered = await searchDREUrl(leg.number, firecrawlKey);
+            if (recovered) {
+              updates.document_url = recovered;
+              urlToScrape = recovered;
+              totalUrlsFound++;
+              hasUpdates = true;
+              console.log(`[URL] Recovered detail URL: ${recovered}`);
+            }
+          }
+
           if (urlToScrape) {
             let metadata: LegislationUpdate | null = null;
             
@@ -1791,22 +1808,41 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Quick check for pending items
-    let countQuery = supabase.from('legislation').select('id', { count: 'exact', head: true });
-    
-    if (mode === 'pdf_import_fix') {
-      countQuery = countQuery.eq('source', 'pdf-import');
-    } else if (mode === 'missing_dates') {
-      countQuery = countQuery.or('publication_date.is.null,effective_date.is.null');
-    } else if (mode === 'generic_titles') {
-      countQuery = countQuery.or('title.ilike.%Diploma referenciado%,title.ilike.%Documento %,summary.ilike.%Diploma referenciado%');
+    // IMPORTANT: keep this aligned with the Admin counters and the actual selection logic.
+    let pendingCount = 0;
+    if (mode === 'generic_titles') {
+      const { data } = await supabase.rpc('count_generic_titles');
+      pendingCount = (data as number) || 0;
     } else if (mode === 'short_summary') {
-      // Count all with non-null summary - will filter in processing
-      countQuery = countQuery.not('summary', 'is', null);
+      const { data } = await supabase.rpc('count_short_summaries');
+      pendingCount = (data as number) || 0;
+    } else if (mode === 'missing_summary') {
+      const { count } = await supabase
+        .from('legislation')
+        .select('id', { count: 'exact', head: true })
+        .not('document_url', 'is', null)
+        .or('summary.is.null,summary.eq.');
+      pendingCount = count || 0;
+    } else if (mode === 'missing_dates') {
+      const { count } = await supabase
+        .from('legislation')
+        .select('id', { count: 'exact', head: true })
+        .not('document_url', 'is', null)
+        .or('publication_date.is.null,effective_date.is.null');
+      pendingCount = count || 0;
+    } else if (mode === 'pdf_import_fix') {
+      const { count } = await supabase
+        .from('legislation')
+        .select('id', { count: 'exact', head: true })
+        .eq('source', 'pdf-import');
+      pendingCount = count || 0;
     } else {
-      countQuery = countQuery.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
+      const { count } = await supabase
+        .from('legislation')
+        .select('id', { count: 'exact', head: true })
+        .or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
+      pendingCount = count || 0;
     }
-    
-    const { count: pendingCount } = await countQuery;
     
     if (!pendingCount || pendingCount === 0) {
       return new Response(
