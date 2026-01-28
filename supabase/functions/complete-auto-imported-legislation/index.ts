@@ -601,6 +601,46 @@ async function scrapeUrlDirect(url: string, timeoutMs: number = 10000): Promise<
       console.log(`[DirectScrape] HTML too large (${html.length} chars), truncating`);
     }
     const safeHtml = html.slice(0, 500000);
+
+    // Meta-tags first: for SPAs (ex: DRE) the initial HTML is often minimal, but og:title/og:description
+    // usually exists and is enough to fix titles/summaries without JS rendering.
+    const extractMeta = (input: string) => {
+      const pick = (...regexes: RegExp[]) => {
+        for (const r of regexes) {
+          const m = input.match(r);
+          const v = m?.[1]?.trim();
+          if (v) return v;
+        }
+        return null;
+      };
+
+      const title = pick(
+        /<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']\s*\/?>/i,
+        /<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']\s*\/?>/i,
+        /<title>([^<]+)<\/title>/i,
+      );
+
+      const description = pick(
+        /<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']\s*\/?>/i,
+        /<meta\s+content=["']([^"']+)["']\s+property=["']og:description["']\s*\/?>/i,
+        /<meta\s+name=["']description["']\s+content=["']([^"']+)["']\s*\/?>/i,
+        /<meta\s+content=["']([^"']+)["']\s+name=["']description["']\s*\/?>/i,
+      );
+
+      const parts: string[] = [];
+      if (title) parts.push(title.replace(/\s+/g, ' ').trim());
+      // IMPORTANT: use Portuguese label so extractMetadataFromDRE patterns match.
+      if (description) parts.push(`Sumário: ${description.replace(/\s+/g, ' ').trim()}`);
+
+      const metaText = parts.join('\n');
+      return metaText.length >= 60 ? metaText : null;
+    };
+
+    const metaFirst = extractMeta(safeHtml);
+    if (metaFirst) {
+      console.log(`[DirectScrape] Meta-tags extraction SUCCESS (${metaFirst.length} chars)`);
+      return metaFirst;
+    }
     
     // Use domain-specific extractors
     const lowerUrl = url.toLowerCase();
@@ -827,6 +867,15 @@ function isValidSummary(summary: string | null | undefined): boolean {
   // Must contain actual content, not just UI elements
   if (/^(menu|nav|header|footer|cookies|aceitar|recusar)/i.test(trimmed)) return false;
   return true;
+}
+
+function pickBetterSummary(a: string | null | undefined, b: string | null | undefined): string | undefined {
+  const aOk = isValidSummary(a);
+  const bOk = isValidSummary(b);
+  if (aOk && bOk) return (b!.trim().length > a!.trim().length ? b!.trim() : a!.trim());
+  if (bOk) return b!.trim();
+  if (aOk) return a!.trim();
+  return undefined;
 }
 
 // Extract metadata from DRE page content
@@ -1430,13 +1479,31 @@ async function runBackgroundCompletion(params: {
       query = query.or('document_url.is.null,summary.ilike.%Diploma referenciado%,summary.is.null');
     }
     
-    // Generate random offset when parallel jobs are running to avoid processing same records
-    // This spreads the jobs across different segments of the result set
+    // Generate random offset when parallel jobs are running to avoid processing same records.
+    // IMPORTANT: For summary/date backfills, we must spread across the FULL dataset (not only newest rows),
+    // otherwise counters appear stuck.
     let queryOffset = 0;
     if (randomOffset) {
       // For generic_titles mode, use smaller offset since the dataset is already filtered
-      const maxOffset = mode === 'generic_titles' ? 200 : 2000;
-      queryOffset = Math.floor(Math.random() * maxOffset);
+      let maxOffset = mode === 'generic_titles' ? 200 : 2000;
+
+      // For backlog-heavy modes, compute a safe maxOffset based on total rows with URL.
+      // These modes use candidateCount=1000, so offset must be <= total-1000.
+      if (mode === 'short_summary' || mode === 'missing_summary' || mode === 'missing_dates') {
+        try {
+          const { count } = await supabase
+            .from('legislation')
+            .select('id', { count: 'exact', head: true })
+            .not('document_url', 'is', null);
+          const total = count || 0;
+          maxOffset = Math.max(0, total - 1000);
+        } catch (e) {
+          // fail-open to keep job running
+          maxOffset = 6000;
+        }
+      }
+
+      queryOffset = Math.floor(Math.random() * (maxOffset + 1));
       console.log(`Using random offset: ${queryOffset} to avoid parallel job overlap`);
     }
     
@@ -1475,8 +1542,10 @@ async function runBackgroundCompletion(params: {
         mode === 'short_summary' || mode === 'missing_summary' ? 50 : 5;
       const candidateCount = Math.min(1000, Math.max(limit * candidateMultiplier, limit));
 
+      const backlogMode = mode === 'short_summary' || mode === 'missing_summary' || mode === 'missing_dates';
       const result = await query
-        .order('created_at', { ascending: false })
+        // For backlog modes, process older items first (better for making counters drop quickly)
+        .order('created_at', { ascending: backlogMode })
         .range(queryOffset, queryOffset + candidateCount - 1);
       
       legislation = result.data || [];
@@ -1730,7 +1799,8 @@ async function runBackgroundCompletion(params: {
                 // Merge scraped data with API data (API takes precedence)
                 metadata = {
                   title: metadata?.title || scrapedMetadata.title,
-                  summary: metadata?.summary || scrapedMetadata.summary,
+                  // Prefer a valid + longer summary (fixes cases where API returns very short/empty)
+                  summary: pickBetterSummary(metadata?.summary, scrapedMetadata.summary),
                   entity: metadata?.entity || scrapedMetadata.entity,
                   publication_date: metadata?.publication_date || scrapedMetadata.publication_date,
                   effective_date: metadata?.effective_date || scrapedMetadata.effective_date,
@@ -1747,7 +1817,7 @@ async function runBackgroundCompletion(params: {
               }
               
               const shouldUpdateSummary = needsSummary;
-              if (metadata.summary && shouldUpdateSummary) {
+              if (metadata.summary && isValidSummary(metadata.summary) && shouldUpdateSummary) {
                 updates.summary = metadata.summary;
                 hasUpdates = true;
               }
