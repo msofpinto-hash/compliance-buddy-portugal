@@ -635,22 +635,29 @@ async function scrapeUrl(url: string, firecrawlKey: string): Promise<string | nu
         return markdown;
       }
     } else if (response.status === 429 || response.status === 402) {
-      // Rate limit or credits exhausted - DON'T fallback for SPA sites
-      // Return null so item can be retried later
-      console.log(`[Scrape] Firecrawl rate limited (${response.status}), will retry later`);
-      if (needsJavaScript) {
-        console.log('[Scrape] SPA site requires Firecrawl - skipping direct fallback');
-        return null;
+      // Rate limit or credits exhausted
+      // TRY META TAG EXTRACTION from DRE - meta tags are in initial HTML even without JS!
+      console.log(`[Scrape] Firecrawl rate limited (${response.status}), trying meta tag fallback...`);
+      const metaResult = await scrapeUrlDirect(url, 8000);
+      if (metaResult && metaResult.length > 50) {
+        console.log('[Scrape] Meta tag extraction succeeded despite SPA');
+        return metaResult;
       }
+      console.log('[Scrape] Meta tag extraction failed, will retry with Firecrawl later');
+      return null;
     } else {
       console.log(`[Scrape] Firecrawl failed (${response.status})`);
     }
   } catch (error) {
     console.log(`[Scrape] Firecrawl error: ${error}`);
-    if (needsJavaScript) {
-      console.log('[Scrape] SPA site requires Firecrawl - skipping direct fallback');
-      return null;
+    // TRY META TAG EXTRACTION as fallback even for SPAs
+    console.log('[Scrape] Trying meta tag extraction as fallback...');
+    const metaResult = await scrapeUrlDirect(url, 8000);
+    if (metaResult && metaResult.length > 50) {
+      console.log('[Scrape] Meta tag fallback succeeded');
+      return metaResult;
     }
+    return null;
   }
   
   // Only fallback to direct fetch for non-SPA sites
@@ -1752,13 +1759,26 @@ async function runBackgroundCompletion(params: {
         ? `Extração de requisitos iniciada para ${successfulIds.length} diplomas`
         : (failed > 0 ? `${failed} erro(s)` : `✓ ${totalUpdated} atualizados, ${totalUrlsFound} URLs, ${totalMetadataExtracted} metadados`);
       
+      // Use RPC to increment counters instead of SET to handle parallel job updates correctly
+      // Each parallel job adds its contribution to the total
+      const { data: currentLog } = await supabase
+        .from('sync_logs')
+        .select('items_processed, items_updated')
+        .eq('id', syncLogId)
+        .single();
+      
+      const newProcessed = (currentLog?.items_processed || 0) + results.length;
+      const newUpdated = (currentLog?.items_updated || 0) + totalUpdated;
+      
       await supabase.from('sync_logs').update({ 
         status: 'completed',
-        items_processed: results.length,
-        items_updated: totalUpdated,
+        items_processed: newProcessed,
+        items_updated: newUpdated,
         error_message: completionMessage,
         completed_at: new Date().toISOString() 
       }).eq('id', syncLogId);
+      
+      console.log(`Sync log updated: processed=${newProcessed}, updated=${newUpdated}`);
     }
     
     console.log('Background completion finished');
