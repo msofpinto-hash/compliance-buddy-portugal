@@ -1018,8 +1018,7 @@ function isGenericPTTitle(title: string | null | undefined, number: string): boo
   const t = (title || '').trim();
   const n = (number || '').trim();
   if (!t) return true;
-  if (t === n) return true;
-
+  
   // Markdown remnants
   if (t.startsWith('#')) return true;
 
@@ -1028,12 +1027,22 @@ function isGenericPTTitle(title: string | null | undefined, number: string): boo
   // Only treat Documento... as generic when it starts the title
   if (/^documento\b/i.test(t)) return true;
 
-  // Short titles are generic
+  // Very short titles are generic
   if (t.length < 15) return true;
+  
+  // Helper: Check if title contains a date pattern like ", de 29 de Setembro"
+  const hasDatePattern = /, de \d/i.test(t);
+  
+  // Title equals number - only generic if short AND no date description
+  // "Portaria n.º 1084/2003, de 29 de Setembro" is NOT generic
+  if (t === n) {
+    return t.length < 30 && !hasDatePattern;
+  }
 
   // Titles that are just the document type without description
+  // Only generic if short (< 30 chars) AND no date pattern
   const typePattern = /^(Decreto-Lei|Lei|Portaria|Despacho|Resolução|Regulamento|Diretiva|Decisão|Declaração|Acórdão|Aviso|Parecer|Deliberação)\s*(n\.?[ºo°]?\s*\d|$)/i;
-  if (typePattern.test(t) && t.length < 50) return true;
+  if (typePattern.test(t) && t.length < 30 && !hasDatePattern) return true;
 
   return false;
 }
