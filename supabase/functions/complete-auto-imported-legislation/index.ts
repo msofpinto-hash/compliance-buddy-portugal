@@ -1141,12 +1141,11 @@ async function runBackgroundCompletion(params: {
         .or('origin.eq.PT,origin.eq.dre')
         .neq('no_digital_version', true);
     } else if (mode === 'short_summary') {
-      // Diplomas with NULL or empty summaries that have valid URLs
-      // We filter for summary IS NULL at DB level, then JS filter handles < 20 chars
-      // This ensures we get records that actually need fixing
+      // Diplomas with NULL, empty, or very short summaries that have valid URLs
+      // We fetch more broadly and filter in JS for length < 20 chars
+      // Remove the IS NULL filter to catch short summaries too
       query = query
-        .not('document_url', 'is', null)
-        .is('summary', null);
+        .not('document_url', 'is', null);
     } else if (mode === 'missing_summary') {
       // Only records missing summary
       query = query.or('summary.is.null,summary.eq.');
