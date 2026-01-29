@@ -212,8 +212,27 @@ export function UnifiedDataQualityPanel() {
 
     switch (type) {
       case "urls":
-        functionName = "find-missing-dre-urls";
-        body = { limit: 50, background: true, dryRun: false };
+        {
+          // Decide based on pending work:
+          // - EU missing URLs => fix-broken-urls (generates CELEX URLs)
+          // - PT missing URLs => find-missing-dre-urls (Firecrawl search)
+          const euMissingRes = await supabase
+            .from("legislation")
+            .select("id", { count: "exact", head: true })
+            .in("origin", ["EU", "eurlex"])
+            .or("no_digital_version.is.null,no_digital_version.eq.false")
+            .or("document_url.is.null,document_url.eq.");
+
+          const euMissing = euMissingRes.count ?? 0;
+
+          if (euMissing > 0) {
+            functionName = "fix-broken-urls";
+            body = { syncType: "fix_missing_urls_eu", limit: 50, origin: "EU", mode: "recover", background: true };
+          } else {
+            functionName = "find-missing-dre-urls";
+            body = { limit: 50, background: true, dryRun: false };
+          }
+        }
         break;
       case "titles":
         functionName = "complete-auto-imported-legislation";
@@ -241,9 +260,17 @@ export function UnifiedDataQualityPanel() {
         break;
     }
 
-    await supabase.functions.invoke(functionName, { body });
-    refetchJobs();
-    refetchStats();
+    try {
+      const { error } = await supabase.functions.invoke(functionName, { body });
+      if (error) throw error;
+
+      refetchJobs();
+      refetchStats();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Falha ao lançar "${functionName}": ${msg}`);
+      throw e;
+    }
   }, [refetchJobs, refetchStats]);
 
   // Auto-fix loop
