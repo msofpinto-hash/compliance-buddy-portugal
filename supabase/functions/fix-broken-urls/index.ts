@@ -117,6 +117,8 @@ function generateEurlexUrl(number: string, title: string): string | null {
     { regex: /\([UE][EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
     // (UE) n.o 293/2012 - could be either format, assume NUMBER/YEAR if second part is 4 digits
     { regex: /\([UE][EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{4})/i, yearFirst: false },
+    // (CE) n.º 491/2009 - NUMBER/YEAR where YEAR is 4 digits (common in older CE regs)
+    { regex: /\(C?E[EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{4})/i, yearFirst: false },
     // (CE) old format NUMBER/YEAR
     { regex: /\(C?E[EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{2})(?:\s|$|,|DE)/i, yearFirst: false },
 
