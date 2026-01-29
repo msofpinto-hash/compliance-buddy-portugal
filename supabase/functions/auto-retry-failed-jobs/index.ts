@@ -98,25 +98,31 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_legacy_urls',
     functionName: 'fix-broken-urls',
-    defaultPayload: { limit: 50, background: true, dryRun: false },
+    // IMPORTANT: target only legacy/old patterns using mode=recover + PT origin.
+    // Also pass syncType so the URL fixer writes sync_logs with the same sync_type,
+    // otherwise the monitor would think nothing is running.
+    defaultPayload: { syncType: 'fix_legacy_urls', limit: 50, origin: 'PT', mode: 'recover', background: true },
     maxParallelJobs: 2,
     priority: 0,
     checkPendingWork: checkPendingLegacyUrlFixes,
   },
   // URL recovery for PT (missing URLs) - uses Firecrawl search
   {
-    syncType: 'fix_missing_urls',
+    // NOTE: find-missing-dre-urls writes sync_logs.sync_type='find_dre_urls'
+    // so we must track it using that value.
+    syncType: 'find_dre_urls',
     functionName: 'find-missing-dre-urls',
     defaultPayload: { limit: 20, background: true, dryRun: false },
     maxParallelJobs: 3,
     priority: 1,
     checkPendingWork: checkPendingUrlCorrectionPT,
   },
-  // URL generation for EU - auto-generates from CELEX number
+  // URL recovery for EU (missing URLs)
   {
     syncType: 'fix_missing_urls_eu',
-    functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'default', limit: 30, dryRun: false, includeEU: true, includePT: false },
+    functionName: 'fix-broken-urls',
+    // Use the same URL fixer (it supports EUR-Lex generation). Pass syncType so logs match.
+    defaultPayload: { syncType: 'fix_missing_urls_eu', limit: 50, origin: 'EU', mode: 'recover', background: true },
     maxParallelJobs: 2,
     priority: 1,
     checkPendingWork: checkPendingUrlCorrectionEU,
@@ -376,7 +382,12 @@ async function processJobType(
 
   // Start new jobs to fill available slots
   // Higher parallelism for faster completion
-  const isUrlJob = syncType === 'fix_missing_urls';
+  const isUrlJob =
+    functionName === 'fix-broken-urls' ||
+    functionName === 'find-missing-dre-urls' ||
+    syncType === 'find_dre_urls' ||
+    syncType === 'fix_legacy_urls' ||
+    syncType === 'fix_missing_urls_eu';
   const isMetadataJob = syncType.startsWith('fix_');
   const jobsToStart = Math.min(slotsAvailable, isUrlJob ? 3 : isMetadataJob ? 3 : 5);
   console.log(`🚀 Starting ${jobsToStart} new ${syncType} jobs...`);

@@ -106,6 +106,9 @@ function generateEurlexUrl(number: string, title: string): string | null {
     { regex: /DIRE[CT]IVA[^\d]*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
     // Diretiva old
     { regex: /DIRE[CT]IVA[^\d]*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{2})(?:\s|$|,|DE)/i, yearFirst: false },
+
+    // Diretiva old with suffix: 85/374/CEE (year/number/suffix)
+    { regex: /DIRE[CT]IVA[^\d]*(?:N\.?[º°O]?\s*)?(\d{2})\/(\d+)\/(?:C?E|CEE|EEC|EURATOM)\b/i, yearFirst: true },
     // Decisão modern
     { regex: /DECIS[ÃA]O[^\d]*(?:N\.?[º°O]?\s*)?(\d{4})\/(\d+)/i, yearFirst: true },
     // Recomendação
@@ -116,6 +119,9 @@ function generateEurlexUrl(number: string, title: string): string | null {
     { regex: /\([UE][EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{4})/i, yearFirst: false },
     // (CE) old format NUMBER/YEAR
     { regex: /\(C?E[EA]?\)\s*(?:N\.?[º°O]?\s*)?(\d+)\/(\d{2})(?:\s|$|,|DE)/i, yearFirst: false },
+
+    // Generic old format with suffix: 85/374/CEE, 85/374/CE, 85/374/EEC
+    { regex: /(\d{2})\/(\d+)\/(?:C?E|CEE|EEC|EURATOM)\b/i, yearFirst: true },
     // Decisão 1999/468/CE
     { regex: /(\d{4})\/(\d+)\/(?:C?E|EURATOM)/i, yearFirst: true },
   ];
@@ -240,6 +246,25 @@ async function processLegislationUrl(
           console.log(`Recovered ${leg.number}: ${leg.document_url || 'null'} -> ${newUrl}`);
           return result;
         }
+
+        // DRE can occasionally block server-side validation (403/429) even when the URL is correct
+        // for real users. In that case, accept the generated URL to unblock the pipeline.
+        if (isPT && (check.statusCode === 403 || check.statusCode === 429)) {
+          await supabase
+            .from("legislation")
+            .update({ document_url: newUrl })
+            .eq("id", leg.id);
+          result.newUrl = newUrl;
+          result.action = "recovered";
+          console.log(
+            `Recovered (unverified ${check.statusCode}) ${leg.number}: ${leg.document_url || 'null'} -> ${newUrl}`
+          );
+          return result;
+        }
+
+        console.log(
+          `Recovery check failed for ${leg.number}: status=${check.statusCode ?? 'n/a'} url=${newUrl}`
+        );
       }
       
       // If we couldn't recover and had an old URL, mark as cleared if option enabled
@@ -373,6 +398,9 @@ Deno.serve(async (req) => {
       origin, // "PT" | "EU" | undefined for all
       mode = "all", // "validate" | "recover" | "all"
       background = true,
+      // Optional override so callers (auto-retry / admin panel) can track different URL jobs
+      // under distinct sync_logs.sync_type values.
+      syncType,
       parallel,
       batchDelayMs,
       requestTimeoutMs,
@@ -382,7 +410,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(`Starting URL fix: limit=${limit}, origin=${origin || "all"}, mode=${mode}, background=${background}`);
+     console.log(`Starting URL fix: limit=${limit}, origin=${origin || "all"}, mode=${mode}, background=${background}, syncType=${syncType || 'fix_broken_urls'}`);
 
     const options = {
       validateExisting: mode === "validate" || mode === "all",
@@ -442,11 +470,12 @@ Deno.serve(async (req) => {
     console.log(`Found ${legislation.length} legislation items to process`);
 
     if (background) {
+      const logSyncType = typeof syncType === 'string' && syncType.trim().length > 0 ? syncType.trim() : 'fix_broken_urls';
       const { data: logData, error: logError } = await supabase
         .from("sync_logs")
         .insert({
           // Keep underscore for backward compatibility with existing logs
-          sync_type: "fix_broken_urls",
+          sync_type: logSyncType,
           status: "running",
           items_processed: 0,
           items_added: 0,
