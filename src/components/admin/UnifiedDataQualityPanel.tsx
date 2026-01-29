@@ -212,8 +212,8 @@ export function UnifiedDataQualityPanel() {
 
     switch (type) {
       case "urls":
-        functionName = "fix-broken-urls";
-        body = { limit: 50, mode: "recover", background: true };
+        functionName = "find-missing-dre-urls";
+        body = { limit: 50, background: true, dryRun: false };
         break;
       case "titles":
         functionName = "complete-auto-imported-legislation";
