@@ -18,7 +18,7 @@ interface JobConfig {
   checkPendingWork?: (supabase: any) => Promise<{ hasPending: boolean; count: number }>;
 }
 
-// Helper to check pending URL corrections for PT
+// Helper to check pending URL corrections for PT (missing URLs)
 async function checkPendingUrlCorrectionPT(supabase: any): Promise<{ hasPending: boolean; count: number }> {
   const { count } = await supabase
     .from('legislation')
@@ -30,7 +30,7 @@ async function checkPendingUrlCorrectionPT(supabase: any): Promise<{ hasPending:
   return { hasPending: (count || 0) > 0, count: count || 0 };
 }
 
-// Helper to check pending URL corrections for EU
+// Helper to check pending URL corrections for EU (missing URLs)
 async function checkPendingUrlCorrectionEU(supabase: any): Promise<{ hasPending: boolean; count: number }> {
   const { count } = await supabase
     .from('legislation')
@@ -38,6 +38,25 @@ async function checkPendingUrlCorrectionEU(supabase: any): Promise<{ hasPending:
     .is('document_url', null)
     .or('no_digital_version.is.null,no_digital_version.eq.false')
     .eq('origin', 'EU');
+  
+  return { hasPending: (count || 0) > 0, count: count || 0 };
+}
+
+// Helper to check pending legacy URL fixes (URLs with old DRE patterns that need updating)
+async function checkPendingLegacyUrlFixes(supabase: any): Promise<{ hasPending: boolean; count: number }> {
+  const { count } = await supabase
+    .from('legislation')
+    .select('id', { count: 'exact', head: true })
+    .or('no_digital_version.is.null,no_digital_version.eq.false')
+    .not('document_url', 'is', null)
+    .or(
+      'document_url.like.%dre.pt/dre/detalhe%,' +
+      'document_url.like.%data.dre.pt/eli%,' +
+      'document_url.like.%dre.pt/web/guest%,' +
+      'document_url.like.%dre.pt/application/file%,' +
+      'document_url.like.%dre.pt/home%,' +
+      'document_url.like.%dre.pt/util/getdiplomas%'
+    );
   
   return { hasPending: (count || 0) > 0, count: count || 0 };
 }
@@ -75,7 +94,16 @@ async function checkPendingMetadataCorrection(
 
 // Ordered by priority - URLs first, then dates, then titles, then summaries
 const JOB_CONFIGS: JobConfig[] = [
-  // URL recovery for PT - highest priority (others depend on having URLs)
+  // Legacy URL fixes - HIGHEST PRIORITY (544 items with old DRE patterns)
+  {
+    syncType: 'fix_legacy_urls',
+    functionName: 'fix-broken-urls',
+    defaultPayload: { limit: 50, background: true, dryRun: false },
+    maxParallelJobs: 2,
+    priority: 0,
+    checkPendingWork: checkPendingLegacyUrlFixes,
+  },
+  // URL recovery for PT (missing URLs) - uses Firecrawl search
   {
     syncType: 'fix_missing_urls',
     functionName: 'find-missing-dre-urls',
@@ -97,7 +125,7 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_missing_dates',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'missing_dates', limit: 15, dryRun: false, requireUrl: true },
+    defaultPayload: { mode: 'missing_dates', limit: 20, dryRun: false, requireUrl: true, randomOffset: true },
     maxParallelJobs: 3,
     priority: 2,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'missing_dates'),
@@ -106,7 +134,7 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_generic_titles',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'generic_titles', batchSize: 15, parallelJobs: 1 },
+    defaultPayload: { mode: 'generic_titles', limit: 20, dryRun: false, randomOffset: true },
     maxParallelJobs: 3,
     priority: 3,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'generic_titles'),
@@ -115,7 +143,7 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_short_summary',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'short_summary', batchSize: 15, parallelJobs: 1 },
+    defaultPayload: { mode: 'short_summary', limit: 20, dryRun: false, randomOffset: true },
     maxParallelJobs: 3,
     priority: 4,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'short_summary'),
