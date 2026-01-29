@@ -5,8 +5,7 @@ import { BookOpen, Download, Wrench, Palette, Loader2 } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
 import { ThemesPanel } from "./ThemesPanel";
 import { ImportPanel } from "./ImportPanel";
-import { DataFixPanel } from "./DataFixPanel";
-import { JobsStatsPanel } from "./JobsStatsPanel";
+import { UnifiedDataQualityPanel } from "./UnifiedDataQualityPanel";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -48,8 +47,6 @@ export function BibliotecaPanel() {
         </div>
       )}
 
-      <JobsStatsPanel />
-
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-3 sm:space-y-4">
         <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-full sm:w-auto gap-0.5 sm:gap-1 bg-gradient-to-r from-amber-100/70 via-orange-100/50 to-yellow-100/40 dark:from-amber-900/35 dark:via-orange-900/25 dark:to-yellow-900/20 border border-amber-200/50 dark:border-amber-800/35 p-1 sm:p-1.5">
@@ -90,7 +87,7 @@ export function BibliotecaPanel() {
         </TabsContent>
 
         <TabsContent value="correcao" className="mt-0">
-          <DataFixPanel />
+          <UnifiedDataQualityPanel />
         </TabsContent>
 
         <TabsContent value="temas" className="mt-0">
