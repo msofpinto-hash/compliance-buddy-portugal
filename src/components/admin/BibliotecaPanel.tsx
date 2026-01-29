@@ -6,6 +6,7 @@ import { LegislationPanel } from "./LegislationPanel";
 import { ThemesPanel } from "./ThemesPanel";
 import { ImportPanel } from "./ImportPanel";
 import { DataFixPanel } from "./DataFixPanel";
+import { JobsStatsPanel } from "./JobsStatsPanel";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -46,6 +47,8 @@ export function BibliotecaPanel() {
           </button>
         </div>
       )}
+
+      <JobsStatsPanel />
 
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-3 sm:space-y-4">
         <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
