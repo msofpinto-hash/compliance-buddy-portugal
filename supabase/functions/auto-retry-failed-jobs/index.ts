@@ -18,14 +18,26 @@ interface JobConfig {
   checkPendingWork?: (supabase: any) => Promise<{ hasPending: boolean; count: number }>;
 }
 
-// Helper to check pending URL corrections
-async function checkPendingUrlCorrection(supabase: any): Promise<{ hasPending: boolean; count: number }> {
+// Helper to check pending URL corrections for PT
+async function checkPendingUrlCorrectionPT(supabase: any): Promise<{ hasPending: boolean; count: number }> {
   const { count } = await supabase
     .from('legislation')
     .select('id', { count: 'exact', head: true })
     .is('document_url', null)
     .or('no_digital_version.is.null,no_digital_version.eq.false')
     .in('origin', ['PT', 'dre']);
+  
+  return { hasPending: (count || 0) > 0, count: count || 0 };
+}
+
+// Helper to check pending URL corrections for EU
+async function checkPendingUrlCorrectionEU(supabase: any): Promise<{ hasPending: boolean; count: number }> {
+  const { count } = await supabase
+    .from('legislation')
+    .select('id', { count: 'exact', head: true })
+    .is('document_url', null)
+    .or('no_digital_version.is.null,no_digital_version.eq.false')
+    .eq('origin', 'EU');
   
   return { hasPending: (count || 0) > 0, count: count || 0 };
 }
@@ -63,14 +75,23 @@ async function checkPendingMetadataCorrection(
 
 // Ordered by priority - URLs first, then dates, then titles, then summaries
 const JOB_CONFIGS: JobConfig[] = [
-  // URL recovery - highest priority (others depend on having URLs)
+  // URL recovery for PT - highest priority (others depend on having URLs)
   {
     syncType: 'fix_missing_urls',
     functionName: 'find-missing-dre-urls',
     defaultPayload: { limit: 20, background: true, dryRun: false },
     maxParallelJobs: 3,
     priority: 1,
-    checkPendingWork: checkPendingUrlCorrection,
+    checkPendingWork: checkPendingUrlCorrectionPT,
+  },
+  // URL generation for EU - auto-generates from CELEX number
+  {
+    syncType: 'fix_missing_urls_eu',
+    functionName: 'complete-auto-imported-legislation',
+    defaultPayload: { mode: 'default', limit: 30, dryRun: false, includeEU: true, includePT: false },
+    maxParallelJobs: 2,
+    priority: 1,
+    checkPendingWork: checkPendingUrlCorrectionEU,
   },
   // Date corrections - second priority
   {
