@@ -135,7 +135,11 @@ export function UnifiedDataQualityPanel() {
       const d = q.state.data as { runningNow: number } | undefined;
       return (d?.runningNow ?? 0) > 0 ? 5000 : 30000;
     },
+    // Mantém o painel a atualizar mesmo se a aba perder foco.
+    refetchIntervalInBackground: true,
   });
+
+  const refetch24h = statsQuery.refetch;
 
   // Query for running jobs
   const { data: runningJobs, refetch: refetchJobs } = useQuery({
@@ -150,6 +154,7 @@ export function UnifiedDataQualityPanel() {
       return data || [];
     },
     refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   // Query for pending counts
@@ -204,7 +209,10 @@ export function UnifiedDataQualityPanel() {
       };
     },
     staleTime: 1000,
-    refetchInterval: (runningJobs?.length ?? 0) > 0 ? 2000 : 15000,
+    // As contagens precisam de refletir alterações em tabelas além de sync_logs.
+    // Polling frequente (mas não agressivo) evita que pareça "congelado".
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
   });
 
   // Realtime updates
@@ -214,12 +222,12 @@ export function UnifiedDataQualityPanel() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sync_logs' }, () => {
         refetchStats();
         refetchJobs();
-        statsQuery.refetch();
+        refetch24h();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [refetchStats, refetchJobs, statsQuery]);
+  }, [refetchStats, refetchJobs, refetch24h]);
 
   const getRunningJobsForType = (type: FixType): RunningJob[] => {
     return runningJobs?.filter(job => SYNC_TYPE_TO_FIX[job.sync_type] === type) || [];
