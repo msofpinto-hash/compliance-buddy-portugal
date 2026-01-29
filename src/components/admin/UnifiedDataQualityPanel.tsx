@@ -19,6 +19,20 @@ import { pt } from "date-fns/locale";
 // Constants
 const STALE_JOB_THRESHOLD_MINUTES = 10;
 
+// NOTE: Supabase query builder overwrites the `or` filter if `.or()` is called multiple times.
+// Keep URL-related OR conditions in a single `.or(...)` call, and combine other constraints via
+// separate filters (eq/is) or via multiple queries.
+const URL_NEEDS_FIX_OR =
+  "document_url.is.null," +
+  "document_url.like.%dre.pt/dre/detalhe%," +
+  "document_url.like.%data.dre.pt/eli%," +
+  "document_url.like.%dre.pt/web/guest%," +
+  "document_url.like.%dre.pt/application/file%," +
+  "document_url.like.%dre.pt/home%," +
+  "document_url.like.%dre.pt/util/getdiplomas%";
+
+const URL_MISSING_OR = "document_url.is.null,document_url.eq.";
+
 interface FixStats {
   urls: number;
   dates: number;
@@ -142,19 +156,25 @@ export function UnifiedDataQualityPanel() {
   const { data: fixStats, isLoading: isLoadingStats, refetch: refetchStats } = useQuery({
     queryKey: ["data-fix-stats-compact"],
     queryFn: async (): Promise<FixStats> => {
-      const urlsResult = await supabase
-        .from("legislation")
-        .select("id", { count: "exact", head: true })
-        .or("no_digital_version.is.null,no_digital_version.eq.false")
-        .or(
-          "document_url.is.null," +
-          "document_url.like.%dre.pt/dre/detalhe%," +
-          "document_url.like.%data.dre.pt/eli%," +
-          "document_url.like.%dre.pt/web/guest%," +
-          "document_url.like.%dre.pt/application/file%," +
-          "document_url.like.%dre.pt/home%," +
-          "document_url.like.%dre.pt/util/getdiplomas%"
-        );
+      // URL pending count: treat `no_digital_version = null` as equivalent to false.
+      // We do this via 2 head-count queries (null + false) to avoid calling `.or()` twice.
+      const [urlsFalseRes, urlsNullRes] = await Promise.all([
+        supabase
+          .from("legislation")
+          .select("id", { count: "exact", head: true })
+          .eq("no_digital_version", false)
+          .or(URL_NEEDS_FIX_OR),
+        supabase
+          .from("legislation")
+          .select("id", { count: "exact", head: true })
+          .is("no_digital_version", null)
+          .or(URL_NEEDS_FIX_OR),
+      ]);
+
+      if (urlsFalseRes.error) throw urlsFalseRes.error;
+      if (urlsNullRes.error) throw urlsNullRes.error;
+
+      const urlsCount = (urlsFalseRes.count ?? 0) + (urlsNullRes.count ?? 0);
 
       const [datesResult, genericTitlesResult, shortSummariesResult, categoriesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
@@ -174,7 +194,7 @@ export function UnifiedDataQualityPanel() {
       const uniqueReqLeg = new Set((reqLegResult.data || []).map(r => r.legislation_id));
 
       return {
-        urls: urlsResult.count || 0,
+        urls: urlsCount,
         dates: datesResult.count || 0,
         titles: (genericTitlesResult.data as number) || 0,
         summaries: (shortSummariesResult.data as number) || 0,
@@ -216,14 +236,25 @@ export function UnifiedDataQualityPanel() {
           // Decide based on pending work:
           // - EU missing URLs => fix-broken-urls (generates CELEX URLs)
           // - PT missing URLs => find-missing-dre-urls (Firecrawl search)
-          const euMissingRes = await supabase
-            .from("legislation")
-            .select("id", { count: "exact", head: true })
-            .in("origin", ["EU", "eurlex"])
-            .or("no_digital_version.is.null,no_digital_version.eq.false")
-            .or("document_url.is.null,document_url.eq.");
+          const [euMissingFalseRes, euMissingNullRes] = await Promise.all([
+            supabase
+              .from("legislation")
+              .select("id", { count: "exact", head: true })
+              .in("origin", ["EU", "eurlex"])
+              .eq("no_digital_version", false)
+              .or(URL_MISSING_OR),
+            supabase
+              .from("legislation")
+              .select("id", { count: "exact", head: true })
+              .in("origin", ["EU", "eurlex"])
+              .is("no_digital_version", null)
+              .or(URL_MISSING_OR),
+          ]);
 
-          const euMissing = euMissingRes.count ?? 0;
+          if (euMissingFalseRes.error) throw euMissingFalseRes.error;
+          if (euMissingNullRes.error) throw euMissingNullRes.error;
+
+          const euMissing = (euMissingFalseRes.count ?? 0) + (euMissingNullRes.count ?? 0);
 
           if (euMissing > 0) {
             functionName = "fix-broken-urls";
