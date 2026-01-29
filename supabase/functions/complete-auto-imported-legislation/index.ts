@@ -1619,31 +1619,52 @@ async function runBackgroundCompletion(params: {
     }
     
     // Generate random offset when parallel jobs are running to avoid processing same records.
-    // IMPORTANT: For summary/date backfills, we must spread across the FULL dataset (not only newest rows),
-    // otherwise counters appear stuck.
+    // CRITICAL: For modes with small pending counts (like missing_dates), we must NOT use large
+    // random offsets, otherwise we skip all valid records.
     let queryOffset = 0;
     if (randomOffset) {
       // For generic_titles mode, use smaller offset since the dataset is already filtered
       let maxOffset = mode === 'generic_titles' ? 200 : 2000;
 
-      // For backlog-heavy modes, compute a safe maxOffset based on total rows with URL.
-      // These modes use candidateCount=1000, so offset must be <= total-1000.
+      // For backlog modes, compute maxOffset based on the FILTERED result set, not total DB.
+      // This prevents offsets that skip all matching records when the pending count is small.
       if (mode === 'short_summary' || mode === 'missing_summary' || mode === 'missing_dates') {
         try {
-          const { count } = await supabase
+          // Build the same filter used by the main query to get accurate count
+          let countQuery = supabase
             .from('legislation')
             .select('id', { count: 'exact', head: true })
             .not('document_url', 'is', null);
-          const total = count || 0;
-          maxOffset = Math.max(0, total - 1000);
+          
+          if (mode === 'missing_dates') {
+            countQuery = countQuery
+              .or('no_digital_version.is.null,no_digital_version.eq.false')
+              .or('publication_date.is.null,effective_date.is.null');
+          } else if (mode === 'short_summary') {
+            // Short summaries can only be counted in JS, so use larger pool
+            // but cap at reasonable value to ensure coverage
+            countQuery = countQuery.or('summary.is.null,summary.lt.20');
+          }
+          
+          const { count } = await countQuery;
+          const filteredTotal = count || 0;
+          
+          // For small datasets (< 200), don't use offset at all to ensure processing
+          if (filteredTotal < 200) {
+            maxOffset = 0;
+            console.log(`[Offset] Small dataset (${filteredTotal} records), using offset 0`);
+          } else {
+            // For larger sets, use a small random offset (max 10% of dataset)
+            maxOffset = Math.floor(filteredTotal * 0.1);
+          }
         } catch (e) {
-          // fail-open to keep job running
-          maxOffset = 6000;
+          // fail-open with small offset
+          maxOffset = 50;
         }
       }
 
       queryOffset = Math.floor(Math.random() * (maxOffset + 1));
-      console.log(`Using random offset: ${queryOffset} to avoid parallel job overlap`);
+      console.log(`Using random offset: ${queryOffset} (maxOffset=${maxOffset}) to avoid parallel job overlap`);
     }
     
     // For generic_titles mode, use the dedicated RPC that already applies SQL filters
