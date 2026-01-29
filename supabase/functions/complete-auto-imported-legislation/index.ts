@@ -1607,10 +1607,11 @@ async function runBackgroundCompletion(params: {
         .in('origin', ['PT', 'dre'])
         .or('no_digital_version.is.null,no_digital_version.eq.false');
     } else if (mode === 'short_summary') {
-      // Fetch ALL records with URLs - JS filter will check length < 20
-      // We need to fetch records that HAVE summaries but are too short
+      // Fetch records with URLs that have NULL or empty summaries
+      // We use SQL filters here to pre-filter, then JS will verify length < 20
       query = query
-        .not('document_url', 'is', null);
+        .not('document_url', 'is', null)
+        .or('summary.is.null,summary.eq.'); // SQL can't easily check length, so we filter NULL/empty here
     } else if (mode === 'missing_summary') {
       // Only records missing summary
       query = query.or('summary.is.null,summary.eq.');
@@ -1628,26 +1629,26 @@ async function runBackgroundCompletion(params: {
 
       // For backlog modes, compute maxOffset based on the FILTERED result set, not total DB.
       // This prevents offsets that skip all matching records when the pending count is small.
-      if (mode === 'short_summary' || mode === 'missing_summary' || mode === 'missing_dates') {
+      if (mode === 'short_summary' || mode === 'missing_summary' || mode === 'missing_dates' || mode === 'generic_titles') {
         try {
-          // Build the same filter used by the main query to get accurate count
-          let countQuery = supabase
-            .from('legislation')
-            .select('id', { count: 'exact', head: true })
-            .not('document_url', 'is', null);
+          let filteredTotal = 0;
           
           if (mode === 'missing_dates') {
-            countQuery = countQuery
+            const { count } = await supabase
+              .from('legislation')
+              .select('id', { count: 'exact', head: true })
+              .not('document_url', 'is', null)
               .or('no_digital_version.is.null,no_digital_version.eq.false')
               .or('publication_date.is.null,effective_date.is.null');
+            filteredTotal = count || 0;
           } else if (mode === 'short_summary') {
-            // Short summaries can only be counted in JS, so use larger pool
-            // but cap at reasonable value to ensure coverage
-            countQuery = countQuery.or('summary.is.null,summary.lt.20');
+            // Use RPC for accurate count
+            const { data } = await supabase.rpc('count_short_summaries');
+            filteredTotal = data || 0;
+          } else if (mode === 'generic_titles') {
+            const { data } = await supabase.rpc('count_generic_titles');
+            filteredTotal = data || 0;
           }
-          
-          const { count } = await countQuery;
-          const filteredTotal = count || 0;
           
           // For small datasets (< 200), don't use offset at all to ensure processing
           if (filteredTotal < 200) {
@@ -1667,8 +1668,7 @@ async function runBackgroundCompletion(params: {
       console.log(`Using random offset: ${queryOffset} (maxOffset=${maxOffset}) to avoid parallel job overlap`);
     }
     
-    // For generic_titles mode, use the dedicated RPC that already applies SQL filters
-    // This is much more efficient than fetching all PT legislation and filtering in JS
+    // For generic_titles and short_summary modes, use dedicated RPCs for efficient filtering
     let legislation: any[] = [];
     let fetchError: any = null;
     
@@ -1696,13 +1696,36 @@ async function runBackgroundCompletion(params: {
         }));
         console.log(`RPC returned ${legislation.length} records`);
       }
+    } else if (mode === 'short_summary') {
+      // Use dedicated RPC for short summaries (< 20 chars) - much more efficient
+      console.log(`Fetching short summaries via RPC (limit=${limit}, offset=${queryOffset})`);
+      const { data, error } = await supabase.rpc('get_short_summary_ids', {
+        p_limit: limit,
+        p_offset: queryOffset
+      });
+      if (error) {
+        fetchError = error;
+      } else {
+        legislation = (data || []).map((row: any) => ({
+          id: row.id,
+          number: row.number,
+          title: row.title,
+          summary: row.summary,
+          document_url: row.document_url,
+          entity: null,
+          publication_date: row.publication_date,
+          effective_date: row.effective_date,
+          origin: row.origin || 'PT',
+          source: null
+        }));
+        console.log(`RPC returned ${legislation.length} records with short summaries`);
+      }
     } else {
       // For other modes, use the regular query approach
-      const candidateMultiplier =
-        mode === 'short_summary' || mode === 'missing_summary' ? 50 : 5;
+      const candidateMultiplier = mode === 'missing_summary' ? 50 : 5;
       const candidateCount = Math.min(1000, Math.max(limit * candidateMultiplier, limit));
 
-      const backlogMode = mode === 'short_summary' || mode === 'missing_summary' || mode === 'missing_dates';
+      const backlogMode = mode === 'missing_summary' || mode === 'missing_dates';
       const result = await query
         // For backlog modes, process older items first (better for making counters drop quickly)
         .order('created_at', { ascending: backlogMode })

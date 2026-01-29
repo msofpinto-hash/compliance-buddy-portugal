@@ -1572,6 +1572,19 @@ export type Database = {
         }[]
       }
       get_legislation_without_categories_count: { Args: never; Returns: number }
+      get_short_summary_ids: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          document_url: string
+          effective_date: string
+          id: string
+          number: string
+          origin: string
+          publication_date: string
+          summary: string
+          title: string
+        }[]
+      }
       get_user_modules: {
         Args: { _org_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_module"][]
