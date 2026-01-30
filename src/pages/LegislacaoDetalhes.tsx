@@ -125,6 +125,7 @@ export default function LegislacaoDetalhes() {
   });
 
   // Fetch legal requirements
+  // Fetch ALL requirements without any limit (override Supabase's default 1000 row limit)
   const { data: requirements, isLoading: loadingRequirements } = useQuery({
     queryKey: ["legislation-requirements", id],
     queryFn: async () => {
@@ -133,7 +134,8 @@ export default function LegislacaoDetalhes() {
         .from("legal_requirements")
         .select("*")
         .eq("legislation_id", id)
-        .order("display_order", { ascending: true, nullsFirst: false });
+        .order("display_order", { ascending: true, nullsFirst: false })
+        .range(0, 9999); // Explicitly fetch up to 10,000 requirements to avoid default limit
       if (error) throw error;
       return data;
     },
