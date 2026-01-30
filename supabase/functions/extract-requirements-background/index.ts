@@ -75,40 +75,107 @@ function cleanArticle(article: string | undefined | null, legislationNumber: str
 // Use Lovable AI gateway - no external API key required
 const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
-// Convert EUR-Lex URL to Portuguese version
-function forceEurlexPortuguese(url: string): string {
-  // EUR-Lex URL patterns:
-  // https://eur-lex.europa.eu/legal-content/AUTO/?uri=CELEX:32019R2088
-  // https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32019R2088
-  // https://eur-lex.europa.eu/eli/reg/2019/2088/oj
+// Generate multiple EUR-Lex URL variants to try Portuguese content
+function getEurlexPortugueseVariants(url: string): string[] {
+  if (!url.includes('eur-lex.europa.eu')) return [url];
   
-  if (!url.includes('eur-lex.europa.eu')) return url;
+  const variants: string[] = [];
   
-  // Pattern 1: /legal-content/XX/ -> /legal-content/PT/TXT/
-  const legalContentMatch = url.match(/\/legal-content\/([A-Z]{2}|AUTO)(\/[A-Z]*)?\/?\?/);
-  if (legalContentMatch) {
-    const newUrl = url.replace(/\/legal-content\/([A-Z]{2}|AUTO)(\/[A-Z]*)?\/?\?/, '/legal-content/PT/TXT/?');
-    console.log(`🇵🇹 EUR-Lex: ${url} -> ${newUrl}`);
-    return newUrl;
+  // Extract CELEX from URL
+  const celexMatch = url.match(/CELEX[:%]([0-9A-Z]+)/i) || url.match(/uri=([0-9]{5}[A-Z][0-9]+)/i);
+  const celex = celexMatch ? celexMatch[1] : null;
+  
+  // Extract ELI parts if present
+  const eliMatch = url.match(/\/eli\/([^?]+)/);
+  
+  if (celex) {
+    // Primary: Direct PT TXT with CELEX
+    variants.push(`https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`);
+    // Alternative: PT ALL (includes all formats)
+    variants.push(`https://eur-lex.europa.eu/legal-content/PT/ALL/?uri=CELEX:${celex}`);
+    // Fallback: Direct HTML
+    variants.push(`https://eur-lex.europa.eu/legal-content/PT/TXT/HTML/?uri=CELEX:${celex}`);
   }
   
-  // Pattern 2: /eli/ URLs - add language suffix
-  if (url.includes('/eli/') && !url.includes('/PT/')) {
-    // /eli/reg/2019/2088/oj -> /eli/reg/2019/2088/oj/por
-    const newUrl = url.endsWith('/') ? url + 'por' : url + '/por';
-    console.log(`🇵🇹 EUR-Lex ELI: ${url} -> ${newUrl}`);
-    return newUrl;
+  if (eliMatch) {
+    const eliPath = eliMatch[1].replace(/\/(en|de|fr|bg|cs|da|el|es|et|fi|ga|hr|hu|it|lt|lv|mt|nl|pl|pt|ro|sk|sl|sv)\/?$/i, '');
+    variants.push(`https://eur-lex.europa.eu/eli/${eliPath}/oj/por`);
+    variants.push(`https://eur-lex.europa.eu/eli/${eliPath}/oj/PT`);
   }
   
-  // If already has PT, keep it
-  if (url.includes('/PT/') || url.includes('/por')) {
-    return url;
+  // Original URL as last fallback (already may have PT)
+  if (!variants.includes(url)) {
+    variants.push(url);
   }
   
-  // Default: try to add PT
-  const newUrl = url.replace('eur-lex.europa.eu/', 'eur-lex.europa.eu/legal-content/PT/TXT/');
-  console.log(`🇵🇹 EUR-Lex fallback: ${url} -> ${newUrl}`);
-  return newUrl;
+  console.log(`🇵🇹 EUR-Lex variants for ${url}: ${variants.length} options`);
+  return variants;
+}
+
+// Direct fetch for EUR-Lex with explicit language headers - bypasses Firecrawl caching issues
+async function directFetchEurlex(url: string): Promise<string | null> {
+  try {
+    console.log('🔍 Direct fetch EUR-Lex with PT headers:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.5',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error('Direct fetch error:', response.status);
+      return null;
+    }
+    
+    const html = await response.text();
+    
+    // Check if content is too large (avoid memory issues)
+    if (html.length > 2000000) {
+      console.log(`⚠️ Content too large (${html.length} chars), truncating`);
+      return html.substring(0, 2000000);
+    }
+    
+    // Basic HTML to text conversion for legal content
+    let text = html
+      // Remove scripts and styles
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      // Remove navigation, headers, footers
+      .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+      .replace(/<header[\s\S]*?<\/header>/gi, '')
+      .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+      // Keep article content
+      .replace(/<article[^>]*>([\s\S]*?)<\/article>/gi, '$1')
+      // Convert important tags to text with markers
+      .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n## $1\n')
+      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n')
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      // Remove all remaining tags
+      .replace(/<[^>]+>/g, ' ')
+      // Clean up whitespace
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s+/g, '\n')
+      .trim();
+    
+    console.log(`✅ Direct fetch: ${text.length} chars extracted`);
+    return text;
+  } catch (error) {
+    console.error('Direct fetch error:', error);
+    return null;
+  }
 }
 
 // Detect if text is in Portuguese (not Bulgarian, English, etc.)
@@ -198,53 +265,99 @@ function isPortugueseText(text: string): { isPortuguese: boolean; detectedLangua
 }
 
 // Scrape URL using Firecrawl with Portuguese language enforcement for EUR-Lex
+// For EUR-Lex: tries direct fetch first (with PT headers) before Firecrawl
 async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<{ markdown: string; html: string; language?: string } | null> {
   try {
-    // Force Portuguese version for EUR-Lex
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
     }
     
-    // Convert EUR-Lex URLs to Portuguese version
-    formattedUrl = forceEurlexPortuguese(formattedUrl);
+    const isEurlex = formattedUrl.includes('eur-lex.europa.eu');
+    const urlsToTry = isEurlex ? getEurlexPortugueseVariants(formattedUrl) : [formattedUrl];
     
-    console.log('🔍 Scraping URL (PT enforced):', formattedUrl);
-
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: formattedUrl,
-        formats: ['markdown'],
-        onlyMainContent: true,
-        waitFor: 3000,
-        // Request Portuguese content if server respects Accept-Language
-        location: { country: 'PT', languages: ['pt', 'pt-PT'] },
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Firecrawl error:', response.status);
-      return null;
+    // For EUR-Lex, try direct fetch FIRST with explicit PT headers
+    // This bypasses Firecrawl caching which may return wrong language
+    if (isEurlex) {
+      for (const tryUrl of urlsToTry) {
+        const directContent = await directFetchEurlex(tryUrl);
+        
+        if (directContent && directContent.length > 1000) {
+          const langCheck = isPortugueseText(directContent);
+          console.log(`🌐 Direct fetch language: ${langCheck.detectedLanguage} (confidence: ${(langCheck.confidence * 100).toFixed(0)}%)`);
+          
+          if (langCheck.isPortuguese) {
+            console.log(`✅ Portuguese content confirmed via direct fetch from ${tryUrl}`);
+            return {
+              markdown: directContent,
+              html: '',
+              language: 'portuguese',
+            };
+          }
+          
+          console.log(`⚠️ Direct fetch returned ${langCheck.detectedLanguage}, trying next variant...`);
+        }
+      }
+      
+      console.log(`⚠️ All direct fetch attempts failed to get PT content, falling back to Firecrawl...`);
     }
+    
+    // Fallback to Firecrawl for non-EUR-Lex or if direct fetch failed
+    for (const tryUrl of urlsToTry) {
+      console.log(`🔍 Firecrawl scraping (attempt ${urlsToTry.indexOf(tryUrl) + 1}/${urlsToTry.length}):`, tryUrl);
 
-    const data = await response.json();
-    const markdown = data.data?.markdown || data.markdown || '';
-    console.log(`✅ Scraped ${markdown.length} chars from URL`);
+      const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${firecrawlApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: tryUrl,
+          formats: ['markdown'],
+          onlyMainContent: true,
+          waitFor: 3000,
+          location: { country: 'PT', languages: ['pt', 'pt-PT'] },
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`Firecrawl error for ${tryUrl}:`, response.status);
+        if (urlsToTry.indexOf(tryUrl) < urlsToTry.length - 1) continue;
+        return null;
+      }
+
+      const data = await response.json();
+      const markdown = data.data?.markdown || data.markdown || '';
+      console.log(`✅ Firecrawl scraped ${markdown.length} chars from ${tryUrl}`);
+      
+      const langCheck = isPortugueseText(markdown);
+      console.log(`🌐 Firecrawl language: ${langCheck.detectedLanguage} (confidence: ${(langCheck.confidence * 100).toFixed(0)}%)`);
+      
+      if (langCheck.isPortuguese) {
+        console.log(`✅ Portuguese content confirmed from Firecrawl ${tryUrl}`);
+        return {
+          markdown,
+          html: data.data?.html || data.html || '',
+          language: 'portuguese',
+        };
+      }
+      
+      if (urlsToTry.indexOf(tryUrl) < urlsToTry.length - 1) {
+        console.log(`⚠️ Firecrawl content not in Portuguese (${langCheck.detectedLanguage}), trying next...`);
+        continue;
+      }
+      
+      // Last resort - return with detected language
+      console.log(`⚠️ All attempts exhausted, returning ${langCheck.detectedLanguage} content`);
+      return {
+        markdown,
+        html: data.data?.html || data.html || '',
+        language: langCheck.detectedLanguage,
+      };
+    }
     
-    // Validate language
-    const langCheck = isPortugueseText(markdown);
-    console.log(`🌐 Language check: ${langCheck.detectedLanguage} (confidence: ${(langCheck.confidence * 100).toFixed(0)}%)`);
-    
-    return {
-      markdown,
-      html: data.data?.html || data.html || '',
-      language: langCheck.detectedLanguage,
-    };
+    return null;
   } catch (error) {
     console.error('Scrape error:', error);
     return null;
