@@ -26,18 +26,26 @@ async function isSourceAvailable(supabase: any, sourceName: string): Promise<boo
 }
 
 // Map job types to their required source
+// Map job types to their required external source
+// Jobs will be skipped automatically if the source is offline/blocked
 const JOB_SOURCE_REQUIREMENTS: Record<string, string> = {
+  // PT metadata jobs - require DRE sources
+  'duplicate_cleanup': 'dre_opendata', // Wait for DRE to be stable before cleanup
   'find_dre_urls': 'dre_website',
   'fix_legacy_urls': 'dre_website',
   'fix_missing_dates': 'dre_opendata',
   'fix_generic_titles': 'dre_opendata',
   'fix_short_summary': 'dre_opendata',
+  // EU metadata jobs - require EUR-Lex
   'fix_missing_urls_eu': 'eurlex',
   'fix_eu_metadata_all': 'eurlex',
   'fix_eu_metadata_generic_titles': 'eurlex',
   'fix_eu_metadata_short_summary': 'eurlex',
   'fix_eu_metadata_missing_dates': 'eurlex',
+  'fix_eurlex_titles': 'eurlex',
+  // Requirements extraction - require Firecrawl (PAUSED)
   'priority_requirements_extraction': 'firecrawl',
+  'background-requirements-extraction': 'firecrawl',
 };
 
 interface JobConfig {
@@ -143,8 +151,44 @@ async function checkPendingMetadataCorrection(
 }
 
 // Ordered by priority - URLs first, then dates, then titles, then summaries
+// ========== JOB PRIORITY ORDER ==========
+// Phase 1: Metadata consolidation (current focus)
+// Phase 2: Requirements extraction (PAUSED until metadata complete)
 const JOB_CONFIGS: JobConfig[] = [
-  // Legacy URL fixes - HIGHEST PRIORITY (544 items with old DRE patterns)
+  // ========== PT METADATA JOBS (require DRE online) ==========
+  // Duplicate cleanup - HIGHEST PRIORITY when DRE comes back online
+  {
+    syncType: 'duplicate_cleanup',
+    functionName: 'cleanup-duplicate-legislation',
+    defaultPayload: { batchSize: 100 },
+    maxParallelJobs: 1, // Only one cleanup at a time
+    priority: -1, // Highest priority - before any other PT processing
+    checkPendingWork: async (supabase: any) => {
+      // Check for duplicate groups by normalized number
+      const { data: legislation } = await supabase
+        .from('legislation')
+        .select('number')
+        .is('external_id', null) // PT diplomas only
+        .limit(5000);
+      
+      if (!legislation) return { hasPending: false, count: 0 };
+      
+      // Count duplicates by normalizing numbers
+      const groups = new Map<string, number>();
+      for (const item of legislation) {
+        const normalized = item.number.toLowerCase().replace(/\s+/g, '').replace(/n\.?º?\s*/gi, '');
+        groups.set(normalized, (groups.get(normalized) || 0) + 1);
+      }
+      
+      let duplicateCount = 0;
+      for (const count of groups.values()) {
+        if (count > 1) duplicateCount += count - 1;
+      }
+      
+      return { hasPending: duplicateCount > 50, count: duplicateCount };
+    },
+  },
+  // Legacy URL fixes - HIGHEST PRIORITY for individual items
   {
     syncType: 'fix_legacy_urls',
     functionName: 'fix-broken-urls',
@@ -177,23 +221,45 @@ const JOB_CONFIGS: JobConfig[] = [
     priority: 1,
     checkPendingWork: checkPendingUrlCorrectionEU,
   },
-  // EU metadata fix - PRIORITY while PT is offline
+  // ========== EUR-LEX METADATA JOBS (online - active) ==========
+  // EUR-Lex title corrections via SPARQL
+  {
+    syncType: 'fix_eurlex_titles',
+    functionName: 'fix-eurlex-titles',
+    defaultPayload: { limit: 50, dryRun: false },
+    maxParallelJobs: 2,
+    priority: 1.2,
+    checkPendingWork: async (supabase: any) => {
+      // Count EU legislation with short titles (less than 50 chars)
+      const { count } = await supabase
+        .from('legislation')
+        .select('id', { count: 'exact', head: true })
+        .not('external_id', 'is', null)
+        .is('revocation_date', null)
+        .or('title.eq.external_id,title.lt.50');
+      
+      // Use a reasonable threshold
+      const shortTitles = count || 0;
+      return { hasPending: shortTitles > 10, count: shortTitles };
+    },
+  },
+  // EU metadata fix - generic issues
   {
     syncType: 'fix_eu_metadata_all',
     functionName: 'fix-eu-metadata',
     defaultPayload: { mode: 'all', limit: 30, background: true },
     maxParallelJobs: 2,
     priority: 1.5, // Between URL and date fixes
-    checkPendingWork: async (supabase) => {
+    checkPendingWork: async (supabase: any) => {
       // Count EU legislation with metadata issues
       const { count } = await supabase
         .from('legislation')
         .select('id', { count: 'exact', head: true })
         .is('revocation_date', null)
-        .or('origin.eq.EU,origin.eq.eurlex,document_url.ilike.%eur-lex%')
-        .or('title.ilike.Documento %,summary.is.null,summary.eq.,publication_date.is.null,effective_date.is.null');
+        .not('external_id', 'is', null)
+        .or('summary.is.null,summary.eq.,publication_date.is.null,effective_date.is.null');
       
-      return { hasPending: (count || 0) > 0, count: count || 0 };
+      return { hasPending: (count || 0) > 5, count: count || 0 };
     },
   },
   // Date corrections - second priority
@@ -299,8 +365,18 @@ const JOB_CONFIGS: JobConfig[] = [
   },
 ];
 
+// ========== REQUIREMENTS EXTRACTION PAUSE ==========
+// CRITICAL: Requirements extraction is PAUSED until metadata is fully consolidated.
+// This prevents wasted credits and ensures stable data before extraction.
+// To re-enable: remove these from SUSPENDED_JOBS after metadata validation.
+const REQUIREMENTS_EXTRACTION_PAUSED = true; // Master switch for requirements
+
 // Jobs to skip by default (can be enabled with specific syncType or force)
-const SUSPENDED_JOBS = ['extract_relations', 'background-requirements-extraction'];
+const SUSPENDED_JOBS = [
+  'extract_relations', 
+  'background-requirements-extraction',
+  'priority_requirements_extraction', // PAUSED: Wait for metadata consolidation
+];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
