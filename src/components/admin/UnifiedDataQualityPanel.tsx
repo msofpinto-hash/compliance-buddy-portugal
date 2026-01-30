@@ -190,21 +190,23 @@ export function UnifiedDataQualityPanel() {
         supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
-      const [totalLegResult, processedRelationsResult, reqLegResult] = await Promise.all([
+      // Use RPCs for accurate server-side counting (avoids client-side LIMIT issues)
+      const [totalLegResult, processedRelationsResult, legWithReqsResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true }),
         supabase.from("legislation_relations_processed").select("id", { count: "exact", head: true }),
-        supabase.from("legal_requirements").select("legislation_id").limit(15000),
+        supabase.rpc("get_legislation_with_requirements_count"),
       ]);
 
-      const uniqueReqLeg = new Set((reqLegResult.data || []).map(r => r.legislation_id));
+      const totalLeg = totalLegResult.count || 0;
+      const legWithReqs = (legWithReqsResult.data as number) || 0;
 
       return {
         urls: urlsCount,
         dates: datesResult.count || 0,
         titles: (genericTitlesResult.data as number) || 0,
         summaries: (shortSummariesResult.data as number) || 0,
-        requirements: Math.max(0, (totalLegResult.count || 0) - uniqueReqLeg.size),
-        relations: Math.max(0, (totalLegResult.count || 0) - (processedRelationsResult.count || 0)),
+        requirements: Math.max(0, totalLeg - legWithReqs),
+        relations: Math.max(0, totalLeg - (processedRelationsResult.count || 0)),
         categories: (categoriesResult.data as number) || 0,
       };
     },
