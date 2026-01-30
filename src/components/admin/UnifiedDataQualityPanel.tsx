@@ -16,9 +16,18 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
 import { ExecutionHistoryPanel } from "./ExecutionHistoryPanel";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+// ========== PT SUSPENDED FLAG ==========
+// A API DRE OpenData (PT) está offline e devolve HTML em vez de JSON.
+// Suspender correções PT até a fonte estabilizar.
+const PT_CORRECTIONS_SUSPENDED = true;
 
 // Constants
 const STALE_JOB_THRESHOLD_MINUTES = 10;
+// Reduzido de 6 para 2 para evitar sobrecarga durante instabilidade
+const MAX_CONCURRENT_JOBS = 2;
+const MAX_JOBS_PER_TYPE = 1;
 
 // NOTE: Supabase query builder overwrites the `or` filter if `.or()` is called multiple times.
 // Keep URL-related OR conditions in a single `.or(...)` call, and combine other constraints via
@@ -308,49 +317,73 @@ export function UnifiedDataQualityPanel() {
     switch (type) {
       case "urls":
         {
-          // Decide based on pending work:
-          // - EU missing URLs => fix-broken-urls (generates CELEX URLs)
-          // - PT missing URLs => find-missing-dre-urls (Firecrawl search)
-          const [euMissingFalseRes, euMissingNullRes] = await Promise.all([
-            supabase
-              .from("legislation")
-              .select("id", { count: "exact", head: true })
-              .in("origin", ["EU", "eurlex"])
-              .eq("no_digital_version", false)
-              .or(URL_MISSING_OR),
-            supabase
-              .from("legislation")
-              .select("id", { count: "exact", head: true })
-              .in("origin", ["EU", "eurlex"])
-              .is("no_digital_version", null)
-              .or(URL_MISSING_OR),
-          ]);
-
-          if (euMissingFalseRes.error) throw euMissingFalseRes.error;
-          if (euMissingNullRes.error) throw euMissingNullRes.error;
-
-          const euMissing = (euMissingFalseRes.count ?? 0) + (euMissingNullRes.count ?? 0);
-
-          if (euMissing > 0) {
+          // PT SUSPENDED: Apenas lançar correção de URLs EU
+          if (PT_CORRECTIONS_SUSPENDED) {
             functionName = "fix-broken-urls";
             body = { syncType: "fix_missing_urls_eu", limit: 50, origin: "EU", mode: "recover", background: true };
           } else {
-            functionName = "find-missing-dre-urls";
-            body = { limit: 50, background: true, dryRun: false };
+            // Decide based on pending work:
+            // - EU missing URLs => fix-broken-urls (generates CELEX URLs)
+            // - PT missing URLs => find-missing-dre-urls (Firecrawl search)
+            const [euMissingFalseRes, euMissingNullRes] = await Promise.all([
+              supabase
+                .from("legislation")
+                .select("id", { count: "exact", head: true })
+                .in("origin", ["EU", "eurlex"])
+                .eq("no_digital_version", false)
+                .or(URL_MISSING_OR),
+              supabase
+                .from("legislation")
+                .select("id", { count: "exact", head: true })
+                .in("origin", ["EU", "eurlex"])
+                .is("no_digital_version", null)
+                .or(URL_MISSING_OR),
+            ]);
+
+            if (euMissingFalseRes.error) throw euMissingFalseRes.error;
+            if (euMissingNullRes.error) throw euMissingNullRes.error;
+
+            const euMissing = (euMissingFalseRes.count ?? 0) + (euMissingNullRes.count ?? 0);
+
+            if (euMissing > 0) {
+              functionName = "fix-broken-urls";
+              body = { syncType: "fix_missing_urls_eu", limit: 50, origin: "EU", mode: "recover", background: true };
+            } else {
+              functionName = "find-missing-dre-urls";
+              body = { limit: 50, background: true, dryRun: false };
+            }
           }
         }
         break;
       case "titles":
-        functionName = "complete-auto-imported-legislation";
-        body = { mode: "generic_titles", limit: 20, dryRun: false, requireUrl: true };
+        // PT SUSPENDED: Usar fix-eurlex-titles para EU apenas
+        if (PT_CORRECTIONS_SUSPENDED) {
+          functionName = "fix-eurlex-titles";
+          body = { limit: 50, background: true };
+        } else {
+          functionName = "complete-auto-imported-legislation";
+          body = { mode: "generic_titles", limit: 20, dryRun: false, requireUrl: true };
+        }
         break;
       case "summaries":
-        functionName = "complete-auto-imported-legislation";
-        body = { mode: "short_summary", limit: 20, dryRun: false, requireUrl: true };
+        // PT SUSPENDED: Apenas EU
+        if (PT_CORRECTIONS_SUSPENDED) {
+          functionName = "fix-eurlex-titles";
+          body = { limit: 50, background: true, mode: "summaries" };
+        } else {
+          functionName = "complete-auto-imported-legislation";
+          body = { mode: "short_summary", limit: 20, dryRun: false, requireUrl: true };
+        }
         break;
       case "dates":
-        functionName = "complete-auto-imported-legislation";
-        body = { mode: "missing_dates", limit: 20, dryRun: false, requireUrl: true };
+        // PT SUSPENDED: Apenas EU (reimport-eurlex-dates)
+        if (PT_CORRECTIONS_SUSPENDED) {
+          functionName = "reimport-eurlex-dates";
+          body = { limit: 50, background: true };
+        } else {
+          functionName = "complete-auto-imported-legislation";
+          body = { mode: "missing_dates", limit: 20, dryRun: false, requireUrl: true };
+        }
         break;
       case "requirements":
         functionName = "extract-requirements-background";
@@ -414,7 +447,7 @@ export function UnifiedDataQualityPanel() {
 
     const runBatchFix = async () => {
       const currentRunning = runningJobs?.length ?? 0;
-      if (currentRunning >= 3) return;
+      if (currentRunning >= MAX_CONCURRENT_JOBS) return;
 
       const count = fixStats[activeFixType];
       if (count === 0) {
@@ -446,23 +479,23 @@ export function UnifiedDataQualityPanel() {
         return;
       }
 
-      // Limit concurrent jobs
-      if (currentRunning >= 6) return;
+      // Limit concurrent jobs (reduzido para estabilidade)
+      if (currentRunning >= MAX_CONCURRENT_JOBS) return;
 
       // Find types with pending work and no running jobs
       const typesToLaunch: FixType[] = [];
       (Object.keys(fixStats) as FixType[]).forEach((type) => {
         if (fixStats[type] > 0) {
           const runningForType = getRunningJobsForType(type).length;
-          // Allow max 2 concurrent jobs per type
-          if (runningForType < 2) {
+          // Allow max 1 concurrent job per type (reduzido)
+          if (runningForType < MAX_JOBS_PER_TYPE) {
             typesToLaunch.push(type);
           }
         }
       });
 
       // Launch one batch per type that needs it (up to remaining slots)
-      const slotsAvailable = 6 - currentRunning;
+      const slotsAvailable = MAX_CONCURRENT_JOBS - currentRunning;
       const toLaunch = typesToLaunch.slice(0, slotsAvailable);
       
       if (toLaunch.length > 0) {
@@ -622,6 +655,16 @@ export function UnifiedDataQualityPanel() {
       </CardHeader>
 
       <CardContent className="px-4 pb-4 space-y-4">
+        {/* PT Suspended Warning */}
+        {PT_CORRECTIONS_SUSPENDED && (
+          <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/50">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800 dark:text-amber-200">Correções PT Suspensas</AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
+              A API DRE OpenData está offline (devolve HTML). Apenas correções EUR-Lex estão ativas. Concorrência reduzida a {MAX_CONCURRENT_JOBS} jobs.
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Mini stats row */}
         <div className="grid grid-cols-4 gap-2 text-center">
           <div className="rounded-lg bg-white/60 dark:bg-white/5 p-2">
