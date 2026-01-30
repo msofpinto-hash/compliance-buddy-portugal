@@ -108,7 +108,7 @@ export function UnifiedDataQualityPanel() {
   const queryClient = useQueryClient();
   const [activeFixType, setActiveFixType] = useState<FixType | null>(null);
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
-
+  const [fullAutoMode, setFullAutoMode] = useState(false);
   const sinceIso = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), []);
 
   // Query for 24h stats
@@ -231,9 +231,9 @@ export function UnifiedDataQualityPanel() {
     return () => { supabase.removeChannel(channel); };
   }, [refetchStats, refetchJobs, refetch24h]);
 
-  const getRunningJobsForType = (type: FixType): RunningJob[] => {
+  const getRunningJobsForType = useCallback((type: FixType): RunningJob[] => {
     return runningJobs?.filter(job => SYNC_TYPE_TO_FIX[job.sync_type] === type) || [];
-  };
+  }, [runningJobs]);
 
   // Launch batch
   const launchBatch = useCallback(async (type: FixType) => {
@@ -314,9 +314,9 @@ export function UnifiedDataQualityPanel() {
     }
   }, [refetchJobs, refetchStats]);
 
-  // Auto-fix loop
+  // Auto-fix loop for single type
   useEffect(() => {
-    if (!activeFixType || !fixStats) return;
+    if (fullAutoMode || !activeFixType || !fixStats) return;
 
     const runBatchFix = async () => {
       const currentRunning = runningJobs?.length ?? 0;
@@ -335,7 +335,62 @@ export function UnifiedDataQualityPanel() {
     const interval = setInterval(runBatchFix, 5000);
     runBatchFix();
     return () => clearInterval(interval);
-  }, [activeFixType, fixStats, runningJobs, launchBatch]);
+  }, [activeFixType, fixStats, runningJobs, launchBatch, fullAutoMode]);
+
+  // Full Auto-fix mode - runs ALL types in parallel until complete
+  useEffect(() => {
+    if (!fullAutoMode || !fixStats) return;
+
+    const runFullAutoFix = async () => {
+      const currentRunning = runningJobs?.length ?? 0;
+      
+      // Check if all done
+      const totalPendingNow = Object.values(fixStats).reduce((sum, val) => sum + val, 0);
+      if (totalPendingNow === 0 && currentRunning === 0) {
+        setFullAutoMode(false);
+        toast.success("🎉 Auto-fix Completo - Todos os dados corrigidos!");
+        return;
+      }
+
+      // Limit concurrent jobs
+      if (currentRunning >= 6) return;
+
+      // Find types with pending work and no running jobs
+      const typesToLaunch: FixType[] = [];
+      (Object.keys(fixStats) as FixType[]).forEach((type) => {
+        if (fixStats[type] > 0) {
+          const runningForType = getRunningJobsForType(type).length;
+          // Allow max 2 concurrent jobs per type
+          if (runningForType < 2) {
+            typesToLaunch.push(type);
+          }
+        }
+      });
+
+      // Launch one batch per type that needs it (up to remaining slots)
+      const slotsAvailable = 6 - currentRunning;
+      const toLaunch = typesToLaunch.slice(0, slotsAvailable);
+      
+      if (toLaunch.length > 0) {
+        await Promise.allSettled(toLaunch.map(type => launchBatch(type)));
+      }
+    };
+
+    const interval = setInterval(runFullAutoFix, 4000);
+    runFullAutoFix();
+    return () => clearInterval(interval);
+  }, [fullAutoMode, fixStats, runningJobs, launchBatch, getRunningJobsForType]);
+
+  const toggleFullAutoMode = () => {
+    if (fullAutoMode) {
+      setFullAutoMode(false);
+      toast.info("Auto-fix Completo parado");
+    } else {
+      setActiveFixType(null); // Clear single-type auto-fix
+      setFullAutoMode(true);
+      toast.success("🚀 Auto-fix Completo iniciado - a correr todos os tipos!");
+    }
+  };
 
   const toggleFixType = (type: FixType) => {
     if (activeFixType === type) {
@@ -408,10 +463,41 @@ export function UnifiedDataQualityPanel() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
+                    variant={fullAutoMode ? "destructive" : "default"}
+                    size="sm"
+                    onClick={toggleFullAutoMode}
+                    disabled={totalPending === 0 && !fullAutoMode}
+                    className={fullAutoMode 
+                      ? "animate-pulse" 
+                      : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                    }
+                  >
+                    {fullAutoMode ? (
+                      <>
+                        <Pause className="h-4 w-4 mr-1" />
+                        Parar Auto-fix
+                      </>
+                    ) : (
+                      <>
+                        <Activity className="h-4 w-4 mr-1" />
+                        Auto-fix Completo
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{fullAutoMode ? "Para o modo automático" : "Corre todos os tipos automaticamente até terminar"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
                     variant="default"
                     size="sm"
                     onClick={launchAllBatches}
-                    disabled={totalPending === 0 || activeJobsCount > 5}
+                    disabled={totalPending === 0 || activeJobsCount > 5 || fullAutoMode}
                     className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
                   >
                     <Zap className="h-4 w-4 mr-1" />
@@ -419,7 +505,7 @@ export function UnifiedDataQualityPanel() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Lança todas as correções em paralelo</p>
+                  <p>Lança todas as correções uma vez em paralelo</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
