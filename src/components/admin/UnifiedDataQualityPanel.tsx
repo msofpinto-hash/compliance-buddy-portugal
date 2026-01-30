@@ -520,6 +520,12 @@ export function UnifiedDataQualityPanel() {
                   </Badge>
                 )}
               </CardTitle>
+              {activeJobsCount > 0 && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Atualizando a cada 2s...
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
