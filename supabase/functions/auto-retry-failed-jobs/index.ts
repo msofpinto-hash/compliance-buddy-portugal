@@ -9,6 +9,32 @@ const TIMEOUT_MINUTES = 6; // Mark jobs as timeout after 6 minutes
 const MAX_RETRIES_PER_HOUR = 80; // Increase limit for aggressive processing
 const BATCH_SIZE = 10; // Items per job for relations extraction
 
+// ========== SOURCE STATUS CHECK ==========
+// Check if an external source is available before launching jobs
+async function isSourceAvailable(supabase: any, sourceName: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('is_source_available', { p_source_name: sourceName });
+    if (error) {
+      console.log(`[SourceCheck] Error checking ${sourceName}:`, error.message);
+      return true; // Fail open to avoid blocking on DB errors
+    }
+    return data === true;
+  } catch (e) {
+    console.log(`[SourceCheck] Exception checking ${sourceName}:`, e);
+    return true; // Fail open
+  }
+}
+
+// Map job types to their required source
+const JOB_SOURCE_REQUIREMENTS: Record<string, string> = {
+  'find_dre_urls': 'dre_website',
+  'fix_legacy_urls': 'dre_website',
+  'fix_missing_dates': 'dre_opendata',
+  'fix_generic_titles': 'dre_opendata',
+  'fix_short_summary': 'dre_opendata',
+  'fix_missing_urls_eu': 'eurlex',
+};
+
 interface JobConfig {
   syncType: string;
   functionName: string;
@@ -245,6 +271,24 @@ Deno.serve(async (req) => {
           skipped: true,
         });
         continue;
+      }
+
+      // ========== SOURCE AVAILABILITY CHECK ==========
+      // Check if the required external source is available before processing
+      const requiredSource = JOB_SOURCE_REQUIREMENTS[config.syncType];
+      if (requiredSource) {
+        const sourceAvailable = await isSourceAvailable(supabase, requiredSource);
+        if (!sourceAvailable) {
+          console.log(`🚫 Source ${requiredSource} is OFFLINE - skipping ${config.syncType}`);
+          results.push({
+            syncType: config.syncType,
+            stuckFixed: 0,
+            restarted: 0,
+            skipped: true,
+            error: `Source ${requiredSource} is offline or blocked`,
+          });
+          continue;
+        }
       }
 
       try {

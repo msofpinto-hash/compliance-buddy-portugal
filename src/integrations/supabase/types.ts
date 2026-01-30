@@ -728,6 +728,45 @@ export type Database = {
         }
         Relationships: []
       }
+      external_source_status: {
+        Row: {
+          blocked_until: string | null
+          created_at: string
+          error_message: string | null
+          failure_count: number
+          id: string
+          last_failure_at: string | null
+          last_success_at: string | null
+          source_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          created_at?: string
+          error_message?: string | null
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          source_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          created_at?: string
+          error_message?: string | null
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          source_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       legal_requirements: {
         Row: {
           article: string | null
@@ -858,6 +897,59 @@ export type Database = {
           },
           {
             foreignKeyName: "legislation_category_mapping_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legislation_processing_failures: {
+        Row: {
+          created_at: string
+          error_details: string | null
+          failed_at: string
+          failure_reason: string
+          failure_type: string
+          id: string
+          is_permanent: boolean
+          legislation_id: string
+          retry_after: string | null
+          retry_count: number
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_details?: string | null
+          failed_at?: string
+          failure_reason: string
+          failure_type: string
+          id?: string
+          is_permanent?: boolean
+          legislation_id: string
+          retry_after?: string | null
+          retry_count?: number
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_details?: string | null
+          failed_at?: string
+          failure_reason?: string
+          failure_type?: string
+          id?: string
+          is_permanent?: boolean
+          legislation_id?: string
+          retry_after?: string | null
+          retry_count?: number
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislation_processing_failures_legislation_id_fkey"
             columns: ["legislation_id"]
             isOneToOne: false
             referencedRelation: "legislation"
@@ -1579,6 +1671,12 @@ export type Database = {
           id: string
         }[]
       }
+      get_processable_legislation_ids: {
+        Args: { p_failure_type: string; p_limit?: number }
+        Returns: {
+          id: string
+        }[]
+      }
       get_short_summary_ids: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
@@ -1612,8 +1710,30 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_source_available: { Args: { p_source_name: string }; Returns: boolean }
       record_login_attempt: {
         Args: { p_email: string; p_success: boolean }
+        Returns: undefined
+      }
+      record_processing_failure: {
+        Args: {
+          p_error_details?: string
+          p_failure_reason: string
+          p_failure_type: string
+          p_is_permanent?: boolean
+          p_legislation_id: string
+          p_retry_after?: string
+          p_source: string
+        }
+        Returns: string
+      }
+      update_source_status: {
+        Args: {
+          p_block_hours?: number
+          p_error_message?: string
+          p_source_name: string
+          p_status: string
+        }
         Returns: undefined
       }
       user_belongs_to_org: {
