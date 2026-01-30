@@ -347,6 +347,30 @@ export function UnifiedDataQualityPanel() {
     }
   };
 
+  // Launch all fix types in parallel
+  const launchAllBatches = useCallback(async () => {
+    if (!fixStats) return;
+    
+    const typesToLaunch: FixType[] = [];
+    (Object.keys(fixStats) as FixType[]).forEach((type) => {
+      if (fixStats[type] > 0) {
+        typesToLaunch.push(type);
+      }
+    });
+
+    if (typesToLaunch.length === 0) {
+      toast.info("Não há pendências para corrigir.");
+      return;
+    }
+
+    toast.success(`🚀 A lançar ${typesToLaunch.length} tipos de correção em paralelo...`);
+    
+    // Launch all in parallel
+    await Promise.allSettled(typesToLaunch.map(type => launchBatch(type)));
+    
+    toast.success(`✅ ${typesToLaunch.length} lotes lançados!`);
+  }, [fixStats, launchBatch]);
+
   const totalPending = Object.values(fixStats || {}).reduce((sum, val) => sum + val, 0);
   const activeJobsCount = runningJobs?.length ?? 0;
   const stats24h = statsQuery.data;
@@ -379,15 +403,35 @@ export function UnifiedDataQualityPanel() {
               </CardTitle>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { refetchStats(); refetchJobs(); statsQuery.refetch(); }}
-            disabled={isLoadingStats}
-            className="shrink-0"
-          >
-            {isLoadingStats ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={launchAllBatches}
+                    disabled={totalPending === 0 || activeJobsCount > 5}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                  >
+                    <Zap className="h-4 w-4 mr-1" />
+                    Lançar Todos
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Lança todas as correções em paralelo</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { refetchStats(); refetchJobs(); statsQuery.refetch(); }}
+              disabled={isLoadingStats}
+            >
+              {isLoadingStats ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
