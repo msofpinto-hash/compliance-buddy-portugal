@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,11 @@ interface RunningJob {
   items_processed: number;
   items_added: number;
   started_at: string;
+}
+
+// Tipo mínimo para ler mudanças realtime em sync_logs
+interface SyncLogRow {
+  status: string;
 }
 
 type FixType = "urls" | "dates" | "titles" | "summaries" | "requirements" | "relations" | "categories";
@@ -110,6 +115,7 @@ export function UnifiedDataQualityPanel() {
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
   const [fullAutoMode, setFullAutoMode] = useState(false);
   const sinceIso = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), []);
+  const realtimeRefetchTimerRef = useRef<number | null>(null);
 
   // Query for 24h stats
   const statsQuery = useQuery({
@@ -218,17 +224,47 @@ export function UnifiedDataQualityPanel() {
   });
 
   // Realtime updates
+  // NOTA: os jobs atualizam `items_processed` muitas vezes enquanto estão "running".
+  // Se refizermos contagens a cada UPDATE, podemos saturar pedidos e a UI parece "congelar".
+  // Aqui só reagimos a mudanças de estado (ex.: running -> completed/failed) e aplicamos debounce.
   useEffect(() => {
-    const channel = supabase
-      .channel('unified-quality-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sync_logs' }, () => {
+    const scheduleRefetch = () => {
+      if (realtimeRefetchTimerRef.current != null) return;
+      realtimeRefetchTimerRef.current = window.setTimeout(() => {
+        realtimeRefetchTimerRef.current = null;
         refetchStats();
         refetchJobs();
         refetch24h();
-      })
+      }, 800);
+    };
+
+    const channel = supabase
+      .channel("unified-quality-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sync_logs" },
+        (payload) => {
+          const eventType = (payload as any)?.eventType as string | undefined;
+          const newRow = ((payload as any)?.new ?? {}) as Partial<SyncLogRow>;
+          const oldRow = ((payload as any)?.old ?? {}) as Partial<SyncLogRow>;
+
+          // Ignorar updates de progresso (items_processed/items_added) enquanto o status não mudou.
+          if (eventType === "UPDATE" && newRow.status && oldRow.status && newRow.status === oldRow.status) {
+            return;
+          }
+
+          scheduleRefetch();
+        }
+      )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (realtimeRefetchTimerRef.current != null) {
+        window.clearTimeout(realtimeRefetchTimerRef.current);
+        realtimeRefetchTimerRef.current = null;
+      }
+      supabase.removeChannel(channel);
+    };
   }, [refetchStats, refetchJobs, refetch24h]);
 
   const getRunningJobsForType = useCallback((type: FixType): RunningJob[] => {
