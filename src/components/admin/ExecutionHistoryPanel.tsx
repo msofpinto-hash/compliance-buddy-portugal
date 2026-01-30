@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   History, ChevronDown, CheckCircle2, XCircle, Clock, AlertTriangle,
-  Link, Calendar, Type, FileText, ListChecks, GitBranch, Layers, Loader2
+  Link, Calendar, Type, FileText, ListChecks, GitBranch, Layers, Loader2, TrendingUp
 } from "lucide-react";
 import { formatDistanceToNow, differenceInSeconds, parseISO, format } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -99,9 +99,18 @@ function getStatusBadge(status: string) {
   }
 }
 
+interface TypeStats {
+  label: string;
+  Icon: typeof Link;
+  count: number;
+  processed: number;
+  added: number;
+}
+
 export function ExecutionHistoryPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [limit, setLimit] = useState(20);
+  const since24h = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), []);
 
   const { data: logs, isLoading } = useQuery({
     queryKey: ["execution-history", limit],
@@ -114,7 +123,22 @@ export function ExecutionHistoryPanel() {
       if (error) throw error;
       return data as ExecutionLog[];
     },
-    refetchInterval: 10000, // Refresh every 10s
+    refetchInterval: 10000,
+  });
+
+  // Query for 24h aggregated stats
+  const { data: logs24h } = useQuery({
+    queryKey: ["execution-history-24h", since24h],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_logs")
+        .select("sync_type, status, items_processed, items_added")
+        .gte("started_at", since24h)
+        .in("status", ["completed", "completed_timeout"]);
+      if (error) throw error;
+      return data as Pick<ExecutionLog, "sync_type" | "status" | "items_processed" | "items_added">[];
+    },
+    refetchInterval: 30000,
   });
 
   const stats = logs?.reduce((acc, log) => {
@@ -125,6 +149,35 @@ export function ExecutionHistoryPanel() {
     acc.totalAdded += log.items_added || 0;
     return acc;
   }, { completed: 0, failed: 0, running: 0, totalProcessed: 0, totalAdded: 0 });
+
+  // Aggregate 24h stats by type
+  const stats24hByType = useMemo(() => {
+    if (!logs24h) return [];
+    const byType: Record<string, { count: number; processed: number; added: number }> = {};
+    for (const log of logs24h) {
+      if (!byType[log.sync_type]) {
+        byType[log.sync_type] = { count: 0, processed: 0, added: 0 };
+      }
+      byType[log.sync_type].count++;
+      byType[log.sync_type].processed += log.items_processed || 0;
+      byType[log.sync_type].added += log.items_added || 0;
+    }
+    return Object.entries(byType)
+      .map(([type, data]): TypeStats => ({
+        label: SYNC_TYPE_LABELS[type] || type,
+        Icon: SYNC_TYPE_ICONS[type] || FileText,
+        count: data.count,
+        processed: data.processed,
+        added: data.added,
+      }))
+      .sort((a, b) => b.added - a.added);
+  }, [logs24h]);
+
+  const total24h = stats24hByType.reduce((acc, s) => ({
+    count: acc.count + s.count,
+    processed: acc.processed + s.processed,
+    added: acc.added + s.added,
+  }), { count: 0, processed: 0, added: 0 });
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -158,14 +211,49 @@ export function ExecutionHistoryPanel() {
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 space-y-3">
+          {/* 24h Aggregated Stats */}
+          {stats24hByType.length > 0 && (
+            <div className="p-3 rounded-lg bg-gradient-to-r from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/60 dark:border-emerald-800/40">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Últimas 24 horas
+                </h4>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">{total24h.count} jobs</span>
+                  <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700">
+                    +{total24h.added.toLocaleString()} corrigidos
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {stats24hByType.slice(0, 6).map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="flex items-center gap-2 p-1.5 rounded bg-white/50 dark:bg-black/20"
+                  >
+                    <stat.Icon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate">{stat.label}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        +{stat.added} <span className="opacity-60">({stat.count} jobs)</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
           {isLoading ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : logs && logs.length > 0 ? (
             <>
-              <ScrollArea className="h-[300px] pr-2">
+              <ScrollArea className="h-[250px] pr-2">
                 <div className="space-y-2">
                   {logs.map((log) => {
                     const Icon = SYNC_TYPE_ICONS[log.sync_type] || FileText;
