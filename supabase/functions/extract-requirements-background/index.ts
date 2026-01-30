@@ -149,11 +149,12 @@ async function runBackgroundExtraction(
     legislationIds?: string[]; // Optional: specific IDs to process
     forceReplace?: boolean; // Optional: delete existing requirements and re-extract
     randomOffset?: number; // Random offset for parallel jobs to avoid overlap
+    strictUrlOnly?: boolean; // If true, skip legislation when URL scrape fails (no summary fallback)
   }
 ) {
-  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey, legislationIds, forceReplace, randomOffset = 0 } = options;
+  const { batchSize, maxBatches, origin, useUrl, firecrawlApiKey, legislationIds, forceReplace, randomOffset = 0, strictUrlOnly = false } = options;
   
-  console.log(`🚀 Starting extraction with useUrl=${useUrl}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}, forceReplace=${forceReplace || false}, randomOffset=${randomOffset}`);
+  console.log(`🚀 Starting extraction with useUrl=${useUrl}, strictUrlOnly=${strictUrlOnly}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}, forceReplace=${forceReplace || false}, randomOffset=${randomOffset}`);
   
   // If forceReplace is true and we have specific IDs, delete their existing requirements first
   if (forceReplace && legislationIds && legislationIds.length > 0) {
@@ -307,6 +308,10 @@ async function runBackgroundExtraction(
                 usedUrl = true;
                 console.log(`📄 ${leg.number}: Using scraped content (${textContent.length} chars)`);
               } else {
+                if (strictUrlOnly) {
+                  console.log(`🚫 ${leg.number}: Scrape failed and strictUrlOnly=true, SKIPPING (no fallback)`);
+                  return { processed: true, skipped: true, requirementsAdded: 0 };
+                }
                 console.log(`⚠️ ${leg.number}: Scrape failed or error page, falling back to summary`);
               }
             }
@@ -695,16 +700,25 @@ Retorna APENAS um array JSON válido:
         }));
 
         // Aggregate results from parallel processing
+        let skippedCount = 0;
         for (const result of results) {
           if (result.status === 'fulfilled' && result.value.processed) {
             totalProcessed++;
             totalRequirements += result.value.requirementsAdded || 0;
-            if (result.value.usedUrl) {
+            if (result.value.skipped) {
+              skippedCount++;
+            } else if (result.value.usedUrl) {
               urlScrapedCount++;
             } else {
               summaryFallbackCount++;
             }
           }
+        }
+        
+        // If strictUrlOnly and we're skipping due to credit exhaustion, stop early
+        if (strictUrlOnly && skippedCount > 0 && skippedCount === chunk.length) {
+          console.log(`🛑 All ${skippedCount} items skipped (likely credit exhaustion). Stopping extraction.`);
+          throw new Error(`Créditos Firecrawl esgotados - ${skippedCount} diplomas saltados. Fallback desativado (strictUrlOnly).`);
         }
         
         // Check if any request was rate limited (429)
@@ -885,7 +899,8 @@ Deno.serve(async (req) => {
 
     // Body was already parsed above for auth check
     // useUrl = true by default - always try to scrape from URL for better quality
-    const { batchSize = 50, maxBatches = 20, origin, useUrl = true, legislationIds, onlyWithoutRequirements = false, forceReplace = false } = body;
+    // strictUrlOnly = true prevents fallback to summary when scraping fails
+    const { batchSize = 50, maxBatches = 20, origin, useUrl = true, strictUrlOnly = false, legislationIds, onlyWithoutRequirements = false, forceReplace = false } = body;
 
     // Validate useUrl - needs Firecrawl API key
     if (useUrl && !firecrawlApiKey) {
@@ -932,7 +947,7 @@ Deno.serve(async (req) => {
       console.log(`📊 Currently ${runningCount}/${MAX_PARALLEL_JOBS} jobs running, starting new job with offset ${randomOffset}`);
     }
 
-    console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}, targetedIds=${legislationIds?.length || 0}, randomOffset=${randomOffset}`);
+    console.log(`🚀 Starting background extraction: batchSize=${batchSize}, maxBatches=${maxBatches}, origin=${origin || 'all'}, useUrl=${useUrl}, strictUrlOnly=${strictUrlOnly}, targetedIds=${legislationIds?.length || 0}, randomOffset=${randomOffset}`);
 
     // Start background task using Deno's EdgeRuntime
     // Use null for system calls since created_by expects UUID or null
@@ -948,6 +963,7 @@ Deno.serve(async (req) => {
         legislationIds,
         forceReplace,
         randomOffset,
+        strictUrlOnly,
       })
     ) || runBackgroundExtraction(supabase, lovableApiKey, createdBy, { 
       batchSize, 
@@ -958,6 +974,7 @@ Deno.serve(async (req) => {
       legislationIds,
       forceReplace,
       randomOffset,
+      strictUrlOnly,
     });
 
     // Return immediately
