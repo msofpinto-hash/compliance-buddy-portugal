@@ -130,35 +130,53 @@ serve(async (req) => {
 
     console.log(`Starting EUR-Lex title fix via SPARQL - limit: ${limit}, dryRun: ${dryRun}`);
 
-    // Find EU legislation with generic titles
-    const { data: allEuLegislation, error: fetchError } = await supabase
-      .from('legislation')
-      .select('id, number, title, external_id, document_url, summary')
-      .or('origin.eq.EU,origin.eq.eurlex')
-      .limit(1000);
+    // Find EU legislation with generic/short titles using direct filter
+    // Query in batches to find all candidates
+    let allCandidates: Array<{id: string; number: string; title: string; external_id: string | null; document_url: string | null; summary: string | null}> = [];
+    let offset = 0;
+    const batchSize = 500;
+    
+    while (allCandidates.length < limit) {
+      const { data: batch, error: fetchError } = await supabase
+        .from('legislation')
+        .select('id, number, title, external_id, document_url, summary')
+        .or('origin.eq.EU,origin.eq.eurlex')
+        .not('external_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + batchSize - 1);
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch legislation: ${fetchError.message}`);
+      if (fetchError) {
+        throw new Error(`Failed to fetch legislation: ${fetchError.message}`);
+      }
+
+      if (!batch || batch.length === 0) break;
+
+      // Filter to find generic titles
+      const candidates = batch.filter(leg => {
+        if (!leg.external_id) return false;
+        const title = leg.title || '';
+        
+        // Check if title is generic or too short
+        return (
+          title === leg.external_id ||
+          title === leg.number ||
+          title.startsWith('Documento ') ||
+          title.startsWith('32') ||
+          title.startsWith('22') ||
+          title.startsWith('52') ||
+          title.length < 50  // Expanded threshold to catch more short titles
+        );
+      });
+
+      allCandidates = allCandidates.concat(candidates);
+      offset += batchSize;
+      
+      // Stop if we've scanned enough or no more data
+      if (batch.length < batchSize) break;
+      if (offset > 3000) break; // Safety limit
     }
 
-    // Filter to find generic titles
-    const toProcess = (allEuLegislation || [])
-      .filter(leg => {
-        if (!leg.external_id) return false;
-        
-        // Check if title is generic
-        const titleEqualsCelex = leg.title === leg.external_id || leg.title === leg.number;
-        const isGenericTitle = 
-          leg.title.startsWith('Documento ') ||
-          leg.title.startsWith('32') ||
-          leg.title.startsWith('22') ||
-          leg.title.startsWith('52') ||
-          !leg.title ||
-          leg.title.length < 30;
-        
-        return titleEqualsCelex || isGenericTitle;
-      })
-      .slice(0, limit);
+    const toProcess = allCandidates.slice(0, limit);
 
     console.log(`Found ${toProcess.length} EU documents with generic titles to process`);
 
