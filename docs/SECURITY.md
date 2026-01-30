@@ -451,6 +451,66 @@ const safeUrl = encodeURIComponent(userInput);
 
 ---
 
+## Sistema de Hard Fail e Gestão de Fontes Externas
+
+### Visão Geral
+
+O sistema implementa um mecanismo robusto de **hard fail** para prevenir loops infinitos de retry quando fontes externas (DRE OpenData, EUR-Lex, Firecrawl) estão indisponíveis ou a devolver erros.
+
+### Comportamentos Críticos Garantidos
+
+1. **Hard fail persistido e não reprocessado**
+   - Erros de fonte externa são gravados na tabela `legislation_processing_failures`
+   - Campo `is_permanent = true` bloqueia retries automáticos
+   - Mesmo após reloads ou novos runs globais, o item não é reprocessado
+
+2. **Fail-fast quando source_status = offline**
+   - Antes de qualquer processamento, as Edge Functions verificam `external_source_status`
+   - Se a fonte está `offline` ou `blocked_until > now()`, o job aborta imediatamente
+   - **Nenhum crédito é consumido** após a deteção de fonte offline
+
+3. **Bloqueio de consumo de créditos**
+   - O abort acontece **antes** de qualquer chamada à IA ou APIs externas
+   - Detecção de 3+ falhas HTML consecutivas marca automaticamente a fonte como `offline` por 4h
+   - Jobs seguintes encontram a fonte offline e saem sem processar
+
+4. **Reset apenas por ação explícita**
+   - O estado `is_permanent = true` impede retries automáticos indefinidamente
+   - O campo `blocked_until` define uma janela de bloqueio temporal
+   - Para limpar manualmente:
+     ```sql
+     -- Reativar fonte
+     UPDATE external_source_status 
+     SET status = 'online', blocked_until = NULL 
+     WHERE source_name = 'dre_opendata';
+     
+     -- Limpar falhas permanentes (usar com cautela)
+     DELETE FROM legislation_processing_failures 
+     WHERE is_permanent = true AND failure_type = 'metadata_scrape';
+     ```
+
+### Tabelas Envolvidas
+
+| Tabela | Propósito |
+|--------|-----------|
+| `external_source_status` | Estado de saúde das fontes (online/degraded/offline) |
+| `legislation_processing_failures` | Registo de falhas por item e tipo |
+
+### Funções RPC Relevantes
+
+- `is_source_available(p_source_name)`: Verifica se fonte está disponível
+- `update_source_status(...)`: Atualiza estado da fonte com bloqueio temporal
+- `record_processing_failure(...)`: Grava hard fail com detalhes
+
+### Monitorização
+
+O painel de administração (UnifiedDataQualityPanel) mostra:
+- Estado em tempo real de todas as fontes (DRE, EUR-Lex, Firecrawl)
+- Alertas visuais quando fontes estão offline ou degradadas
+- Contadores de pendências bloqueados automaticamente
+
+---
+
 ## Contactos
 
 Para questões de segurança, contactar a equipa de desenvolvimento.
