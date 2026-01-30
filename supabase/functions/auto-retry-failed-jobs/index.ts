@@ -33,6 +33,10 @@ const JOB_SOURCE_REQUIREMENTS: Record<string, string> = {
   'fix_generic_titles': 'dre_opendata',
   'fix_short_summary': 'dre_opendata',
   'fix_missing_urls_eu': 'eurlex',
+  'fix_eu_metadata_all': 'eurlex',
+  'fix_eu_metadata_generic_titles': 'eurlex',
+  'fix_eu_metadata_short_summary': 'eurlex',
+  'fix_eu_metadata_missing_dates': 'eurlex',
 };
 
 interface JobConfig {
@@ -152,6 +156,25 @@ const JOB_CONFIGS: JobConfig[] = [
     maxParallelJobs: 2,
     priority: 1,
     checkPendingWork: checkPendingUrlCorrectionEU,
+  },
+  // EU metadata fix - PRIORITY while PT is offline
+  {
+    syncType: 'fix_eu_metadata_all',
+    functionName: 'fix-eu-metadata',
+    defaultPayload: { mode: 'all', limit: 30, background: true },
+    maxParallelJobs: 2,
+    priority: 1.5, // Between URL and date fixes
+    checkPendingWork: async (supabase) => {
+      // Count EU legislation with metadata issues
+      const { count } = await supabase
+        .from('legislation')
+        .select('id', { count: 'exact', head: true })
+        .is('revocation_date', null)
+        .or('origin.eq.EU,origin.eq.eurlex,document_url.ilike.%eur-lex%')
+        .or('title.ilike.Documento %,summary.is.null,summary.eq.,publication_date.is.null,effective_date.is.null');
+      
+      return { hasPending: (count || 0) > 0, count: count || 0 };
+    },
   },
   // Date corrections - second priority
   {

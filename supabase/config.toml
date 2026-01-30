@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.auto-retry-failed-jobs]
 verify_jwt = false
+
+[functions.fix-eu-metadata]
+verify_jwt = false
