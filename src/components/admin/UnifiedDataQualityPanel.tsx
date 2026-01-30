@@ -116,6 +116,7 @@ export function UnifiedDataQualityPanel() {
   const [fullAutoMode, setFullAutoMode] = useState(false);
   const sinceIso = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), []);
   const realtimeRefetchTimerRef = useRef<number | null>(null);
+  const aggressiveIntervalRef = useRef<number | null>(null);
 
   // Query for 24h stats
   const statsQuery = useQuery({
@@ -266,6 +267,33 @@ export function UnifiedDataQualityPanel() {
       supabase.removeChannel(channel);
     };
   }, [refetchStats, refetchJobs, refetch24h]);
+
+  // Modo de atualização agressiva: refresh a cada 2s enquanto houver jobs a correr
+  const hasRunningJobs = (runningJobs?.length ?? 0) > 0;
+  useEffect(() => {
+    if (hasRunningJobs) {
+      // Se já tem intervalo ativo, não criar outro
+      if (aggressiveIntervalRef.current != null) return;
+      aggressiveIntervalRef.current = window.setInterval(() => {
+        refetchStats();
+        refetchJobs();
+        refetch24h();
+      }, 2000);
+    } else {
+      // Sem jobs a correr, limpar intervalo
+      if (aggressiveIntervalRef.current != null) {
+        window.clearInterval(aggressiveIntervalRef.current);
+        aggressiveIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (aggressiveIntervalRef.current != null) {
+        window.clearInterval(aggressiveIntervalRef.current);
+        aggressiveIntervalRef.current = null;
+      }
+    };
+  }, [hasRunningJobs, refetchStats, refetchJobs, refetch24h]);
 
   const getRunningJobsForType = useCallback((type: FixType): RunningJob[] => {
     return runningJobs?.filter(job => SYNC_TYPE_TO_FIX[job.sync_type] === type) || [];
