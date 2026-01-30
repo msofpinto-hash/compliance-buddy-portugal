@@ -673,6 +673,65 @@ export function UnifiedDataQualityPanel() {
       </CardHeader>
 
       <CardContent className="px-4 pb-4 space-y-4">
+        {/* External Sources Health Panel */}
+        {sourceStatus && sourceStatus.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/30 rounded-lg border">
+            <span className="text-xs font-medium text-muted-foreground mr-1">Fontes:</span>
+            {sourceStatus.map((source) => {
+              const isOffline = source.status === "offline";
+              const isBlocked = source.blocked_until && new Date(source.blocked_until) > new Date();
+              const isDegraded = source.status === "degraded";
+              const isOnline = !isOffline && !isBlocked && !isDegraded;
+              
+              return (
+                <TooltipProvider key={source.source_name}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          isOffline || isBlocked
+                            ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                            : isDegraded
+                            ? "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                            : "border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                        }`}
+                      >
+                        {isOnline ? (
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                        ) : isOffline || isBlocked ? (
+                          <XCircle className="h-3 w-3 mr-1" />
+                        ) : (
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                        )}
+                        {source.source_name.replace("_", " ").replace("dre opendata", "DRE").replace("dre website", "DRE Web").replace("eurlex", "EUR-Lex").replace("firecrawl", "Firecrawl")}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="font-medium">
+                        {source.source_name.replace("_", " ").toUpperCase()} - {source.status.toUpperCase()}
+                      </p>
+                      {source.error_message && (
+                        <p className="text-xs text-muted-foreground mt-1">{source.error_message}</p>
+                      )}
+                      {isBlocked && source.blocked_until && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Bloqueado até: {new Date(source.blocked_until).toLocaleString("pt-PT")}
+                        </p>
+                      )}
+                      {source.last_failure_at && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Última falha: {new Date(source.last_failure_at).toLocaleString("pt-PT")}
+                        </p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
+          </div>
+        )}
+
         {/* Source Status Alert - Dynamic from DB */}
         {isDreOffline && (
           <Alert className="border-red-500 bg-red-50 dark:bg-red-950/50">
@@ -686,7 +745,7 @@ export function UnifiedDataQualityPanel() {
                 </span>
               )}
               <br />
-              <span className="font-medium">Correções PT bloqueadas automaticamente. Apenas EUR-Lex ativo.</span>
+              <span className="font-medium">Correções PT bloqueadas automaticamente (fail-fast). Apenas EUR-Lex ativo.</span>
             </AlertDescription>
           </Alert>
         )}
