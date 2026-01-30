@@ -128,6 +128,24 @@ export function UnifiedDataQualityPanel() {
   const realtimeRefetchTimerRef = useRef<number | null>(null);
   const aggressiveIntervalRef = useRef<number | null>(null);
 
+  // Query for external source status (DRE, EUR-Lex, Firecrawl)
+  const { data: sourceStatus } = useQuery({
+    queryKey: ["external-source-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("external_source_status")
+        .select("source_name, status, blocked_until, error_message, last_failure_at");
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
+
+  const dreStatus = sourceStatus?.find(s => s.source_name === "dre_opendata");
+  const isDreOffline = dreStatus?.status === "offline" || 
+    (dreStatus?.blocked_until && new Date(dreStatus.blocked_until) > new Date());
+
   // Query for 24h stats
   const statsQuery = useQuery({
     queryKey: ["unified-jobs-stats", { sinceIso }],
@@ -655,13 +673,31 @@ export function UnifiedDataQualityPanel() {
       </CardHeader>
 
       <CardContent className="px-4 pb-4 space-y-4">
-        {/* PT Suspended Warning */}
-        {PT_CORRECTIONS_SUSPENDED && (
+        {/* Source Status Alert - Dynamic from DB */}
+        {isDreOffline && (
+          <Alert className="border-red-500 bg-red-50 dark:bg-red-950/50">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <AlertTitle className="text-red-800 dark:text-red-200">🚫 DRE OpenData Offline</AlertTitle>
+            <AlertDescription className="text-red-700 dark:text-red-300 text-xs">
+              {dreStatus?.error_message || "API indisponível"}.
+              {dreStatus?.blocked_until && (
+                <span className="ml-1">
+                  Bloqueado até: {new Date(dreStatus.blocked_until).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}
+                </span>
+              )}
+              <br />
+              <span className="font-medium">Correções PT bloqueadas automaticamente. Apenas EUR-Lex ativo.</span>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* PT Suspended Warning - Static flag */}
+        {PT_CORRECTIONS_SUSPENDED && !isDreOffline && (
           <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/50">
             <AlertCircle className="h-4 w-4 text-amber-600" />
             <AlertTitle className="text-amber-800 dark:text-amber-200">Correções PT Suspensas</AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
-              A API DRE OpenData está offline (devolve HTML). Apenas correções EUR-Lex estão ativas. Concorrência reduzida a {MAX_CONCURRENT_JOBS} jobs.
+              Modo de baixa concorrência ativo. Máximo {MAX_CONCURRENT_JOBS} jobs simultâneos.
             </AlertDescription>
           </Alert>
         )}

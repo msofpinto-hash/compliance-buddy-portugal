@@ -1537,6 +1537,56 @@ async function runBackgroundCompletion(params: {
   
   const supabase = createClient(supabaseUrl, supabaseKey);
   
+  // ========== SOURCE AVAILABILITY CHECK ==========
+  // Check if DRE OpenData is available before processing PT legislation
+  // This prevents wasting credits on jobs that will fail
+  const dreSourceName = 'dre_opendata';
+  let dreSourceAvailable = true;
+  
+  try {
+    const { data: sourceStatus } = await supabase
+      .from('external_source_status')
+      .select('status, blocked_until')
+      .eq('source_name', dreSourceName)
+      .single();
+    
+    if (sourceStatus) {
+      const isOffline = sourceStatus.status === 'offline';
+      const isBlocked = sourceStatus.blocked_until && new Date(sourceStatus.blocked_until) > new Date();
+      dreSourceAvailable = !isOffline && !isBlocked;
+      
+      if (!dreSourceAvailable) {
+        console.log(`[SourceCheck] DRE OpenData is ${sourceStatus.status}${isBlocked ? ` (blocked until ${sourceStatus.blocked_until})` : ''}`);
+      }
+    }
+  } catch (e) {
+    console.log('[SourceCheck] Error checking source status, proceeding anyway:', e);
+  }
+  
+  // For PT metadata modes, abort early if source is unavailable
+  const isPTMetadataMode = ['generic_titles', 'short_summary', 'missing_dates'].includes(mode);
+  if (isPTMetadataMode && !dreSourceAvailable && includePT) {
+    console.log('[SourceCheck] DRE source unavailable, aborting PT metadata job');
+    
+    // Create a sync log to record the skip
+    const syncType = mode === 'missing_dates' ? 'fix_missing_dates'
+                   : mode === 'short_summary' ? 'fix_short_summary'
+                   : mode === 'generic_titles' ? 'fix_generic_titles'
+                   : 'complete_auto_imported';
+    
+    await supabase.from('sync_logs').insert({
+      sync_type: syncType,
+      status: 'completed',
+      items_processed: 0,
+      items_added: 0,
+      items_updated: 0,
+      error_message: 'Fonte DRE OpenData indisponível - job cancelado',
+      completed_at: new Date().toISOString(),
+    });
+    
+    return; // Exit early without processing
+  }
+  
   let syncLogId: string | null = null;
   if (!dryRun) {
     const syncType = mode === 'pdf_import_fix' ? 'fix_pdf_import' 
