@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.fix-eu-metadata]
 verify_jwt = false
+
+[functions.cleanup-duplicate-eu-legislation]
+verify_jwt = false
