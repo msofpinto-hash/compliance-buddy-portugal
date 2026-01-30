@@ -30,14 +30,35 @@ const ITEM_TIMEOUT_MS = 12000;
 // CELEX NUMBER EXTRACTION - Canonical EU identification
 // ============================================================================
 
-function extractCelexNumber(url: string | null, number: string): string | null {
-  // Priority 1: Extract from URL
+// Detect document type from text: L=Directive, R=Regulation, D=Decision, H=Recommendation
+function detectDocumentType(text: string): string {
+  const lower = text.toLowerCase();
+  if (lower.includes('directiva') || lower.includes('diretiva')) return 'L';
+  if (lower.includes('regulamento')) return 'R';
+  if (lower.includes('decis')) return 'D';
+  if (lower.includes('recomenda')) return 'H';
+  return 'L'; // Default to Directive for EU legislation
+}
+
+function extractCelexNumber(url: string | null, number: string, title?: string): string | null {
+  // Priority 1: Extract from URL - but VERIFY the type matches the document type
   if (url) {
-    const celexFromUrl = url.match(/CELEX[:\s]*(\d{5}[A-Z]\d{4})/i);
-    if (celexFromUrl) return celexFromUrl[1];
-    
-    const uriMatch = url.match(/uri=CELEX[:\s]*(\d{5}[A-Z]\d{4})/i);
-    if (uriMatch) return uriMatch[1];
+    const celexFromUrl = url.match(/CELEX[:\s]*(\d{5})([A-Z])(\d{4})/i);
+    if (celexFromUrl) {
+      const year = celexFromUrl[1];
+      const urlType = celexFromUrl[2].toUpperCase();
+      const num = celexFromUrl[3];
+      
+      // Verify the type matches the document name
+      const correctType = detectDocumentType(number + ' ' + (title || ''));
+      
+      if (urlType !== correctType) {
+        console.log(`[CELEX] Type mismatch: URL has ${urlType} but document is ${correctType}`);
+        return `${year}${correctType}${num}`; // Return corrected CELEX
+      }
+      
+      return `${year}${urlType}${num}`;
+    }
   }
   
   // Priority 2: Number is already CELEX format
@@ -53,9 +74,9 @@ function extractCelexNumber(url: string | null, number: string): string | null {
     // Regulamento (UE) YYYY/NNNN or Regulamento (CE) n.º NNNN/YYYY
     { regex: /Regulamento\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d{4})[\/\-](\d+)/i, type: 'R', yearFirst: true },
     { regex: /Regulamento\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d+)[\/\-](\d{4})/i, type: 'R', yearFirst: false },
-    // Diretiva (UE) YYYY/NNNN
-    { regex: /Diretiva\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d{4})[\/\-](\d+)/i, type: 'L', yearFirst: true },
-    { regex: /Diretiva\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d+)[\/\-](\d{4})/i, type: 'L', yearFirst: false },
+    // Diretiva (UE) YYYY/NNNN or Directiva n.º YY/NNNN/CEE
+    { regex: /Dir[ei]tiva\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d{4})[\/\-](\d+)/i, type: 'L', yearFirst: true },
+    { regex: /Dir[ei]tiva\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d+)[\/\-](\d{4})/i, type: 'L', yearFirst: false },
     // Decisão (UE) YYYY/NNNN
     { regex: /Decis[ãa]o\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d{4})[\/\-](\d+)/i, type: 'D', yearFirst: true },
     { regex: /Decis[ãa]o\s*\([^)]+\)\s*(?:n\.?[ºo°]?\s*)?(\d+)[\/\-](\d{4})/i, type: 'D', yearFirst: false },
@@ -73,12 +94,13 @@ function extractCelexNumber(url: string | null, number: string): string | null {
     }
   }
   
-  // Priority 4: Legacy formats (85/374/CEE -> 31985L0374)
-  const legacyMatch = number.match(/(\d{2,4})[\/\-](\d+)[\/\-](CEE|CE|EEC|EU|EURATOM)/i);
+  // Priority 4: Legacy formats with EXPLICIT type detection
+  // "Directiva n.º 85/374/CEE" -> 31985L0374 (L because it says "Directiva")
+  // "Regulamento (CEE) n.º 2328/91" -> 31991R2328 (R because it says "Regulamento")
+  const legacyMatch = number.match(/(\d{2,4})[\/\-](\d+)[\/\-]?(CEE|CE|EEC|EU|UE|EURATOM)?/i);
   if (legacyMatch) {
     let year = legacyMatch[1];
     const num = legacyMatch[2];
-    const suffix = legacyMatch[3].toUpperCase();
     
     // Expand 2-digit year
     if (year.length === 2) {
@@ -86,9 +108,30 @@ function extractCelexNumber(url: string | null, number: string): string | null {
       year = yearNum > 50 ? `19${year}` : `20${year}`;
     }
     
-    // Determine type from suffix context
-    const type = suffix === 'CEE' || suffix === 'CE' || suffix === 'EU' ? 'L' : 'R';
+    // CRITICAL: Detect type from document name, not from suffix
+    const type = detectDocumentType(number);
+    console.log(`[CELEX] Legacy format: ${number} -> type=${type}, year=${year}, num=${num}`);
     return `3${year}${type}${num.padStart(4, '0')}`;
+  }
+  
+  return null;
+}
+
+// Extract date from document title/number (e.g., "de 25 de Julho de 1985")
+function extractDateFromTitle(text: string): string | null {
+  const ptMonths: Record<string, string> = {
+    janeiro: '01', fevereiro: '02', março: '03', marco: '03', abril: '04',
+    maio: '05', junho: '06', julho: '07', agosto: '08',
+    setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
+  };
+  
+  // Pattern: "de DD de MMMM de YYYY"
+  const match = text.match(/de\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+  if (match) {
+    const month = ptMonths[match[2].toLowerCase()];
+    if (month) {
+      return `${match[3]}-${month}-${match[1].padStart(2, '0')}`;
+    }
   }
   
   return null;
@@ -266,12 +309,40 @@ async function scrapeEurLexMetadata(url: string): Promise<MetadataUpdate | null>
       }
     }
     
-    // Extract dates from content
-    // Pattern: "de DD de MMMM de YYYY"
+    // Extract dates from content - multiple patterns
+    const ptMonths: Record<string, string> = {
+      janeiro: '01', fevereiro: '02', março: '03', marco: '03', abril: '04',
+      maio: '05', junho: '06', julho: '07', agosto: '08',
+      setembro: '09', outubro: '10', novembro: '11', dezembro: '12',
+      january: '01', february: '02', march: '03', april: '04', may: '05',
+      june: '06', july: '07', august: '08', september: '09', october: '10',
+      november: '11', december: '12'
+    };
+    
+    // Try to extract publication date from OJ reference (e.g., "JO L 210 de 7.8.1985")
+    const ojMatch = safeHtml.match(/JO\s+[A-Z]\s+\d+\s+de\s+(\d{1,2})\.(\d{1,2})\.(\d{4})/i);
+    if (ojMatch) {
+      const pubDate = `${ojMatch[3]}-${ojMatch[2].padStart(2, '0')}-${ojMatch[1].padStart(2, '0')}`;
+      update.publication_date = pubDate;
+      console.log(`[EUR-Lex] Found OJ publication date: ${pubDate}`);
+    }
+    
+    // Try to extract date from title text (e.g., "de 25 de Julho de 1985")
+    const titleDateMatch = safeHtml.match(/de\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+    if (titleDateMatch && !update.publication_date) {
+      const month = ptMonths[titleDateMatch[2].toLowerCase()];
+      if (month) {
+        const pubDate = `${titleDateMatch[3]}-${month}-${titleDateMatch[1].padStart(2, '0')}`;
+        update.publication_date = pubDate;
+        console.log(`[EUR-Lex] Found title publication date: ${pubDate}`);
+      }
+    }
+    
+    // Effective date patterns
     const datePatterns = [
-      /entrada\s+em\s+vigor[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i,
+      /entrada\s+em\s+vigor[:\s]+(\d{1,2}[\/\-]?\d{1,2}[\/\-]?\d{4})/i,
       /entrada\s+em\s+vigor[:\s]+(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i,
-      /vigor[:\s]+a\s+partir\s+de[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i,
+      /vigor[:\s]+a\s+partir\s+de[:\s]+(\d{1,2}[\/\-]?\d{1,2}[\/\-]?\d{4})/i,
     ];
     
     for (const pattern of datePatterns) {
@@ -285,7 +356,27 @@ async function scrapeEurLexMetadata(url: string): Promise<MetadataUpdate | null>
       }
     }
     
-    console.log(`[EUR-Lex] Extracted: title=${!!update.title}, summary=${!!update.summary}, eff_date=${update.effective_date || 'none'}`);
+    // If we have publication_date but no effective_date, calculate fallback (pub + 20 days)
+    if (update.publication_date && !update.effective_date) {
+      update.effective_date = calculateEUEffectiveDate(update.publication_date);
+      console.log(`[EUR-Lex] Calculated effective_date from publication: ${update.effective_date}`);
+    }
+    
+    // FALLBACK: Extract title from visible text if og:title failed
+    if (!update.title) {
+      // Look for Portuguese title pattern: "Directiva/Regulamento X do Conselho, de DD de MMMM de YYYY, relativa..."
+      const ptTitleMatch = safeHtml.match(/((?:Directiva|Diretiva|Regulamento|Decisão|Recomendação)[^<]{20,200}(?:relativ[ao]|que|sobre)[^<]{20,}?)(?:<|$)/i);
+      if (ptTitleMatch?.[1]) {
+        let title = stripHtmlTags(ptTitleMatch[1]).trim();
+        title = title.replace(/\s+/g, ' ').substring(0, 500);
+        if (title.length > 40) {
+          update.title = title;
+          console.log(`[EUR-Lex] Extracted title from body: ${title.substring(0, 60)}...`);
+        }
+      }
+    }
+    
+    console.log(`[EUR-Lex] Extracted: title=${!!update.title}, summary=${!!update.summary}, pub_date=${update.publication_date || 'none'}, eff_date=${update.effective_date || 'none'}`);
     
     // FALLBACK: Extract summary from descriptive title
     if (!update.summary && update.title && update.title.length > 80) {
@@ -478,21 +569,34 @@ async function runEUMetadataFix(options: {
           hasUpdates = true;
         }
         
-        // Step 2: Generate/validate URL from CELEX
-        if (!leg.document_url || !leg.document_url.includes('eur-lex')) {
-          const celex = extractCelexNumber(leg.document_url, leg.number);
-          if (celex) {
-            updates.document_url = `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${celex}`;
+        // Step 2: Generate/validate/CORRECT URL from CELEX
+        // Critical: Also fix existing URLs with wrong document type
+        const currentCelex = extractCelexNumber(leg.document_url, leg.number, leg.title);
+        if (currentCelex) {
+          const correctUrl = `https://eur-lex.europa.eu/legal-content/PT/TXT/?uri=CELEX:${currentCelex}`;
+          if (!leg.document_url || leg.document_url !== correctUrl) {
+            updates.document_url = correctUrl;
             hasUpdates = true;
-            console.log(`Generated URL from CELEX: ${celex}`);
+            console.log(`Corrected URL with CELEX: ${currentCelex}`);
           }
         }
         
-        // Step 3: Scrape metadata if needed
+        // Step 3: Try to extract publication date from title/number FIRST
+        // This is more reliable than scraping for legacy documents
+        if (!leg.publication_date) {
+          const extractedDate = extractDateFromTitle(leg.number) || extractDateFromTitle(leg.title);
+          if (extractedDate) {
+            updates.publication_date = extractedDate;
+            hasUpdates = true;
+            console.log(`Extracted publication_date from title: ${extractedDate}`);
+          }
+        }
+        
+        // Step 4: Scrape metadata if still needed
         const urlToScrape = updates.document_url || leg.document_url;
         const needsTitle = isGenericTitle(leg.title, leg.number);
         const needsSummary = !isValidSummary(leg.summary);
-        const needsDates = !leg.publication_date || !leg.effective_date;
+        const needsDates = (!leg.publication_date && !updates.publication_date) || !leg.effective_date;
         
         if (urlToScrape && (needsTitle || needsSummary || needsDates)) {
           const scraped = await scrapeEurLexMetadata(urlToScrape);
@@ -510,6 +614,13 @@ async function runEUMetadataFix(options: {
               console.log(`New summary: ${scraped.summary!.substring(0, 60)}...`);
             }
             
+            // Copy publication_date from scraping
+            if (scraped.publication_date && !leg.publication_date && !updates.publication_date) {
+              updates.publication_date = scraped.publication_date;
+              hasUpdates = true;
+              console.log(`New publication_date: ${scraped.publication_date}`);
+            }
+            
             if (scraped.effective_date && !leg.effective_date) {
               updates.effective_date = scraped.effective_date;
               hasUpdates = true;
@@ -518,9 +629,11 @@ async function runEUMetadataFix(options: {
           }
         }
         
-        // Step 4: Calculate fallback effective date if still missing
-        if (!leg.effective_date && !updates.effective_date && leg.publication_date) {
-          updates.effective_date = calculateEUEffectiveDate(leg.publication_date);
+        // Step 5: Calculate fallback effective date if still missing
+        // Use newly extracted publication_date if available
+        const pubDate = updates.publication_date || leg.publication_date;
+        if (!leg.effective_date && !updates.effective_date && pubDate) {
+          updates.effective_date = calculateEUEffectiveDate(pubDate);
           hasUpdates = true;
           console.log(`Fallback effective_date (pub+20): ${updates.effective_date}`);
         }
