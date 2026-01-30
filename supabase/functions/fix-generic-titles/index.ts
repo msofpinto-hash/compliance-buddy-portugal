@@ -293,15 +293,14 @@ Deno.serve(async (req) => {
     // Calculate fetch limit to accommodate randomOffset - fetch all candidates at once
     const fetchLimit = 1000;
     
-    // Get legislation with generic titles using the same logic as count_generic_titles()
-    // Order by created_at for consistent pagination across parallel jobs
+    // Get Portuguese legislation (without CELEX = no external_id)
+    // These are the ones that may have generic titles
     const { data: legislation, error: fetchError } = await supabase
       .from('legislation')
-      .select('id, number, title, summary, entity, document_url, origin, no_digital_version')
-      .or('origin.eq.PT,origin.eq.dre')
+      .select('id, number, title, summary, entity, document_url, external_id, no_digital_version')
+      .is('external_id', null)
       .not('document_url', 'is', null)
       .or('no_digital_version.is.null,no_digital_version.eq.false')
-      .like('document_url', '%/dr/detalhe/%')
       .order('created_at', { ascending: true })
       .limit(fetchLimit);
     
@@ -309,14 +308,11 @@ Deno.serve(async (req) => {
       throw fetchError;
     }
     
-    // Filter using the EXACT same logic as count_generic_titles() SQL function
+    // Filter using similar logic to count_generic_titles() but for PT diplomas (no external_id)
     const toProcess = (legislation || [])
       .filter(leg => {
-        // Skip if no origin or not PT
-        if (!leg.origin || !['PT', 'dre'].includes(leg.origin)) return false;
-        
-        // Must have a document_url
-        if (!leg.document_url) return false;
+        // Must not have external_id (these are Portuguese diplomas)
+        if (leg.external_id) return false;
         
         // Skip if marked as no_digital_version
         if (leg.no_digital_version === true) return false;
