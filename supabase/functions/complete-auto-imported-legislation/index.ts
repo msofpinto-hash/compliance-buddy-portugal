@@ -2011,8 +2011,16 @@ async function runBackgroundCompletion(params: {
             const needsSummary = !leg.summary || leg.summary.includes('Diploma referenciado') ||
                                (mode === 'short_summary' && (leg.summary?.length || 0) < 20);
             
-            const hasGoodTitle = metadata?.title && metadata.title.length > 20;
-            const hasGoodSummary = metadata?.summary && metadata.summary.length > 30;
+            // IMPORTANT: Use the same validation gates used later when applying updates.
+            // Otherwise, we may skip the scraping fallback due to a long-but-invalid title/summary.
+            // For generic_titles mode, also treat "still generic" titles as insufficient so the
+            // fallback can try to build a richer title from summary.
+            const hasGoodTitle = Boolean(
+              metadata?.title &&
+                isValidTitle(metadata.title, leg.number) &&
+                (mode !== 'generic_titles' || !isGenericPTTitle(metadata.title, leg.number))
+            );
+            const hasGoodSummary = Boolean(metadata?.summary && isValidSummary(metadata.summary));
             
             if ((!hasGoodTitle && needsTitle) || (!hasGoodSummary && needsSummary)) {
               console.log('[Processing] API data insufficient, trying scraping fallback...');
@@ -2034,7 +2042,12 @@ async function runBackgroundCompletion(params: {
             // Apply metadata updates
             if (metadata) {
               const shouldUpdateTitle = needsTitle;
-              if (metadata.title && shouldUpdateTitle) {
+              if (
+                metadata.title &&
+                shouldUpdateTitle &&
+                isValidTitle(metadata.title, leg.number) &&
+                (mode !== 'generic_titles' || !isGenericPTTitle(metadata.title, leg.number))
+              ) {
                 updates.title = metadata.title;
                 hasUpdates = true;
               }
