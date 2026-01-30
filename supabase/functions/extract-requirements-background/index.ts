@@ -119,20 +119,45 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<{ markdo
   }
 }
 
-// Check for error pages
+// Check for error pages - be more careful to not false-positive on legal content
 function isErrorPage(content: string): boolean {
+  // Short content is definitely an error
+  if (content.length < 500) return true;
+  
+  // For EUR-Lex, legal documents often mention "404" in references, so check more carefully
+  const lowContent = content.toLowerCase();
+  
+  // These patterns are specific error messages, not general numbers
   const errorPatterns = [
-    'The requested document does not exist',
-    'Access denied',
-    'Page not found',
+    'the requested document does not exist',
+    'access denied',
+    'page not found',
     'página que acedeu não se encontra disponível',
-    'Document not available',
-    '404',
+    'document not available',
+    'this document is not available',
+    'erro 404',
+    '404 not found',
+    'http error',
+    'server error',
   ];
   
-  // Check for error patterns or very short content
-  if (content.length < 300) return true;
-  return errorPatterns.some(pattern => content.toLowerCase().includes(pattern.toLowerCase()));
+  // Check for explicit error patterns
+  const hasErrorPattern = errorPatterns.some(pattern => lowContent.includes(pattern));
+  if (hasErrorPattern) return true;
+  
+  // A valid legal document should have article markers or legal structure
+  const hasLegalContent = 
+    /artigo\s+\d+/i.test(content) || 
+    /article\s+\d+/i.test(content) ||
+    /considerando/i.test(content) ||
+    /whereas/i.test(content) ||
+    /regulamento/i.test(content) ||
+    /diretiva/i.test(content);
+  
+  // If it's a reasonably large document with legal markers, it's not an error page
+  if (content.length > 5000 && hasLegalContent) return false;
+  
+  return false;
 }
 
 // Background extraction function
@@ -156,23 +181,10 @@ async function runBackgroundExtraction(
   
   console.log(`🚀 Starting extraction with useUrl=${useUrl}, strictUrlOnly=${strictUrlOnly}, origin=${origin || 'all'}, specificIds=${legislationIds?.length || 0}, forceReplace=${forceReplace || false}, randomOffset=${randomOffset}`);
   
-  // If forceReplace is true and we have specific IDs, delete their existing requirements first
-  if (forceReplace && legislationIds && legislationIds.length > 0) {
-    console.log(`🗑️ ForceReplace: Deleting existing requirements for ${legislationIds.length} legislation items...`);
-    
-    for (const legId of legislationIds) {
-      const { error: deleteError, count } = await supabase
-        .from('legal_requirements')
-        .delete({ count: 'exact' })
-        .eq('legislation_id', legId);
-      
-      if (deleteError) {
-        console.error(`Failed to delete requirements for ${legId}:`, deleteError);
-      } else {
-        console.log(`🗑️ Deleted ${count || 0} requirements for legislation ${legId}`);
-      }
-    }
-  }
+  // IMPORTANT: forceReplace now uses "deferred delete" - we collect new requirements first,
+  // then only delete existing ones if extraction succeeds. This prevents data loss on failure.
+  // Track which legislation IDs need their requirements replaced after successful extraction
+  const pendingReplacement: Map<string, Requirement[]> = new Map();
   
   const isTargetedExtraction = legislationIds && legislationIds.length > 0;
   // Create a sync log entry to track progress
@@ -303,7 +315,10 @@ async function runBackgroundExtraction(
             if (useUrl && firecrawlApiKey && leg.document_url) {
               const scraped = await scrapeUrl(leg.document_url, firecrawlApiKey);
               
-              if (scraped && scraped.markdown && !isErrorPage(scraped.markdown)) {
+              const isError = scraped ? isErrorPage(scraped.markdown) : true;
+              console.log(`🔎 ${leg.number}: scraped=${!!scraped}, markdown=${scraped?.markdown?.length || 0} chars, isErrorPage=${isError}`);
+              
+              if (scraped && scraped.markdown && !isError) {
                 textContent = scraped.markdown;
                 usedUrl = true;
                 console.log(`📄 ${leg.number}: Using scraped content (${textContent.length} chars)`);
@@ -327,27 +342,42 @@ async function runBackgroundExtraction(
             if (textContent) {
               // Full text extraction - more comprehensive
               // For very large documents, we need to process in chunks
-              const MAX_CHUNK_SIZE = 25000;
+              const MAX_CHUNK_SIZE = 20000; // Reduced for more reliable AI parsing
               const textChunks: string[] = [];
               
               if (textContent.length > MAX_CHUNK_SIZE) {
                 // Split by article markers to keep articles together
-                const articleMarker = /(?=(?:Artigo|Art\.)\s+\d+)/gi;
+                // Support multiple article marker formats (PT, EU, EN)
+                const articleMarker = /(?=(?:Artigo|Art\.|Article|ARTIGO)\s+\d+)/gi;
                 const parts = textContent.split(articleMarker).filter(p => p.trim());
                 
+                // If article markers weren't found, split by paragraph/section breaks
+                const effectiveParts = parts.length > 1 ? parts : textContent.split(/\n{2,}/).filter(p => p.trim());
+                
                 let currentChunk = '';
-                for (const part of parts) {
-                  if ((currentChunk + part).length > MAX_CHUNK_SIZE && currentChunk.length > 0) {
+                for (const part of effectiveParts) {
+                  // If a single part is larger than MAX_CHUNK_SIZE, we need to force-split it
+                  if (part.length > MAX_CHUNK_SIZE) {
+                    // Save current chunk if not empty
+                    if (currentChunk.trim()) {
+                      textChunks.push(currentChunk);
+                      currentChunk = '';
+                    }
+                    // Force-split large part by size
+                    for (let i = 0; i < part.length; i += MAX_CHUNK_SIZE) {
+                      textChunks.push(part.substring(i, i + MAX_CHUNK_SIZE));
+                    }
+                  } else if ((currentChunk + part).length > MAX_CHUNK_SIZE && currentChunk.length > 0) {
                     textChunks.push(currentChunk);
                     currentChunk = part;
                   } else {
-                    currentChunk += part;
+                    currentChunk += (currentChunk ? '\n\n' : '') + part;
                   }
                 }
                 if (currentChunk.trim()) {
                   textChunks.push(currentChunk);
                 }
-                console.log(`📚 ${leg.number}: Large document split into ${textChunks.length} chunks`);
+                console.log(`📚 ${leg.number}: Large document (${textContent.length} chars) split into ${textChunks.length} chunks`);
               } else {
                 textChunks.push(textContent);
               }
@@ -653,24 +683,22 @@ Retorna APENAS um array JSON válido:
 
             let requirementsAdded = 0;
             if (requirements.length > 0) {
-              // Check for existing requirements to avoid duplicates
-              const { data: existingReqsForLeg } = await supabase
-                .from('legal_requirements')
-                .select('article, requirement_text')
-                .eq('legislation_id', leg.id);
-
-              const existingSet = new Set(
-                (existingReqsForLeg || []).map((r: { article: string; requirement_text: string }) => `${r.article}::${r.requirement_text.substring(0, 100)}`)
-              );
-
-              // Filter out duplicates
-              const newRequirements = requirements.filter(req => {
-                const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
-                return !existingSet.has(key);
-              });
-
-              if (newRequirements.length > 0) {
-                const toInsert = newRequirements.map(req => ({
+              // DEFERRED REPLACE: If forceReplace is active, do atomic delete+insert now that we have good data
+              if (forceReplace && isTargetedExtraction) {
+                // Delete existing requirements ONLY after successful extraction
+                const { error: deleteError, count: deletedCount } = await supabase
+                  .from('legal_requirements')
+                  .delete({ count: 'exact' })
+                  .eq('legislation_id', leg.id);
+                
+                if (deleteError) {
+                  console.error(`Failed to delete existing requirements for ${leg.number}:`, deleteError);
+                } else if (deletedCount && deletedCount > 0) {
+                  console.log(`🗑️ Deferred delete: removed ${deletedCount} old requirements for ${leg.number}`);
+                }
+                
+                // Insert all new requirements
+                const toInsert = requirements.map(req => ({
                   legislation_id: leg.id,
                   article: req.article,
                   requirement_text: req.requirement_text,
@@ -682,8 +710,44 @@ Retorna APENAS um array JSON válido:
                   .insert(toInsert);
 
                 if (!insertError) {
-                  requirementsAdded = newRequirements.length;
-                  console.log(`✅ ${leg.number}: Inserted ${newRequirements.length} requirements (URL: ${usedUrl})`);
+                  requirementsAdded = requirements.length;
+                  console.log(`✅ ${leg.number}: Replaced with ${requirements.length} new requirements (URL: ${usedUrl})`);
+                } else {
+                  console.error(`Insert error for ${leg.number}:`, insertError);
+                }
+              } else {
+                // Normal mode: check for existing requirements to avoid duplicates
+                const { data: existingReqsForLeg } = await supabase
+                  .from('legal_requirements')
+                  .select('article, requirement_text')
+                  .eq('legislation_id', leg.id);
+
+                const existingSet = new Set(
+                  (existingReqsForLeg || []).map((r: { article: string; requirement_text: string }) => `${r.article}::${r.requirement_text.substring(0, 100)}`)
+                );
+
+                // Filter out duplicates
+                const newRequirements = requirements.filter(req => {
+                  const key = `${req.article}::${req.requirement_text.substring(0, 100)}`;
+                  return !existingSet.has(key);
+                });
+
+                if (newRequirements.length > 0) {
+                  const toInsert = newRequirements.map(req => ({
+                    legislation_id: leg.id,
+                    article: req.article,
+                    requirement_text: req.requirement_text,
+                    notes: req.notes || null,
+                  }));
+
+                  const { error: insertError } = await supabase
+                    .from('legal_requirements')
+                    .insert(toInsert);
+
+                  if (!insertError) {
+                    requirementsAdded = newRequirements.length;
+                    console.log(`✅ ${leg.number}: Inserted ${newRequirements.length} requirements (URL: ${usedUrl})`);
+                  }
                 }
               }
             }
