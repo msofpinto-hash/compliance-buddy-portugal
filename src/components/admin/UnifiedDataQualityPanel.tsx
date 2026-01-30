@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
+import { ExecutionHistoryPanel } from "./ExecutionHistoryPanel";
 
 // Constants
 const STALE_JOB_THRESHOLD_MINUTES = 10;
@@ -711,6 +712,9 @@ export function UnifiedDataQualityPanel() {
             </p>
           </div>
         )}
+
+        {/* Execution History */}
+        <ExecutionHistoryPanel />
       </CardContent>
     </Card>
   );
