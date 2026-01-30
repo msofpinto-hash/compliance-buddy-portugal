@@ -451,13 +451,21 @@ const safeUrl = encodeURIComponent(userInput);
 
 ---
 
-## Sistema de Hard Fail e Gestão de Fontes Externas
+## 5. Sistema de Hard Fail e Gestão de Fontes Externas
 
-### Visão Geral
+### 5.1 Padrão de Plataforma (OBRIGATÓRIO)
 
-O sistema implementa um mecanismo robusto de **hard fail** para prevenir loops infinitos de retry quando fontes externas (DRE OpenData, EUR-Lex, Firecrawl) estão indisponíveis ou a devolver erros.
+> ⚠️ **Este sistema é o padrão obrigatório para TODAS as integrações com fontes externas, atuais e futuras.**
 
-### Comportamentos Críticos Garantidos
+| Regra | Descrição |
+|-------|-----------|
+| **Estado Persistente** | Todas as fontes têm estado em `external_source_status` (ONLINE / DEGRADED / OFFLINE / BLOCKED) |
+| **Fail-Fast** | Verificação de estado ANTES de qualquer chamada à IA ou API externa |
+| **Hard Fail Persistido** | Erros de fonte externa geram registo permanente em `legislation_processing_failures` |
+| **Proteção de Créditos** | Zero consumo após primeira falha enquanto fonte estiver offline |
+| **Reset Explícito** | Estado só pode ser alterado por ação manual ou automação controlada |
+
+### 5.2 Comportamentos Críticos Garantidos
 
 1. **Hard fail persistido e não reprocessado**
    - Erros de fonte externa são gravados na tabela `legislation_processing_failures`
@@ -471,43 +479,115 @@ O sistema implementa um mecanismo robusto de **hard fail** para prevenir loops i
 
 3. **Bloqueio de consumo de créditos**
    - O abort acontece **antes** de qualquer chamada à IA ou APIs externas
-   - Detecção de 3+ falhas HTML consecutivas marca automaticamente a fonte como `offline` por 4h
+   - Detecção de 3+ falhas consecutivas marca automaticamente a fonte como `offline` por 4h
    - Jobs seguintes encontram a fonte offline e saem sem processar
 
 4. **Reset apenas por ação explícita**
    - O estado `is_permanent = true` impede retries automáticos indefinidamente
    - O campo `blocked_until` define uma janela de bloqueio temporal
-   - Para limpar manualmente:
-     ```sql
-     -- Reativar fonte
-     UPDATE external_source_status 
-     SET status = 'online', blocked_until = NULL 
-     WHERE source_name = 'dre_opendata';
-     
-     -- Limpar falhas permanentes (usar com cautela)
-     DELETE FROM legislation_processing_failures 
-     WHERE is_permanent = true AND failure_type = 'metadata_scrape';
-     ```
 
-### Tabelas Envolvidas
+### 5.3 Implementação de Novas Fontes
+
+Qualquer nova integração com fonte externa **DEVE** seguir este template:
+
+```typescript
+// 1. VERIFICAR ESTADO DA FONTE ANTES de qualquer operação
+const { data: sourceAvailable } = await supabase.rpc('is_source_available', { 
+  p_source_name: 'nova_fonte' 
+});
+
+if (!sourceAvailable) {
+  console.log('⏸️ Source nova_fonte is offline, aborting');
+  return { skipped: true, reason: 'source_offline' };
+}
+
+// 2. Executar operação com try/catch
+let consecutiveFailures = 0;
+const MAX_FAILURES_BEFORE_BLOCK = 3;
+
+try {
+  const result = await chamarFonteExterna();
+  
+  // 3. Sucesso: atualizar estado se necessário
+  await supabase.rpc('update_source_status', {
+    p_source_name: 'nova_fonte',
+    p_status: 'online'
+  });
+  
+} catch (error) {
+  consecutiveFailures++;
+  
+  // 4. Registar hard fail para este item
+  await supabase.rpc('record_processing_failure', {
+    p_legislation_id: itemId,
+    p_failure_type: 'nova_fonte_scrape',
+    p_failure_reason: error.message,
+    p_source: 'nova_fonte',
+    p_is_permanent: true
+  });
+  
+  // 5. Bloquear fonte se erros consecutivos atingirem limite
+  if (consecutiveFailures >= MAX_FAILURES_BEFORE_BLOCK) {
+    await supabase.rpc('update_source_status', {
+      p_source_name: 'nova_fonte',
+      p_status: 'offline',
+      p_error_message: 'Multiple consecutive failures detected',
+      p_block_hours: 4
+    });
+    
+    // ABORT: Não processar mais itens
+    break;
+  }
+}
+```
+
+### 5.4 Fontes Registadas
+
+| Fonte | Identificador | Descrição |
+|-------|---------------|-----------|
+| DRE OpenData | `dre_opendata` | API do Diário da República |
+| EUR-Lex | `eurlex` | Portal de legislação europeia |
+| Firecrawl | `firecrawl` | Serviço de web scraping |
+
+### 5.5 Tabelas Envolvidas
 
 | Tabela | Propósito |
 |--------|-----------|
 | `external_source_status` | Estado de saúde das fontes (online/degraded/offline) |
 | `legislation_processing_failures` | Registo de falhas por item e tipo |
 
-### Funções RPC Relevantes
+### 5.6 Funções RPC Relevantes
 
-- `is_source_available(p_source_name)`: Verifica se fonte está disponível
-- `update_source_status(...)`: Atualiza estado da fonte com bloqueio temporal
-- `record_processing_failure(...)`: Grava hard fail com detalhes
+| Função | Propósito |
+|--------|-----------|
+| `is_source_available(p_source_name)` | Verifica se fonte está disponível |
+| `update_source_status(...)` | Atualiza estado da fonte com bloqueio temporal |
+| `record_processing_failure(...)` | Grava hard fail com detalhes |
 
-### Monitorização
+### 5.7 Reset Manual de Estado
+
+```sql
+-- Reativar fonte (usar quando API estabilizar)
+UPDATE external_source_status 
+SET status = 'online', blocked_until = NULL, failure_count = 0
+WHERE source_name = 'dre_opendata';
+
+-- Limpar falhas permanentes de um tipo (usar com cautela)
+DELETE FROM legislation_processing_failures 
+WHERE is_permanent = true AND failure_type = 'metadata_scrape';
+
+-- Verificar estado atual de todas as fontes
+SELECT source_name, status, blocked_until, failure_count, error_message
+FROM external_source_status;
+```
+
+### 5.8 Monitorização
 
 O painel de administração (UnifiedDataQualityPanel) mostra:
 - Estado em tempo real de todas as fontes (DRE, EUR-Lex, Firecrawl)
-- Alertas visuais quando fontes estão offline ou degradadas
-- Contadores de pendências bloqueados automaticamente
+- Badges coloridos (🟢 Online, 🟡 Degraded, 🔴 Offline)
+- Tooltips com mensagens de erro e timestamps de bloqueio
+- Contadores de pendências que respeitam o estado das fontes
 
 ---
 
