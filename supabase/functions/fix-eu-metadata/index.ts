@@ -389,22 +389,29 @@ async function runEUMetadataFix(options: {
   const syncLogId = syncLog?.id;
   
   try {
-    // Build query based on mode
+    // Build query based on mode - ONLY fetch EU legislation with actual problems
     let query = supabase
       .from('legislation')
       .select('id, number, title, summary, document_url, publication_date, effective_date, origin')
-      .is('revocation_date', null);
+      .is('revocation_date', null)
+      // EU legislation detection: origin=EU OR eurlex URL OR CELEX number pattern
+      .or('origin.eq.EU,origin.eq.eurlex,document_url.ilike.%eur-lex%,number.like.3_____%');
     
-    // Filter for EU legislation only
-    query = query.or('origin.eq.EU,origin.eq.eurlex,document_url.ilike.%eur-lex%,number.like.3_____%');
-    
-    // Mode-specific filters
+    // Mode-specific filters - CRITICAL: only process records that actually need fixing
     if (mode === 'missing_dates') {
       query = query.or('publication_date.is.null,effective_date.is.null');
     } else if (mode === 'generic_titles') {
-      query = query.or('title.ilike.Documento %,title.like.3_____%');
+      // Generic titles: CELEX-only (e.g., 32019R0123), "Documento ...", or very short
+      query = query.or('title.ilike.Documento %,title.like.3%');
     } else if (mode === 'short_summary') {
       query = query.or('summary.is.null,summary.eq.');
+    } else if (mode === 'all') {
+      // ALL mode: only records that have at least ONE problem (dates, titles, or summaries)
+      query = query.or(
+        'publication_date.is.null,effective_date.is.null,' +
+        'title.ilike.Documento %,title.like.3%,' +
+        'summary.is.null,summary.eq.'
+      );
     }
     
     const { data: legislation, error: queryError } = await query
@@ -425,19 +432,27 @@ async function runEUMetadataFix(options: {
       return;
     }
     
-    // Filter to actual EU legislation and mode requirements
+    // Filter to actual EU legislation that NEEDS fixing
     const toProcess = legislation
       .filter(leg => {
         if (!isEULegislation(leg)) return false;
         
+        // Check if this record actually has problems to fix
+        const hasMissingDates = !leg.publication_date || !leg.effective_date;
+        const hasGenericTitle = isGenericTitle(leg.title, leg.number);
+        const hasShortSummary = !isValidSummary(leg.summary);
+        
         if (mode === 'missing_dates') {
-          return !leg.publication_date || !leg.effective_date;
+          return hasMissingDates;
         } else if (mode === 'generic_titles') {
-          return isGenericTitle(leg.title, leg.number);
+          return hasGenericTitle;
         } else if (mode === 'short_summary') {
-          return !isValidSummary(leg.summary);
+          return hasShortSummary;
+        } else if (mode === 'all') {
+          // ALL mode: only process if at least ONE problem exists
+          return hasMissingDates || hasGenericTitle || hasShortSummary;
         }
-        return true;
+        return false;
       })
       .slice(0, limit);
     
