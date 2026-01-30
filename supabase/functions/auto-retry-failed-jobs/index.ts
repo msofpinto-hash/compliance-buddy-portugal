@@ -37,6 +37,7 @@ const JOB_SOURCE_REQUIREMENTS: Record<string, string> = {
   'fix_eu_metadata_generic_titles': 'eurlex',
   'fix_eu_metadata_short_summary': 'eurlex',
   'fix_eu_metadata_missing_dates': 'eurlex',
+  'priority_requirements_extraction': 'firecrawl',
 };
 
 interface JobConfig {
@@ -45,7 +46,26 @@ interface JobConfig {
   defaultPayload: Record<string, unknown>;
   maxParallelJobs: number;
   priority: number; // Lower = higher priority
-  checkPendingWork?: (supabase: any) => Promise<{ hasPending: boolean; count: number }>;
+  checkPendingWork?: (supabase: any) => Promise<{ hasPending: boolean; count: number; ids?: string[] }>;
+}
+
+// Check if Firecrawl has available credits by testing the source status
+async function checkFirecrawlCredits(supabase: any): Promise<boolean> {
+  try {
+    // Check for recent 402 errors in sync_logs (credit exhaustion indicator)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: recentErrors } = await supabase
+      .from('sync_logs')
+      .select('id, error_message')
+      .gte('started_at', fiveMinutesAgo)
+      .ilike('error_message', '%créditos%esgotados%');
+    
+    // If no recent credit errors, assume credits are available
+    return !recentErrors || recentErrors.length === 0;
+  } catch (e) {
+    console.log('[FirecrawlCheck] Error checking credits:', e);
+    return false; // Fail closed to avoid wasting attempts
+  }
 }
 
 // Helper to check pending URL corrections for PT (missing URLs)
@@ -247,6 +267,36 @@ const JOB_CONFIGS: JobConfig[] = [
       return { hasPending: pending.length > 0, count: pending.length };
     },
   },
+  // Priority requirements extraction - for diplomas that need forceReplace with URL scraping
+  {
+    syncType: 'priority_requirements_extraction',
+    functionName: 'extract-requirements-background',
+    defaultPayload: { 
+      batchSize: 1, 
+      maxBatches: 1, 
+      useUrl: true, 
+      strictUrlOnly: true, 
+      forceReplace: true 
+    },
+    maxParallelJobs: 1, // One at a time to monitor credits
+    priority: 5, // Higher priority than regular extraction
+    checkPendingWork: async (supabase) => {
+      // Check for priority failures waiting for Firecrawl credits
+      const { data: priorityFailures } = await supabase
+        .from('legislation_processing_failures')
+        .select('legislation_id')
+        .eq('failure_type', 'requirements_extraction_priority')
+        .eq('is_permanent', false)
+        .or('retry_after.is.null,retry_after.lte.now()');
+      
+      const ids = priorityFailures?.map((f: any) => f.legislation_id) || [];
+      return { 
+        hasPending: ids.length > 0, 
+        count: ids.length,
+        ids 
+      };
+    },
+  },
 ];
 
 // Jobs to skip by default (can be enabled with specific syncType or force)
@@ -427,17 +477,29 @@ async function processJobType(
   // 4. Check if there's pending work using the custom checker
   let hasPendingWork = false;
   let pendingCount = 0;
+  let pendingIds: string[] = [];
   
   if (checkPendingWork) {
     const result = await checkPendingWork(supabase);
     hasPendingWork = result.hasPending;
     pendingCount = result.count;
+    pendingIds = result.ids || [];
     console.log(`📊 Pending ${syncType}: ${pendingCount} items`);
   }
 
   if (!hasPendingWork) {
     console.log(`✅ No pending work for ${syncType}`);
     return { stuckFixed, restarted: 0, pendingCount: 0 };
+  }
+
+  // 4.5 Special check for priority extraction - verify Firecrawl credits are available
+  if (syncType === 'priority_requirements_extraction') {
+    const hasCredits = await checkFirecrawlCredits(supabase);
+    if (!hasCredits) {
+      console.log(`⏸️ Firecrawl credits not available - skipping priority extraction`);
+      return { stuckFixed, restarted: 0, pendingCount };
+    }
+    console.log(`✅ Firecrawl credits available - proceeding with priority extraction`);
   }
 
   // 5. Calculate how many new jobs to start
@@ -456,30 +518,65 @@ async function processJobType(
     syncType === 'fix_legacy_urls' ||
     syncType === 'fix_missing_urls_eu';
   const isMetadataJob = syncType.startsWith('fix_');
-  const jobsToStart = Math.min(slotsAvailable, isUrlJob ? 3 : isMetadataJob ? 3 : 5);
+  const isPriorityExtraction = syncType === 'priority_requirements_extraction';
+  const jobsToStart = Math.min(slotsAvailable, isPriorityExtraction ? 1 : isUrlJob ? 3 : isMetadataJob ? 3 : 5);
   console.log(`🚀 Starting ${jobsToStart} new ${syncType} jobs...`);
 
   let restarted = 0;
   for (let i = 0; i < jobsToStart; i++) {
     try {
+      // Build payload - for priority extraction, include specific IDs
+      let payload = { ...defaultPayload };
+      if (isPriorityExtraction && pendingIds.length > 0) {
+        // Process one ID at a time for priority extraction
+        const targetId = pendingIds[i] || pendingIds[0];
+        payload = { 
+          ...defaultPayload, 
+          legislationIds: [targetId] 
+        };
+        console.log(`🎯 Priority extraction for legislation: ${targetId}`);
+      }
+
       const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${supabaseServiceKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(defaultPayload),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         restarted++;
         console.log(`✅ Started ${syncType} job ${i + 1}/${jobsToStart}`);
+        
+        // For priority extraction, clear the failure record on success
+        if (isPriorityExtraction && pendingIds[i]) {
+          await supabase
+            .from('legislation_processing_failures')
+            .delete()
+            .eq('legislation_id', pendingIds[i])
+            .eq('failure_type', 'requirements_extraction_priority');
+          console.log(`🗑️ Cleared priority failure for ${pendingIds[i]}`);
+        }
       } else {
         const errorText = await response.text().catch(() => '');
         
         // Detect rate limit or credit exhaustion and back off
         if (response.status === 429 || response.status === 402) {
           console.log(`⚠️ Rate limit/credits exhausted for ${syncType}. Backing off.`);
+          
+          // For priority extraction, update retry_after instead of deleting
+          if (isPriorityExtraction && pendingIds[i]) {
+            await supabase
+              .from('legislation_processing_failures')
+              .update({ 
+                retry_after: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+                retry_count: supabase.sql`retry_count + 1`
+              })
+              .eq('legislation_id', pendingIds[i])
+              .eq('failure_type', 'requirements_extraction_priority');
+          }
           break; // Stop launching more jobs for this type
         }
         
@@ -487,7 +584,7 @@ async function processJobType(
       }
 
       // Delay between job launches - shorter for faster completion
-      const delayMs = isUrlJob ? 1500 : isMetadataJob ? 1000 : 500;
+      const delayMs = isPriorityExtraction ? 5000 : isUrlJob ? 1500 : isMetadataJob ? 1000 : 500;
       await new Promise(resolve => setTimeout(resolve, delayMs));
     } catch (error) {
       console.error(`❌ Error starting ${syncType} job:`, error);
