@@ -1571,6 +1571,7 @@ export type Database = {
           title: string
         }[]
       }
+      get_legislation_with_requirements_count: { Args: never; Returns: number }
       get_legislation_without_categories_count: { Args: never; Returns: number }
       get_short_summary_ids: {
         Args: { p_limit?: number; p_offset?: number }
