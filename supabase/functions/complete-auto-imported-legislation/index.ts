@@ -113,20 +113,110 @@ function extractDreIdCandidates(dreUrl: string): { slug: string; numeric?: strin
   return { slug, numeric };
 }
 
-async function safeJsonFromResponse(res: Response): Promise<any | null> {
+// Error types for hard fail classification
+type ExternalSourceError = {
+  type: 'source_offline' | 'html_response' | 'rate_limited' | 'timeout' | 'parse_error';
+  source: string;
+  message: string;
+  isPermanent: boolean;
+};
+
+// Track whether we've detected source issues during this run
+let dreOpenDataFailed = false;
+let dreOpenDataFailureCount = 0;
+
+async function safeJsonFromResponse(res: Response): Promise<{ data: any | null; error?: ExternalSourceError }> {
   const contentType = (res.headers.get("content-type") || "").toLowerCase();
   const text = await res.text(); // Always consume body
-  if (!res.ok) return null;
-  if (!contentType.includes("application/json") && !contentType.includes("json")) {
-    console.log(`[DRE OpenData] Non-JSON response (content-type=${contentType}). Snippet: ${text.slice(0, 120)}`);
-    return null;
+  
+  if (!res.ok) {
+    // Rate limiting
+    if (res.status === 429) {
+      return { 
+        data: null, 
+        error: { 
+          type: 'rate_limited', 
+          source: 'dre_opendata', 
+          message: `Rate limited (HTTP 429)`,
+          isPermanent: false 
+        } 
+      };
+    }
+    return { data: null };
   }
+  
+  // HTML instead of JSON = API is broken/offline
+  if (!contentType.includes("application/json") && !contentType.includes("json")) {
+    const snippet = text.slice(0, 120);
+    console.log(`[DRE OpenData] Non-JSON response (content-type=${contentType}). Snippet: ${snippet}`);
+    dreOpenDataFailed = true;
+    dreOpenDataFailureCount++;
+    return { 
+      data: null, 
+      error: { 
+        type: 'html_response', 
+        source: 'dre_opendata', 
+        message: `API returned HTML instead of JSON: ${snippet}`,
+        isPermanent: true // This is a source issue, not a record issue
+      } 
+    };
+  }
+  
   try {
-    return JSON.parse(text);
+    return { data: JSON.parse(text) };
   } catch (e) {
     console.log(`[DRE OpenData] JSON parse error. Snippet: ${text.slice(0, 120)}`);
     console.log(e);
-    return null;
+    return { 
+      data: null, 
+      error: { 
+        type: 'parse_error', 
+        source: 'dre_opendata', 
+        message: `JSON parse error: ${text.slice(0, 120)}`,
+        isPermanent: false 
+      } 
+    };
+  }
+}
+
+// Record a processing failure (hard fail)
+async function recordHardFail(
+  supabase: any,
+  legislationId: string,
+  failureType: string,
+  error: ExternalSourceError
+): Promise<void> {
+  try {
+    await supabase.rpc('record_processing_failure', {
+      p_legislation_id: legislationId,
+      p_failure_type: failureType,
+      p_failure_reason: error.message,
+      p_source: error.source,
+      p_error_details: JSON.stringify({ type: error.type, timestamp: new Date().toISOString() }),
+      p_is_permanent: error.isPermanent,
+      p_retry_after: error.isPermanent ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // retry after 24h if not permanent
+    });
+    console.log(`[HardFail] Recorded failure for ${legislationId}: ${error.type} - ${error.message}`);
+  } catch (e) {
+    console.error('[HardFail] Failed to record processing failure:', e);
+  }
+}
+
+// Update source status when we detect consistent failures
+async function updateSourceStatusIfNeeded(supabase: any): Promise<void> {
+  // If we've seen 3+ failures in this run, mark source as degraded/offline
+  if (dreOpenDataFailed && dreOpenDataFailureCount >= 3) {
+    try {
+      await supabase.rpc('update_source_status', {
+        p_source_name: 'dre_opendata',
+        p_status: 'offline',
+        p_error_message: 'API returning HTML instead of JSON (auto-detected)',
+        p_block_hours: 4, // Block for 4 hours
+      });
+      console.log('[SourceStatus] Marked dre_opendata as OFFLINE due to consistent failures');
+    } catch (e) {
+      console.error('[SourceStatus] Failed to update source status:', e);
+    }
   }
 }
 
@@ -162,17 +252,20 @@ interface DREOpenDataResult {
 
 // Try to fetch metadata from DRE OpenData API (free, no rate limits, structured data)
 // This is the preferred method for Portuguese legislation as it doesn't require JS rendering
-async function fetchDREOpenData(dreUrl: string): Promise<DREOpenDataResult | null> {
+// Returns both data and any errors for hard fail tracking
+async function fetchDREOpenData(dreUrl: string): Promise<{ result: DREOpenDataResult | null; error?: ExternalSourceError }> {
   try {
     const ids = extractDreIdCandidates(dreUrl);
     if (!ids) {
       console.log('[DRE OpenData] Could not extract ID from URL:', dreUrl);
-      return null;
+      return { result: null };
     }
 
     // Prefer numeric id if present; OpenData commonly expects the internal numeric identifier.
     const primaryId = ids.numeric || ids.slug;
     const candidates = [primaryId, ids.slug].filter((v, i, arr) => v && arr.indexOf(v) === i) as string[];
+    
+    let lastError: ExternalSourceError | undefined;
 
     for (const cand of candidates) {
       const apiUrl = `https://data.dre.pt/opendata/diploma/${cand}`;
@@ -190,9 +283,16 @@ async function fetchDREOpenData(dreUrl: string): Promise<DREOpenDataResult | nul
         10000
       );
 
-      const data = await safeJsonFromResponse(response);
+      const { data, error } = await safeJsonFromResponse(response);
+      if (error) {
+        lastError = error;
+        // If source is returning HTML, don't bother trying alternatives
+        if (error.type === 'html_response') {
+          return { result: null, error };
+        }
+      }
       const parsed = data ? parseDREApiResponse(data) : null;
-      if (parsed) return parsed;
+      if (parsed) return { result: parsed };
     }
 
     // Try alternative search endpoint (sometimes more forgiving)
@@ -210,15 +310,30 @@ async function fetchDREOpenData(dreUrl: string): Promise<DREOpenDataResult | nul
         },
         10000
       );
-      const altData = await safeJsonFromResponse(altResponse);
+      const { data: altData, error: altError } = await safeJsonFromResponse(altResponse);
+      if (altError) {
+        lastError = altError;
+        if (altError.type === 'html_response') {
+          return { result: null, error: altError };
+        }
+      }
       const parsed = altData ? parseDREApiResponse(altData) : null;
-      if (parsed) return parsed;
+      if (parsed) return { result: parsed };
     }
 
-    return null;
+    return { result: null, error: lastError };
   } catch (error) {
     console.log('[DRE OpenData] Error:', error);
-    return null;
+    const isTimeout = error instanceof Error && error.message.includes('timeout');
+    return { 
+      result: null, 
+      error: {
+        type: isTimeout ? 'timeout' : 'source_offline',
+        source: 'dre_opendata',
+        message: error instanceof Error ? error.message : String(error),
+        isPermanent: false,
+      }
+    };
   }
 }
 
@@ -849,7 +964,10 @@ async function scrapeUrl(url: string, firecrawlKey: string, supabase: any): Prom
   const lowerUrl = url.toLowerCase();
   if (lowerUrl.includes('dre.pt') || lowerUrl.includes('diariodarepublica.pt')) {
     console.log('[Scrape] DRE detected - trying OpenData API...');
-    const openDataResult = await fetchDREOpenData(url);
+    const { result: openDataResult, error: openDataError } = await fetchDREOpenData(url);
+    if (openDataError && openDataError.type === 'html_response') {
+      console.log('[Scrape] DRE OpenData API returning HTML - source likely offline');
+    }
     if (openDataResult) {
       // Convert OpenData result to text format for parsing
       const parts: string[] = [];
@@ -2043,7 +2161,15 @@ async function runBackgroundCompletion(params: {
             let metadata: LegislationUpdate | null = null;
             
             // STRATEGY 1: Try DRE OpenData API first (no rate limits, structured data)
-            const dreOpenData = await fetchDREOpenData(urlToScrape);
+            const { result: dreOpenData, error: dreApiError } = await fetchDREOpenData(urlToScrape);
+            
+            // If we got a source-level error (HTML response), record it for hard fail tracking
+            if (dreApiError && dreApiError.type === 'html_response') {
+              console.log('[Processing] DRE OpenData API returned HTML - recording for source tracking');
+              // Don't record individual hard fails for source-level issues
+              // The source status will be updated at the end if we see consistent failures
+            }
+            
             if (dreOpenData) {
               console.log('[Processing] Got data from DRE OpenData API');
               metadata = {
@@ -2260,10 +2386,21 @@ async function runBackgroundCompletion(params: {
       console.log(`Sync log updated: processed=${newProcessed}, updated=${newUpdated}`);
     }
     
+    // Update source status if we detected consistent failures during this run
+    await updateSourceStatusIfNeeded(supabase);
+    
     console.log('Background completion finished');
     
   } catch (error) {
     console.error('Background completion error:', error);
+    
+    // Still try to update source status even on error
+    try {
+      await updateSourceStatusIfNeeded(supabase);
+    } catch (e) {
+      console.error('Failed to update source status on error:', e);
+    }
+    
     if (syncLogId) {
       await supabase.from('sync_logs').update({ 
         status: 'error',
