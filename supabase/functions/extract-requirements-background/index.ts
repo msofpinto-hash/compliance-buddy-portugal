@@ -763,6 +763,20 @@ Retorna APENAS um array JSON válido:
 
     console.log(`🎉 Background extraction completed: ${totalProcessed} processed, ${totalRequirements} requirements added (URL: ${urlScrapedCount}, Summary: ${summaryFallbackCount})`);
 
+    // If this was a targeted extraction with forceReplace and it succeeded with URL scraping,
+    // clear any priority extraction failure records for these IDs
+    if (legislationIds && legislationIds.length > 0 && forceReplace && useUrl && totalRequirements > 0) {
+      const { error: clearError } = await supabase
+        .from('legislation_processing_failures')
+        .delete()
+        .in('legislation_id', legislationIds)
+        .eq('failure_type', 'requirements_extraction_priority');
+      
+      if (!clearError) {
+        console.log(`🗑️ Cleared priority failure records for ${legislationIds.length} successfully extracted legislation(s)`);
+      }
+    }
+
   } catch (error) {
     console.error('Background extraction error:', error);
     

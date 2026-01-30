@@ -550,14 +550,19 @@ async function processJobType(
         restarted++;
         console.log(`✅ Started ${syncType} job ${i + 1}/${jobsToStart}`);
         
-        // For priority extraction, clear the failure record on success
+        // For priority extraction, DON'T delete the failure record yet
+        // The extraction job itself will handle cleanup on actual success
+        // We just update the retry_after to give it time to complete
         if (isPriorityExtraction && pendingIds[i]) {
           await supabase
             .from('legislation_processing_failures')
-            .delete()
+            .update({ 
+              retry_after: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+              failure_reason: 'Extração em curso - aguardar resultado'
+            })
             .eq('legislation_id', pendingIds[i])
             .eq('failure_type', 'requirements_extraction_priority');
-          console.log(`🗑️ Cleared priority failure for ${pendingIds[i]}`);
+          console.log(`⏳ Updated retry_after for ${pendingIds[i]} - will check again in 30 min`);
         }
       } else {
         const errorText = await response.text().catch(() => '');
