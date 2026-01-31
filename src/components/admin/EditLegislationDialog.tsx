@@ -291,11 +291,15 @@ export function EditLegislationDialog({
                   <Button 
                     variant="outline" 
                     size="icon"
-                    asChild
+                    onClick={() => {
+                      const newWindow = window.open('about:blank', '_blank');
+                      if (newWindow) {
+                        newWindow.opener = null;
+                        newWindow.location.href = documentUrl;
+                      }
+                    }}
                   >
-                    <a href={documentUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
+                    <ExternalLink className="h-4 w-4" />
                   </Button>
                 )}
               </div>

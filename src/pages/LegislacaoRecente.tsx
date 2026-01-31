@@ -692,15 +692,18 @@ export default function LegislacaoRecente() {
                         </div>
                         <div className="flex items-center gap-1">
                           {leg.document_url && (
-                            <a
-                              href={leg.document_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              referrerPolicy="no-referrer"
+                            <button
+                              onClick={() => {
+                                const newWindow = window.open('about:blank', '_blank');
+                                if (newWindow) {
+                                  newWindow.opener = null;
+                                  newWindow.location.href = leg.document_url!;
+                                }
+                              }}
                               className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
                             >
                               <ExternalLink className="h-4 w-4 text-stone-400" />
-                            </a>
+                            </button>
                           )}
                           <button
                             onClick={() => toggleRead(leg.id)}
@@ -820,15 +823,18 @@ export default function LegislacaoRecente() {
                         </div>
                         <div className="px-4 py-4 flex justify-center gap-1">
                           {leg.document_url && (
-                            <a
-                              href={leg.document_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              referrerPolicy="no-referrer"
+                            <button
+                              onClick={() => {
+                                const newWindow = window.open('about:blank', '_blank');
+                                if (newWindow) {
+                                  newWindow.opener = null;
+                                  newWindow.location.href = leg.document_url!;
+                                }
+                              }}
                               className="p-1.5 rounded hover:bg-stone-100 dark:hover:bg-stone-700"
                             >
                               <ExternalLink className="h-4 w-4 text-stone-400" />
-                            </a>
+                            </button>
                           )}
                           <button
                             onClick={() => toggleRead(leg.id)}
@@ -869,15 +875,18 @@ export default function LegislacaoRecente() {
                           </div>
                           <div className="flex items-center gap-1">
                             {leg.document_url && (
-                              <a
-                                href={leg.document_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                referrerPolicy="no-referrer"
+                              <button
+                                onClick={() => {
+                                  const newWindow = window.open('about:blank', '_blank');
+                                  if (newWindow) {
+                                    newWindow.opener = null;
+                                    newWindow.location.href = leg.document_url!;
+                                  }
+                                }}
                                 className="p-1.5 rounded hover:bg-stone-100"
                               >
                                 <ExternalLink className="h-4 w-4 text-stone-400" />
-                              </a>
+                              </button>
                             )}
                             <button
                               onClick={() => toggleRead(leg.id)}
