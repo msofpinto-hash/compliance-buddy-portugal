@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface Requirement {
@@ -10,48 +10,176 @@ interface Requirement {
   requirement_text: string;
 }
 
-// Regex to detect malformed articles containing diploma type keywords
-const MALFORMED_ARTICLE_PATTERNS = [
-  /\bDespacho\b/i,
-  /\bPortaria\b/i,
-  /\bDecreto\b/i,
-  /\bRegulamento\b/i,
-  /\bLei\s+n/i,
-  /\bDiretiva\b/i,
-  /\bDecisão\b/i,
-  /\bDeclaração\b/i,
-];
+/**
+ * Extract articles directly from text using regex patterns.
+ * This is faster and more reliable than AI for structured legal texts.
+ */
+function extractArticlesFromText(text: string): Requirement[] {
+  const requirements: Requirement[] = [];
+  
+  // Normalize line breaks and clean up
+  const cleanText = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n{3,}/g, '\n\n');
 
-// Function to validate and clean article field
-function cleanArticle(article: string | undefined | null): string {
-  if (!article) return 'Geral';
+  // Pattern to match articles: "Artigo 1.º", "Art. 2º", "ARTIGO 3", etc.
+  const articlePattern = /(?:^|\n)\s*((?:ARTIGO|Artigo|Art\.?)\s*\d+[ºª°]?(?:[-–]\w)?)\s*\n?([^\n]*(?:\n(?!(?:ARTIGO|Artigo|Art\.?)\s*\d+|ANEXO|Anexo|CAPÍTULO|Capítulo|SECÇÃO|Secção|TÍTULO|Título)[^\n]*)*)/gi;
   
-  const trimmed = article.trim();
-  
-  // Check if article contains diploma-type keywords (malformed)
-  const isMalformed = MALFORMED_ARTICLE_PATTERNS.some(pattern => pattern.test(trimmed));
-  
-  if (isMalformed) {
-    // Try to extract just the article part if it exists
-    const articleMatch = trimmed.match(/\b(Art(?:igo)?\.?\s*\d+[ºª]?(?:\s*,?\s*n\.?º?\s*\d+)?)/i);
-    if (articleMatch) {
-      return articleMatch[1].substring(0, 50);
+  // Pattern for Anexos
+  const anexoPattern = /(?:^|\n)\s*(ANEXO|Anexo)\s*([\dIVXLCDM]+(?:[-–]\w)?)\s*\n?([^\n]*(?:\n(?!(?:ANEXO|Anexo)\s*[\dIVXLCDM]|ARTIGO|Artigo|Art\.?\s*\d+)[^\n]*)*)/gi;
+
+  // Extract articles
+  let match;
+  while ((match = articlePattern.exec(cleanText)) !== null) {
+    const articleLabel = match[1].trim();
+    let articleText = (match[2] || '').trim();
+    
+    // Clean leading artifacts like ".º" or "º" from the text
+    articleText = articleText.replace(/^[.º°ª]+\s*\n*/g, '').trim();
+    
+    // Skip empty articles
+    if (articleText.length < 10) continue;
+    
+    // Truncate very long articles
+    if (articleText.length > 5000) {
+      articleText = articleText.substring(0, 5000) + '...';
     }
     
-    // Check for Anexo pattern
-    const anexoMatch = trimmed.match(/\b(Anexo\s+[IVX\d]+)/i);
-    if (anexoMatch) {
-      return anexoMatch[1].substring(0, 50);
-    }
-    
-    return 'Geral';
+    requirements.push({
+      article: normalizeArticleLabel(articleLabel),
+      requirement_text: articleText,
+    });
   }
-  
-  return trimmed.substring(0, 50);
+
+  // Extract Anexos
+  while ((match = anexoPattern.exec(cleanText)) !== null) {
+    const anexoLabel = `Anexo ${match[2]}`.trim();
+    let anexoText = (match[3] || '').trim();
+    
+    if (anexoText.length < 10) continue;
+    
+    if (anexoText.length > 5000) {
+      anexoText = anexoText.substring(0, 5000) + '...';
+    }
+    
+    requirements.push({
+      article: anexoLabel,
+      requirement_text: anexoText,
+    });
+  }
+
+  return requirements;
 }
 
-// Use Lovable AI gateway
-const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+/**
+ * Normalize article labels for consistency
+ */
+function normalizeArticleLabel(label: string): string {
+  // Remove extra spaces
+  let normalized = label.replace(/\s+/g, ' ').trim();
+  
+  // Normalize "Art." to "Artigo"
+  normalized = normalized.replace(/^Art\.?\s*/i, 'Artigo ');
+  
+  // Ensure proper format: "Artigo X.º"
+  const numMatch = normalized.match(/(\d+)[ºª°]?/);
+  if (numMatch) {
+    const num = numMatch[1];
+    normalized = `Artigo ${num}.º`;
+  }
+  
+  return normalized.substring(0, 50);
+}
+
+/**
+ * Fallback: Use AI to extract requirements when regex parsing fails
+ */
+async function extractWithAI(content: string, lovableApiKey: string): Promise<Requirement[]> {
+  const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+  
+  // Truncate for AI context window
+  const truncatedContent = content.length > 40000 ? content.substring(0, 40000) : content;
+  
+  const prompt = `Analisa o seguinte texto de legislação e extrai TODOS os artigos com o seu texto integral.
+
+TEXTO:
+${truncatedContent}
+
+INSTRUÇÕES:
+1. Para cada "Artigo X.º" encontrado, extrai o texto COMPLETO desse artigo
+2. Também extrai "Anexo I", "Anexo II", etc. com o respetivo texto
+3. Mantém o texto integral de cada artigo, não resumas
+4. O campo "article" deve ter formato "Artigo X.º" ou "Anexo Y"
+
+FORMATO (JSON array, sem markdown):
+[
+  {"article": "Artigo 1.º", "requirement_text": "O presente decreto-lei estabelece..."},
+  {"article": "Artigo 2.º", "requirement_text": "Para efeitos do presente diploma..."}
+]`;
+
+  console.log('Calling AI for extraction fallback...');
+
+  const aiResponse = await fetch(AI_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${lovableApiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'Extrai artigos de legislação em formato JSON. Retorna apenas o array JSON sem formatação markdown.'
+        },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 16000,
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    if (aiResponse.status === 429) {
+      throw new Error('Rate limit exceeded. Try again later.');
+    }
+    if (aiResponse.status === 402) {
+      throw new Error('AI credits exhausted. Please add credits.');
+    }
+    const errorText = await aiResponse.text();
+    console.error('AI API error:', aiResponse.status, errorText);
+    throw new Error(`AI API error: ${aiResponse.status}`);
+  }
+
+  const aiData = await aiResponse.json();
+  const aiContent = aiData.choices?.[0]?.message?.content || '';
+
+  console.log('AI response length:', aiContent.length);
+
+  // Parse JSON from AI response
+  const requirements: Requirement[] = [];
+  try {
+    const jsonMatch = aiContent.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed)) {
+        for (const r of parsed) {
+          if (r && typeof r.requirement_text === 'string' && r.requirement_text.trim().length > 10) {
+            requirements.push({
+              article: normalizeArticleLabel(r.article || 'Geral'),
+              requirement_text: r.requirement_text.trim(),
+            });
+          }
+        }
+      }
+    }
+  } catch (parseError) {
+    console.error('JSON parse error:', parseError);
+  }
+
+  return requirements;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -87,7 +215,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { legislationId, source, url, text } = body;
+    const { legislationId, source, url, text, useAI = false } = body;
 
     if (!legislationId) {
       return new Response(
@@ -124,32 +252,49 @@ Deno.serve(async (req) => {
       console.log('Scraping URL:', url);
 
       // Scrape the URL using Firecrawl
-      const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${firecrawlApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: url.trim(),
-          formats: ['markdown'],
-          onlyMainContent: true,
-          waitFor: 3000,
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
 
-      const scrapeData = await scrapeResponse.json();
+      try {
+        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: url.trim(),
+            formats: ['markdown'],
+            onlyMainContent: true,
+            waitFor: 3000,
+          }),
+          signal: controller.signal,
+        });
 
-      if (!scrapeResponse.ok || !scrapeData.success) {
-        console.error('Firecrawl error:', scrapeData);
-        return new Response(
-          JSON.stringify({ success: false, error: scrapeData.error || 'Failed to scrape URL' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        clearTimeout(timeout);
+
+        const scrapeData = await scrapeResponse.json();
+
+        if (!scrapeResponse.ok || !scrapeData.success) {
+          console.error('Firecrawl error:', scrapeData);
+          return new Response(
+            JSON.stringify({ success: false, error: scrapeData.error || 'Failed to scrape URL' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        contentToProcess = scrapeData.data?.markdown || scrapeData.markdown || '';
+        console.log('Scraped content length:', contentToProcess.length);
+      } catch (fetchError: unknown) {
+        clearTimeout(timeout);
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Scraping timeout - try again later' }),
+            { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        throw fetchError;
       }
-
-      contentToProcess = scrapeData.data?.markdown || scrapeData.markdown || '';
-      console.log('Scraped content length:', contentToProcess.length);
     } else {
       // Source is text
       if (!text) {
@@ -168,94 +313,48 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Truncate if too long (keep first 50000 chars for context window)
-    if (contentToProcess.length > 50000) {
-      contentToProcess = contentToProcess.substring(0, 50000);
-      console.log('Content truncated to 50000 chars');
-    }
+    console.log('Content length to process:', contentToProcess.length);
 
-    // Build AI prompt to extract requirements
-    const prompt = `Analisa o seguinte texto legal e extrai TODOS os requisitos, obrigações e artigos.
+    // First, try regex-based extraction (faster, no AI costs)
+    let requirements = extractArticlesFromText(contentToProcess);
+    console.log(`Regex extraction found ${requirements.length} articles`);
 
-TEXTO:
-${contentToProcess}
-
-INSTRUÇÕES CRÍTICAS:
-1. Extrai TODOS os artigos encontrados no texto (Art. 1.º, Art. 2.º, etc.)
-2. Para cada artigo, extrai o texto completo das obrigações
-3. Também extrai Anexos, Considerandos, ou qualquer secção relevante
-4. Se não houver artigos estruturados, divide o texto em partes lógicas
-5. Cada requisito deve ter máximo 1500 caracteres
-
-FORMATO DE SAÍDA:
-Retorna APENAS um array JSON válido, sem markdown, sem explicações:
-[
-  {"article": "Art. 1.º", "requirement_text": "Texto do artigo..."},
-  {"article": "Art. 2.º", "requirement_text": "Texto do artigo..."},
-  {"article": "Anexo I", "requirement_text": "Texto do anexo..."}
-]
-
-Se não conseguires extrair requisitos, retorna: []`;
-
-    console.log('Calling AI for extraction...');
-
-    const aiResponse = await fetch(AI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${lovableApiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: 'És um assistente especializado em análise de legislação portuguesa e europeia. Extrai requisitos legais de forma estruturada em JSON.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 16000,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const aiContent = aiData.choices?.[0]?.message?.content || '';
-
-    console.log('AI response length:', aiContent.length);
-
-    // Parse JSON from AI response
-    let requirements: Requirement[] = [];
-
-    try {
-      // Try to extract JSON array from response
-      const jsonMatch = aiContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed)) {
-          requirements = parsed
-            .filter((r: any) => r && typeof r.requirement_text === 'string' && r.requirement_text.trim())
-            .map((r: any) => ({
-              article: cleanArticle(r.article),
-              requirement_text: String(r.requirement_text).trim().substring(0, 1500),
-            }));
+    // If regex found nothing or very few, use AI as fallback
+    if (requirements.length < 2 && useAI) {
+      console.log('Using AI fallback for extraction...');
+      try {
+        requirements = await extractWithAI(contentToProcess, lovableApiKey);
+        console.log(`AI extraction found ${requirements.length} articles`);
+      } catch (aiError) {
+        console.error('AI extraction failed:', aiError);
+        // If AI also fails and regex found something, use that
+        if (requirements.length === 0) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: aiError instanceof Error ? aiError.message : 'AI extraction failed' 
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
       }
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.log('Raw AI content:', aiContent.substring(0, 500));
     }
 
-    console.log(`Extracted ${requirements.length} requirements`);
+    // If still no requirements and user didn't request AI, suggest it
+    if (requirements.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          requirements: [],
+          source,
+          contentLength: contentToProcess.length,
+          message: 'Nenhum artigo estruturado encontrado. Tente ativar a extração com IA.',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Returning ${requirements.length} requirements`);
 
     return new Response(
       JSON.stringify({
