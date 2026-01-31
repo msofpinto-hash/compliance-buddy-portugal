@@ -49,6 +49,7 @@ import { openExternalUrl } from "@/lib/openExternalUrl";
 
 // Format requirement text with line breaks between numbered items/paragraphs.
 // Keep "1 - text" together (number + dash on same line).
+// Ensure alíneas (a), b), etc.) each start on a new line.
 function formatRequirementText(text: string): string {
   if (!text) return "";
 
@@ -57,10 +58,10 @@ function formatRequirementText(text: string): string {
     .replace(/\s+(\d+[\.\)])\s+(?![-–—])/g, "\n$1 ")
     // Before "number - text" patterns – keep them together on same line
     .replace(/\s+(\d+)\s*([-–—])\s+/g, "\n$1 $2 ")
-    // Before letters followed by parenthesis: "a)", "b)", etc.
-    .replace(/\s+([a-z][\)])\s/gi, "\n$1 ")
-    // Before roman numerals followed by parenthesis: "i)", "ii)", etc.
-    .replace(/\s+((?:i{1,3}|iv|vi{0,3}|ix|x{1,3})[\)])\s/gi, "\n$1 ")
+    // Before letters followed by parenthesis: "a)", "b)", etc. - always new line
+    .replace(/\s*([a-z]\))\s*/gi, "\n$1 ")
+    // Before roman numerals followed by parenthesis: "i)", "ii)", etc. - always new line
+    .replace(/\s*((?:i{1,3}|iv|vi{0,3}|ix|x{1,3})\))\s*/gi, "\n$1 ")
     // Before "Artigo", "Anexo" keywords
     .replace(/\s+(Art(?:igo)?\.?\s*\d+)/gi, "\n$1")
     .replace(/\s+(Anexo\s+[IVX\d]+)/gi, "\n$1");
