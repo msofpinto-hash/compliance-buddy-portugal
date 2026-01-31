@@ -69,7 +69,7 @@ function UrlCategoryInput({ placeholder, relationType, legislationId, onRelation
 
     setIsProcessing(true);
     const url = urlValue.trim();
-    const isDRE = url.toLowerCase().includes('dre.pt');
+    const isDRE = url.toLowerCase().includes('dre.pt') || url.toLowerCase().includes('diariodarepublica.pt');
     const isEurLex = url.toLowerCase().includes('eur-lex.europa.eu');
 
     if (!isDRE && !isEurLex) {
@@ -354,7 +354,7 @@ export function ManageRelationsDialog({
     }
 
     const url = urlInput.trim();
-    const isDRE = url.toLowerCase().includes('dre.pt');
+    const isDRE = url.toLowerCase().includes('dre.pt') || url.toLowerCase().includes('diariodarepublica.pt');
     const isEurLex = url.toLowerCase().includes('eur-lex.europa.eu');
     
     if (!isDRE && !isEurLex) {
