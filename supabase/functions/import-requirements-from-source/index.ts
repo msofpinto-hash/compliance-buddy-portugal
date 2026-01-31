@@ -251,49 +251,124 @@ Deno.serve(async (req) => {
 
       console.log('Scraping URL:', url);
 
-      // Scrape the URL using Firecrawl
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      // Try Firecrawl first, then fallback to native fetch
+      let scrapeSuccess = false;
+      
+      // Attempt 1: Firecrawl
+      if (firecrawlApiKey) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
 
-      try {
-        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: url.trim(),
-            formats: ['markdown'],
-            onlyMainContent: true,
-            waitFor: 3000,
+        try {
+          const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${firecrawlApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: url.trim(),
+              formats: ['markdown'],
+              onlyMainContent: true,
+              waitFor: 3000,
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeout);
+          const scrapeData = await scrapeResponse.json();
+
+          if (scrapeResponse.ok && scrapeData.success) {
+            contentToProcess = scrapeData.data?.markdown || scrapeData.markdown || '';
+            console.log('Firecrawl scraped content length:', contentToProcess.length);
+            scrapeSuccess = contentToProcess.length > 100;
+          } else {
+            console.log('Firecrawl failed, will try native fetch:', scrapeData.error || scrapeData.code);
+          }
+        } catch (fetchError: unknown) {
+          clearTimeout(timeout);
+          console.log('Firecrawl error, will try native fetch:', fetchError instanceof Error ? fetchError.message : 'unknown');
+        }
+      }
+
+      // Attempt 2: Native fetch fallback (for DRE and EUR-Lex blocking Firecrawl)
+      if (!scrapeSuccess) {
+        console.log('Attempting native fetch fallback for:', url);
+        
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 15000);
+          
+          const nativeResponse = await fetch(url.trim(), {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+            },
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeout);
+          
+          const contentType = nativeResponse.headers.get('content-type') || '';
+          
+          // Skip binary files
+          if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
+            return new Response(
+              JSON.stringify({ success: false, error: 'URL aponta para ficheiro PDF/binário - cole o texto diretamente' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          if (nativeResponse.ok && contentType.includes('text/html')) {
+            let html = await nativeResponse.text();
+            
+            // Limit HTML size to prevent memory issues
+            if (html.length > 500000) {
+              html = html.substring(0, 500000);
+            }
+            
+            // Extract main content from HTML - look for article/main content areas
+            const mainContentMatch = html.match(/<(?:article|main|div[^>]*class="[^"]*(?:content|article|texto|diploma)[^"]*")[^>]*>([\s\S]*?)<\/(?:article|main|div)>/i);
+            if (mainContentMatch) {
+              html = mainContentMatch[1];
+            }
+            
+            // Strip HTML tags to get plain text
+            contentToProcess = html
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+              .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+              .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+              .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+              .replace(/<[^>]+>/g, '\n')
+              .replace(/&nbsp;/g, ' ')
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'")
+              .replace(/\n{3,}/g, '\n\n')
+              .trim();
+            
+            console.log('Native fetch scraped content length:', contentToProcess.length);
+            scrapeSuccess = contentToProcess.length > 100;
+          }
+        } catch (nativeError) {
+          console.error('Native fetch also failed:', nativeError instanceof Error ? nativeError.message : 'unknown');
+        }
+      }
+
+      // If both methods failed
+      if (!scrapeSuccess || contentToProcess.length < 50) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Não foi possível extrair conteúdo do URL. O site pode estar a bloquear acessos automatizados. Tente colar o texto diretamente.' 
           }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
-        const scrapeData = await scrapeResponse.json();
-
-        if (!scrapeResponse.ok || !scrapeData.success) {
-          console.error('Firecrawl error:', scrapeData);
-          return new Response(
-            JSON.stringify({ success: false, error: scrapeData.error || 'Failed to scrape URL' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        contentToProcess = scrapeData.data?.markdown || scrapeData.markdown || '';
-        console.log('Scraped content length:', contentToProcess.length);
-      } catch (fetchError: unknown) {
-        clearTimeout(timeout);
-        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          return new Response(
-            JSON.stringify({ success: false, error: 'Scraping timeout - try again later' }),
-            { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        throw fetchError;
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     } else {
       // Source is text
