@@ -84,6 +84,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [filterMissingUrl, setFilterMissingUrl] = useState<boolean>(false);
   const [filterMissingDates, setFilterMissingDates] = useState<boolean>(false);
   const [filterInvalidDates, setFilterInvalidDates] = useState<boolean>(false);
+  const [filterShortSummary, setFilterShortSummary] = useState<boolean>(false);
 
   // Extract diploma type from number
   const extractDiplomaType = (number: string): string => {
@@ -150,16 +151,25 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     "a aguardar importação",
   ];
 
-  const isGenericTitle = (title: string): boolean => {
+  const isGenericTitle = (title: string, number?: string): boolean => {
+    // Check if title equals the number (truly generic)
+    if (number && title === number) return true;
+    // Check if title is short without date pattern
+    if (title.length <= 30 && !title.includes(", de ")) return true;
+    // Check for known generic patterns
     return genericTitlePatterns.some((pattern) =>
       title.toLowerCase().includes(pattern.toLowerCase())
-    ) || title.length < 10;
+    );
+  };
+
+  const isShortSummary = (summary: string | null | undefined): boolean => {
+    return !summary || summary.trim().length < 20;
   };
 
   const getProblems = (leg: LegislationWithCategories): ProblemType[] => {
     const problems: ProblemType[] = [];
 
-    if (isGenericTitle(leg.title)) problems.push("generic_title");
+    if (isGenericTitle(leg.title, leg.number)) problems.push("generic_title");
 
     if (!leg.origin || (leg.origin !== "PT" && leg.origin !== "EU")) {
       problems.push("missing_origin");
@@ -251,6 +261,16 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       result = result.filter(leg => isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date));
     }
 
+    // Filter by short summary (PT only)
+    if (filterShortSummary) {
+      result = result.filter(leg => leg.origin === 'PT' && isShortSummary(leg.summary));
+    }
+
+    // Filter by generic title (PT only)
+    if (filterGenericTitle) {
+      result = result.filter(leg => leg.origin === 'PT' && isGenericTitle(leg.title, leg.number));
+    }
+
     // Filter by theme
     if (!filterNoCategory && !filterProblems && !filterRevoked && filterTheme !== "all") {
       result = result.filter(leg => leg.categories.some(cat => cat.theme_name === filterTheme));
@@ -262,7 +282,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     }
 
     return result;
-  }, [legislation, searchTerm, filterStartDate, filterEndDate, filterProblems, filterProblemType, filterGenericTitle, filterRevoked, filterOrigin, filterNoCategory, filterMissingUrl, filterMissingDates, filterInvalidDates, filterTheme, filterCategory]);
+  }, [legislation, searchTerm, filterStartDate, filterEndDate, filterProblems, filterProblemType, filterGenericTitle, filterRevoked, filterOrigin, filterNoCategory, filterMissingUrl, filterMissingDates, filterInvalidDates, filterShortSummary, filterTheme, filterCategory]);
 
   // Get unique diploma types from filtered legislation (excluding diploma type filter)
   const availableDiplomaTypes = useMemo(() => {
@@ -357,9 +377,20 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   }, [legislation]);
 
   // Count items with generic titles
+  // Count items with generic titles (PT only for correction purposes)
   const genericTitleCount = useMemo(() => {
     if (!legislation) return 0;
-    return legislation.filter(leg => isGenericTitle(leg.title)).length;
+    return legislation.filter(leg => 
+      leg.origin === 'PT' && isGenericTitle(leg.title, leg.number)
+    ).length;
+  }, [legislation]);
+
+  // Count items with short summaries (PT only for correction purposes)
+  const shortSummaryCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(leg => 
+      leg.origin === 'PT' && isShortSummary(leg.summary)
+    ).length;
   }, [legislation]);
 
   // Count items missing URL
@@ -414,9 +445,14 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       }
     }
 
-    // Filter by "generic title" (pending import)
+    // Filter by "generic title" (PT only for correction purposes)
     if (filterGenericTitle) {
-      result = result.filter(leg => isGenericTitle(leg.title));
+      result = result.filter(leg => leg.origin === 'PT' && isGenericTitle(leg.title, leg.number));
+    }
+
+    // Filter by "short summary" (PT only for correction purposes)
+    if (filterShortSummary) {
+      result = result.filter(leg => leg.origin === 'PT' && isShortSummary(leg.summary));
     }
 
     // Filter by "revoked"
@@ -1067,6 +1103,45 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                 <span className="hidden sm:inline">Datas Inválidas</span>
                 <span className="sm:hidden">Datas Inv.</span>
                 ({invalidDatesCount})
+              </Button>
+
+              {/* New PT-specific correction filters */}
+              <Button
+                variant={filterGenericTitle ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilterGenericTitle(prev => !prev);
+                  if (!filterGenericTitle) setFilterOrigin("PT");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1",
+                  filterGenericTitle && "bg-yellow-600 hover:bg-yellow-700 text-white"
+                )}
+              >
+                <FileQuestion className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Títulos Genéricos</span>
+                <span className="sm:hidden">Títulos</span>
+                ({genericTitleCount})
+              </Button>
+
+              <Button
+                variant={filterShortSummary ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilterShortSummary(prev => !prev);
+                  if (!filterShortSummary) setFilterOrigin("PT");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1",
+                  filterShortSummary && "bg-sky-600 hover:bg-sky-700 text-white"
+                )}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Sumários Curtos</span>
+                <span className="sm:hidden">Sumários</span>
+                ({shortSummaryCount})
               </Button>
 
               <Button
