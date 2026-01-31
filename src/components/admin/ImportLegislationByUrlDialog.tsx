@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useThemesWithCategories, ThemeCategory } from "@/hooks/useThemes";
 import { 
   Link as LinkIcon, 
   Loader2, 
@@ -18,7 +20,8 @@ import {
   Search,
   Download,
   FileText,
-  ExternalLink
+  ExternalLink,
+  FolderTree
 } from "lucide-react";
 
 interface ScrapedData {
@@ -40,6 +43,7 @@ interface ImportLegislationByUrlDialogProps {
 export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegislationByUrlDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: themesWithCategories } = useThemesWithCategories();
   
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +54,33 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
   
   // Editable fields
   const [editedData, setEditedData] = useState<ScrapedData>({});
+  
+  // Category selection
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
+  
+  // Build category tree for selected theme
+  const selectedTheme = useMemo(() => {
+    return themesWithCategories?.find(t => t.id === selectedThemeId);
+  }, [themesWithCategories, selectedThemeId]);
+  
+  // Get root categories (no parent) for selected theme
+  const rootCategories = useMemo(() => {
+    if (!selectedTheme) return [];
+    return selectedTheme.categories.filter(c => !c.parent_id);
+  }, [selectedTheme]);
+  
+  // Get subcategories for selected category
+  const subcategories = useMemo(() => {
+    if (!selectedTheme || !selectedCategoryId) return [];
+    return selectedTheme.categories.filter(c => c.parent_id === selectedCategoryId);
+  }, [selectedTheme, selectedCategoryId]);
+  
+  // Get final category ID to assign (most specific selection)
+  const finalCategoryId = useMemo(() => {
+    return selectedSubcategoryId || selectedCategoryId;
+  }, [selectedSubcategoryId, selectedCategoryId]);
 
   const detectUrlType = (url: string): { type: "dre" | "eurlex" | "unknown"; origin: string } => {
     const lowerUrl = url.toLowerCase();
@@ -223,6 +254,8 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
     setIsLoading(true);
 
     try {
+      let legislationId: string | null = null;
+      
       // Check if number already exists
       const { data: existingByNumber } = await supabase
         .from("legislation")
@@ -231,6 +264,8 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
         .maybeSingle();
 
       if (existingByNumber) {
+        legislationId = existingByNumber.id;
+        
         // Update existing legislation with the URL
         const { error: updateError } = await supabase
           .from("legislation")
@@ -249,7 +284,7 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
         });
       } else {
         // Create new legislation
-        const { error: insertError } = await supabase
+        const { data: insertedData, error: insertError } = await supabase
           .from("legislation")
           .insert({
             number: editedData.number,
@@ -261,14 +296,49 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
             entity: editedData.entity || null,
             source: editedData.source || "manual",
             origin: editedData.origin || "PT",
-          });
+          })
+          .select("id")
+          .single();
 
         if (insertError) throw insertError;
+        
+        legislationId = insertedData?.id || null;
 
         toast({
           title: "Diploma importado",
           description: `"${editedData.number}" foi adicionado à biblioteca`,
         });
+      }
+      
+      // Assign to category if selected
+      if (legislationId && finalCategoryId) {
+        // Check if mapping already exists
+        const { data: existingMapping } = await supabase
+          .from("legislation_category_mapping")
+          .select("id")
+          .eq("legislation_id", legislationId)
+          .eq("category_id", finalCategoryId)
+          .maybeSingle();
+        
+        if (!existingMapping) {
+          const { error: mappingError } = await supabase
+            .from("legislation_category_mapping")
+            .insert({
+              legislation_id: legislationId,
+              category_id: finalCategoryId,
+            });
+          
+          if (mappingError) {
+            console.error("Error creating category mapping:", mappingError);
+          } else {
+            // Find category name for toast
+            const categoryName = selectedTheme?.categories.find(c => c.id === finalCategoryId)?.name;
+            toast({
+              title: "Categoria atribuída",
+              description: `Diploma associado a "${categoryName}"`,
+            });
+          }
+        }
       }
 
       // Invalidate queries
@@ -296,6 +366,9 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
       setScrapedData(null);
       setExistingLegislation(null);
       setEditedData({});
+      setSelectedThemeId(null);
+      setSelectedCategoryId(null);
+      setSelectedSubcategoryId(null);
       setStep("input");
       onOpenChange(false);
     }
@@ -306,7 +379,23 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
     setScrapedData(null);
     setExistingLegislation(null);
     setEditedData({});
+    setSelectedThemeId(null);
+    setSelectedCategoryId(null);
+    setSelectedSubcategoryId(null);
     setStep("input");
+  };
+  
+  // Handle theme change - reset category selections
+  const handleThemeChange = (themeId: string) => {
+    setSelectedThemeId(themeId);
+    setSelectedCategoryId(null);
+    setSelectedSubcategoryId(null);
+  };
+  
+  // Handle category change - reset subcategory
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    setSelectedSubcategoryId(null);
   };
 
   return (
@@ -455,6 +544,87 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
                     onChange={(e) => setEditedData({ ...editedData, entity: e.target.value })}
                     placeholder="Ex: Ministério da Economia"
                   />
+                </div>
+                
+                {/* Category Selection Section */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FolderTree className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-base font-medium">Classificação (opcional)</Label>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Theme Selector */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Tema</Label>
+                      <Select
+                        value={selectedThemeId || ""}
+                        onValueChange={handleThemeChange}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Selecionar tema..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {themesWithCategories?.map(theme => (
+                            <SelectItem key={theme.id} value={theme.id}>
+                              {theme.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Category Selector */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Categoria</Label>
+                      <Select
+                        value={selectedCategoryId || ""}
+                        onValueChange={handleCategoryChange}
+                        disabled={!selectedThemeId || rootCategories.length === 0}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={!selectedThemeId ? "Selecione um tema" : "Selecionar..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rootCategories.map(cat => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Subcategory Selector */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Subcategoria</Label>
+                      <Select
+                        value={selectedSubcategoryId || ""}
+                        onValueChange={setSelectedSubcategoryId}
+                        disabled={!selectedCategoryId || subcategories.length === 0}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={subcategories.length === 0 ? "Sem subcategorias" : "Selecionar..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subcategories.map(cat => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  {finalCategoryId && (
+                    <div className="mt-2">
+                      <Badge variant="secondary" className="text-xs">
+                        📁 {selectedTheme?.name} → {selectedTheme?.categories.find(c => c.id === selectedCategoryId)?.name}
+                        {selectedSubcategoryId && ` → ${selectedTheme?.categories.find(c => c.id === selectedSubcategoryId)?.name}`}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </div>
             </ScrollArea>
