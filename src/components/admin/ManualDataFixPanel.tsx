@@ -12,11 +12,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   FolderTree, Loader2, Save, ChevronLeft, ChevronRight,
-  ExternalLink, CheckCircle, RefreshCw, ChevronDown, FileText, Layers, XCircle
+  ExternalLink, CheckCircle, RefreshCw, ChevronDown, FileText, Layers, XCircle, Trash2, ArrowRight
 } from "lucide-react";
 import { LegislationCategoryEditor } from "./LegislationCategoryEditor";
 import { LegislationRelationsEditor } from "./LegislationRelationsEditor";
 import { AddLegislationToCategoryDialog } from "./AddLegislationToCategoryDialog";
+import { MoveLegislationToCategoryDialog } from "./MoveLegislationToCategoryDialog";
 
 interface LegislationItem {
   id: string;
@@ -222,6 +223,7 @@ export function ManualDataFixPanel() {
       }
       
       queryClient.invalidateQueries({ queryKey: ["legislation"] });
+      queryClient.invalidateQueries({ queryKey: ["category-legislation", selectedCategoryId] });
     } catch (error: any) {
       toast.error("Erro ao guardar: " + error.message);
     } finally {
@@ -477,6 +479,47 @@ export function ManualDataFixPanel() {
                       <ExternalLink className="h-4 w-4" />
                     </Button>
                   )}
+                  
+                  {/* Move button */}
+                  <MoveLegislationToCategoryDialog
+                    legislationId={currentItem.id}
+                    legislationNumber={currentItem.number}
+                    currentCategoryId={selectedCategoryId!}
+                    currentCategoryName={categoryPath[categoryPath.length - 1]?.name || "Categoria"}
+                    onMoved={() => refetch()}
+                    trigger={
+                      <Button variant="outline" size="sm" title="Mover para outra categoria">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    }
+                  />
+                  
+                  {/* Remove from category button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                    title="Remover desta categoria"
+                    onClick={async () => {
+                      if (!confirm(`Remover "${currentItem.number}" desta categoria?`)) return;
+                      try {
+                        const { error } = await supabase
+                          .from("legislation_category_mapping")
+                          .delete()
+                          .eq("legislation_id", currentItem.id)
+                          .eq("category_id", selectedCategoryId!);
+                        if (error) throw error;
+                        toast.success("Diploma removido da categoria");
+                        queryClient.invalidateQueries({ queryKey: ["category-legislation", selectedCategoryId] });
+                        queryClient.invalidateQueries({ queryKey: ["category-legislation-counts-manual"] });
+                        refetch();
+                      } catch (error: any) {
+                        toast.error("Erro: " + error.message);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
