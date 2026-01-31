@@ -53,7 +53,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
 import { getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
@@ -336,6 +336,9 @@ interface CategoryNode {
 }
 
 export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, externalSearchTerm }: LegislationTreeViewProps) {
+  const location = useLocation();
+  const from = location.pathname + location.search;
+
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
   
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
@@ -1287,7 +1290,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
                         {/* Actions */}
                         <div className="flex gap-2 mt-3 pt-3 border-t">
-                          <Link to={`/legislacao/${leg.id}`} className="flex-1">
+                          <Link to={`/legislacao/${leg.id}`} state={{ from }} className="flex-1">
                             <Button variant="outline" size="sm" className="w-full h-8 text-xs">
                               <Eye className="h-3 w-3 mr-1" />
                               Ver detalhes
@@ -1657,7 +1660,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                           </div>
                           <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title="Ver detalhes">
-                              <Link to={`/legislacao/${leg.id}`}>
+                              <Link to={`/legislacao/${leg.id}`} state={{ from }}>
                                 <Eye className="h-4 w-4" />
                               </Link>
                             </Button>
@@ -1682,7 +1685,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         </div>
 
                         {/* Number + Title */}
-                        <Link to={`/legislacao/${leg.id}`} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
+                        <Link to={`/legislacao/${leg.id}`} state={{ from }} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
                           {/* For EUR-Lex: show title bold (with fallback to number). For DRE: number IS the title, show bold */}
                           {leg.origin === 'EU' ? (
                             (() => {
@@ -1793,6 +1796,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                                       <TooltipTrigger asChild>
                                         <Link 
                                           to={`/legislacao/${rel.target_id}`}
+                                          state={{ from }}
                                           className="inline-block"
                                           onClick={(e) => e.stopPropagation()}
                                         >
