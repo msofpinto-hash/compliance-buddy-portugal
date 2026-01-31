@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -75,6 +75,7 @@ export default function LegislacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -456,11 +457,9 @@ export default function LegislacaoDetalhes() {
       <div className="min-h-screen bg-background">
         <header className="border-b bg-card sticky top-0 z-10">
           <div className="container mx-auto flex items-center gap-3 px-4 py-4">
-            <Link to="/biblioteca">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <h1 className="text-xl font-semibold">Legislação não encontrada</h1>
           </div>
         </header>
@@ -490,11 +489,9 @@ export default function LegislacaoDetalhes() {
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <Link to="/biblioteca">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Scale className="h-5 w-5" />
             </div>
