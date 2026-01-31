@@ -293,7 +293,7 @@ export function EditLegislationDialog({
                     size="icon"
                     asChild
                   >
-                    <a href={documentUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={documentUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </Button>

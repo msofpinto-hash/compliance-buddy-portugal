@@ -942,6 +942,7 @@ function DuplicateGroupCard({ group, isSelected, onToggleSelection, onSetKeepIte
                           href={item.document_url} 
                           target="_blank" 
                           rel="noopener noreferrer"
+                          referrerPolicy="no-referrer"
                           className="flex items-center gap-1 text-primary hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >

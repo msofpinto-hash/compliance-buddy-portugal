@@ -544,7 +544,7 @@ export function GlobalApplicabilityPanel() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                                    <a href={leg.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                                       <Button variant="ghost" size="icon" className="h-7 w-7">
                                         <ExternalLink className="h-3.5 w-3.5" />
                                       </Button>

@@ -388,6 +388,7 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
                     href={url} 
                     target="_blank" 
                     rel="noopener noreferrer"
+                    referrerPolicy="no-referrer"
                     className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                   >
                     Ver original <ExternalLink className="h-3 w-3" />

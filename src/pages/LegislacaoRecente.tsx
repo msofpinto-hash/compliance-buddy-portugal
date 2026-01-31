@@ -696,6 +696,7 @@ export default function LegislacaoRecente() {
                               href={leg.document_url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              referrerPolicy="no-referrer"
                               className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
                             >
                               <ExternalLink className="h-4 w-4 text-stone-400" />
@@ -823,6 +824,7 @@ export default function LegislacaoRecente() {
                               href={leg.document_url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              referrerPolicy="no-referrer"
                               className="p-1.5 rounded hover:bg-stone-100 dark:hover:bg-stone-700"
                             >
                               <ExternalLink className="h-4 w-4 text-stone-400" />
@@ -871,6 +873,7 @@ export default function LegislacaoRecente() {
                                 href={leg.document_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                referrerPolicy="no-referrer"
                                 className="p-1.5 rounded hover:bg-stone-100"
                               >
                                 <ExternalLink className="h-4 w-4 text-stone-400" />

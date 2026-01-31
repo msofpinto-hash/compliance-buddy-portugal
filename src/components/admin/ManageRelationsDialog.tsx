@@ -465,7 +465,7 @@ export function ManageRelationsDialog({
                   <div className="flex items-center gap-1 shrink-0">
                     {rel.target_legislation?.document_url && (
                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                        <a href={rel.target_legislation.document_url} target="_blank" rel="noopener noreferrer">
+                        <a href={rel.target_legislation.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       </Button>

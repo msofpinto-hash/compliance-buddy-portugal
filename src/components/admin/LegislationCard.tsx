@@ -273,7 +273,7 @@ export function LegislationCard({
                       className="h-8 w-8 p-0"
                       asChild
                     >
-                      <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                      <a href={leg.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                         <ExternalLink className="h-4 w-4" />
                       </a>
                     </Button>

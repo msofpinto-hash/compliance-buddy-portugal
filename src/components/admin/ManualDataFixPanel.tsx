@@ -245,14 +245,30 @@ export function ManualDataFixPanel() {
 
   const openDocument = () => {
     if (currentItem?.document_url) {
-      window.open(currentItem.document_url, "_blank");
+      // Use no-referrer to avoid DRE blocking external referrers
+      const link = document.createElement('a');
+      link.href = currentItem.document_url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.referrerPolicy = 'no-referrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
   const generateDreUrl = () => {
     if (!currentItem) return;
     const searchUrl = `https://diariodarepublica.pt/dr/pesquisa/-/search/basic?q=${encodeURIComponent(currentItem.number)}`;
-    window.open(searchUrl, "_blank");
+    // Use no-referrer to avoid DRE blocking external referrers
+    const link = document.createElement('a');
+    link.href = searchUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.referrerPolicy = 'no-referrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Recursive category renderer

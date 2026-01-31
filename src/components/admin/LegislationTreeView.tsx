@@ -1294,7 +1294,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             </Button>
                           </Link>
                           {leg.document_url && (
-                            <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                            <a href={leg.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                               <Button variant="outline" size="sm" className="h-8 text-xs">
                                 <ExternalLink className="h-3 w-3" />
                               </Button>
@@ -1654,7 +1654,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             </Button>
                             {leg.document_url && (
                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title="Abrir documento">
-                                <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                                <a href={leg.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
                               </Button>
