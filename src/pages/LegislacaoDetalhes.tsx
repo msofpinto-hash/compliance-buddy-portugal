@@ -47,27 +47,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 
-// Format requirement text with line breaks between numbered items/paragraphs
+// Format requirement text with line breaks between numbered items/paragraphs.
+// Keep "1 - text" together (number + dash on same line).
 function formatRequirementText(text: string): string {
   if (!text) return "";
-  
-  // Add line break before numbered patterns like "1.", "2.", "a)", "b)", "i)", "ii)", etc.
+
   let formatted = text
-    // Before numbers followed by dot/parenthesis: "1.", "2)", etc.
-    .replace(/\s+(\d+[\.\)]\s)/g, "\n$1")
+    // Before standalone numbered items: "1.", "2)", etc. (not followed by dash/hyphen)
+    .replace(/\s+(\d+[\.\)])\s+(?![-–—])/g, "\n$1 ")
+    // Before "number - text" patterns – keep them together on same line
+    .replace(/\s+(\d+)\s*([-–—])\s+/g, "\n$1 $2 ")
     // Before letters followed by parenthesis: "a)", "b)", etc.
-    .replace(/\s+([a-z][\)]\s)/gi, "\n$1")
-    // Before roman numerals followed by parenthesis: "i)", "ii)", "iii)", "iv)", etc.
-    .replace(/\s+((?:i{1,3}|iv|vi{0,3}|ix|x{1,3})[\)]\s)/gi, "\n$1")
-    // Before dash or bullet points
-    .replace(/\s+([-–—•]\s)/g, "\n$1")
-    // Before "Artigo", "Anexo", "Considerando" keywords
+    .replace(/\s+([a-z][\)])\s/gi, "\n$1 ")
+    // Before roman numerals followed by parenthesis: "i)", "ii)", etc.
+    .replace(/\s+((?:i{1,3}|iv|vi{0,3}|ix|x{1,3})[\)])\s/gi, "\n$1 ")
+    // Before "Artigo", "Anexo" keywords
     .replace(/\s+(Art(?:igo)?\.?\s*\d+)/gi, "\n$1")
     .replace(/\s+(Anexo\s+[IVX\d]+)/gi, "\n$1");
-  
+
   // Clean up: remove leading newlines and multiple consecutive newlines
   formatted = formatted.replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");
-  
+
   return formatted;
 }
 
@@ -733,7 +733,7 @@ export default function LegislacaoDetalhes() {
                                   <ApplicabilityBadge value="nao_avaliado" />
                                 )}
                               </div>
-                              <div className="text-sm whitespace-pre-line">{formatRequirementText(req.requirement_text)}</div>
+                              <div className="text-sm whitespace-pre-line text-justify">{formatRequirementText(req.requirement_text)}</div>
                               {req.notes && (
                                 <p className="text-sm text-muted-foreground mt-2 italic">
                                   Nota: {req.notes}
