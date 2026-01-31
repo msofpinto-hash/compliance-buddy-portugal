@@ -10,12 +10,28 @@
 export function openExternalUrl(url: string): void {
   if (!url) return;
   
-  // Technique: Open a blank window first, then set its location
-  // This breaks the referrer chain completely
+  // Technique: Open a blank window first, then inject a meta-refresh
+  // This breaks the referrer chain completely and works across browsers
   const newWindow = window.open('about:blank', '_blank');
   if (newWindow) {
     newWindow.opener = null; // Break the opener link
-    newWindow.location.href = url;
+    
+    // Use document.write to inject a meta refresh - this is more reliable
+    // than setting location.href which can fail in some browsers
+    newWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta http-equiv="refresh" content="0;url=${encodeURI(url)}">
+          <meta name="referrer" content="no-referrer">
+          <script>window.location.replace("${encodeURI(url)}");</script>
+        </head>
+        <body>
+          <p>A redirecionar para <a href="${encodeURI(url)}">${encodeURI(url)}</a>...</p>
+        </body>
+      </html>
+    `);
+    newWindow.document.close();
   } else {
     // Fallback: Create a link with all possible no-referrer attributes
     const link = document.createElement('a');
