@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -48,11 +48,19 @@ export function ImportRequirementsDialog({
   
   // Default to URL tab if documentUrl is available, else text
   const [activeTab, setActiveTab] = useState<"url" | "text">(documentUrl ? "url" : "text");
-  // Pre-fill URL field with existing document URL
+  // Pre-fill URL field with existing document URL - update when dialog opens
   const [url, setUrl] = useState(documentUrl || "");
   const [pastedText, setPastedText] = useState("");
   const [extractedRequirements, setExtractedRequirements] = useState<ExtractedRequirement[]>([]);
   const [replaceExisting, setReplaceExisting] = useState(false);
+  
+  // Reset URL when dialog opens with a new documentUrl
+  useEffect(() => {
+    if (open && documentUrl) {
+      setUrl(documentUrl);
+      setActiveTab("url");
+    }
+  }, [open, documentUrl]);
 
   // Extract requirements from URL
   const extractFromUrlMutation = useMutation({
@@ -123,7 +131,9 @@ export function ImportRequirementsDialog({
   // Import selected requirements to database
   const importMutation = useMutation({
     mutationFn: async () => {
+      console.log("Starting import mutation...");
       const selectedReqs = extractedRequirements.filter((r) => r.selected);
+      console.log("Selected requirements:", selectedReqs.length);
       if (selectedReqs.length === 0) throw new Error("Nenhum requisito selecionado");
 
       // If replacing, delete existing requirements first
@@ -154,10 +164,13 @@ export function ImportRequirementsDialog({
         display_order: maxOrder + index + 1,
       }));
 
-      const { error: insertError } = await supabase
+      console.log("Inserting requirements:", toInsert.length);
+      const { error: insertError, data: insertedData } = await supabase
         .from("legal_requirements")
-        .insert(toInsert);
+        .insert(toInsert)
+        .select();
 
+      console.log("Insert result:", { error: insertError, inserted: insertedData?.length });
       if (insertError) throw insertError;
 
       return selectedReqs.length;
@@ -268,7 +281,10 @@ export function ImportRequirementsDialog({
                 toggleRequirement={toggleRequirement}
                 selectAll={selectAll}
                 deselectAll={deselectAll}
-                onImport={() => importMutation.mutate()}
+                onImport={() => {
+                  console.log("Import button clicked, calling mutation...");
+                  importMutation.mutate();
+                }}
                 onBack={() => setExtractedRequirements([])}
                 isImporting={importMutation.isPending}
               />
@@ -313,7 +329,10 @@ export function ImportRequirementsDialog({
                 toggleRequirement={toggleRequirement}
                 selectAll={selectAll}
                 deselectAll={deselectAll}
-                onImport={() => importMutation.mutate()}
+                onImport={() => {
+                  console.log("Import button clicked (URL tab), calling mutation...");
+                  importMutation.mutate();
+                }}
                 onBack={() => setExtractedRequirements([])}
                 isImporting={importMutation.isPending}
               />
