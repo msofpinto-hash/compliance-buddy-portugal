@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, Sparkles, Ban, FileQuestion, Layers, Globe2, Building2, FolderTree } from "lucide-react";
+import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, Sparkles, Ban, FileQuestion, Layers, Globe2, Building2, FolderTree, Link2Off, CalendarX, CalendarClock } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
 import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
 import { useBulkFixes } from "@/hooks/useBulkFixes";
@@ -80,6 +80,10 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [filterDiplomaType, setFilterDiplomaType] = useState<string | null>(null);
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
+  // Data quality filters
+  const [filterMissingUrl, setFilterMissingUrl] = useState<boolean>(false);
+  const [filterMissingDates, setFilterMissingDates] = useState<boolean>(false);
+  const [filterInvalidDates, setFilterInvalidDates] = useState<boolean>(false);
 
   // Extract diploma type from number
   const extractDiplomaType = (number: string): string => {
@@ -232,6 +236,21 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       result = result.filter(leg => leg.categories.length === 0);
     }
 
+    // Filter by missing URL
+    if (filterMissingUrl) {
+      result = result.filter(leg => !leg.document_url || leg.document_url.trim() === '');
+    }
+
+    // Filter by missing dates
+    if (filterMissingDates) {
+      result = result.filter(leg => !leg.publication_date || !leg.effective_date);
+    }
+
+    // Filter by invalid dates
+    if (filterInvalidDates) {
+      result = result.filter(leg => isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date));
+    }
+
     // Filter by theme
     if (!filterNoCategory && !filterProblems && !filterRevoked && filterTheme !== "all") {
       result = result.filter(leg => leg.categories.some(cat => cat.theme_name === filterTheme));
@@ -243,7 +262,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     }
 
     return result;
-  }, [legislation, searchTerm, filterStartDate, filterEndDate, filterProblems, filterProblemType, filterGenericTitle, filterRevoked, filterOrigin, filterNoCategory, filterTheme, filterCategory]);
+  }, [legislation, searchTerm, filterStartDate, filterEndDate, filterProblems, filterProblemType, filterGenericTitle, filterRevoked, filterOrigin, filterNoCategory, filterMissingUrl, filterMissingDates, filterInvalidDates, filterTheme, filterCategory]);
 
   // Get unique diploma types from filtered legislation (excluding diploma type filter)
   const availableDiplomaTypes = useMemo(() => {
@@ -343,6 +362,24 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     return legislation.filter(leg => isGenericTitle(leg.title)).length;
   }, [legislation]);
 
+  // Count items missing URL
+  const missingUrlCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(leg => !leg.document_url || leg.document_url.trim() === '').length;
+  }, [legislation]);
+
+  // Count items missing dates
+  const missingDatesCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(leg => !leg.publication_date || !leg.effective_date).length;
+  }, [legislation]);
+
+  // Count items with invalid dates
+  const invalidDatesCount = useMemo(() => {
+    if (!legislation) return 0;
+    return legislation.filter(leg => isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date)).length;
+  }, [legislation]);
+
   // Filter and sort legislation
   const filteredAndSortedLegislation = useMemo(() => {
     if (!legislation) return [];
@@ -404,6 +441,21 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     // Filter by "no category"
     if (filterNoCategory) {
       result = result.filter(leg => leg.categories.length === 0);
+    }
+
+    // Filter by missing URL
+    if (filterMissingUrl) {
+      result = result.filter(leg => !leg.document_url || leg.document_url.trim() === '');
+    }
+
+    // Filter by missing dates
+    if (filterMissingDates) {
+      result = result.filter(leg => !leg.publication_date || !leg.effective_date);
+    }
+
+    // Filter by invalid dates
+    if (filterInvalidDates) {
+      result = result.filter(leg => isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date));
     }
 
     // Then filter by theme (only if not filtering by special filters)
@@ -772,15 +824,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     }
   };
 
-  // Count diplomas with invalid dates (kept for display)
-  const invalidDatesCount = useMemo(() => {
-    if (!legislation) return 0;
-    return legislation.filter((leg) => {
-      const problems = getProblems(leg);
-      return problems.includes("invalid_dates");
-    }).length;
-  }, [legislation]);
-
 
   if (isLoading) {
     return (
@@ -956,7 +999,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                 </Button>
               </div>
 
-              {/* Status filters */}
+              {/* Data Quality Filters */}
               <Button
                 variant={filterNoCategory ? "default" : "outline"}
                 size="sm"
@@ -968,9 +1011,64 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
               >
                 <AlertCircle className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Sem Categoria</span>
-                <span className="sm:hidden">Sem Cat.</span>
+                <span className="sm:hidden">S/Cat</span>
                 ({noCategoryCount})
               </Button>
+
+              <Button
+                variant={filterMissingUrl ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilterMissingUrl(prev => !prev);
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1",
+                  filterMissingUrl && "bg-rose-600 hover:bg-rose-700 text-white"
+                )}
+              >
+                <Link2Off className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Sem URL</span>
+                <span className="sm:hidden">S/URL</span>
+                ({missingUrlCount})
+              </Button>
+
+              <Button
+                variant={filterMissingDates ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilterMissingDates(prev => !prev);
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1",
+                  filterMissingDates && "bg-orange-600 hover:bg-orange-700 text-white"
+                )}
+              >
+                <CalendarX className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Datas em Falta</span>
+                <span className="sm:hidden">S/Datas</span>
+                ({missingDatesCount})
+              </Button>
+
+              <Button
+                variant={filterInvalidDates ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilterInvalidDates(prev => !prev);
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1",
+                  filterInvalidDates && "bg-red-600 hover:bg-red-700 text-white"
+                )}
+              >
+                <CalendarClock className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Datas Inválidas</span>
+                <span className="sm:hidden">Datas Inv.</span>
+                ({invalidDatesCount})
+              </Button>
+
               <Button
                 variant={filterRevoked ? "default" : "outline"}
                 size="sm"
@@ -1072,6 +1170,9 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
                     setFilterDiplomaType(null);
                     setFilterStartDate(null);
                     setFilterEndDate(null);
+                    setFilterMissingUrl(false);
+                    setFilterMissingDates(false);
+                    setFilterInvalidDates(false);
                     setCurrentPage(1);
                   }}
                 >
