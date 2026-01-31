@@ -538,12 +538,20 @@ export default function LegislacaoDetalhes() {
               </DropdownMenu>
             )}
             {legislation.document_url && (
-              <a href={legislation.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
-                <Button className="gap-2">
-                  <ExternalLink className="h-4 w-4" />
-                  Ver Documento Original
-                </Button>
-              </a>
+              <Button 
+                className="gap-2"
+                onClick={() => {
+                  // Use about:blank technique to completely break referrer chain
+                  const newWindow = window.open('about:blank', '_blank');
+                  if (newWindow) {
+                    newWindow.opener = null;
+                    newWindow.location.href = legislation.document_url!;
+                  }
+                }}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ver Documento Original
+              </Button>
             )}
           </div>
         </div>

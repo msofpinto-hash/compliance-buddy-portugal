@@ -271,11 +271,18 @@ export function LegislationCard({
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0"
-                      asChild
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Use about:blank technique to completely break referrer chain
+                        const newWindow = window.open('about:blank', '_blank');
+                        if (newWindow) {
+                          newWindow.opener = null;
+                          newWindow.location.href = leg.document_url!;
+                        }
+                      }}
                     >
-                      <a href={leg.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                      <ExternalLink className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Abrir documento</TooltipContent>
