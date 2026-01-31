@@ -29,6 +29,7 @@ interface ExtractedRequirement {
 interface ImportRequirementsDialogProps {
   legislationId: string;
   legislationNumber: string;
+  documentUrl?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingRequirementsCount: number;
@@ -37,6 +38,7 @@ interface ImportRequirementsDialogProps {
 export function ImportRequirementsDialog({
   legislationId,
   legislationNumber,
+  documentUrl,
   open,
   onOpenChange,
   existingRequirementsCount,
@@ -44,8 +46,10 @@ export function ImportRequirementsDialog({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<"url" | "text">("text");
-  const [url, setUrl] = useState("");
+  // Default to URL tab if documentUrl is available, else text
+  const [activeTab, setActiveTab] = useState<"url" | "text">(documentUrl ? "url" : "text");
+  // Pre-fill URL field with existing document URL
+  const [url, setUrl] = useState(documentUrl || "");
   const [pastedText, setPastedText] = useState("");
   const [extractedRequirements, setExtractedRequirements] = useState<ExtractedRequirement[]>([]);
   const [replaceExisting, setReplaceExisting] = useState(false);
