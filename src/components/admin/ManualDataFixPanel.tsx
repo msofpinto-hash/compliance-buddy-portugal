@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LegislationCategoryEditor } from "./LegislationCategoryEditor";
 import { LegislationRelationsEditor } from "./LegislationRelationsEditor";
+import { AddLegislationToCategoryDialog } from "./AddLegislationToCategoryDialog";
 
 interface LegislationItem {
   id: string;
@@ -382,9 +383,16 @@ export function ManualDataFixPanel() {
               Editor de Diploma
             </CardTitle>
             {selectedCategoryId && (
-              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={loadingLegislation}>
-                {loadingLegislation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              </Button>
+              <div className="flex items-center gap-2">
+                <AddLegislationToCategoryDialog
+                  categoryId={selectedCategoryId}
+                  categoryName={categoryPath[categoryPath.length - 1]?.name || "Categoria"}
+                  onAdded={() => refetch()}
+                />
+                <Button variant="outline" size="sm" onClick={() => refetch()} disabled={loadingLegislation}>
+                  {loadingLegislation ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                </Button>
+              </div>
             )}
           </div>
           
