@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { 
   Link, Calendar, Type, FileText, ListChecks, GitBranch, Layers,
   Loader2, RefreshCw, Play, Pause, CheckCircle2, Activity,
-  Zap, ChevronRight, AlertCircle, Trash2, Timer, XCircle, ChevronDown
+  Zap, ChevronRight, AlertCircle, Trash2, Timer, XCircle, ChevronDown, Download
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +17,7 @@ import { formatDistanceToNow, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
 import { ExecutionHistoryPanel } from "./ExecutionHistoryPanel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ExportMetadataIssuesDialog } from "./ExportMetadataIssuesDialog";
 
 // ========== PT SUSPENDED FLAG ==========
 // A API DRE OpenData (PT) está offline e devolve HTML em vez de JSON.
@@ -124,6 +125,7 @@ export function UnifiedDataQualityPanel() {
   const [activeFixType, setActiveFixType] = useState<FixType | null>(null);
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
   const [fullAutoMode, setFullAutoMode] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const sinceIso = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), []);
   const realtimeRefetchTimerRef = useRef<number | null>(null);
   const aggressiveIntervalRef = useRef<number | null>(null);
@@ -660,6 +662,22 @@ export function UnifiedDataQualityPanel() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExportDialog(true)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Exportar lista de diplomas para correção manual</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               variant="outline"
               size="sm"
@@ -883,6 +901,12 @@ export function UnifiedDataQualityPanel() {
         {/* Execution History */}
         <ExecutionHistoryPanel />
       </CardContent>
+
+      {/* Export Dialog */}
+      <ExportMetadataIssuesDialog 
+        open={showExportDialog} 
+        onOpenChange={setShowExportDialog} 
+      />
     </Card>
   );
 }
