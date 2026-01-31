@@ -76,6 +76,16 @@ export function LegislationRelationsEditor({ legislationId, legislationNumber }:
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRelationType, setSelectedRelationType] = useState<string>("altera");
   const [isAdding, setIsAdding] = useState(false);
+  
+  // URL category inputs - moved to top to avoid conditional hook calls
+  const [urlInputs, setUrlInputs] = useState<Record<string, string>>({
+    eu: "",
+    regulamentacao: "",
+    modificacoes: "",
+    retificacoes: "",
+    outros: "",
+  });
+  const [isProcessingUrl, setIsProcessingUrl] = useState<string | null>(null);
 
   // Fetch relations where this legislation is source
   const { data: outgoingRelations = [], isLoading: loadingOut } = useQuery({
@@ -241,15 +251,6 @@ export function LegislationRelationsEditor({ legislationId, legislationNumber }:
     );
   }
 
-  // URL inputs state
-  const [urlInputs, setUrlInputs] = useState<Record<string, string>>({
-    eu: "",
-    regulamentacao: "",
-    modificacoes: "",
-    retificacoes: "",
-    outros: "",
-  });
-  const [isProcessingUrl, setIsProcessingUrl] = useState<string | null>(null);
 
   const handleUrlChange = (key: string, value: string) => {
     setUrlInputs(prev => ({ ...prev, [key]: value }));
