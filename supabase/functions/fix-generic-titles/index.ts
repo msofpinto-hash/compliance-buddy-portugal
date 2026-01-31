@@ -293,12 +293,12 @@ Deno.serve(async (req) => {
     // Calculate fetch limit to accommodate randomOffset - fetch all candidates at once
     const fetchLimit = 1000;
     
-    // Get Portuguese legislation (without CELEX = no external_id)
-    // These are the ones that may have generic titles
+    // Get Portuguese legislation only (origin = 'PT')
+    // These are the ones that may have generic titles and can be fixed via DRE
     const { data: legislation, error: fetchError } = await supabase
       .from('legislation')
-      .select('id, number, title, summary, entity, document_url, external_id, no_digital_version')
-      .is('external_id', null)
+      .select('id, number, title, summary, entity, document_url, external_id, no_digital_version, origin')
+      .eq('origin', 'PT')
       .not('document_url', 'is', null)
       .or('no_digital_version.is.null,no_digital_version.eq.false')
       .order('created_at', { ascending: true })
@@ -308,11 +308,11 @@ Deno.serve(async (req) => {
       throw fetchError;
     }
     
-    // Filter using similar logic to count_generic_titles() but for PT diplomas (no external_id)
+    // Filter using similar logic to count_generic_titles() for PT diplomas only
     const toProcess = (legislation || [])
       .filter(leg => {
-        // Must not have external_id (these are Portuguese diplomas)
-        if (leg.external_id) return false;
+        // Skip if not Portuguese origin (safety check)
+        if (leg.origin !== 'PT') return false;
         
         // Skip if marked as no_digital_version
         if (leg.no_digital_version === true) return false;
@@ -374,11 +374,36 @@ Deno.serve(async (req) => {
             try {
               let dreUrl = leg.document_url;
               
-              if (!dreUrl || dreUrl.includes('/pesquisa/') || !dreUrl.includes('/dr/detalhe/')) {
-                console.log(`Searching for direct DRE link for ${leg.number}...`);
-                dreUrl = await searchDREForLink(leg.number, firecrawlKey);
+              // Check if URL is a detail page we can scrape
+              const isDetailPage = dreUrl && 
+                dreUrl.includes('/dr/detalhe/') && 
+                !dreUrl.includes('/pesquisa/');
+              
+              // PDF URLs (files.dre.pt) need us to find the detail page
+              const isPdfUrl = dreUrl && (
+                dreUrl.includes('files.dre.pt') || 
+                dreUrl.includes('/pdf') ||
+                dreUrl.includes('.pdf')
+              );
+              
+              if (!dreUrl || !isDetailPage || isPdfUrl) {
+                console.log(`Searching for DRE detail page for ${leg.number} (current: ${dreUrl || 'none'})...`);
+                const foundUrl = await searchDREForLink(leg.number, firecrawlKey);
                 
-                if (!dreUrl) {
+                if (foundUrl) {
+                  dreUrl = foundUrl;
+                } else if (isPdfUrl) {
+                  // Keep the PDF URL but can't scrape metadata
+                  console.log(`Could not find detail page for ${leg.number}, only has PDF`);
+                  failed++;
+                  sendSSE(controller, {
+                    type: 'progress',
+                    current: i + 1,
+                    total: toProcess.length,
+                    item: { id: leg.id, number: leg.number, success: false, error: 'Only PDF available, no detail page' }
+                  });
+                  continue;
+                } else {
                   console.log(`Could not find DRE link for ${leg.number}`);
                   failed++;
                   sendSSE(controller, {
@@ -510,11 +535,31 @@ Deno.serve(async (req) => {
       try {
         let dreUrl = leg.document_url;
         
-        if (!dreUrl || dreUrl.includes('/pesquisa/') || !dreUrl.includes('/dr/detalhe/')) {
-          console.log(`Searching for direct DRE link for ${leg.number}...`);
-          dreUrl = await searchDREForLink(leg.number, firecrawlKey);
+        // Check if URL is a detail page we can scrape
+        const isDetailPage = dreUrl && 
+          dreUrl.includes('/dr/detalhe/') && 
+          !dreUrl.includes('/pesquisa/');
+        
+        // PDF URLs (files.dre.pt) need us to find the detail page
+        const isPdfUrl = dreUrl && (
+          dreUrl.includes('files.dre.pt') || 
+          dreUrl.includes('/pdf') ||
+          dreUrl.includes('.pdf')
+        );
+        
+        if (!dreUrl || !isDetailPage || isPdfUrl) {
+          console.log(`Searching for DRE detail page for ${leg.number} (current: ${dreUrl || 'none'})...`);
+          const foundUrl = await searchDREForLink(leg.number, firecrawlKey);
           
-          if (!dreUrl) {
+          if (foundUrl) {
+            dreUrl = foundUrl;
+          } else if (isPdfUrl) {
+            // Keep the PDF URL but can't scrape metadata
+            console.log(`Could not find detail page for ${leg.number}, only has PDF`);
+            results.push({ id: leg.id, number: leg.number, success: false, error: 'Only PDF available, no detail page' });
+            failed++;
+            continue;
+          } else {
             console.log(`Could not find DRE link for ${leg.number}`);
             results.push({ id: leg.id, number: leg.number, success: false, error: 'No DRE link found' });
             failed++;
