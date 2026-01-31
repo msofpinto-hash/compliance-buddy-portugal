@@ -34,8 +34,13 @@ async function validateUrlsInBackground(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+      // Use GET with Range header instead of HEAD - DRE blocks HEAD requests with 405
       const response = await fetch(leg.document_url, {
-        method: "HEAD",
+        method: "GET",
+        headers: {
+          "Range": "bytes=0-0",
+          "User-Agent": "Mozilla/5.0 (compatible; URLValidator/1.0)"
+        },
         signal: controller.signal,
         redirect: "manual",
       });
@@ -43,6 +48,7 @@ async function validateUrlsInBackground(
       clearTimeout(timeoutId);
       const statusCode = response.status;
 
+      // 200 and 206 (Partial Content) are both valid responses
       if (statusCode >= 200 && statusCode < 300) {
         summary.valid++;
       } else if (statusCode >= 300 && statusCode < 400) {
@@ -51,6 +57,10 @@ async function validateUrlsInBackground(
         summary.invalid++;
         invalidIds.push(leg.id);
         console.log(`Invalid URL for ${leg.number}: HTTP ${statusCode}`);
+      } else if (statusCode === 403 || statusCode === 429 || statusCode === 405) {
+        // Anti-bot blocking - treat as "unverified but likely valid"
+        summary.valid++;
+        console.log(`URL blocked for ${leg.number}: HTTP ${statusCode} (treating as valid)`);
       } else {
         summary.error++;
       }
@@ -207,8 +217,13 @@ Deno.serve(async (req) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+        // Use GET with Range header instead of HEAD - DRE blocks HEAD requests with 405
         const response = await fetch(leg.document_url, {
-          method: "HEAD",
+          method: "GET",
+          headers: {
+            "Range": "bytes=0-0",
+            "User-Agent": "Mozilla/5.0 (compatible; URLValidator/1.0)"
+          },
           signal: controller.signal,
           redirect: "manual",
         });
@@ -216,6 +231,7 @@ Deno.serve(async (req) => {
         clearTimeout(timeoutId);
         result.statusCode = response.status;
 
+        // 200 and 206 (Partial Content) are both valid responses
         if (response.status >= 200 && response.status < 300) {
           result.status = "valid";
           summary.valid++;
@@ -226,6 +242,11 @@ Deno.serve(async (req) => {
           result.status = "invalid";
           summary.invalid++;
           result.error = `HTTP ${response.status}`;
+        } else if (response.status === 403 || response.status === 429 || response.status === 405) {
+          // Anti-bot blocking - treat as "unverified but likely valid"
+          result.status = "valid";
+          summary.valid++;
+          result.error = `HTTP ${response.status} (anti-bot, treated as valid)`;
         } else {
           result.status = "error";
           summary.error++;
