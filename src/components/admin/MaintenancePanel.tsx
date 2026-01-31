@@ -356,7 +356,7 @@ function TitleFixPanel() {
                     </p>
                   </div>
                   {leg.document_url && (
-                    <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                    <a href={leg.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                       <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary" />
                     </a>
                   )}

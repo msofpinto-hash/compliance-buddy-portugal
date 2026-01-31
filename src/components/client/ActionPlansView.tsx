@@ -1753,6 +1753,7 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
                     href={selectedPlan.evidence_url} 
                     target="_blank" 
                     rel="noopener noreferrer"
+                    referrerPolicy="no-referrer"
                     className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
                   >
                     <ExternalLink className="h-4 w-4" />

@@ -538,7 +538,7 @@ export default function LegislacaoDetalhes() {
               </DropdownMenu>
             )}
             {legislation.document_url && (
-              <a href={legislation.document_url} target="_blank" rel="noopener noreferrer">
+              <a href={legislation.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                 <Button className="gap-2">
                   <ExternalLink className="h-4 w-4" />
                   Ver Documento Original

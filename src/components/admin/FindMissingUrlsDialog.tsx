@@ -420,6 +420,7 @@ export function FindMissingUrlsDialog({ open, onOpenChange, missingUrlsCount }: 
                                       href={item.url} 
                                       target="_blank" 
                                       rel="noopener noreferrer"
+                                      referrerPolicy="no-referrer"
                                       className="text-muted-foreground hover:text-foreground"
                                     >
                                       <ExternalLink className="h-4 w-4" />

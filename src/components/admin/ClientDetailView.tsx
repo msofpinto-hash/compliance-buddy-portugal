@@ -633,7 +633,7 @@ export function ClientDetailView({ organization, onBack }: ClientDetailViewProps
                               <div className="flex items-center gap-2 shrink-0">
                                 {leg.document_url && (
                                   <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                                    <a href={leg.document_url} target="_blank" rel="noopener noreferrer">
+                                    <a href={leg.document_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
                                       <ExternalLink className="h-4 w-4" />
                                     </a>
                                   </Button>

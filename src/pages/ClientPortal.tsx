@@ -1454,6 +1454,7 @@ export default function ClientPortal() {
                                 href={plan.evidence_url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
+                                referrerPolicy="no-referrer"
                                 className="shrink-0"
                               >
                                 <Button variant="outline" size="sm" className="gap-1">
