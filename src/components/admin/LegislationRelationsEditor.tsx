@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Link2, Plus, X, Loader2, ArrowRight, Search, ExternalLink } from "lucide-react";
+import { Link2, Plus, X, Loader2, ArrowRight, Search, ExternalLink, Globe, FileText, RefreshCw, AlertCircle, MoreHorizontal } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -21,6 +21,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface Props {
   legislationId: string;
@@ -48,6 +54,21 @@ const RELATION_COLORS: Record<string, string> = {
   complementa: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
   transpoe: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
 };
+
+interface UrlCategory {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  placeholder: string;
+}
+
+const URL_CATEGORIES: UrlCategory[] = [
+  { key: "eu", label: "Direito da União Europeia", icon: <Globe className="h-4 w-4 text-blue-500" />, placeholder: "URL EUR-Lex..." },
+  { key: "regulamentacao", label: "Regulamentação", icon: <FileText className="h-4 w-4 text-green-500" />, placeholder: "URL DRE/EUR-Lex..." },
+  { key: "modificacoes", label: "Modificações", icon: <RefreshCw className="h-4 w-4 text-amber-500" />, placeholder: "URL de alterações..." },
+  { key: "retificacoes", label: "Retificações", icon: <AlertCircle className="h-4 w-4 text-orange-500" />, placeholder: "URL de retificações..." },
+  { key: "outros", label: "Outros Tipos", icon: <MoreHorizontal className="h-4 w-4 text-gray-500" />, placeholder: "Outros URLs relevantes..." },
+];
 
 export function LegislationRelationsEditor({ legislationId, legislationNumber }: Props) {
   const queryClient = useQueryClient();
@@ -113,7 +134,8 @@ export function LegislationRelationsEditor({ legislationId, legislationNumber }:
     enabled: searchTerm.length >= 2,
   });
 
-  const handleAddRelation = async (targetId: string) => {
+  const handleAddRelation = async (targetId: string, relationType?: string) => {
+    const typeToUse = relationType || selectedRelationType;
     setIsAdding(true);
     try {
       // Check if relation already exists
@@ -122,7 +144,7 @@ export function LegislationRelationsEditor({ legislationId, legislationNumber }:
         .select("id")
         .eq("source_legislation_id", legislationId)
         .eq("target_legislation_id", targetId)
-        .eq("relation_type", selectedRelationType)
+        .eq("relation_type", typeToUse)
         .maybeSingle();
 
       if (existing) {
@@ -136,13 +158,13 @@ export function LegislationRelationsEditor({ legislationId, legislationNumber }:
         .insert({
           source_legislation_id: legislationId,
           target_legislation_id: targetId,
-          relation_type: selectedRelationType,
+          relation_type: typeToUse,
         });
 
       if (error) throw error;
 
       // Add inverse relation
-      const relationDef = RELATION_TYPES.find(r => r.value === selectedRelationType);
+      const relationDef = RELATION_TYPES.find(r => r.value === typeToUse);
       if (relationDef?.inverse) {
         await supabase
           .from("legislation_relations")
@@ -219,8 +241,111 @@ export function LegislationRelationsEditor({ legislationId, legislationNumber }:
     );
   }
 
+  // URL inputs state
+  const [urlInputs, setUrlInputs] = useState<Record<string, string>>({
+    eu: "",
+    regulamentacao: "",
+    modificacoes: "",
+    retificacoes: "",
+    outros: "",
+  });
+  const [isProcessingUrl, setIsProcessingUrl] = useState<string | null>(null);
+
+  const handleUrlChange = (key: string, value: string) => {
+    setUrlInputs(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleAddFromUrl = async (categoryKey: string) => {
+    const url = urlInputs[categoryKey]?.trim();
+    if (!url) {
+      toast.error("Introduza um URL válido");
+      return;
+    }
+
+    setIsProcessingUrl(categoryKey);
+    try {
+      // First, try to find legislation by URL
+      const { data: existingLeg } = await supabase
+        .from("legislation")
+        .select("id, number, title")
+        .eq("document_url", url)
+        .maybeSingle();
+
+      if (existingLeg) {
+        // Legislation exists, create relation
+        const relationType = getRelationTypeForCategory(categoryKey);
+        await handleAddRelation(existingLeg.id, relationType);
+        setUrlInputs(prev => ({ ...prev, [categoryKey]: "" }));
+        toast.success(`Relação criada com ${existingLeg.number}`);
+      } else {
+        // Legislation doesn't exist - suggest import
+        toast.info("Diploma não encontrado. Use a importação por URL para adicionar primeiro.");
+      }
+    } catch (error: any) {
+      toast.error("Erro: " + error.message);
+    } finally {
+      setIsProcessingUrl(null);
+    }
+  };
+
+  const getRelationTypeForCategory = (categoryKey: string): string => {
+    switch (categoryKey) {
+      case "eu": return "transpoe";
+      case "regulamentacao": return "regulamenta";
+      case "modificacoes": return "altera";
+      case "retificacoes": return "complementa";
+      default: return "complementa";
+    }
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      {/* URL Categories Section */}
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="url-categories" className="border rounded-lg">
+          <AccordionTrigger className="px-3 py-2 hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Adicionar por URL</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-3 pb-3">
+            <div className="space-y-3">
+              {URL_CATEGORIES.map((cat) => (
+                <div key={cat.key} className="space-y-1.5">
+                  <Label className="flex items-center gap-2 text-xs font-medium">
+                    {cat.icon}
+                    {cat.label}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder={cat.placeholder}
+                      value={urlInputs[cat.key] || ""}
+                      onChange={(e) => handleUrlChange(cat.key, e.target.value)}
+                      className="text-xs h-8"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 shrink-0"
+                      onClick={() => handleAddFromUrl(cat.key)}
+                      disabled={isProcessingUrl === cat.key || !urlInputs[cat.key]?.trim()}
+                    >
+                      {isProcessingUrl === cat.key ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* Relations Header */}
       <div className="flex items-center justify-between">
         <Label className="flex items-center gap-2">
           <Link2 className="h-4 w-4 text-blue-500" />
