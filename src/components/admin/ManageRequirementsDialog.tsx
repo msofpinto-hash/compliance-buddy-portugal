@@ -819,6 +819,7 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
       <ImportRequirementsDialog
         legislationId={legislation.id}
         legislationNumber={legislation.number}
+        documentUrl={legislation.document_url}
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         existingRequirementsCount={requirements?.length || 0}
