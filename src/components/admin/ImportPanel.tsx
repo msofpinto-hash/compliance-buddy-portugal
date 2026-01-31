@@ -8,14 +8,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Download, Globe, Flag, RefreshCw, Loader2, ChevronDown, 
-  Clock, CheckCircle2, FileText, Upload, Calendar
+  Clock, CheckCircle2, FileText, Upload, Calendar, Link as LinkIcon, Plus
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
 import { CronJobsMonitorPanel } from "./CronJobsMonitorPanel";
+import { ImportLegislationByUrlDialog } from "./ImportLegislationByUrlDialog";
 
 export function ImportPanel() {
   const queryClient = useQueryClient();
+  const [showImportUrlDialog, setShowImportUrlDialog] = useState(false);
 
   // Fetch last sync info
   const { data: lastSyncs, isLoading: loadingSyncs } = useQuery({
@@ -99,13 +101,25 @@ export function ImportPanel() {
       {/* Quick Actions Card */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Download className="h-5 w-5 text-amber-600" />
-            Fontes de Importação
-          </CardTitle>
-          <CardDescription>
-            Sincronize legislação do Diário da República e EUR-Lex
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Download className="h-5 w-5 text-amber-600" />
+                Fontes de Importação
+              </CardTitle>
+              <CardDescription>
+                Sincronize legislação do Diário da República e EUR-Lex
+              </CardDescription>
+            </div>
+            <Button 
+              onClick={() => setShowImportUrlDialog(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <LinkIcon className="h-4 w-4" />
+              Importar por URL
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -205,6 +219,12 @@ export function ImportPanel() {
       >
         <CronJobsMonitorPanel />
       </CollapsibleSection>
+
+      {/* Import by URL Dialog */}
+      <ImportLegislationByUrlDialog 
+        open={showImportUrlDialog} 
+        onOpenChange={setShowImportUrlDialog} 
+      />
     </div>
   );
 }
