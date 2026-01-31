@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   FolderTree, Loader2, Save, ChevronLeft, ChevronRight,
-  ExternalLink, CheckCircle, RefreshCw, ChevronDown, FileText, Layers
+  ExternalLink, CheckCircle, RefreshCw, ChevronDown, FileText, Layers, XCircle
 } from "lucide-react";
 
 interface LegislationItem {
@@ -23,6 +23,7 @@ interface LegislationItem {
   document_url: string | null;
   publication_date: string | null;
   effective_date: string | null;
+  revocation_date: string | null;
   origin: string | null;
   entity: string | null;
   source: string | null;
@@ -57,6 +58,7 @@ export function ManualDataFixPanel() {
   const [editedUrl, setEditedUrl] = useState("");
   const [editedPublicationDate, setEditedPublicationDate] = useState("");
   const [editedEffectiveDate, setEditedEffectiveDate] = useState("");
+  const [editedRevocationDate, setEditedRevocationDate] = useState("");
 
   // Fetch themes
   const { data: themes = [] } = useQuery({
@@ -120,9 +122,8 @@ export function ManualDataFixPanel() {
       
       const { data, error } = await supabase
         .from("legislation")
-        .select("id, number, title, summary, document_url, publication_date, effective_date, origin, entity, source")
+        .select("id, number, title, summary, document_url, publication_date, effective_date, revocation_date, origin, entity, source")
         .in("id", legIds)
-        .is("revocation_date", null)
         .order("publication_date", { ascending: false });
       
       if (error) throw error;
@@ -141,6 +142,7 @@ export function ManualDataFixPanel() {
       setEditedUrl(currentItem.document_url || "");
       setEditedPublicationDate(currentItem.publication_date || "");
       setEditedEffectiveDate(currentItem.effective_date || "");
+      setEditedRevocationDate(currentItem.revocation_date || "");
     }
   }, [currentItem]);
 
@@ -201,6 +203,7 @@ export function ManualDataFixPanel() {
           document_url: editedUrl.trim() || null,
           publication_date: editedPublicationDate || null,
           effective_date: editedEffectiveDate || null,
+          revocation_date: editedRevocationDate || null,
         })
         .eq("id", currentItem.id);
 
@@ -507,6 +510,24 @@ export function ManualDataFixPanel() {
                       onChange={(e) => setEditedEffectiveDate(e.target.value)}
                     />
                   </div>
+                </div>
+
+                {/* Revocation Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="revocation" className="flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-red-500" />
+                    Data de Revogação
+                  </Label>
+                  <Input
+                    id="revocation"
+                    type="date"
+                    value={editedRevocationDate}
+                    onChange={(e) => setEditedRevocationDate(e.target.value)}
+                    className={editedRevocationDate ? "border-red-300 bg-red-50 dark:bg-red-950/30" : ""}
+                  />
+                  {editedRevocationDate && (
+                    <p className="text-xs text-red-600">Este diploma está marcado como revogado.</p>
+                  )}
                 </div>
 
                 {/* Summary */}
