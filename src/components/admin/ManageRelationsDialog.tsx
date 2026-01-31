@@ -99,60 +99,111 @@ function UrlCategoryInput({ placeholder, relationType, legislationId, onRelation
         const markdown = scrapeData?.data?.markdown || scrapeData?.markdown || '';
         const links = scrapeData?.data?.links || scrapeData?.links || [];
         
-        // Extract DRE diploma links from the page
-        const dreLinks: string[] = [];
+        // Extract diploma info from analysis page links
+        // Links like /analise-juridica/decreto-lei/46-2017-106960762 contain the diploma type and number
+        const diplomasToProcess: { type: string; number: string; year: string }[] = [];
         
-        // Look for links that are actual diploma pages
+        // Pattern to match analysis links: /analise-juridica/{type}/{number-year-id}
+        const analysisLinkPattern = /\/analise-juridica\/(decreto-lei|lei|portaria|despacho|resolucao|regulamento|declaracao)\/(\d+(?:-[a-z])?)-(\d{4})-\d+/i;
+        
         for (const link of links) {
           if (typeof link === 'string' && 
-              (link.includes('dre.pt/') || link.includes('diariodarepublica.pt/')) &&
-              !link.includes('/analise-juridica/') &&
-              (link.includes('/detalhe/') || link.includes('/web/guest/') || link.match(/\/\d+$/))) {
-            dreLinks.push(link);
+              link.includes('/analise-juridica/') && 
+              !link.includes('/analise-juridica-associacoes/') &&
+              !link.includes('/modificacoes/') &&
+              !link.includes('/associacoesdetails/')) {
+            
+            const match = link.match(analysisLinkPattern);
+            if (match) {
+              const type = match[1];
+              const number = match[2];
+              const year = match[3];
+              
+              // Map type to Portuguese format
+              const typeMap: Record<string, string> = {
+                'decreto-lei': 'Decreto-Lei',
+                'lei': 'Lei',
+                'portaria': 'Portaria',
+                'despacho': 'Despacho',
+                'resolucao': 'Resolução',
+                'regulamento': 'Regulamento',
+                'declaracao': 'Declaração',
+              };
+              
+              const formattedType = typeMap[type.toLowerCase()] || type;
+              diplomasToProcess.push({ type: formattedType, number, year });
+            }
           }
         }
 
-        // Also try to extract diploma numbers from markdown and search them
+        // Also extract from markdown content
         const diplomaPatterns = [
-          /(?:Decreto-Lei|Lei|Portaria|Despacho|Resolução)\s+n\.?[ºo°]?\s*[\d\-\/]+(?:\/\d{4})?/gi,
+          /(?:Decreto-Lei|Lei|Portaria|Despacho|Resolução)\s+n\.?[ºo°]?\s*(\d+(?:-[A-Z])?(?:\/\d+)?\/(\d{4}))/gi,
         ];
 
-        const foundNumbers: string[] = [];
+        const foundNumbers: { type: string; number: string; year: string }[] = [];
         for (const pattern of diplomaPatterns) {
-          const matches = markdown.match(pattern) || [];
-          foundNumbers.push(...matches.map((m: string) => m.trim()));
+          let match;
+          while ((match = pattern.exec(markdown)) !== null) {
+            const fullMatch = match[0];
+            const typeMatch = fullMatch.match(/^(Decreto-Lei|Lei|Portaria|Despacho|Resolução)/i);
+            const numberMatch = fullMatch.match(/(\d+(?:-[A-Z])?(?:\/\d+)?)/i);
+            const yearMatch = match[2] || fullMatch.match(/\/(\d{4})/)?.[1];
+            
+            if (typeMatch && numberMatch && yearMatch) {
+              foundNumbers.push({ 
+                type: typeMatch[1], 
+                number: numberMatch[1], 
+                year: yearMatch 
+              });
+            }
+          }
         }
+
+        // Combine and deduplicate
+        const allDiplomas = [...diplomasToProcess, ...foundNumbers];
+        const uniqueDiplomas = allDiplomas.filter((d, i, arr) => 
+          arr.findIndex(x => x.number === d.number && x.year === d.year) === i
+        );
 
         let relationsCreated = 0;
 
-        // Process DRE links
-        if (dreLinks.length > 0) {
-          setProcessingStatus(`A processar ${dreLinks.length} diploma(s)...`);
+        if (uniqueDiplomas.length > 0) {
+          setProcessingStatus(`A processar ${uniqueDiplomas.length} diploma(s)...`);
           
-          for (const dreLink of dreLinks.slice(0, 10)) { // Limit to 10
+          for (const diploma of uniqueDiplomas.slice(0, 15)) {
             try {
-              // Check if legislation exists by URL
+              // Build search pattern: "Decreto-Lei n.º 46/2017" or similar
+              const searchNumber = `${diploma.type} n.º ${diploma.number}/${diploma.year}`;
+              const altSearchNumber = `${diploma.number}/${diploma.year}`;
+              
+              // Search in database by number pattern
               let { data: existingLeg } = await supabase
                 .from("legislation")
                 .select("id, number")
-                .eq("document_url", dreLink)
+                .or(`number.ilike.%${searchNumber}%,number.ilike.%${altSearchNumber}%`)
+                .limit(1)
                 .maybeSingle();
 
               let targetId = existingLeg?.id;
 
-              // If not found, try to import
+              // If not found, try to construct DRE URL and import
               if (!targetId) {
+                const dreDetailUrl = `https://diariodarepublica.pt/dr/detalhe/${diploma.type.toLowerCase().replace(/\s+/g, '-')}/${diploma.number}-${diploma.year}`;
+                
                 const { data: importData } = await supabase.functions.invoke('import-dre-links', {
-                  body: { links: [dreLink], updateExisting: false, extractRequirementsAI: false },
+                  body: { links: [dreDetailUrl], updateExisting: false, extractRequirementsAI: false },
                 });
                 
                 if (importData?.results?.[0]?.success && importData.results[0].legislationId) {
                   targetId = importData.results[0].legislationId;
                 } else if (importData?.results?.[0]?.skipped) {
+                  // Try to find by number again after import attempt
                   const { data: skippedLeg } = await supabase
                     .from("legislation")
                     .select("id")
-                    .eq("document_url", dreLink)
+                    .or(`number.ilike.%${searchNumber}%,number.ilike.%${altSearchNumber}%`)
+                    .limit(1)
                     .maybeSingle();
                   targetId = skippedLeg?.id;
                 }
@@ -178,44 +229,14 @@ function UrlCategoryInput({ placeholder, relationType, legislationId, onRelation
                 }
               }
             } catch (e) {
-              console.error("Error processing link:", dreLink, e);
+              console.error("Error processing diploma:", diploma, e);
             }
           }
         }
 
-        // If no links found, try to search by diploma numbers
-        if (dreLinks.length === 0 && foundNumbers.length > 0) {
-          setProcessingStatus(`A procurar ${foundNumbers.length} diploma(s) por número...`);
-          
-          const uniqueNumbers = [...new Set(foundNumbers)].slice(0, 10);
-          
-          for (const number of uniqueNumbers) {
-            const { data: matchingLeg } = await supabase
-              .from("legislation")
-              .select("id")
-              .ilike("number", `%${number}%`)
-              .limit(1)
-              .maybeSingle();
-
-            if (matchingLeg && matchingLeg.id !== legislationId) {
-              const { data: existingRel } = await supabase
-                .from("legislation_relations")
-                .select("id")
-                .eq("source_legislation_id", legislationId)
-                .eq("target_legislation_id", matchingLeg.id)
-                .eq("relation_type", relationType)
-                .maybeSingle();
-
-              if (!existingRel) {
-                await supabase.from("legislation_relations").insert({
-                  source_legislation_id: legislationId,
-                  target_legislation_id: matchingLeg.id,
-                  relation_type: relationType,
-                });
-                relationsCreated++;
-              }
-            }
-          }
+        // If no diplomas found from links, the uniqueDiplomas will be empty
+        if (uniqueDiplomas.length === 0) {
+          toast.info("Nenhum diploma encontrado na página de análise");
         }
 
         if (relationsCreated > 0) {
