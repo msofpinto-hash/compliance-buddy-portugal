@@ -50,14 +50,19 @@ import { openExternalUrl } from "@/lib/openExternalUrl";
 // Format requirement text with line breaks between numbered items/paragraphs.
 // Keep "1 - text" together (number + dash on same line).
 // Ensure alíneas (a), b), etc.) each start on a new line.
+// Clean up markdown-style hyperlinks to just show the text.
 function formatRequirementText(text: string): string {
   if (!text) return "";
 
   let formatted = text
-    // Before standalone numbered items: "1.", "2)", etc. (not followed by dash/hyphen)
-    .replace(/\s+(\d+[\.\)])\s+(?![-–—])/g, "\n$1 ")
-    // Before "number - text" patterns – keep them together on same line
+    // Remove markdown-style links: [text](url) -> text
+    .replace(/\[([^\]]+)\]\s*\([^)]+\)/g, "$1")
+    // Remove standalone URLs in parentheses: (https://...) -> empty
+    .replace(/\s*\(https?:\/\/[^)]+\)/g, "")
+    // Before "number - text" patterns – each on new line, number+dash together
     .replace(/\s+(\d+)\s*([-–—])\s+/g, "\n$1 $2 ")
+    // Before standalone numbered items: "1.", "2)", etc.
+    .replace(/\s+(\d+[\.\)])\s+/g, "\n$1 ")
     // Before letters followed by parenthesis: "a)", "b)", etc. - always new line
     .replace(/\s*([a-z]\))\s*/gi, "\n$1 ")
     // Before roman numerals followed by parenthesis: "i)", "ii)", etc. - always new line
