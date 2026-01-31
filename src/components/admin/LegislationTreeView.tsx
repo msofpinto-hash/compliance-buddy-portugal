@@ -1703,13 +1703,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             })()
                           ) : (
                             <>
-                              <p className={`font-bold text-sm ${isRevoked ? 'line-through decoration-destructive/50' : ''}`}>{leg.number}</p>
-                              {/* For DRE, show title below if different from number */}
-                              {leg.title && !isTitleRedundant(leg.number, leg.title) && (
-                                <p className={`text-sm line-clamp-2 ${
-                                  isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground/90'
-                                }`}>{leg.title}</p>
-                              )}
+                              {/* For DRE: show title bold (number is already in the badge) */}
+                              <p className={`font-bold text-sm line-clamp-2 ${
+                                isRevoked ? 'line-through decoration-destructive/50 text-muted-foreground' : 'text-foreground'
+                              }`}>
+                                {leg.title && !isTitleRedundant(leg.number, leg.title) ? leg.title : leg.number}
+                              </p>
                             </>
                           )}
                         </Link>
