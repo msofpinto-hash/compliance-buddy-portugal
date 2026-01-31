@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Link2, Plus, Trash2, ExternalLink, Search, Globe, Flag, Sparkles, AlertCircle } from "lucide-react";
+import { Loader2, Link2, Plus, Trash2, ExternalLink, Search, Globe, Flag, Sparkles, AlertCircle, FileText, RefreshCw, AlertTriangle, MoreHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -50,6 +50,164 @@ interface FoundLegislation {
   number: string;
   title: string;
   origin: string | null;
+}
+
+interface UrlCategoryInputProps {
+  placeholder: string;
+  relationType: string;
+  legislationId: string;
+  onRelationAdded: () => void;
+}
+
+function UrlCategoryInput({ placeholder, relationType, legislationId, onRelationAdded }: UrlCategoryInputProps) {
+  const [urlValue, setUrlValue] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleProcess = async () => {
+    if (!urlValue.trim() || !legislationId) return;
+
+    setIsProcessing(true);
+    const url = urlValue.trim();
+    const isDRE = url.toLowerCase().includes('dre.pt');
+    const isEurLex = url.toLowerCase().includes('eur-lex.europa.eu');
+
+    if (!isDRE && !isEurLex) {
+      toast.error("URL inválida. Apenas URLs do DRE ou EUR-Lex são suportadas.");
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      // First search for existing legislation by URL
+      const { data: existingLeg } = await supabase
+        .from("legislation")
+        .select("id, number")
+        .eq("document_url", url)
+        .maybeSingle();
+
+      let targetId = existingLeg?.id;
+
+      // If not found, create it
+      if (!targetId) {
+        if (isDRE) {
+          const { data, error } = await supabase.functions.invoke('import-dre-links', {
+            body: { links: [url], updateExisting: false, extractRequirementsAI: false },
+          });
+          if (error) throw error;
+          if (data?.results?.[0]?.success && data.results[0].legislationId) {
+            targetId = data.results[0].legislationId;
+            toast.success("Diploma DRE criado");
+          } else if (data?.results?.[0]?.skipped) {
+            const { data: skippedLeg } = await supabase
+              .from("legislation")
+              .select("id")
+              .eq("document_url", url)
+              .maybeSingle();
+            targetId = skippedLeg?.id;
+          }
+        } else if (isEurLex) {
+          // Create EUR-Lex entry
+          const celexMatch = url.match(/CELEX[:%](\d{5}[A-Z]\d+)/i);
+          const celex = celexMatch ? celexMatch[1] : null;
+          const number = celex 
+            ? `Documento EUR-Lex ${celex}` 
+            : `Documento EUR-Lex ${Date.now()}`;
+
+          const { data: insertedLeg, error: insertError } = await supabase
+            .from('legislation')
+            .insert({
+              external_id: celex ? `eurlex-${celex}` : `eurlex-${Date.now()}`,
+              source: 'eurlex-manual',
+              number,
+              title: number,
+              origin: 'EU',
+              document_url: url,
+            })
+            .select('id')
+            .single();
+
+          if (insertError && insertError.code === '23505') {
+            const { data: dupLeg } = await supabase
+              .from("legislation")
+              .select("id")
+              .eq("document_url", url)
+              .maybeSingle();
+            targetId = dupLeg?.id;
+          } else if (insertError) {
+            throw insertError;
+          } else {
+            targetId = insertedLeg?.id;
+            toast.success("Diploma EUR-Lex criado");
+          }
+        }
+      }
+
+      if (!targetId) {
+        toast.error("Não foi possível identificar ou criar o diploma");
+        return;
+      }
+
+      // Check if relation already exists
+      const { data: existingRel } = await supabase
+        .from("legislation_relations")
+        .select("id")
+        .eq("source_legislation_id", legislationId)
+        .eq("target_legislation_id", targetId)
+        .eq("relation_type", relationType)
+        .maybeSingle();
+
+      if (existingRel) {
+        toast.info("Esta relação já existe");
+        setUrlValue("");
+        return;
+      }
+
+      // Create the relation
+      const { error: relError } = await supabase
+        .from("legislation_relations")
+        .insert({
+          source_legislation_id: legislationId,
+          target_legislation_id: targetId,
+          relation_type: relationType,
+        });
+
+      if (relError) throw relError;
+
+      toast.success("Relação adicionada");
+      setUrlValue("");
+      onRelationAdded();
+      queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
+    } catch (error: any) {
+      toast.error("Erro: " + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        placeholder={placeholder}
+        value={urlValue}
+        onChange={(e) => setUrlValue(e.target.value)}
+        className="flex-1 text-sm h-9"
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 px-3 shrink-0"
+        onClick={handleProcess}
+        disabled={isProcessing || !urlValue.trim()}
+      >
+        {isProcessing ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Plus className="h-3.5 w-3.5" />
+        )}
+      </Button>
+    </div>
+  );
 }
 
 export function ManageRelationsDialog({
@@ -556,31 +714,34 @@ export function ManageRelationsDialog({
               </div>
             </TabsContent>
             
-            <TabsContent value="url" className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Cole a URL do diploma (DRE ou EUR-Lex)..."
-                  value={urlInput}
-                  onChange={(e) => {
-                    setUrlInput(e.target.value);
-                    setFoundLegislation(null);
-                    setUrlNotFound(false);
-                  }}
-                  className="flex-1"
-                />
-                <Button
-                  variant="secondary"
-                  onClick={handleSearchByUrl}
-                  disabled={isSearchingUrl || isCreatingFromUrl || !urlInput.trim()}
-                  className="gap-2"
-                >
-                  {isSearchingUrl ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
-                  Procurar
-                </Button>
+            <TabsContent value="url" className="space-y-4">
+              {/* Quick URL Input */}
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Cole a URL do diploma (DRE ou EUR-Lex)..."
+                    value={urlInput}
+                    onChange={(e) => {
+                      setUrlInput(e.target.value);
+                      setFoundLegislation(null);
+                      setUrlNotFound(false);
+                    }}
+                    className="flex-1"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={handleSearchByUrl}
+                    disabled={isSearchingUrl || isCreatingFromUrl || !urlInput.trim()}
+                    className="gap-2"
+                  >
+                    {isSearchingUrl ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                    Procurar
+                  </Button>
+                </div>
               </div>
               
               {/* Found legislation display */}
@@ -665,9 +826,101 @@ export function ManageRelationsDialog({
                   </div>
                 </div>
               )}
+
+              {/* Categorized URL Inputs */}
+              <div className="border-t pt-4 space-y-3">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                  URLs por Categoria
+                </Label>
+                
+                {/* EU Law */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium">Direito da União Europeia</span>
+                  </div>
+                  <UrlCategoryInput
+                    placeholder="URL EUR-Lex (Diretivas, Regulamentos UE)..."
+                    relationType="transposicao"
+                    legislationId={legislation?.id || ""}
+                    onRelationAdded={() => {
+                      refetchRelations();
+                      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+                    }}
+                  />
+                </div>
+
+                {/* Regulation */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-purple-500" />
+                    <span className="text-sm font-medium">Regulamentação</span>
+                  </div>
+                  <UrlCategoryInput
+                    placeholder="URL de regulamentação associada..."
+                    relationType="regulamentacao"
+                    legislationId={legislation?.id || ""}
+                    onRelationAdded={() => {
+                      refetchRelations();
+                      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+                    }}
+                  />
+                </div>
+
+                {/* Modifications */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">Modificações</span>
+                  </div>
+                  <UrlCategoryInput
+                    placeholder="URL de alterações ao diploma..."
+                    relationType="alteracao"
+                    legislationId={legislation?.id || ""}
+                    onRelationAdded={() => {
+                      refetchRelations();
+                      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+                    }}
+                  />
+                </div>
+
+                {/* Rectifications */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    <span className="text-sm font-medium">Retificações</span>
+                  </div>
+                  <UrlCategoryInput
+                    placeholder="URL de retificações..."
+                    relationType="revogacao_parcial"
+                    legislationId={legislation?.id || ""}
+                    onRelationAdded={() => {
+                      refetchRelations();
+                      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+                    }}
+                  />
+                </div>
+
+                {/* Other */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <MoreHorizontal className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium">Outros Tipos</span>
+                  </div>
+                  <UrlCategoryInput
+                    placeholder="Outros URLs relevantes..."
+                    relationType="revogado"
+                    legislationId={legislation?.id || ""}
+                    onRelationAdded={() => {
+                      refetchRelations();
+                      queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+                    }}
+                  />
+                </div>
+              </div>
               
               <p className="text-xs text-muted-foreground">
-                Cole a URL completa do diploma no DRE ou EUR-Lex. Se não existir na base de dados, pode criar automaticamente.
+                Cole URLs do DRE ou EUR-Lex. Se o diploma não existir, será criado automaticamente.
               </p>
             </TabsContent>
           </Tabs>
