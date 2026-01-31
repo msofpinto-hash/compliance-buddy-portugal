@@ -371,7 +371,7 @@ function RequirementsPreview({
   isImporting: boolean;
 }) {
   return (
-    <div className="flex flex-col min-h-0 flex-1 space-y-4">
+    <div className="flex flex-col min-h-0 flex-1 gap-4">
       <Card>
         <CardHeader className="py-3">
           <div className="flex items-center justify-between">
@@ -394,7 +394,7 @@ function RequirementsPreview({
           </div>
         </CardHeader>
         <CardContent className="py-0">
-          <ScrollArea className="h-[300px] pr-4">
+          <ScrollArea className="h-[250px] pr-4">
             <div className="space-y-2 pb-4">
               {requirements.map((req, index) => (
                 <div
@@ -449,7 +449,7 @@ function RequirementsPreview({
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-2 border-t sticky bottom-0 bg-background">
         <Button variant="outline" onClick={onBack} disabled={isImporting} className="gap-2">
           Voltar
         </Button>
