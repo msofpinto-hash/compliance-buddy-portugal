@@ -62,137 +62,295 @@ interface UrlCategoryInputProps {
 function UrlCategoryInput({ placeholder, relationType, legislationId, onRelationAdded }: UrlCategoryInputProps) {
   const [urlValue, setUrlValue] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState("");
   const queryClient = useQueryClient();
 
   const handleProcess = async () => {
     if (!urlValue.trim() || !legislationId) return;
 
     setIsProcessing(true);
+    setProcessingStatus("A analisar URL...");
     const url = urlValue.trim();
     const isDRE = url.toLowerCase().includes('dre.pt') || url.toLowerCase().includes('diariodarepublica.pt');
     const isEurLex = url.toLowerCase().includes('eur-lex.europa.eu');
+    const isAnaliseJuridica = url.toLowerCase().includes('/analise-juridica/');
 
     if (!isDRE && !isEurLex) {
       toast.error("URL inválida. Apenas URLs do DRE ou EUR-Lex são suportadas.");
       setIsProcessing(false);
+      setProcessingStatus("");
       return;
     }
 
     try {
-      // First search for existing legislation by URL
-      const { data: existingLeg } = await supabase
-        .from("legislation")
-        .select("id, number")
-        .eq("document_url", url)
-        .maybeSingle();
-
-      let targetId = existingLeg?.id;
-
-      // If not found, create it
-      if (!targetId) {
-        if (isDRE) {
-          const { data, error } = await supabase.functions.invoke('import-dre-links', {
-            body: { links: [url], updateExisting: false, extractRequirementsAI: false },
-          });
-          if (error) throw error;
-          if (data?.results?.[0]?.success && data.results[0].legislationId) {
-            targetId = data.results[0].legislationId;
-            toast.success("Diploma DRE criado");
-          } else if (data?.results?.[0]?.skipped) {
-            const { data: skippedLeg } = await supabase
-              .from("legislation")
-              .select("id")
-              .eq("document_url", url)
-              .maybeSingle();
-            targetId = skippedLeg?.id;
-          }
-        } else if (isEurLex) {
-          // Create EUR-Lex entry
-          const celexMatch = url.match(/CELEX[:%](\d{5}[A-Z]\d+)/i);
-          const celex = celexMatch ? celexMatch[1] : null;
-          const number = celex 
-            ? `Documento EUR-Lex ${celex}` 
-            : `Documento EUR-Lex ${Date.now()}`;
-
-          const { data: insertedLeg, error: insertError } = await supabase
-            .from('legislation')
-            .insert({
-              external_id: celex ? `eurlex-${celex}` : `eurlex-${Date.now()}`,
-              source: 'eurlex-manual',
-              number,
-              title: number,
-              origin: 'EU',
-              document_url: url,
-            })
-            .select('id')
-            .single();
-
-          if (insertError && insertError.code === '23505') {
-            const { data: dupLeg } = await supabase
-              .from("legislation")
-              .select("id")
-              .eq("document_url", url)
-              .maybeSingle();
-            targetId = dupLeg?.id;
-          } else if (insertError) {
-            throw insertError;
-          } else {
-            targetId = insertedLeg?.id;
-            toast.success("Diploma EUR-Lex criado");
-          }
-        }
-      }
-
-      if (!targetId) {
-        toast.error("Não foi possível identificar ou criar o diploma");
-        return;
-      }
-
-      // Check if relation already exists
-      const { data: existingRel } = await supabase
-        .from("legislation_relations")
-        .select("id")
-        .eq("source_legislation_id", legislationId)
-        .eq("target_legislation_id", targetId)
-        .eq("relation_type", relationType)
-        .maybeSingle();
-
-      if (existingRel) {
-        toast.info("Esta relação já existe");
-        setUrlValue("");
-        return;
-      }
-
-      // Create the relation
-      const { error: relError } = await supabase
-        .from("legislation_relations")
-        .insert({
-          source_legislation_id: legislationId,
-          target_legislation_id: targetId,
-          relation_type: relationType,
+      // If it's an analysis page (modificacoes, etc.), scrape and extract diplomas
+      if (isAnaliseJuridica) {
+        setProcessingStatus("A extrair diplomas da página...");
+        
+        const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke('firecrawl-scrape', {
+          body: { 
+            url, 
+            options: { formats: ['markdown', 'links'], onlyMainContent: true } 
+          },
         });
 
-      if (relError) throw relError;
+        if (scrapeError) throw scrapeError;
 
-      toast.success("Relação adicionada");
-      setUrlValue("");
-      onRelationAdded();
-      queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
+        const markdown = scrapeData?.data?.markdown || scrapeData?.markdown || '';
+        const links = scrapeData?.data?.links || scrapeData?.links || [];
+        
+        // Extract DRE diploma links from the page
+        const dreLinks: string[] = [];
+        
+        // Look for links that are actual diploma pages
+        for (const link of links) {
+          if (typeof link === 'string' && 
+              (link.includes('dre.pt/') || link.includes('diariodarepublica.pt/')) &&
+              !link.includes('/analise-juridica/') &&
+              (link.includes('/detalhe/') || link.includes('/web/guest/') || link.match(/\/\d+$/))) {
+            dreLinks.push(link);
+          }
+        }
+
+        // Also try to extract diploma numbers from markdown and search them
+        const diplomaPatterns = [
+          /(?:Decreto-Lei|Lei|Portaria|Despacho|Resolução)\s+n\.?[ºo°]?\s*[\d\-\/]+(?:\/\d{4})?/gi,
+        ];
+
+        const foundNumbers: string[] = [];
+        for (const pattern of diplomaPatterns) {
+          const matches = markdown.match(pattern) || [];
+          foundNumbers.push(...matches.map((m: string) => m.trim()));
+        }
+
+        let relationsCreated = 0;
+
+        // Process DRE links
+        if (dreLinks.length > 0) {
+          setProcessingStatus(`A processar ${dreLinks.length} diploma(s)...`);
+          
+          for (const dreLink of dreLinks.slice(0, 10)) { // Limit to 10
+            try {
+              // Check if legislation exists by URL
+              let { data: existingLeg } = await supabase
+                .from("legislation")
+                .select("id, number")
+                .eq("document_url", dreLink)
+                .maybeSingle();
+
+              let targetId = existingLeg?.id;
+
+              // If not found, try to import
+              if (!targetId) {
+                const { data: importData } = await supabase.functions.invoke('import-dre-links', {
+                  body: { links: [dreLink], updateExisting: false, extractRequirementsAI: false },
+                });
+                
+                if (importData?.results?.[0]?.success && importData.results[0].legislationId) {
+                  targetId = importData.results[0].legislationId;
+                } else if (importData?.results?.[0]?.skipped) {
+                  const { data: skippedLeg } = await supabase
+                    .from("legislation")
+                    .select("id")
+                    .eq("document_url", dreLink)
+                    .maybeSingle();
+                  targetId = skippedLeg?.id;
+                }
+              }
+
+              if (targetId && targetId !== legislationId) {
+                // Check if relation exists
+                const { data: existingRel } = await supabase
+                  .from("legislation_relations")
+                  .select("id")
+                  .eq("source_legislation_id", legislationId)
+                  .eq("target_legislation_id", targetId)
+                  .eq("relation_type", relationType)
+                  .maybeSingle();
+
+                if (!existingRel) {
+                  await supabase.from("legislation_relations").insert({
+                    source_legislation_id: legislationId,
+                    target_legislation_id: targetId,
+                    relation_type: relationType,
+                  });
+                  relationsCreated++;
+                }
+              }
+            } catch (e) {
+              console.error("Error processing link:", dreLink, e);
+            }
+          }
+        }
+
+        // If no links found, try to search by diploma numbers
+        if (dreLinks.length === 0 && foundNumbers.length > 0) {
+          setProcessingStatus(`A procurar ${foundNumbers.length} diploma(s) por número...`);
+          
+          const uniqueNumbers = [...new Set(foundNumbers)].slice(0, 10);
+          
+          for (const number of uniqueNumbers) {
+            const { data: matchingLeg } = await supabase
+              .from("legislation")
+              .select("id")
+              .ilike("number", `%${number}%`)
+              .limit(1)
+              .maybeSingle();
+
+            if (matchingLeg && matchingLeg.id !== legislationId) {
+              const { data: existingRel } = await supabase
+                .from("legislation_relations")
+                .select("id")
+                .eq("source_legislation_id", legislationId)
+                .eq("target_legislation_id", matchingLeg.id)
+                .eq("relation_type", relationType)
+                .maybeSingle();
+
+              if (!existingRel) {
+                await supabase.from("legislation_relations").insert({
+                  source_legislation_id: legislationId,
+                  target_legislation_id: matchingLeg.id,
+                  relation_type: relationType,
+                });
+                relationsCreated++;
+              }
+            }
+          }
+        }
+
+        if (relationsCreated > 0) {
+          toast.success(`${relationsCreated} relação(ões) criada(s)`);
+          setUrlValue("");
+          onRelationAdded();
+          queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
+        } else {
+          toast.info("Nenhum diploma novo encontrado na página");
+        }
+      } else {
+        // Regular single diploma URL
+        setProcessingStatus("A procurar diploma...");
+        
+        const { data: existingLeg } = await supabase
+          .from("legislation")
+          .select("id, number")
+          .eq("document_url", url)
+          .maybeSingle();
+
+        let targetId = existingLeg?.id;
+
+        if (!targetId) {
+          setProcessingStatus("A criar diploma...");
+          
+          if (isDRE) {
+            const { data, error } = await supabase.functions.invoke('import-dre-links', {
+              body: { links: [url], updateExisting: false, extractRequirementsAI: false },
+            });
+            if (error) throw error;
+            if (data?.results?.[0]?.success && data.results[0].legislationId) {
+              targetId = data.results[0].legislationId;
+              toast.success("Diploma DRE criado");
+            } else if (data?.results?.[0]?.skipped) {
+              const { data: skippedLeg } = await supabase
+                .from("legislation")
+                .select("id")
+                .eq("document_url", url)
+                .maybeSingle();
+              targetId = skippedLeg?.id;
+            }
+          } else if (isEurLex) {
+            const celexMatch = url.match(/CELEX[:%](\d{5}[A-Z]\d+)/i);
+            const celex = celexMatch ? celexMatch[1] : null;
+            const number = celex 
+              ? `Documento EUR-Lex ${celex}` 
+              : `Documento EUR-Lex ${Date.now()}`;
+
+            const { data: insertedLeg, error: insertError } = await supabase
+              .from('legislation')
+              .insert({
+                external_id: celex ? `eurlex-${celex}` : `eurlex-${Date.now()}`,
+                source: 'eurlex-manual',
+                number,
+                title: number,
+                origin: 'EU',
+                document_url: url,
+              })
+              .select('id')
+              .single();
+
+            if (insertError && insertError.code === '23505') {
+              const { data: dupLeg } = await supabase
+                .from("legislation")
+                .select("id")
+                .eq("document_url", url)
+                .maybeSingle();
+              targetId = dupLeg?.id;
+            } else if (insertError) {
+              throw insertError;
+            } else {
+              targetId = insertedLeg?.id;
+              toast.success("Diploma EUR-Lex criado");
+            }
+          }
+        }
+
+        if (!targetId) {
+          toast.error("Não foi possível identificar ou criar o diploma");
+          return;
+        }
+
+        const { data: existingRel } = await supabase
+          .from("legislation_relations")
+          .select("id")
+          .eq("source_legislation_id", legislationId)
+          .eq("target_legislation_id", targetId)
+          .eq("relation_type", relationType)
+          .maybeSingle();
+
+        if (existingRel) {
+          toast.info("Esta relação já existe");
+          setUrlValue("");
+          return;
+        }
+
+        const { error: relError } = await supabase
+          .from("legislation_relations")
+          .insert({
+            source_legislation_id: legislationId,
+            target_legislation_id: targetId,
+            relation_type: relationType,
+          });
+
+        if (relError) throw relError;
+
+        toast.success("Relação adicionada");
+        setUrlValue("");
+        onRelationAdded();
+        queryClient.invalidateQueries({ queryKey: ["legislation-list"] });
+      }
     } catch (error: any) {
+      console.error("Error processing URL:", error);
       toast.error("Erro: " + error.message);
     } finally {
       setIsProcessing(false);
+      setProcessingStatus("");
     }
   };
 
   return (
     <div className="flex gap-2">
-      <Input
-        placeholder={placeholder}
-        value={urlValue}
-        onChange={(e) => setUrlValue(e.target.value)}
-        className="flex-1 text-sm h-9"
-      />
+      <div className="flex-1 relative">
+        <Input
+          placeholder={placeholder}
+          value={urlValue}
+          onChange={(e) => setUrlValue(e.target.value)}
+          className="text-sm h-9"
+        />
+        {processingStatus && (
+          <span className="absolute -bottom-5 left-0 text-[10px] text-muted-foreground">
+            {processingStatus}
+          </span>
+        )}
+      </div>
       <Button
         variant="outline"
         size="sm"
@@ -209,7 +367,6 @@ function UrlCategoryInput({ placeholder, relationType, legislationId, onRelation
     </div>
   );
 }
-
 export function ManageRelationsDialog({
   legislation,
   open,
