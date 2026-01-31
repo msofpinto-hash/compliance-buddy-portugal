@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -88,6 +88,94 @@ export function BibliotecaContent({ organizationId }: BibliotecaContentProps) {
   const [selectedApplicability, setSelectedApplicability] = useState<string>("all");
   const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
+
+  // Persist library state so navigating to a diploma and returning doesn't reset filters/scroll.
+  const storageBaseKey = useMemo(
+    () => `biblioteca_state:${organizationId ?? "public"}`,
+    [organizationId],
+  );
+  const filtersKey = `${storageBaseKey}:filters`;
+  const scrollKey = `${storageBaseKey}:scrollY`;
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    hydratedRef.current = false;
+
+    // Restore filters
+    try {
+      const raw = sessionStorage.getItem(filtersKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<{
+          searchTerm: string;
+          selectedThemeId: string | null;
+          selectedCategoryId: string | null;
+          selectedSource: string;
+          selectedApplicability: string;
+          filterStartDate: string | null;
+          filterEndDate: string | null;
+        }>;
+
+        if (typeof parsed.searchTerm === "string") setSearchTerm(parsed.searchTerm);
+        if (typeof parsed.selectedThemeId === "string" || parsed.selectedThemeId === null) setSelectedThemeId(parsed.selectedThemeId ?? null);
+        if (typeof parsed.selectedCategoryId === "string" || parsed.selectedCategoryId === null) setSelectedCategoryId(parsed.selectedCategoryId ?? null);
+        if (typeof parsed.selectedSource === "string") setSelectedSource(parsed.selectedSource);
+        if (typeof parsed.selectedApplicability === "string") setSelectedApplicability(parsed.selectedApplicability);
+        if (typeof parsed.filterStartDate === "string" || parsed.filterStartDate === null) setFilterStartDate(parsed.filterStartDate ?? null);
+        if (typeof parsed.filterEndDate === "string" || parsed.filterEndDate === null) setFilterEndDate(parsed.filterEndDate ?? null);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Restore scroll position (after paint)
+    const rawScroll = sessionStorage.getItem(scrollKey);
+    const scrollY = rawScroll ? Number(rawScroll) : NaN;
+    if (!Number.isNaN(scrollY) && scrollY > 0) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollY, behavior: "auto" });
+      });
+    }
+
+    hydratedRef.current = true;
+  }, [filtersKey, scrollKey]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const payload = {
+      searchTerm,
+      selectedThemeId,
+      selectedCategoryId,
+      selectedSource,
+      selectedApplicability,
+      filterStartDate,
+      filterEndDate,
+    };
+    try {
+      sessionStorage.setItem(filtersKey, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  }, [filtersKey, searchTerm, selectedThemeId, selectedCategoryId, selectedSource, selectedApplicability, filterStartDate, filterEndDate]);
+
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        try {
+          sessionStorage.setItem(scrollKey, String(window.scrollY));
+        } catch {
+          // ignore
+        }
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [scrollKey]);
 
   // Fetch themes with categories
   const { data: themes } = useThemesWithCategories();
