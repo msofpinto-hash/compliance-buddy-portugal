@@ -242,59 +242,92 @@ Deno.serve(async (req) => {
         );
       }
 
-      console.log('Scraping URL:', url);
+      console.log('[v2] Scraping URL:', url);
 
       // Try multiple methods to get content
       let scrapeSuccess = false;
       
       // Check if it's a DRE URL - try OpenData API first
-      const dreMatch = url.match(/diariodarepublica\.pt\/dr\/(?:detalhe|lexionario)\/([^\/]+)\/(\d+(?:-[A-Za-z])?)-(\d{4})-(\d+)/i);
+      // Pattern: diariodarepublica.pt/dr/detalhe/decreto-lei/226-a-2007-340237
+      const dreMatch = url.match(/diariodarepublica\.pt\/dr\/(?:detalhe|lexionario)\/([^\/]+)\/([\w-]+)-(\d{4})-(\d+)/i);
       
       if (dreMatch) {
+        const docType = dreMatch[1]; // e.g., "decreto-lei"
+        const docNumber = dreMatch[2]; // e.g., "226-a"
+        const docYear = dreMatch[3]; // e.g., "2007"
         const dreId = dreMatch[4]; // The numeric ID at the end
-        console.log('DRE document detected, trying OpenData API with ID:', dreId);
+        console.log(`[v2] DRE document: type=${docType}, number=${docNumber}, year=${docYear}, id=${dreId}`);
         
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 15000);
+        // Try multiple API endpoints
+        const apiEndpoints = [
+          `https://dre.pt/dr/api/diploma/${dreId}`,
+          `https://dre.pt/opendata/document/${dreId}`,
+          `https://dre.pt/dr/api/textoIntegral/${dreId}`,
+        ];
+        
+        for (const endpoint of apiEndpoints) {
+          if (scrapeSuccess) break;
           
-          // Try the OpenData API endpoint
-          const apiResponse = await fetch(`https://dre.pt/dr/api/diploma/${dreId}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
-            },
-            signal: controller.signal,
-          });
-          
-          clearTimeout(timeout);
-          
-          if (apiResponse.ok) {
-            const apiData = await apiResponse.json();
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
             
-            // The API might return the full text in 'texto' or 'conteudo' field
-            if (apiData.texto) {
-              contentToProcess = apiData.texto;
-              console.log('DRE OpenData API returned texto, length:', contentToProcess.length);
-              scrapeSuccess = contentToProcess.length > 100;
-            } else if (apiData.conteudo) {
-              contentToProcess = apiData.conteudo;
-              console.log('DRE OpenData API returned conteudo, length:', contentToProcess.length);
-              scrapeSuccess = contentToProcess.length > 100;
-            } else if (apiData.artigos && Array.isArray(apiData.artigos)) {
-              // Some responses have structured articles
-              contentToProcess = apiData.artigos.map((a: any) => 
-                `Artigo ${a.numero || a.artigo}\n${a.texto || a.conteudo || ''}`
-              ).join('\n\n');
-              console.log('DRE OpenData API returned artigos array, length:', contentToProcess.length);
-              scrapeSuccess = contentToProcess.length > 100;
+            console.log('[v2] Trying API endpoint:', endpoint);
+            const apiResponse = await fetch(endpoint, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json, text/html, */*',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              },
+              signal: controller.signal,
+            });
+            
+            clearTimeout(timeout);
+            console.log('[v2] API response status:', apiResponse.status);
+            
+            if (apiResponse.ok) {
+              const contentType = apiResponse.headers.get('content-type') || '';
+              
+              if (contentType.includes('application/json')) {
+                const apiData = await apiResponse.json();
+                console.log('[v2] API returned JSON with keys:', Object.keys(apiData).join(', '));
+                
+                // Try various field names for the text content
+                const textField = apiData.texto || apiData.conteudo || apiData.textoIntegral || 
+                                  apiData.content || apiData.body || apiData.html;
+                if (textField && typeof textField === 'string' && textField.length > 100) {
+                  contentToProcess = textField;
+                  console.log('[v2] Found text content, length:', contentToProcess.length);
+                  scrapeSuccess = true;
+                } else if (apiData.artigos && Array.isArray(apiData.artigos)) {
+                  contentToProcess = apiData.artigos.map((a: any) => 
+                    `Artigo ${a.numero || a.artigo || ''}\n${a.texto || a.conteudo || ''}`
+                  ).join('\n\n');
+                  console.log('[v2] Built from artigos array, length:', contentToProcess.length);
+                  scrapeSuccess = contentToProcess.length > 100;
+                }
+              } else if (contentType.includes('text/html')) {
+                let html = await apiResponse.text();
+                console.log('[v2] API returned HTML, length:', html.length);
+                
+                // Extract text from HTML
+                if (html.length > 100) {
+                  contentToProcess = html
+                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                    .replace(/<[^>]+>/g, '\n')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&amp;/g, '&')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim();
+                  console.log('[v2] Extracted text from HTML, length:', contentToProcess.length);
+                  scrapeSuccess = contentToProcess.length > 500;
+                }
+              }
             }
-          } else {
-            console.log('DRE OpenData API returned:', apiResponse.status);
+          } catch (apiError) {
+            console.log('[v2] API error:', apiError instanceof Error ? apiError.message : 'unknown');
           }
-        } catch (apiError) {
-          console.log('DRE OpenData API error:', apiError instanceof Error ? apiError.message : 'unknown');
         }
       }
       
