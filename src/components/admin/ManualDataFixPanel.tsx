@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,6 +14,8 @@ import {
   FolderTree, Loader2, Save, ChevronLeft, ChevronRight,
   ExternalLink, CheckCircle, RefreshCw, ChevronDown, FileText, Layers, XCircle
 } from "lucide-react";
+import { LegislationCategoryEditor } from "./LegislationCategoryEditor";
+import { LegislationRelationsEditor } from "./LegislationRelationsEditor";
 
 interface LegislationItem {
   id: string;
@@ -567,6 +569,19 @@ export function ManualDataFixPanel() {
                     <p className="text-sm text-muted-foreground">{currentItem.entity}</p>
                   </div>
                 )}
+
+                <Separator className="my-4" />
+
+                {/* Category Editor */}
+                <LegislationCategoryEditor legislationId={currentItem.id} />
+
+                <Separator className="my-4" />
+
+                {/* Relations Editor */}
+                <LegislationRelationsEditor 
+                  legislationId={currentItem.id} 
+                  legislationNumber={currentItem.number}
+                />
               </div>
 
               {/* Action Buttons */}
