@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Loader2, FileEdit, ExternalLink, Trash2, FileX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { LegislationWithCategories } from "@/hooks/useLegislation";
@@ -291,13 +292,7 @@ export function EditLegislationDialog({
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => {
-                      const newWindow = window.open('about:blank', '_blank');
-                      if (newWindow) {
-                        newWindow.opener = null;
-                        newWindow.location.href = documentUrl;
-                      }
-                    }}
+                    onClick={() => openExternalUrl(documentUrl)}
                   >
                     <ExternalLink className="h-4 w-4" />
                   </Button>
