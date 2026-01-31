@@ -242,20 +242,64 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (!firecrawlApiKey) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Firecrawl connector not configured. Enable it in Settings.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
       console.log('Scraping URL:', url);
 
-      // Try Firecrawl first, then fallback to native fetch
+      // Try multiple methods to get content
       let scrapeSuccess = false;
       
-      // Attempt 1: Firecrawl
-      if (firecrawlApiKey) {
+      // Check if it's a DRE URL - try OpenData API first
+      const dreMatch = url.match(/diariodarepublica\.pt\/dr\/(?:detalhe|lexionario)\/([^\/]+)\/(\d+(?:-[A-Za-z])?)-(\d{4})-(\d+)/i);
+      
+      if (dreMatch) {
+        const dreId = dreMatch[4]; // The numeric ID at the end
+        console.log('DRE document detected, trying OpenData API with ID:', dreId);
+        
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 15000);
+          
+          // Try the OpenData API endpoint
+          const apiResponse = await fetch(`https://dre.pt/dr/api/diploma/${dreId}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+            },
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeout);
+          
+          if (apiResponse.ok) {
+            const apiData = await apiResponse.json();
+            
+            // The API might return the full text in 'texto' or 'conteudo' field
+            if (apiData.texto) {
+              contentToProcess = apiData.texto;
+              console.log('DRE OpenData API returned texto, length:', contentToProcess.length);
+              scrapeSuccess = contentToProcess.length > 100;
+            } else if (apiData.conteudo) {
+              contentToProcess = apiData.conteudo;
+              console.log('DRE OpenData API returned conteudo, length:', contentToProcess.length);
+              scrapeSuccess = contentToProcess.length > 100;
+            } else if (apiData.artigos && Array.isArray(apiData.artigos)) {
+              // Some responses have structured articles
+              contentToProcess = apiData.artigos.map((a: any) => 
+                `Artigo ${a.numero || a.artigo}\n${a.texto || a.conteudo || ''}`
+              ).join('\n\n');
+              console.log('DRE OpenData API returned artigos array, length:', contentToProcess.length);
+              scrapeSuccess = contentToProcess.length > 100;
+            }
+          } else {
+            console.log('DRE OpenData API returned:', apiResponse.status);
+          }
+        } catch (apiError) {
+          console.log('DRE OpenData API error:', apiError instanceof Error ? apiError.message : 'unknown');
+        }
+      }
+      
+      // Attempt 2: Firecrawl
+      if (!scrapeSuccess && firecrawlApiKey) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 30000);
 
@@ -270,7 +314,7 @@ Deno.serve(async (req) => {
               url: url.trim(),
               formats: ['markdown'],
               onlyMainContent: true,
-              waitFor: 3000,
+              waitFor: 5000, // Increased wait time for JS-heavy pages
             }),
             signal: controller.signal,
           });
@@ -283,91 +327,38 @@ Deno.serve(async (req) => {
             console.log('Firecrawl scraped content length:', contentToProcess.length);
             scrapeSuccess = contentToProcess.length > 100;
           } else {
-            console.log('Firecrawl failed, will try native fetch:', scrapeData.error || scrapeData.code);
+            console.log('Firecrawl failed:', scrapeData.error || scrapeData.code);
           }
         } catch (fetchError: unknown) {
           clearTimeout(timeout);
-          console.log('Firecrawl error, will try native fetch:', fetchError instanceof Error ? fetchError.message : 'unknown');
+          console.log('Firecrawl error:', fetchError instanceof Error ? fetchError.message : 'unknown');
         }
       }
 
-      // Attempt 2: Native fetch fallback (for DRE and EUR-Lex blocking Firecrawl)
-      if (!scrapeSuccess) {
-        console.log('Attempting native fetch fallback for:', url);
+      // Attempt 3: Try PDF URL for DRE documents
+      if (!scrapeSuccess && dreMatch) {
+        const dreId = dreMatch[4];
+        const pdfUrl = `https://files.dre.pt/1s/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${dreId}.pdf`;
+        console.log('DRE content not available, suggesting PDF alternative');
         
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 15000);
-          
-          const nativeResponse = await fetch(url.trim(), {
-            method: 'GET',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-            },
-            signal: controller.signal,
-          });
-          
-          clearTimeout(timeout);
-          
-          const contentType = nativeResponse.headers.get('content-type') || '';
-          
-          // Skip binary files
-          if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'URL aponta para ficheiro PDF/binário - cole o texto diretamente' }),
-              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-          
-          if (nativeResponse.ok && contentType.includes('text/html')) {
-            let html = await nativeResponse.text();
-            
-            // Limit HTML size to prevent memory issues
-            if (html.length > 500000) {
-              html = html.substring(0, 500000);
-            }
-            
-            // Extract main content from HTML - look for article/main content areas
-            const mainContentMatch = html.match(/<(?:article|main|div[^>]*class="[^"]*(?:content|article|texto|diploma)[^"]*")[^>]*>([\s\S]*?)<\/(?:article|main|div)>/i);
-            if (mainContentMatch) {
-              html = mainContentMatch[1];
-            }
-            
-            // Strip HTML tags to get plain text
-            contentToProcess = html
-              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-              .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
-              .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
-              .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
-              .replace(/<[^>]+>/g, '\n')
-              .replace(/&nbsp;/g, ' ')
-              .replace(/&amp;/g, '&')
-              .replace(/&lt;/g, '<')
-              .replace(/&gt;/g, '>')
-              .replace(/&quot;/g, '"')
-              .replace(/&#39;/g, "'")
-              .replace(/\n{3,}/g, '\n\n')
-              .trim();
-            
-            console.log('Native fetch scraped content length:', contentToProcess.length);
-            scrapeSuccess = contentToProcess.length > 100;
-          }
-        } catch (nativeError) {
-          console.error('Native fetch also failed:', nativeError instanceof Error ? nativeError.message : 'unknown');
-        }
+        // We can't easily extract from PDFs, so provide a helpful error
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Este diploma recente ainda não está disponível para extração automática. Por favor, aceda ao documento em ${url}, copie o texto integral e cole-o na aba "Colar Texto".`
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      // If both methods failed
+      // If all methods failed
       if (!scrapeSuccess || contentToProcess.length < 50) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Não foi possível extrair conteúdo do URL. O site pode estar a bloquear acessos automatizados. Tente colar o texto diretamente.' 
+            error: 'Não foi possível extrair conteúdo do URL. O site pode estar a bloquear acessos automatizados ou o documento ainda não está indexado. Copie o texto diretamente do documento e cole-o na aba "Colar Texto".' 
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     } else {
