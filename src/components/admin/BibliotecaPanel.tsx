@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Download, Wrench, Palette, Loader2 } from "lucide-react";
+import { BookOpen, Download, Wrench, Palette, Loader2, Edit, Bot } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
 import { ThemesPanel } from "./ThemesPanel";
 import { ImportPanel } from "./ImportPanel";
 import { UnifiedDataQualityPanel } from "./UnifiedDataQualityPanel";
+import { ManualDataFixPanel } from "./ManualDataFixPanel";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
 export function BibliotecaPanel() {
   const [activeSubTab, setActiveSubTab] = useState("legislacao");
 
@@ -86,8 +86,26 @@ export function BibliotecaPanel() {
           <ImportPanel />
         </TabsContent>
 
-        <TabsContent value="correcao" className="mt-0">
-          <UnifiedDataQualityPanel />
+        <TabsContent value="correcao" className="mt-0 space-y-4">
+          {/* Sub-tabs for Auto vs Manual correction */}
+          <Tabs defaultValue="auto" className="w-full">
+            <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex gap-1 bg-muted/50 p-1">
+              <TabsTrigger value="auto" className="flex items-center gap-2 text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800">
+                <Bot className="h-4 w-4" />
+                <span>Automático</span>
+              </TabsTrigger>
+              <TabsTrigger value="manual" className="flex items-center gap-2 text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800">
+                <Edit className="h-4 w-4" />
+                <span>Manual</span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="auto" className="mt-4">
+              <UnifiedDataQualityPanel />
+            </TabsContent>
+            <TabsContent value="manual" className="mt-4">
+              <ManualDataFixPanel />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="temas" className="mt-0">
