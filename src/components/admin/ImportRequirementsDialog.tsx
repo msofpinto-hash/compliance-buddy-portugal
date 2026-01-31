@@ -136,8 +136,9 @@ export function ImportRequirementsDialog({
       console.log("Selected requirements:", selectedReqs.length);
       if (selectedReqs.length === 0) throw new Error("Nenhum requisito selecionado");
 
-      // If replacing, delete existing requirements first
-      if (replaceExisting && existingRequirementsCount > 0) {
+      // If replacing, delete existing requirements first.
+      // IMPORTANT: do NOT depend on existingRequirementsCount, it may be stale/incorrect.
+      if (replaceExisting) {
         const { error: deleteError } = await supabase
           .from("legal_requirements")
           .delete()
@@ -146,15 +147,19 @@ export function ImportRequirementsDialog({
         if (deleteError) throw deleteError;
       }
 
-      // Get max display_order
-      const { data: existingReqs } = await supabase
-        .from("legal_requirements")
-        .select("display_order")
-        .eq("legislation_id", legislationId)
-        .order("display_order", { ascending: false })
-        .limit(1);
+      // If we are replacing, always restart ordering from 1.
+      // If appending, continue after the current max display_order.
+      let maxOrder = 0;
+      if (!replaceExisting) {
+        const { data: existingReqs } = await supabase
+          .from("legal_requirements")
+          .select("display_order")
+          .eq("legislation_id", legislationId)
+          .order("display_order", { ascending: false })
+          .limit(1);
 
-      const maxOrder = existingReqs?.[0]?.display_order || 0;
+        maxOrder = existingReqs?.[0]?.display_order || 0;
+      }
 
       // Insert new requirements
       const toInsert = selectedReqs.map((req, index) => ({
@@ -193,6 +198,14 @@ export function ImportRequirementsDialog({
       });
     },
   });
+
+  // Default: if the diploma already has requirements, default to "replace" to avoid
+  // accidental append that starts at an offset (ex: from 10 onwards).
+  useEffect(() => {
+    if (open && existingRequirementsCount > 0) {
+      setReplaceExisting(true);
+    }
+  }, [open, existingRequirementsCount]);
 
   const handleClose = () => {
     setUrl("");
