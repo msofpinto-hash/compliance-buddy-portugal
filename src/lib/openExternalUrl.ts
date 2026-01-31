@@ -9,41 +9,35 @@
  */
 export function openExternalUrl(url: string): void {
   if (!url) return;
-  
-  // Technique: Open a blank window first, then inject a meta-refresh
-  // This breaks the referrer chain completely and works across browsers
-  const newWindow = window.open('about:blank', '_blank');
-  if (newWindow) {
-    newWindow.opener = null; // Break the opener link
-    
-    // Use document.write to inject a meta refresh - this is more reliable
-    // than setting location.href which can fail in some browsers
-    newWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta http-equiv="refresh" content="0;url=${encodeURI(url)}">
-          <meta name="referrer" content="no-referrer">
-          <script>window.location.replace("${encodeURI(url)}");</script>
-        </head>
-        <body>
-          <p>A redirecionar para <a href="${encodeURI(url)}">${encodeURI(url)}</a>...</p>
-        </body>
-      </html>
-    `);
-    newWindow.document.close();
-  } else {
-    // Fallback: Create a link with all possible no-referrer attributes
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noreferrer noopener';  // noreferrer is stronger
-    link.referrerPolicy = 'no-referrer';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+  // NOTE: In the preview, the app can run inside a sandboxed iframe.
+  // Navigating a popup AFTER opening it (about:blank -> set location) can throw SecurityError.
+  // Opening the final URL directly is more reliable.
+  try {
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (opened) {
+      // Best-effort: ensure no opener
+      try {
+        opened.opener = null;
+      } catch {
+        // ignore
+      }
+      return;
+    }
+  } catch {
+    // ignore and fallback
   }
+
+  // Fallback: Create a link with all possible no-referrer attributes
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noreferrer noopener'; // noreferrer is stronger
+  link.referrerPolicy = 'no-referrer';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 /**

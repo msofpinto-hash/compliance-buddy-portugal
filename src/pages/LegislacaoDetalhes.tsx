@@ -45,6 +45,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 
 // Format requirement text with line breaks between numbered items/paragraphs
 function formatRequirementText(text: string): string {
@@ -540,14 +541,7 @@ export default function LegislacaoDetalhes() {
             {legislation.document_url && (
               <Button 
                 className="gap-2"
-                onClick={() => {
-                  // Use about:blank technique to completely break referrer chain
-                  const newWindow = window.open('about:blank', '_blank');
-                  if (newWindow) {
-                    newWindow.opener = null;
-                    newWindow.location.href = legislation.document_url!;
-                  }
-                }}
+                onClick={() => openExternalUrl(legislation.document_url!)}
               >
                 <ExternalLink className="h-4 w-4" />
                 Ver Documento Original
