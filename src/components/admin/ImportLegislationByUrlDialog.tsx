@@ -411,7 +411,7 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0">
           {/* Step 1: URL Input */}
           {step === "input" && (
             <div className="space-y-4">
@@ -467,8 +467,8 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
 
           {/* Step 2: Preview & Edit */}
           {step === "preview" && scrapedData && (
-            <ScrollArea className="h-full max-h-[calc(85vh-180px)] pr-4">
-              <div className="space-y-4">
+            <ScrollArea className="h-[50vh] pr-4">
+              <div className="space-y-4 pb-4">
                 <div className="flex items-center gap-2">
                   <Badge variant={editedData.origin === "EU" ? "secondary" : "default"}>
                     {editedData.origin === "EU" ? "🇪🇺 EUR-Lex" : "🇵🇹 DRE"}
