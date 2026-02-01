@@ -55,6 +55,15 @@ function formatRequirementText(text: string): string {
   if (!text) return "";
 
   let formatted = text
+    // Remove markdown table artifacts: | --- | --- |, | |, etc.
+    .replace(/\|\s*-+\s*\|/g, '') // | --- |
+    .replace(/\|\s*-+\s*-+\s*\|/g, '') // | --- --- |
+    .replace(/^\s*\|[\s|]+\|?\s*$/gm, '') // Lines with only | and spaces
+    .replace(/^\s*\|\s*-+[\s|-]*\s*$/gm, '') // Lines with | --- | --- |
+    .replace(/\|\s*\|/g, '') // | |
+    .replace(/^\s*\|+\s*$/gm, '') // Lines with only |
+    .replace(/\|\s*$/gm, '') // Trailing | at end of lines
+    .replace(/^\s*\|\s*/gm, '') // Leading | at start of lines (but keep content after)
     // Remove markdown-style links: [text](url) -> text
     .replace(/\[([^\]]+)\]\s*\([^)]+\)/g, "$1")
     // Remove standalone URLs in parentheses: (https://...) -> empty
