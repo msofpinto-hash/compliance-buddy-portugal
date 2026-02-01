@@ -400,8 +400,8 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <LinkIcon className="h-5 w-5" />
             Importar Diploma por URL
@@ -411,7 +411,7 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           {/* Step 1: URL Input */}
           {step === "input" && (
             <div className="space-y-4">
@@ -467,7 +467,7 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegis
 
           {/* Step 2: Preview & Edit */}
           {step === "preview" && scrapedData && (
-            <ScrollArea className="flex-1 pr-4">
+            <ScrollArea className="h-full max-h-[calc(85vh-180px)] pr-4">
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Badge variant={editedData.origin === "EU" ? "secondary" : "default"}>
