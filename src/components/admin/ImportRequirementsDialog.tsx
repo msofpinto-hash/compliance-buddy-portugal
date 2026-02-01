@@ -20,6 +20,49 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+function formatRequirementText(text: string): string {
+  if (!text) return "";
+
+  let formatted = text
+    // Remove placeholder omissions: \[...\], \[…\], [...], […]
+    .replace(/\\\[\s*(?:\.{3}|…)\s*\\\]/g, "")
+    .replace(/\[\s*(?:\.{3}|…)\s*\]/g, "")
+    .replace(/\\?\[\.{2,3}\\?\]/g, "")
+    // Remove markdown table artifacts: | --- | --- |, | |, etc.
+    .replace(/\|\s*-+\s*\|/g, "") // | --- |
+    .replace(/\|\s*-+\s*-+\s*\|/g, "") // | --- --- |
+    .replace(/^\s*\|[\s|]+\|?\s*$/gm, "") // Lines with only | and spaces
+    .replace(/^\s*\|\s*-+[\s|-]*\s*$/gm, "") // Lines with | --- | --- |
+    .replace(/\|\s*\|/g, "") // | |
+    .replace(/^\s*\|+\s*$/gm, "") // Lines with only |
+    .replace(/\|\s*$/gm, "") // Trailing | at end of lines
+    .replace(/^\s*\|\s*/gm, "") // Leading | at start of lines (but keep content after)
+    // Remove markdown-style links with optional space: [text] (url "title") or [text](url) -> text
+    .replace(/\[([^\]]+)\]\s*\([^)]*(?:"[^"]*")?\)/g, "$1")
+    // Remove standalone URLs in parentheses: (https://...) -> empty
+    .replace(/\s*\(https?:\/\/[^)]+\)/g, "")
+    // Remove raw URLs that appear after text
+    .replace(/https?:\/\/[^\s)]+/g, "")
+    // Clean up leftover colons from removed content
+    .replace(/:\s*,/g, ",")
+    // Before "number - text" patterns – each on new line, number+dash together
+    .replace(/\s+(\d+)\s*([-–—])\s+/g, "\n$1 $2 ")
+    // Before standalone numbered items: "1.", "2)", etc.
+    .replace(/\s+(\d+[\.\)])\s+/g, "\n$1 ")
+    // Before letters followed by parenthesis: "a)", "b)", etc. - always new line
+    .replace(/\s*([a-z]\))\s*/gi, "\n$1 ")
+    // Before roman numerals followed by parenthesis: "i)", "ii)", etc. - always new line
+    .replace(/\s*((?:i{1,3}|iv|vi{0,3}|ix|x{1,3})\))\s*/gi, "\n$1 ")
+    // Before "Artigo", "Anexo" keywords
+    .replace(/\s+(Art(?:igo)?\.?\s*\d+)/gi, "\n$1")
+    .replace(/\s+(Anexo\s+[IVX\d]+)/gi, "\n$1");
+
+  // Clean up: remove leading newlines and multiple consecutive newlines
+  formatted = formatted.replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");
+
+  return formatted;
+}
+
 interface ExtractedRequirement {
   article: string;
   requirement_text: string;
@@ -430,8 +473,8 @@ function RequirementsPreview({
                         {req.article || "Geral"}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {req.requirement_text}
+                    <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-line">
+                      {formatRequirementText(req.requirement_text)}
                     </p>
                   </div>
                 </div>
