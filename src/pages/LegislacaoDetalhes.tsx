@@ -55,6 +55,8 @@ function formatRequirementText(text: string): string {
   if (!text) return "";
 
   let formatted = text
+    // Remove escaped bracket patterns: \[...\] -> empty
+    .replace(/\\?\[\.{2,3}\\?\]/g, '')
     // Remove markdown table artifacts: | --- | --- |, | |, etc.
     .replace(/\|\s*-+\s*\|/g, '') // | --- |
     .replace(/\|\s*-+\s*-+\s*\|/g, '') // | --- --- |
@@ -64,10 +66,14 @@ function formatRequirementText(text: string): string {
     .replace(/^\s*\|+\s*$/gm, '') // Lines with only |
     .replace(/\|\s*$/gm, '') // Trailing | at end of lines
     .replace(/^\s*\|\s*/gm, '') // Leading | at start of lines (but keep content after)
-    // Remove markdown-style links: [text](url) -> text
-    .replace(/\[([^\]]+)\]\s*\([^)]+\)/g, "$1")
+    // Remove markdown-style links with optional space: [text] (url "title") or [text](url) -> text
+    .replace(/\[([^\]]+)\]\s*\([^)]*(?:"[^"]*")?\)/g, "$1")
     // Remove standalone URLs in parentheses: (https://...) -> empty
     .replace(/\s*\(https?:\/\/[^)]+\)/g, "")
+    // Remove raw URLs that appear after text
+    .replace(/https?:\/\/[^\s)]+/g, "")
+    // Clean up leftover colons from removed content
+    .replace(/:\s*,/g, ",")
     // Before "number - text" patterns – each on new line, number+dash together
     .replace(/\s+(\d+)\s*([-–—])\s+/g, "\n$1 $2 ")
     // Before standalone numbered items: "1.", "2)", etc.
