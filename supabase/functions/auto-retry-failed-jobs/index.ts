@@ -11,17 +11,29 @@ const BATCH_SIZE = 10; // Items per job for relations extraction
 
 // ========== SOURCE STATUS CHECK ==========
 // Check if an external source is available before launching jobs
-async function isSourceAvailable(supabase: any, sourceName: string): Promise<boolean> {
+// Supports half-open: degraded sources allow 1 probe job to test recovery
+async function getSourceStatus(supabase: any, sourceName: string): Promise<{ available: boolean; degraded: boolean }> {
   try {
-    const { data, error } = await supabase.rpc('is_source_available', { p_source_name: sourceName });
-    if (error) {
-      console.log(`[SourceCheck] Error checking ${sourceName}:`, error.message);
-      return true; // Fail open to avoid blocking on DB errors
+    const { data, error } = await supabase
+      .from('external_source_status')
+      .select('status, blocked_until, failure_count')
+      .eq('source_name', sourceName)
+      .single();
+    
+    if (error || !data) return { available: true, degraded: false }; // fail open
+    
+    // Blocked = hard offline
+    if (data.blocked_until && new Date(data.blocked_until) > new Date()) {
+      return { available: false, degraded: false };
     }
-    return data === true;
+    
+    if (data.status === 'offline') return { available: false, degraded: false };
+    if (data.status === 'degraded') return { available: true, degraded: true };
+    
+    return { available: true, degraded: false };
   } catch (e) {
     console.log(`[SourceCheck] Exception checking ${sourceName}:`, e);
-    return true; // Fail open
+    return { available: true, degraded: false }; // Fail open
   }
 }
 
@@ -425,9 +437,10 @@ Deno.serve(async (req) => {
       // ========== SOURCE AVAILABILITY CHECK ==========
       // Check if the required external source is available before processing
       const requiredSource = JOB_SOURCE_REQUIREMENTS[config.syncType];
+      let isDegraded = false;
       if (requiredSource) {
-        const sourceAvailable = await isSourceAvailable(supabase, requiredSource);
-        if (!sourceAvailable) {
+        const sourceStatus = await getSourceStatus(supabase, requiredSource);
+        if (!sourceStatus.available) {
           console.log(`🚫 Source ${requiredSource} is OFFLINE - skipping ${config.syncType}`);
           results.push({
             syncType: config.syncType,
@@ -438,10 +451,14 @@ Deno.serve(async (req) => {
           });
           continue;
         }
+        isDegraded = sourceStatus.degraded;
+        if (isDegraded) {
+          console.log(`⚠️ Source ${requiredSource} is DEGRADED - limiting concurrency for ${config.syncType}`);
+        }
       }
 
       try {
-        const result = await processJobType(supabase, supabaseUrl, supabaseServiceKey, config, forceRestart);
+        const result = await processJobType(supabase, supabaseUrl, supabaseServiceKey, config, forceRestart, isDegraded);
         results.push({ syncType: config.syncType, ...result });
       } catch (error) {
         console.error(`Error processing ${config.syncType}:`, error);
@@ -482,9 +499,12 @@ async function processJobType(
   supabaseUrl: string,
   supabaseServiceKey: string,
   config: JobConfig,
-  forceRestart: boolean
+  forceRestart: boolean,
+  isDegraded: boolean = false
 ): Promise<{ stuckFixed: number; restarted: number; pendingCount?: number }> {
-  const { syncType, functionName, defaultPayload, maxParallelJobs, checkPendingWork } = config;
+  const { syncType, functionName, defaultPayload, checkPendingWork } = config;
+  // When degraded, limit to 1 job (probe) to test recovery
+  const maxParallelJobs = isDegraded ? 1 : config.maxParallelJobs;
 
   console.log(`\n📋 Processing ${syncType}...`);
 
@@ -595,7 +615,8 @@ async function processJobType(
     syncType === 'fix_missing_urls_eu';
   const isMetadataJob = syncType.startsWith('fix_');
   const isPriorityExtraction = syncType === 'priority_requirements_extraction';
-  const jobsToStart = Math.min(slotsAvailable, isPriorityExtraction ? 1 : isUrlJob ? 3 : isMetadataJob ? 3 : 5);
+  // When degraded, only start 1 probe job regardless of type
+  const jobsToStart = isDegraded ? 1 : Math.min(slotsAvailable, isPriorityExtraction ? 1 : isUrlJob ? 3 : isMetadataJob ? 3 : 5);
   console.log(`🚀 Starting ${jobsToStart} new ${syncType} jobs...`);
 
   let restarted = 0;
@@ -664,8 +685,9 @@ async function processJobType(
         console.error(`❌ Failed to start ${syncType} job: ${response.status} - ${errorText}`);
       }
 
-      // Delay between job launches - shorter for faster completion
-      const delayMs = isPriorityExtraction ? 5000 : isUrlJob ? 1500 : isMetadataJob ? 1000 : 500;
+      // Delay between job launches - longer when degraded to avoid overwhelming source
+      const baseDelay = isPriorityExtraction ? 5000 : isUrlJob ? 1500 : isMetadataJob ? 1000 : 500;
+      const delayMs = isDegraded ? Math.max(baseDelay, 3000) : baseDelay;
       await new Promise(resolve => setTimeout(resolve, delayMs));
     } catch (error) {
       console.error(`❌ Error starting ${syncType} job:`, error);
