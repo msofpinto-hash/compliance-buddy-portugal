@@ -61,8 +61,17 @@ function extractLegislationParts(number: string): { type: string; num: string; y
 // Timeout wrapper for fetch operations - CRITICAL to prevent blocking
 // Keep individual external calls <= 15s to avoid long-running jobs and timeouts.
 const ITEM_TIMEOUT_MS = 15000;
+const DRE_MAX_RETRIES = 3;
+const DRE_BASE_DELAY_MS = 1500;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Exponential backoff with jitter
+function backoffDelay(attempt: number, baseMs: number = DRE_BASE_DELAY_MS): number {
+  const exponential = baseMs * Math.pow(2, attempt);
+  const jitter = Math.random() * exponential * 0.5; // 0-50% jitter
+  return Math.min(exponential + jitter, 15000); // cap at 15s
+}
 
 async function acquireRateLimitSlot(
   supabase: any,
@@ -206,14 +215,18 @@ async function recordHardFail(
 async function updateSourceStatusIfNeeded(supabase: any): Promise<void> {
   // If we've seen 3+ failures in this run, mark source as degraded/offline
   if (dreOpenDataFailed && dreOpenDataFailureCount >= 3) {
+    // Graduated response: 3-5 failures = degraded (30 min), 6+ = offline (2h)
+    const isHeavyFailure = dreOpenDataFailureCount >= 6;
+    const status = isHeavyFailure ? 'offline' : 'degraded';
+    const blockHours = isHeavyFailure ? 2 : 0; // degraded = no block, just status flag
     try {
       await supabase.rpc('update_source_status', {
         p_source_name: 'dre_opendata',
-        p_status: 'offline',
-        p_error_message: 'API returning HTML instead of JSON (auto-detected)',
-        p_block_hours: 4, // Block for 4 hours
+        p_status: status,
+        p_error_message: `API returning HTML instead of JSON (${dreOpenDataFailureCount} failures this run)`,
+        p_block_hours: blockHours,
       });
-      console.log('[SourceStatus] Marked dre_opendata as OFFLINE due to consistent failures');
+      console.log(`[SourceStatus] Marked dre_opendata as ${status.toUpperCase()} (${dreOpenDataFailureCount} failures)`);
     } catch (e) {
       console.error('[SourceStatus] Failed to update source status:', e);
     }
@@ -253,6 +266,53 @@ interface DREOpenDataResult {
 // Try to fetch metadata from DRE OpenData API (free, no rate limits, structured data)
 // This is the preferred method for Portuguese legislation as it doesn't require JS rendering
 // Returns both data and any errors for hard fail tracking
+async function fetchDREOpenDataSingle(apiUrl: string): Promise<{ data: any | null; error?: ExternalSourceError }> {
+  const response = await fetchWithTimeout(
+    apiUrl,
+    {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
+      },
+    },
+    10000
+  );
+  return safeJsonFromResponse(response);
+}
+
+// Retry a single DRE API call with exponential backoff+jitter
+async function fetchDREWithRetry(apiUrl: string): Promise<{ data: any | null; error?: ExternalSourceError }> {
+  let lastError: ExternalSourceError | undefined;
+
+  for (let attempt = 0; attempt < DRE_MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = backoffDelay(attempt - 1);
+      console.log(`[DRE OpenData] Retry ${attempt}/${DRE_MAX_RETRIES - 1} after ${Math.round(delay)}ms...`);
+      await sleep(delay);
+    }
+
+    const { data, error } = await fetchDREOpenDataSingle(apiUrl);
+    if (data) return { data };
+
+    if (error) {
+      lastError = error;
+      // HTML response on first attempt → retry (might be transient CDN issue)
+      // HTML response on 2nd+ attempt → give up for this URL
+      if (error.type === 'html_response' && attempt >= 1) {
+        console.log(`[DRE OpenData] Persistent HTML response after ${attempt + 1} attempts, giving up`);
+        return { data: null, error };
+      }
+      // Rate limit → always stop immediately
+      if (error.type === 'rate_limited') {
+        return { data: null, error };
+      }
+    }
+  }
+
+  return { data: null, error: lastError };
+}
+
 async function fetchDREOpenData(dreUrl: string): Promise<{ result: DREOpenDataResult | null; error?: ExternalSourceError }> {
   try {
     const ids = extractDreIdCandidates(dreUrl);
@@ -261,33 +321,20 @@ async function fetchDREOpenData(dreUrl: string): Promise<{ result: DREOpenDataRe
       return { result: null };
     }
 
-    // Prefer numeric id if present; OpenData commonly expects the internal numeric identifier.
     const primaryId = ids.numeric || ids.slug;
     const candidates = [primaryId, ids.slug].filter((v, i, arr) => v && arr.indexOf(v) === i) as string[];
     
     let lastError: ExternalSourceError | undefined;
 
+    // Primary endpoints with retry
     for (const cand of candidates) {
       const apiUrl = `https://data.dre.pt/opendata/diploma/${cand}`;
       console.log('[DRE OpenData] Fetching:', apiUrl);
 
-      const response = await fetchWithTimeout(
-        apiUrl,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
-          },
-        },
-        10000
-      );
-
-      const { data, error } = await safeJsonFromResponse(response);
+      const { data, error } = await fetchDREWithRetry(apiUrl);
       if (error) {
         lastError = error;
-        // If source is returning HTML, don't bother trying alternatives
-        if (error.type === 'html_response') {
+        if (error.type === 'html_response' || error.type === 'rate_limited') {
           return { result: null, error };
         }
       }
@@ -295,25 +342,15 @@ async function fetchDREOpenData(dreUrl: string): Promise<{ result: DREOpenDataRe
       if (parsed) return { result: parsed };
     }
 
-    // Try alternative search endpoint (sometimes more forgiving)
+    // Alternative search endpoint with retry
     for (const cand of candidates) {
       const altApiUrl = `https://data.dre.pt/opendata/document?q=${encodeURIComponent(cand)}`;
       console.log('[DRE OpenData] Primary failed, trying:', altApiUrl);
-      const altResponse = await fetchWithTimeout(
-        altApiUrl,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (compatible; LegislationBot/1.0)',
-          },
-        },
-        10000
-      );
-      const { data: altData, error: altError } = await safeJsonFromResponse(altResponse);
+
+      const { data: altData, error: altError } = await fetchDREWithRetry(altApiUrl);
       if (altError) {
         lastError = altError;
-        if (altError.type === 'html_response') {
+        if (altError.type === 'html_response' || altError.type === 'rate_limited') {
           return { result: null, error: altError };
         }
       }
