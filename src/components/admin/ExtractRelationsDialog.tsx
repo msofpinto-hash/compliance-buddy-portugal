@@ -95,7 +95,7 @@ export function ExtractRelationsDialog({ open, onOpenChange }: ExtractRelationsD
     totalRelationsCreated: number;
   } | null>(null);
   const [backgroundJob, setBackgroundJob] = useState<BackgroundJob | null>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Poll for background job progress
   useEffect(() => {
