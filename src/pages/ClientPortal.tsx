@@ -42,6 +42,7 @@ import { MyComplianceRequestsPanel } from "@/components/client/MyComplianceReque
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
+import { ClientNotificationBell } from "@/components/client/ClientNotificationBell";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
