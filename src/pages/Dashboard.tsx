@@ -537,12 +537,6 @@ export default function Dashboard() {
     { name: "Pendente", value: actionPlanStats.pending, color: COLORS.pending },
   ].filter(d => d.value > 0);
 
-  // Real compliance summary data (no mock trend - would need historical snapshots table)
-  const complianceSummaryData = [
-    { name: "Conforme", value: complianceStats?.compliant || 0 },
-    { name: "Não Conforme", value: complianceStats?.nonCompliant || 0 },
-    { name: "Em Avaliação", value: complianceStats?.inProgress || 0 },
-  ];
 
   // Categorize alerts by type
   const alertsByType = {
