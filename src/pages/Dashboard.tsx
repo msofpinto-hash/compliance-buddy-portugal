@@ -1114,64 +1114,29 @@ export default function Dashboard() {
                         <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 shadow-lg shadow-emerald-400/20 font-bold px-3">{actionPlanStats.completed}</Badge>
                       </motion.div>
 
-                      {/* Mini Trend Chart */}
+                      {/* Compliance Summary */}
                       <div className="pt-3 border-t border-emerald-200/50 dark:border-emerald-700/30">
-                        <p className="text-xs font-medium text-emerald-700/80 dark:text-emerald-400/80 mb-2">Evolução (últimos 7 dias)</p>
-                        <div className="h-[80px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                              <defs>
-                                <linearGradient id="colorTaxaVibrant" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="hsl(158, 90%, 45%)" stopOpacity={0.6}/>
-                                  <stop offset="50%" stopColor="hsl(168, 85%, 38%)" stopOpacity={0.3}/>
-                                  <stop offset="100%" stopColor="hsl(175, 80%, 35%)" stopOpacity={0.05}/>
-                                </linearGradient>
-                              </defs>
-                              <XAxis 
-                                dataKey="date" 
-                                tick={{ fontSize: 10, fill: "#94a3b8" }}
-                                tickLine={false}
-                                axisLine={false}
-                              />
-                              <YAxis 
-                                domain={[0, 100]}
-                                tick={{ fontSize: 10, fill: "#94a3b8" }}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(v) => `${v}%`}
-                              />
-                              <Tooltip 
-                                formatter={(value: number) => [`${value}%`, "Taxa"]}
-                                contentStyle={{ 
-                                  borderRadius: "12px", 
-                                  border: "none",
-                                  boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
-                                  background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-                                  color: "#1e293b",
-                                  fontSize: "12px",
-                                  padding: "10px 14px"
-                                }}
-                              />
-                              <Area 
-                                type="monotone" 
-                                dataKey="taxa" 
-                                stroke="url(#trendStroke)"
-                                strokeWidth={3}
-                                fillOpacity={1} 
-                                fill="url(#colorTaxaVibrant)"
-                                animationBegin={200}
-                                animationDuration={1500}
-                                animationEasing="ease-out"
-                              />
-                              <defs>
-                                <linearGradient id="trendStroke" x1="0" y1="0" x2="1" y2="0">
-                                  <stop offset="0%" stopColor="hsl(158, 90%, 45%)" />
-                                  <stop offset="50%" stopColor="hsl(168, 85%, 40%)" />
-                                  <stop offset="100%" stopColor="hsl(175, 80%, 35%)" />
-                                </linearGradient>
-                              </defs>
-                            </AreaChart>
-                          </ResponsiveContainer>
+                        <p className="text-xs font-medium text-emerald-700/80 dark:text-emerald-400/80 mb-2">Resumo de Conformidade</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Taxa atual</span>
+                            <span className="text-lg font-bold" style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}>
+                              {complianceRate}%
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                            <motion.div 
+                              className="h-full rounded-full"
+                              style={{ background: `linear-gradient(90deg, ${COLORS.compliant}, hsl(168, 85%, 38%))` }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${complianceRate}%` }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>{complianceStats?.applicable || 0} requisitos aplicáveis</span>
+                            <span>{complianceStats?.compliant || 0} conformes</span>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
