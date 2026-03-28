@@ -35,7 +35,7 @@ import {
   FolderTree,
   Upload
 } from "lucide-react";
-import { ClientGridBackground, ClientParticles, ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
+// Clean brand backgrounds removed - using semantic tokens
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { CategoryTreeItem } from "@/components/client/CategoryTreeItem";
 import { MyComplianceRequestsPanel } from "@/components/client/MyComplianceRequestsPanel";
