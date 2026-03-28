@@ -545,6 +545,8 @@ export default function ClientPortal() {
               <span className="hidden md:inline">Exportar</span>
             </Button>
             
+            <ClientNotificationBell organizationIds={organizationIds} />
+            
             
             <Link to="/dashboard">
               <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
