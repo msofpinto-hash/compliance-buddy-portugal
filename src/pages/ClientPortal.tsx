@@ -464,7 +464,7 @@ export default function ClientPortal() {
             <div className="flex items-center gap-3">
               <ClientAnimatedLogo />
               <div>
-                <h1 className="text-xl font-semibold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                <h1 className="text-xl font-semibold text-primary font-heading">
                   Portal do Cliente
                 </h1>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
@@ -480,10 +480,10 @@ export default function ClientPortal() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="inline-flex p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 mb-6">
-              <Building2 className="h-16 w-16 text-emerald-400" />
+            <div className="inline-flex p-4 rounded-2xl bg-accent/30 border border-primary/15 mb-6">
+              <Building2 className="h-16 w-16 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+            <h2 className="text-2xl font-bold mb-2 text-primary font-heading">
               Sem Organização Associada
             </h2>
             <p className="text-muted-foreground mb-4">
@@ -618,7 +618,7 @@ export default function ClientPortal() {
               
               <div className="grid grid-cols-3 gap-2 pt-2">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-emerald-400">{overallStats.compliant}</div>
+                  <div className="text-lg font-bold text-primary">{overallStats.compliant}</div>
                   <div className="text-[10px] text-muted-foreground">Conforme</div>
                 </div>
                 <div className="text-center">
@@ -643,14 +643,14 @@ export default function ClientPortal() {
                 onClick={() => setActiveTab(item.id)}
                 className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 transition-all duration-300 ${
                   activeTab === item.id 
-                    ? "text-emerald-400 bg-gradient-to-t from-emerald-500/10 to-transparent" 
+                    ? "text-primary bg-primary/10" 
                     : "text-muted-foreground"
                 }`}
               >
                 <div className="relative">
                   <item.icon className="h-5 w-5" />
                   {item.count !== undefined && item.count > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-[10px] text-white rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-primary text-[10px] text-white rounded-full flex items-center justify-center">
                       {item.count > 9 ? "9+" : item.count}
                     </span>
                   )}
@@ -676,7 +676,7 @@ export default function ClientPortal() {
               >
               {/* Welcome Header */}
               <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold text-primary font-heading">
                   Olá, {user?.email?.split("@")[0]}
                 </h2>
                 <p className="text-muted-foreground">
@@ -699,11 +699,11 @@ export default function ClientPortal() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: stat.delay }}
                   >
-                    <Card className="bg-card/60 backdrop-blur-xl border-border/50 hover:border-emerald-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
+                    <Card className="bg-card/60 backdrop-blur-xl border-border/50 hover:border-primary/20 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">{stat.label}</CardTitle>
-                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
-                          <stat.icon className="h-4 w-4 text-emerald-400" />
+                        <div className="p-1.5 rounded-lg bg-accent/30">
+                          <stat.icon className="h-4 w-4 text-primary" />
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -721,7 +721,7 @@ export default function ClientPortal() {
                         {stat.isRate && (
                           <div className="h-2 mt-2 rounded-full bg-muted/30 overflow-hidden">
                             <motion.div 
-                              className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
+                              className="h-full bg-primary rounded-full"
                               initial={{ width: 0 }}
                               animate={{ width: `${complianceRate}%` }}
                               transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
@@ -740,8 +740,8 @@ export default function ClientPortal() {
                 <Card className="bg-card/60 backdrop-blur-xl border-border/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
-                        <TrendingUp className="h-4 w-4 text-emerald-400" />
+                      <div className="p-1.5 rounded-lg bg-accent/30">
+                        <TrendingUp className="h-4 w-4 text-primary" />
                       </div>
                       Estado de Conformidade
                     </CardTitle>
@@ -785,7 +785,7 @@ export default function ClientPortal() {
                     ) : (
                       <div className="h-[280px] flex items-center justify-center text-muted-foreground">
                         <div className="text-center">
-                          <Clock className="h-12 w-12 mx-auto mb-2 opacity-50 text-emerald-400" />
+                          <Clock className="h-12 w-12 mx-auto mb-2 opacity-50 text-primary" />
                           <p>Sem requisitos avaliados</p>
                         </div>
                       </div>
@@ -797,8 +797,8 @@ export default function ClientPortal() {
                 <Card className="bg-card/60 backdrop-blur-xl border-border/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
-                        <AlertTriangle className="h-4 w-4 text-emerald-400" />
+                      <div className="p-1.5 rounded-lg bg-accent/30">
+                        <AlertTriangle className="h-4 w-4 text-primary" />
                       </div>
                       Ações Urgentes
                     </CardTitle>
@@ -865,11 +865,11 @@ export default function ClientPortal() {
                       <motion.div 
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20"
+                        className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-primary/15"
                       >
-                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
                         <div>
-                          <p className="font-medium text-emerald-400">Tudo em Ordem</p>
+                          <p className="font-medium text-primary">Tudo em Ordem</p>
                           <p className="text-sm text-muted-foreground">
                             Não existem itens urgentes
                           </p>
@@ -886,8 +886,8 @@ export default function ClientPortal() {
                 <Card className="bg-card/60 backdrop-blur-xl border-border/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
-                        <FolderTree className="h-4 w-4 text-emerald-400" />
+                      <div className="p-1.5 rounded-lg bg-accent/30">
+                        <FolderTree className="h-4 w-4 text-primary" />
                       </div>
                       Temas Disponíveis
                     </CardTitle>
