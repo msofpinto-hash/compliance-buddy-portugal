@@ -439,15 +439,16 @@ export default function ClientPortal() {
 
   if (loadingRole) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
-        <ClientGridBackground />
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center relative z-10"
+          className="text-center"
         >
-          <ClientAnimatedLogo className="mx-auto mb-4 scale-150" />
-          <p className="mt-6 text-muted-foreground">A carregar...</p>
+          <div className="flex h-12 w-12 mx-auto mb-4 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Scale className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-muted-foreground">A carregar...</p>
         </motion.div>
       </div>
     );
@@ -455,14 +456,13 @@ export default function ClientPortal() {
 
   if (organizationIds.length === 0) {
     return (
-      <div className="min-h-screen bg-background relative overflow-hidden">
-        <ClientGridBackground />
-        <ClientParticles />
-        
-        <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl relative z-10">
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card/95 backdrop-blur-sm relative z-10">
           <div className="container mx-auto flex items-center justify-between px-4 py-4">
             <div className="flex items-center gap-3">
-              <ClientAnimatedLogo />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Scale className="h-5 w-5" />
+              </div>
               <div>
                 <h1 className="text-xl font-semibold text-primary font-heading">
                   Portal do Cliente
