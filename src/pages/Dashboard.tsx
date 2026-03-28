@@ -537,21 +537,12 @@ export default function Dashboard() {
     { name: "Pendente", value: actionPlanStats.pending, color: COLORS.pending },
   ].filter(d => d.value > 0);
 
-  // Generate mock trend data for compliance evolution (last 7 days)
-  // In a real scenario, this would come from historical data stored in the database
-  const complianceTrendData = eachDayOfInterval({
-    start: subDays(new Date(), 6),
-    end: new Date()
-  }).map((date, index) => {
-    // Simulate slight variation around current compliance rate
-    const baseRate = complianceRate || 50;
-    const variation = Math.sin(index * 0.8) * 5 + (index * 2);
-    const rate = Math.max(0, Math.min(100, Math.round(baseRate - 10 + variation)));
-    return {
-      date: format(date, "EEE", { locale: pt }),
-      taxa: index === 6 ? complianceRate : rate, // Last point is current rate
-    };
-  });
+  // Real compliance summary data (no mock trend - would need historical snapshots table)
+  const complianceSummaryData = [
+    { name: "Conforme", value: complianceStats?.compliant || 0 },
+    { name: "Não Conforme", value: complianceStats?.nonCompliant || 0 },
+    { name: "Em Avaliação", value: complianceStats?.inProgress || 0 },
+  ];
 
   // Categorize alerts by type
   const alertsByType = {
