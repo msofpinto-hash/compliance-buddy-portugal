@@ -56,7 +56,24 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
+  			/* Brand-specific semantic colors */
+  			sage: {
+  				DEFAULT: 'hsl(134 25% 71%)',
+  				dark: 'hsl(137 16% 42%)',
+  				light: 'hsl(134 25% 88%)',
+  			},
+  			beige: {
+  				DEFAULT: 'hsl(32 43% 84%)',
+  				light: 'hsl(32 35% 94%)',
+  			},
+  			brown: {
+  				DEFAULT: 'hsl(33 39% 57%)',
+  			},
+  			navy: {
+  				DEFAULT: 'hsl(210 30% 24%)',
+  				light: 'hsl(210 20% 45%)',
+  			},
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -65,20 +82,12 @@ export default {
   		},
   		keyframes: {
   			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
+  				from: { height: '0' },
+  				to: { height: 'var(--radix-accordion-content-height)' }
   			},
   			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
+  				from: { height: 'var(--radix-accordion-content-height)' },
+  				to: { height: '0' }
   			}
   		},
   		animation: {
@@ -95,39 +104,18 @@ export default {
   			'2xl': 'var(--shadow-2xl)'
   		},
   		fontFamily: {
-  			sans: [
-  				'Work Sans',
+  			heading: [
+  				'Montserrat',
   				'ui-sans-serif',
   				'system-ui',
-  				'-apple-system',
-  				'BlinkMacSystemFont',
-  				'Segoe UI',
-  				'Roboto',
-  				'Helvetica Neue',
-  				'Arial',
-  				'Noto Sans',
   				'sans-serif'
   			],
-  			serif: [
-  				'Lora',
-  				'ui-serif',
-  				'Georgia',
-  				'Cambria',
-  				'Times New Roman',
-  				'Times',
-  				'serif'
+  			sans: [
+  				'Open Sans',
+  				'ui-sans-serif',
+  				'system-ui',
+  				'sans-serif'
   			],
-  			mono: [
-  				'Inconsolata',
-  				'ui-monospace',
-  				'SFMono-Regular',
-  				'Menlo',
-  				'Monaco',
-  				'Consolas',
-  				'Liberation Mono',
-  				'Courier New',
-  				'monospace'
-  			]
   		}
   	}
   },
