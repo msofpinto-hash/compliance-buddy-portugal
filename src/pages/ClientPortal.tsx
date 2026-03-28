@@ -507,17 +507,15 @@ export default function ClientPortal() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Futuristic Background */}
-      <ClientGridBackground />
-      <ClientParticles />
-      
       {/* Header */}
-      <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-20 relative">
+      <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-20 relative">
         <div className="flex items-center justify-between px-4 lg:px-6 py-3">
           <div className="flex items-center gap-3">
-            <ClientAnimatedLogo />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+              <Scale className="h-5 w-5" />
+            </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground font-heading">
                 Portal do Cliente
               </h1>
               <p className="text-xs text-muted-foreground">Gestão de Conformidade</p>
@@ -525,7 +523,6 @@ export default function ClientPortal() {
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Organization Selector */}
             {organizations.length > 1 && (
               <OrganizationSelector
                 organizations={organizations}
@@ -534,11 +531,10 @@ export default function ClientPortal() {
               />
             )}
             
-            {/* Export Button */}
             <Button 
               variant="ghost"
               size="sm"
-              className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"
+              className="gap-2 hover:bg-accent/50 hover:text-accent-foreground transition-colors"
               onClick={() => setExportDialogOpen(true)}
             >
               <Download className="h-4 w-4" />
@@ -547,9 +543,8 @@ export default function ClientPortal() {
             
             <ClientNotificationBell organizationIds={organizationIds} />
             
-            
             <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+              <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/50 hover:text-accent-foreground transition-colors">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden md:inline">Dashboard</span>
               </Button>
@@ -557,7 +552,7 @@ export default function ClientPortal() {
             
             {isAdmin && (
               <Link to="/admin">
-                <Button variant="ghost" size="sm" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/50 hover:text-accent-foreground transition-colors">
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Admin</span>
                 </Button>
@@ -571,7 +566,7 @@ export default function ClientPortal() {
 
       <div className="flex relative z-10">
         {/* Sidebar Navigation */}
-        <aside className="hidden lg:flex flex-col w-64 border-r border-border/50 bg-card/60 backdrop-blur-xl min-h-[calc(100vh-57px)] sticky top-[57px]">
+        <aside className="hidden lg:flex flex-col w-64 border-r border-border bg-card/80 min-h-[calc(100vh-57px)] sticky top-[57px]">
           <nav className="flex-1 p-4 space-y-1">
             {navItems.map((item, index) => (
               <motion.button
@@ -580,10 +575,10 @@ export default function ClientPortal() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-300 ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
                   activeTab === item.id 
-                    ? "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10" 
-                    : "hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-400 border border-transparent"
+                    ? "bg-primary/10 text-primary border border-primary/20 shadow-sm" 
+                    : "hover:bg-accent/40 text-muted-foreground hover:text-foreground border border-transparent"
                 }`}
               >
                 <item.icon className="h-5 w-5" />
@@ -591,7 +586,7 @@ export default function ClientPortal() {
                 {item.count !== undefined && item.count > 0 && (
                   <Badge 
                     variant={activeTab === item.id ? "secondary" : "outline"} 
-                    className={`ml-auto ${activeTab === item.id ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : ""}`}
+                    className={`ml-auto ${activeTab === item.id ? "bg-primary/15 text-primary border-primary/20" : ""}`}
                   >
                     {item.count}
                   </Badge>
@@ -601,8 +596,8 @@ export default function ClientPortal() {
           </nav>
           
           {/* Sidebar Stats Summary */}
-          <div className="p-4 border-t border-border/50">
-            <div className="space-y-3 p-3 rounded-lg bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/10">
+          <div className="p-4 border-t border-border">
+            <div className="space-y-3 p-3 rounded-lg bg-accent/20 border border-border">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Taxa de Conformidade</span>
                 <span 
@@ -614,7 +609,7 @@ export default function ClientPortal() {
               </div>
               <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
                 <motion.div 
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
+                  className="h-full bg-primary rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${complianceRate}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
