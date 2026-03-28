@@ -66,7 +66,7 @@ import { IDSidebar } from "@/components/client/IDSidebar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, subDays, eachDayOfInterval } from "date-fns";
+import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import {
   PieChart,
