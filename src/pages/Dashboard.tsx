@@ -66,7 +66,7 @@ import { IDSidebar } from "@/components/client/IDSidebar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, subDays, eachDayOfInterval } from "date-fns";
+import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import {
   PieChart,
@@ -537,21 +537,6 @@ export default function Dashboard() {
     { name: "Pendente", value: actionPlanStats.pending, color: COLORS.pending },
   ].filter(d => d.value > 0);
 
-  // Generate mock trend data for compliance evolution (last 7 days)
-  // In a real scenario, this would come from historical data stored in the database
-  const complianceTrendData = eachDayOfInterval({
-    start: subDays(new Date(), 6),
-    end: new Date()
-  }).map((date, index) => {
-    // Simulate slight variation around current compliance rate
-    const baseRate = complianceRate || 50;
-    const variation = Math.sin(index * 0.8) * 5 + (index * 2);
-    const rate = Math.max(0, Math.min(100, Math.round(baseRate - 10 + variation)));
-    return {
-      date: format(date, "EEE", { locale: pt }),
-      taxa: index === 6 ? complianceRate : rate, // Last point is current rate
-    };
-  });
 
   // Categorize alerts by type
   const alertsByType = {
@@ -1123,64 +1108,29 @@ export default function Dashboard() {
                         <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 shadow-lg shadow-emerald-400/20 font-bold px-3">{actionPlanStats.completed}</Badge>
                       </motion.div>
 
-                      {/* Mini Trend Chart */}
+                      {/* Compliance Summary */}
                       <div className="pt-3 border-t border-emerald-200/50 dark:border-emerald-700/30">
-                        <p className="text-xs font-medium text-emerald-700/80 dark:text-emerald-400/80 mb-2">Evolução (últimos 7 dias)</p>
-                        <div className="h-[80px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={complianceTrendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                              <defs>
-                                <linearGradient id="colorTaxaVibrant" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="hsl(158, 90%, 45%)" stopOpacity={0.6}/>
-                                  <stop offset="50%" stopColor="hsl(168, 85%, 38%)" stopOpacity={0.3}/>
-                                  <stop offset="100%" stopColor="hsl(175, 80%, 35%)" stopOpacity={0.05}/>
-                                </linearGradient>
-                              </defs>
-                              <XAxis 
-                                dataKey="date" 
-                                tick={{ fontSize: 10, fill: "#94a3b8" }}
-                                tickLine={false}
-                                axisLine={false}
-                              />
-                              <YAxis 
-                                domain={[0, 100]}
-                                tick={{ fontSize: 10, fill: "#94a3b8" }}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(v) => `${v}%`}
-                              />
-                              <Tooltip 
-                                formatter={(value: number) => [`${value}%`, "Taxa"]}
-                                contentStyle={{ 
-                                  borderRadius: "12px", 
-                                  border: "none",
-                                  boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
-                                  background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-                                  color: "#1e293b",
-                                  fontSize: "12px",
-                                  padding: "10px 14px"
-                                }}
-                              />
-                              <Area 
-                                type="monotone" 
-                                dataKey="taxa" 
-                                stroke="url(#trendStroke)"
-                                strokeWidth={3}
-                                fillOpacity={1} 
-                                fill="url(#colorTaxaVibrant)"
-                                animationBegin={200}
-                                animationDuration={1500}
-                                animationEasing="ease-out"
-                              />
-                              <defs>
-                                <linearGradient id="trendStroke" x1="0" y1="0" x2="1" y2="0">
-                                  <stop offset="0%" stopColor="hsl(158, 90%, 45%)" />
-                                  <stop offset="50%" stopColor="hsl(168, 85%, 40%)" />
-                                  <stop offset="100%" stopColor="hsl(175, 80%, 35%)" />
-                                </linearGradient>
-                              </defs>
-                            </AreaChart>
-                          </ResponsiveContainer>
+                        <p className="text-xs font-medium text-emerald-700/80 dark:text-emerald-400/80 mb-2">Resumo de Conformidade</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Taxa atual</span>
+                            <span className="text-lg font-bold" style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}>
+                              {complianceRate}%
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                            <motion.div 
+                              className="h-full rounded-full"
+                              style={{ background: `linear-gradient(90deg, ${COLORS.compliant}, hsl(168, 85%, 38%))` }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${complianceRate}%` }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>{complianceStats?.applicable || 0} requisitos aplicáveis</span>
+                            <span>{complianceStats?.compliant || 0} conformes</span>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -1681,98 +1631,187 @@ export default function Dashboard() {
           {activeTab === "indicators" && (
             <div className="space-y-6">
               {/* Hero Header - I&D Warm Corporate Style */}
+              {/* Indicators Hero */}
               <motion.div
-                initial={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="relative overflow-hidden rounded-xl bg-gradient-to-r from-white via-amber-50/50 to-stone-50 dark:from-[#1a1512] dark:via-[#181410] dark:to-[#141210] border border-amber-200/50 dark:border-amber-900/30 p-6 lg:p-8 shadow-sm"
+                className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-white via-emerald-50/30 to-amber-50/20 dark:from-[#1a1512] dark:via-emerald-950/20 dark:to-amber-950/10 border border-stone-200/60 dark:border-amber-900/30 p-6 lg:p-8"
               >
-                {/* Decorative accent - warm gradient */}
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-600 via-amber-500 to-orange-500 dark:from-emerald-500 dark:via-amber-500 dark:to-orange-400" />
-                
-                {/* Warm corner accents */}
-                <div className="absolute -right-20 -top-20 w-48 h-48 bg-gradient-to-br from-amber-200/30 to-orange-200/20 dark:from-amber-700/15 dark:to-orange-700/10 rounded-full blur-3xl" />
-                <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-emerald-200/20 dark:bg-emerald-700/10 rounded-full blur-2xl" />
-                
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pl-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-amber-100/80 dark:from-emerald-800/50 dark:to-amber-800/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-700/40">
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        Módulo de Indicadores
-                      </span>
-                      <Badge variant="outline" className="text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300">Em breve</Badge>
-                    </div>
-                    <h1 className="text-2xl lg:text-3xl font-semibold text-stone-800 dark:text-white tracking-tight">
+                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-600 via-amber-500 to-orange-500" />
+                <div className="relative z-10 pl-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-amber-100/80 dark:from-emerald-800/50 dark:to-amber-800/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-700/40">
+                      <BarChart3 className="h-3.5 w-3.5" />
                       Indicadores
-                    </h1>
-                    <p className="text-stone-600 dark:text-amber-100/70 max-w-xl text-sm lg:text-base">
-                      Métricas e indicadores de desempenho para monitorizar a conformidade legal da sua organização
-                    </p>
+                    </span>
                   </div>
+                  <h1 className="text-2xl font-semibold text-stone-800 dark:text-white">Indicadores de Desempenho</h1>
+                  <p className="text-stone-600 dark:text-amber-100/70 text-sm mt-1">Métricas calculadas com base nos dados reais da sua organização</p>
                 </div>
               </motion.div>
               
-              {/* Coming Soon Cards - I&D Style */}
+              {/* Real KPI Cards */}
               <div className="grid gap-4 md:grid-cols-3">
-                <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-bl-full" />
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      Taxa de Conformidade
-                    </CardTitle>
-                    <CardDescription className="text-stone-600 dark:text-amber-200/60">Evolução ao longo do tempo</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-24 flex items-center justify-center text-stone-400 dark:text-amber-200/40">
-                      <Sparkles className="h-8 w-8 opacity-30" />
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-500/20 to-transparent rounded-bl-full" />
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white">
-                      <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                      Tempo de Resolução
-                    </CardTitle>
-                    <CardDescription className="text-stone-600 dark:text-amber-200/60">Média de tempo para corrigir não-conformidades</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-24 flex items-center justify-center text-stone-400 dark:text-amber-200/40">
-                      <Sparkles className="h-8 w-8 opacity-30" />
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-500/20 to-transparent rounded-bl-full" />
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white">
-                      <ClipboardCheck className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                      Auditorias Concluídas
-                    </CardTitle>
-                    <CardDescription className="text-stone-600 dark:text-amber-200/60">Resultados e tendências de auditoria</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-24 flex items-center justify-center text-stone-400 dark:text-amber-200/40">
-                      <Sparkles className="h-8 w-8 opacity-30" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                  <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-bl-full" />
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white text-base">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                        Taxa de Conformidade
+                      </CardTitle>
+                      <CardDescription>Requisitos aplicáveis em conformidade</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold" style={{ color: complianceRate >= 80 ? COLORS.compliant : complianceRate >= 50 ? COLORS.inProgress : COLORS.nonCompliant }}>
+                        {complianceRate}%
+                      </div>
+                      <div className="h-2 mt-3 rounded-full bg-muted/30 overflow-hidden">
+                        <motion.div 
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${complianceRate}%` }}
+                          transition={{ duration: 1 }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {complianceStats?.compliant || 0} de {complianceStats?.applicable || 0} requisitos
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                  <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-500/20 to-transparent rounded-bl-full" />
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white text-base">
+                        <ClipboardList className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        Planos de Ação
+                      </CardTitle>
+                      <CardDescription>Distribuição por estado</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold text-stone-800 dark:text-white">
+                        {actionPlans?.length || 0}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-3">
+                        <div className="text-center p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                          <div className="text-lg font-bold text-emerald-600">{actionPlanStats.completed}</div>
+                          <div className="text-[10px] text-muted-foreground">Concluídos</div>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                          <div className="text-lg font-bold text-amber-600">{actionPlanStats.inProgress}</div>
+                          <div className="text-[10px] text-muted-foreground">Em Curso</div>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-red-50 dark:bg-red-900/20">
+                          <div className="text-lg font-bold text-red-600">{actionPlanStats.overdue}</div>
+                          <div className="text-[10px] text-muted-foreground">Atrasados</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                  <Card className="relative overflow-hidden bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-500/20 to-transparent rounded-bl-full" />
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white text-base">
+                        <ClipboardCheck className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                        Auditorias
+                      </CardTitle>
+                      <CardDescription>Estado das auditorias</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold text-stone-800 dark:text-white">
+                        {audits?.length || 0}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-3">
+                        <div className="text-center p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                          <div className="text-lg font-bold text-blue-600">{audits?.filter(a => a.status === "planned").length || 0}</div>
+                          <div className="text-[10px] text-muted-foreground">Planeadas</div>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                          <div className="text-lg font-bold text-yellow-600">{audits?.filter(a => a.status === "in_progress").length || 0}</div>
+                          <div className="text-[10px] text-muted-foreground">Em Curso</div>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                          <div className="text-lg font-bold text-emerald-600">{audits?.filter(a => a.status === "closed").length || 0}</div>
+                          <div className="text-[10px] text-muted-foreground">Encerradas</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               </div>
-              
-              <Card className="border-dashed bg-white/95 dark:bg-[#181410]/90 border-amber-300/60 dark:border-amber-800/40">
-                <CardContent className="py-16 text-center">
-                  <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-emerald-100 to-amber-100/80 dark:from-emerald-800/30 dark:to-amber-800/20 flex items-center justify-center mb-6">
-                    <BarChart3 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+
+              {/* Non-Compliance Breakdown */}
+              <Card className="bg-white/95 dark:bg-[#181410]/90 border border-stone-200/60 dark:border-amber-900/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-stone-800 dark:text-white">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                    Resumo de Não-Conformidades
+                  </CardTitle>
+                  <CardDescription>Visão geral das áreas que requerem atenção</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200/60 dark:border-red-800/30">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-4 w-4 text-red-500" />
+                          <span className="text-sm font-medium">Não Conformes</span>
+                        </div>
+                        <Badge className="bg-red-500 text-white border-0">{complianceStats?.nonCompliant || 0}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/30">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-amber-500" />
+                          <span className="text-sm font-medium">Em Avaliação</span>
+                        </div>
+                        <Badge className="bg-amber-500 text-white border-0">{complianceStats?.inProgress || 0}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200/60 dark:border-orange-800/30">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                          <span className="text-sm font-medium">Ações em Atraso</span>
+                        </div>
+                        <Badge className="bg-orange-500 text-white border-0">{actionPlanStats.overdue}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center">
+                      {compliancePieData.length > 0 ? (
+                        <div className="h-[200px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={compliancePieData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={50}
+                                outerRadius={80}
+                                paddingAngle={3}
+                                dataKey="value"
+                                stroke="none"
+                              >
+                                {compliancePieData.map((entry, index) => (
+                                  <Cell key={`ind-cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip formatter={(value: number) => [`${value} requisitos`, ""]} />
+                              <Legend verticalAlign="bottom" height={36} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                          <p>Sem dados de conformidade</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 text-stone-800 dark:text-white">Indicadores em Desenvolvimento</h3>
-                  <p className="text-stone-600 dark:text-amber-200/60 max-w-md mx-auto">
-                    Estamos a desenvolver dashboards interativos com métricas avançadas para acompanhar a performance da sua organização.
-                  </p>
                 </CardContent>
               </Card>
             </div>
