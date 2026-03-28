@@ -42,6 +42,7 @@ import { MyComplianceRequestsPanel } from "@/components/client/MyComplianceReque
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { ExportReportDialog } from "@/components/admin/ExportReportDialog";
+import { ClientNotificationBell } from "@/components/client/ClientNotificationBell";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -543,6 +544,8 @@ export default function ClientPortal() {
               <Download className="h-4 w-4" />
               <span className="hidden md:inline">Exportar</span>
             </Button>
+            
+            <ClientNotificationBell organizationIds={organizationIds} />
             
             
             <Link to="/dashboard">
