@@ -16,7 +16,7 @@ interface DREDocument {
   externalId: string;
 }
 
-const months: Record<string, string> = {
+const monthNames: Record<string, string> = {
   janeiro: '01', fevereiro: '02', março: '03', marco: '03', abril: '04',
   maio: '05', junho: '06', julho: '07', agosto: '08',
   setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
@@ -25,38 +25,26 @@ const months: Record<string, string> = {
 function sanitizeDate(dateStr: string | null): string | null {
   if (!dateStr) return null;
   try {
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const currentYear = new Date().getFullYear();
-    if (year >= 1900 && year <= currentYear + 1) return dateStr;
-    return null;
-  } catch {
-    return null;
-  }
+    const d = new Date(dateStr);
+    const y = d.getFullYear();
+    return (y >= 1900 && y <= new Date().getFullYear() + 1) ? dateStr : null;
+  } catch { return null; }
 }
 
-function parseDate(dateStr: string): string | null {
-  const isoMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return sanitizeDate(isoMatch[0]);
-
-  const slashMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (slashMatch) return sanitizeDate(`${slashMatch[3]}-${slashMatch[2].padStart(2, '0')}-${slashMatch[1].padStart(2, '0')}`);
-
-  const ptMatch = dateStr.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
-  if (ptMatch) {
-    const month = months[ptMatch[2].toLowerCase()];
-    if (month) return sanitizeDate(`${ptMatch[3]}-${month}-${ptMatch[1].padStart(2, '0')}`);
-  }
+function parseDate(s: string): string | null {
+  let m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return sanitizeDate(m[0]);
+  m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) return sanitizeDate(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+  m = s.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+  if (m && monthNames[m[2].toLowerCase()]) return sanitizeDate(`${m[3]}-${monthNames[m[2].toLowerCase()]}-${m[1].padStart(2,'0')}`);
   return null;
 }
 
-// Parse a diploma detail page markdown
-function parseDiplomaMarkdown(markdown: string, url: string, pageDate: string): DREDocument | null {
+function parseDiplomaMarkdown(markdown: string, url: string): DREDocument | null {
   if (!markdown || markdown.length < 100) return null;
-  if (markdown.includes('página que acedeu não se encontra disponível') || 
-      (markdown.includes('Lamentamos') && markdown.length < 500)) return null;
+  if (markdown.includes('página que acedeu não se encontra disponível')) return null;
 
-  // Extract from URL: /dr/detalhe/tipo/numero-ano-id
   const urlMatch = url.match(/\/dr\/detalhe\/([^\/]+)\/([^\/]+)/);
   if (!urlMatch) return null;
 
@@ -66,365 +54,177 @@ function parseDiplomaMarkdown(markdown: string, url: string, pageDate: string): 
   
   let number = '';
   let externalId = urlMatch[2];
-  
+
+  // Parse URL ref: could be num-year-id or num-suffix-year-id
   if (refParts.length >= 3) {
-    // Format: numero-ano-dbid (e.g., 156-2026-1083325918)
-    // Could also be: numero-sufixo-ano-dbid (e.g., 10-a-2026-123456)
     const lastPart = refParts[refParts.length - 1];
     const yearPart = refParts[refParts.length - 2];
-    
     if (/^\d{4}$/.test(yearPart) && lastPart.length > 6) {
-      // Standard: num-year-id
       const numParts = refParts.slice(0, -2).join('-');
       number = `${capitalizedType} n.º ${numParts}/${yearPart}`;
       externalId = lastPart;
     } else if (/^\d{4}$/.test(refParts[1]) && refParts.length === 3) {
       number = `${capitalizedType} n.º ${refParts[0]}/${refParts[1]}`;
       externalId = refParts[2];
-    } else {
-      number = `${capitalizedType} n.º ${refParts[0]}/${refParts[1]}`;
-      externalId = refParts[refParts.length - 1];
     }
-  } else if (refParts.length === 2) {
+  }
+  if (!number && refParts.length >= 2) {
     number = `${capitalizedType} n.º ${refParts[0]}/${refParts[1]}`;
   }
-
   if (!number) return null;
 
-  // Extract title from markdown
+  // Extract title
   let title = number;
-  const titleMatch = markdown.match(/(?:Portaria|Decreto-Lei|Despacho|Lei|Regulamento|Resolução|Declaração|Aviso)[^\n]*n\.º[^\n]+/i);
-  if (titleMatch) {
-    title = titleMatch[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '').replace(/\(.*?\)/g, '').trim();
-  }
+  const titleMatch = markdown.match(/(?:Portaria|Decreto-Lei|Despacho|Lei|Regulamento|Resolução|Declaração|Aviso|Decreto|Edital|Deliberação)[^\n]*n\.º[^\n]+/i);
+  if (titleMatch) title = titleMatch[0].trim().replace(/\*+/g, '').replace(/\[|\]/g, '').replace(/\(.*?\)/g, '').trim();
 
   // Extract summary
   let summary = '';
-  const sumPatterns = [
+  for (const p of [
     /SUMÁRIO\s*[:\-]?\s*([\s\S]+?)(?=\n\s*(?:TEXTO|Emissor|Entidade|\n#|\*\*Emissor|\*\*Data))/i,
     /Sumário[:\s]*([\s\S]+?)(?=\n\s*(?:Texto|Emissor|Entidade|\*\*))/i,
-  ];
-  for (const p of sumPatterns) {
+  ]) {
     const m = markdown.match(p);
     if (m?.[1]) {
-      const cleaned = m[1].trim().replace(/\s+/g, ' ').replace(/\[.*?\]\([^)]*\)/g, '').replace(/\*+/g, '').substring(0, 1000);
-      if (cleaned.length > 20) { summary = cleaned; break; }
+      const c = m[1].trim().replace(/\s+/g, ' ').replace(/\[.*?\]\([^)]*\)/g, '').replace(/\*+/g, '').substring(0, 1000);
+      if (c.length > 20) { summary = c; break; }
     }
   }
   if (!summary) {
-    // Use first meaningful paragraph
-    const lines = markdown.split('\n').filter(l => l.trim() && !l.startsWith('#') && !l.startsWith('[') && l.length > 30);
+    const lines = markdown.split('\n').filter(l => l.trim().length > 30 && !l.startsWith('#') && !l.startsWith('['));
     summary = (lines[0] || '').replace(/\*+/g, '').substring(0, 500);
   }
 
   // Extract entity
   let entity = '';
-  const entityMatch = markdown.match(/(?:Emissor|Entidade)[:\s]*\**([^\n*]+)/i);
-  if (entityMatch) entity = entityMatch[1].trim().replace(/\*+/g, '').substring(0, 200);
+  const em = markdown.match(/(?:Emissor|Entidade)[:\s]*\**([^\n*]+)/i);
+  if (em) entity = em[1].trim().replace(/\*+/g, '').substring(0, 200);
 
   // Extract dates
   let publicationDate: string | null = null;
-  const pubPatterns = [
-    /Data de Publicação[:\s]*\**([^\n*]+)/i,
-    /Publicação[:\s]*\**([^\n*]+)/i,
-    /Diário da República.*?(\d{4}-\d{2}-\d{2})/i,
-  ];
-  for (const p of pubPatterns) {
+  for (const p of [/Data de Publicação[:\s]*\**([^\n*]+)/i, /Publicação[:\s]*\**([^\n*]+)/i, /Diário.*?(\d{4}-\d{2}-\d{2})/i]) {
     const m = markdown.match(p);
     if (m) { publicationDate = parseDate(m[1]); if (publicationDate) break; }
   }
-  if (!publicationDate) publicationDate = pageDate;
 
   let effectiveDate: string | null = null;
-  const effMatch = markdown.match(/(?:Data de entrada em vigor|Entrada em vigor|Vigência)[:\s]*\**([^\n*]+)/i);
-  if (effMatch) effectiveDate = parseDate(effMatch[1]);
+  const effM = markdown.match(/(?:Data de entrada em vigor|Entrada em vigor|Vigência)[:\s]*\**([^\n*]+)/i);
+  if (effM) effectiveDate = parseDate(effM[1]);
 
-  return {
-    number, title, summary, entity,
-    publicationDate, effectiveDate,
-    documentUrl: url, externalId
-  };
+  return { number, title, summary, entity, publicationDate, effectiveDate, documentUrl: url, externalId };
 }
 
-// Generate all business dates between two dates
-function getBusinessDates(start: string, end: string): string[] {
-  const dates: string[] = [];
-  const current = new Date(start);
-  const endDate = new Date(end);
-  while (current <= endDate) {
-    // Include weekdays only (DRE doesn't publish on weekends typically)
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      dates.push(current.toISOString().split('T')[0]);
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return dates;
-}
-
-// Scrape a DRE daily page to get diploma links
-async function scrapeDailyPage(date: string, firecrawlApiKey: string): Promise<string[]> {
-  const seriesUrls = [
-    `https://diariodarepublica.pt/dr/diario/serie-i/${date}`,
-    `https://diariodarepublica.pt/dr/diario/serie-ii/${date}`,
-  ];
-  
-  const allLinks: string[] = [];
-  
-  for (const pageUrl of seriesUrls) {
-    try {
-      const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${firecrawlApiKey}`,
-        },
-        body: JSON.stringify({
-          url: pageUrl,
-          formats: ['links'],
-          waitFor: 5000,
-        }),
-      });
-
-      if (!response.ok) {
-        const status = response.status;
-        if (status === 402 || status === 429) {
-          console.warn(`Firecrawl rate limited (${status}) for ${pageUrl}`);
-          return allLinks; // Stop to avoid burning credits
-        }
-        continue;
-      }
-
-      const data = await response.json();
-      const links: string[] = data?.data?.links || [];
-      
-      const diplomaLinks = links.filter((link: string) =>
-        link.includes('/dr/detalhe/') &&
-        !link.includes('legislacao-consolidada') &&
-        !link.includes('diario-republica')
-      );
-      
-      allLinks.push(...diplomaLinks);
-    } catch (error) {
-      console.error(`Error scraping daily page ${pageUrl}:`, error);
-    }
-  }
-  
-  return [...new Set(allLinks)]; // Deduplicate
-}
-
-// Scrape a single diploma page
-async function scrapeDiploma(url: string, firecrawlApiKey: string, pageDate: string): Promise<DREDocument | null> {
-  try {
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${firecrawlApiKey}`,
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown'],
-        waitFor: 3000,
-        onlyMainContent: true,
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn(`Firecrawl ${response.status} for diploma ${url}`);
-      return null;
-    }
-
-    const data = await response.json();
-    const markdown = data?.data?.markdown || '';
-    return parseDiplomaMarkdown(markdown, url, pageDate);
-  } catch (error) {
-    console.error(`Error scraping diploma ${url}:`, error);
-    return null;
-  }
-}
-
-// Normalize number for duplicate detection
 function normalizeNumber(num: string): string {
-  return num.toLowerCase()
-    .replace(/\s+/g, ' ')
-    .replace(/,\s*/g, ' ')
-    .replace(/n\.º\s*/g, 'n.º ')
-    .replace(/de\s+(\d)/g, '$1')
-    .replace(/\s+de\s+\d{1,2}\s+de\s+\w+$/i, '')
-    .trim();
+  return num.toLowerCase().replace(/\s+/g, ' ').replace(/n\.º\s*/g, 'n.º ').trim();
 }
 
-// Match categories by keywords
 function matchCategories(doc: DREDocument, categories: any[]): string[] {
-  const matchedIds: string[] = [];
-  const searchText = `${doc.title} ${doc.summary} ${doc.number}`.toLowerCase();
-  for (const cat of categories) {
-    if (!cat.keywords?.length) continue;
-    for (const kw of cat.keywords) {
-      if (searchText.includes(kw.toLowerCase())) {
-        if (!matchedIds.includes(cat.id)) matchedIds.push(cat.id);
-        break;
-      }
+  const ids: string[] = [];
+  const text = `${doc.title} ${doc.summary} ${doc.number}`.toLowerCase();
+  for (const c of categories) {
+    if (!c.keywords?.length) continue;
+    for (const kw of c.keywords) {
+      if (text.includes(kw.toLowerCase())) { ids.push(c.id); break; }
     }
   }
-  return matchedIds;
+  return ids;
 }
+
+// Excluded doc types from DRE (not legislation)
+const EXCLUDED_TYPES = ['anuncio', 'contrato-publico', 'aviso-extrato', 'diario-republica'];
 
 declare const EdgeRuntime: { waitUntil: (promise: Promise<void>) => void };
 
-// Background processing
 async function processInBackground(
-  supabase: any,
-  dates: string[],
-  logId: string,
-  firecrawlApiKey: string,
-  categories: any[],
-  existingByNumber: Map<string, any>,
-  existingByExtId: Map<string, any>,
-  seriesFilter: string,
+  supabase: any, urls: string[], logId: string, firecrawlApiKey: string,
+  categories: any[], existingByNum: Map<string, any>, existingByExt: Map<string, any>,
 ): Promise<void> {
-  let totalProcessed = 0;
-  let totalAdded = 0;
-  let totalUpdated = 0;
-  let totalSkipped = 0;
+  let processed = 0, added = 0, updated = 0, skipped = 0;
+  console.log(`🚀 Processing ${urls.length} diploma URLs`);
 
-  console.log(`🚀 Background import: ${dates.length} days, series: ${seriesFilter}`);
+  for (let i = 0; i < urls.length; i += 3) {
+    const batch = urls.slice(i, i + 3);
+    const results = await Promise.all(batch.map(async (url) => {
+      try {
+        const resp = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${firecrawlApiKey}` },
+          body: JSON.stringify({ url, formats: ['markdown'], waitFor: 3000, onlyMainContent: true }),
+        });
+        if (!resp.ok) { console.warn(`Firecrawl ${resp.status} for ${url}`); return null; }
+        const data = await resp.json();
+        return parseDiplomaMarkdown(data?.data?.markdown || '', url);
+      } catch (e) { console.error(`Error scraping ${url}:`, e); return null; }
+    }));
 
-  for (let i = 0; i < dates.length; i++) {
-    const date = dates[i];
-    console.log(`[Day ${i + 1}/${dates.length}] ${date} - Scraping daily page...`);
+    for (const doc of results) {
+      processed++;
+      if (!doc) { skipped++; continue; }
 
-    try {
-      // Get diploma links for this day
-      const links = await scrapeDailyPage(date, firecrawlApiKey);
-      console.log(`[${date}] Found ${links.length} diploma links`);
+      const normNum = normalizeNumber(doc.number);
+      const existing = existingByExt.get(doc.externalId) || existingByNum.get(normNum);
 
-      if (links.length === 0) {
-        // Update progress
-        await supabase.from('sync_logs').update({
-          items_processed: totalProcessed,
-          items_added: totalAdded,
-          items_updated: totalUpdated,
-        }).eq('id', logId);
+      if (existing) {
+        const upd: Record<string, unknown> = {};
+        if (doc.title && doc.title !== doc.number && (!existing.title || existing.title === existing.number)) upd.title = doc.title;
+        if (doc.summary?.length > 20 && (!existing.summary || existing.summary.length < doc.summary.length)) upd.summary = doc.summary;
+        if (doc.entity && !existing.entity) upd.entity = doc.entity;
+        if (doc.publicationDate && !existing.publication_date) upd.publication_date = doc.publicationDate;
+        if (doc.effectiveDate && !existing.effective_date) upd.effective_date = doc.effectiveDate;
+        if (doc.documentUrl && !existing.document_url) upd.document_url = doc.documentUrl;
+        if (Object.keys(upd).length > 0) {
+          upd.updated_at = new Date().toISOString();
+          await supabase.from('legislation').update(upd).eq('id', existing.id);
+          updated++;
+          console.log(`Updated: ${doc.number}`);
+        }
         continue;
       }
 
-      // Process diplomas in batches of 3 (to avoid Firecrawl rate limits)
-      for (let j = 0; j < links.length; j += 3) {
-        const batch = links.slice(j, j + 3);
-        const results = await Promise.all(
-          batch.map(link => scrapeDiploma(link, firecrawlApiKey, date))
+      const { data: newLeg, error } = await supabase.from('legislation').insert({
+        external_id: doc.externalId, source: 'dre', number: doc.number, title: doc.title,
+        summary: doc.summary, entity: doc.entity, origin: 'PT',
+        publication_date: doc.publicationDate, effective_date: doc.effectiveDate,
+        document_url: doc.documentUrl,
+      }).select('id').single();
+
+      if (error) { console.error(`Insert error ${doc.number}:`, error.message); continue; }
+
+      added++;
+      existingByNum.set(normNum, { ...doc, id: newLeg.id });
+      existingByExt.set(doc.externalId, { ...doc, id: newLeg.id });
+      console.log(`Added: ${doc.number}`);
+
+      const catIds = matchCategories(doc, categories);
+      if (catIds.length > 0) {
+        await supabase.from('legislation_category_mapping').insert(
+          catIds.map(cid => ({ legislation_id: newLeg.id, category_id: cid }))
         );
-
-        for (const doc of results) {
-          totalProcessed++;
-          if (!doc) { totalSkipped++; continue; }
-
-          // Check duplicates
-          const normalizedNum = normalizeNumber(doc.number);
-          let existing = existingByExtId.get(doc.externalId) || existingByNumber.get(normalizedNum);
-
-          if (existing) {
-            // Smart merge - update only empty fields
-            const updates: Record<string, unknown> = {};
-            if (doc.title && doc.title !== doc.number && (!existing.title || existing.title === existing.number)) updates.title = doc.title;
-            if (doc.summary && doc.summary.length > 20 && (!existing.summary || existing.summary.length < doc.summary.length)) updates.summary = doc.summary;
-            if (doc.entity && !existing.entity) updates.entity = doc.entity;
-            if (doc.publicationDate && !existing.publication_date) updates.publication_date = doc.publicationDate;
-            if (doc.effectiveDate && !existing.effective_date) updates.effective_date = doc.effectiveDate;
-            if (doc.documentUrl && !existing.document_url) updates.document_url = doc.documentUrl;
-
-            if (Object.keys(updates).length > 0) {
-              updates.updated_at = new Date().toISOString();
-              await supabase.from('legislation').update(updates).eq('id', existing.id);
-              totalUpdated++;
-            }
-            continue;
-          }
-
-          // Insert new
-          const { data: newLeg, error } = await supabase
-            .from('legislation')
-            .insert({
-              external_id: doc.externalId,
-              source: 'dre',
-              number: doc.number,
-              title: doc.title,
-              summary: doc.summary,
-              entity: doc.entity,
-              origin: 'PT',
-              publication_date: doc.publicationDate,
-              effective_date: doc.effectiveDate,
-              document_url: doc.documentUrl,
-            })
-            .select('id')
-            .single();
-
-          if (error) {
-            console.error(`Insert error for ${doc.number}:`, error.message);
-            continue;
-          }
-
-          totalAdded++;
-          existingByNumber.set(normalizedNum, { ...doc, id: newLeg.id, external_id: doc.externalId });
-          existingByExtId.set(doc.externalId, { ...doc, id: newLeg.id });
-
-          // Auto-categorize
-          const catIds = matchCategories(doc, categories);
-          if (catIds.length > 0) {
-            await supabase.from('legislation_category_mapping').insert(
-              catIds.map(cid => ({ legislation_id: newLeg.id, category_id: cid }))
-            );
-          }
-        }
-
-        // Delay between batches
-        await new Promise(r => setTimeout(r, 500));
       }
-
-      // Update progress every day
-      await supabase.from('sync_logs').update({
-        items_processed: totalProcessed,
-        items_added: totalAdded,
-        items_updated: totalUpdated,
-      }).eq('id', logId);
-
-      console.log(`[${date}] Done. Total: +${totalAdded} added, ${totalUpdated} updated, ${totalSkipped} skipped`);
-
-      // Small delay between days
-      await new Promise(r => setTimeout(r, 300));
-    } catch (error) {
-      console.error(`Error processing day ${date}:`, error);
     }
+
+    // Update progress every batch
+    await supabase.from('sync_logs').update({
+      items_processed: processed, items_added: added, items_updated: updated,
+    }).eq('id', logId);
+
+    // Throttle
+    if (i + 3 < urls.length) await new Promise(r => setTimeout(r, 500));
   }
 
-  // Final update
   await supabase.from('sync_logs').update({
-    items_processed: totalProcessed,
-    items_added: totalAdded,
-    items_updated: totalUpdated,
-    status: 'completed',
-    completed_at: new Date().toISOString(),
+    items_processed: processed, items_added: added, items_updated: updated,
+    status: 'completed', completed_at: new Date().toISOString(),
   }).eq('id', logId);
 
-  console.log(`✅ Import completed: ${totalAdded} added, ${totalUpdated} updated, ${totalSkipped} skipped out of ${totalProcessed}`);
+  console.log(`✅ Done: ${added} added, ${updated} updated, ${skipped} skipped / ${processed} total`);
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const {
-      startDate = '2026-01-01',
-      endDate,
-      series = 'both', // 'i', 'ii', 'both'
-      dryRun = false,
-    } = await req.json().catch(() => ({}));
-
-    const effectiveEndDate = endDate || new Date().toISOString().split('T')[0];
+    const { yearFilter = '2026', dryRun = false, mapLimit = 5000 } = await req.json().catch(() => ({}));
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -432,93 +232,109 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     if (!firecrawlApiKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'FIRECRAWL_API_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'FIRECRAWL_API_KEY not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Generate business dates
-    const dates = getBusinessDates(startDate, effectiveEndDate);
-    console.log(`📋 Import DRE: ${dates.length} business days from ${startDate} to ${effectiveEndDate}`);
+    // Step 1: Use Firecrawl map to discover diploma URLs
+    console.log(`📍 Discovering ${yearFilter} diploma URLs via Firecrawl map...`);
+    const mapResp = await fetch('https://api.firecrawl.dev/v1/map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${firecrawlApiKey}` },
+      body: JSON.stringify({ url: 'https://diariodarepublica.pt', limit: mapLimit }),
+    });
 
-    if (dates.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, message: 'No dates to process', total: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!mapResp.ok) {
+      return new Response(JSON.stringify({ success: false, error: `Map API returned ${mapResp.status}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Load categories for auto-categorization
-    const { data: categories } = await supabase
-      .from('theme_categories')
-      .select('id, name, keywords, theme_id');
+    const mapData = await mapResp.json();
+    const allLinks: string[] = mapData?.links || [];
+    console.log(`Found ${allLinks.length} total links`);
 
-    // Load existing legislation for duplicate detection
+    // Filter to relevant legislation URLs for the specified year
+    const diplomaUrls = allLinks.filter(link => {
+      if (!link.includes('/dr/detalhe/')) return false;
+      if (!link.includes(yearFilter)) return false;
+      const typePart = link.replace('https://diariodarepublica.pt/dr/detalhe/', '').split('/')[0];
+      return !EXCLUDED_TYPES.some(ex => typePart.includes(ex));
+    });
+
+    console.log(`📋 Found ${diplomaUrls.length} ${yearFilter} legislation URLs`);
+
+    // Load existing for dedup
     const { data: existingLeg } = await supabase
       .from('legislation')
-      .select('id, number, title, summary, entity, publication_date, effective_date, document_url, external_id');
+      .select('id, number, title, summary, entity, publication_date, effective_date, document_url, external_id')
+      .limit(5000);
 
-    const existingByNumber = new Map<string, any>();
-    const existingByExtId = new Map<string, any>();
+    const existingByNum = new Map<string, any>();
+    const existingByExt = new Map<string, any>();
     for (const leg of existingLeg || []) {
-      const normalized = normalizeNumber(leg.number || '');
-      if (normalized) existingByNumber.set(normalized, leg);
-      if (leg.external_id) existingByExtId.set(leg.external_id, leg);
+      const n = normalizeNumber(leg.number || '');
+      if (n) existingByNum.set(n, leg);
+      if (leg.external_id) existingByExt.set(leg.external_id, leg);
     }
+
+    // Filter out already imported
+    const newUrls = diplomaUrls.filter(url => {
+      const urlMatch = url.match(/\/dr\/detalhe\/([^\/]+)\/([^\/]+)/);
+      if (!urlMatch) return true;
+      const refParts = urlMatch[2].split('-');
+      const externalId = refParts[refParts.length - 1];
+      return !existingByExt.has(externalId);
+    });
+
+    console.log(`🆕 ${newUrls.length} new URLs to process (${diplomaUrls.length - newUrls.length} already imported)`);
 
     if (dryRun) {
-      return new Response(
-        JSON.stringify({
-          success: true, dryRun: true,
-          totalDays: dates.length,
-          dateRange: { from: dates[0], to: dates[dates.length - 1] },
-          existingCount: existingLeg?.length || 0,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Count by type
+      const typeCounts: Record<string, number> = {};
+      for (const url of newUrls) {
+        const t = url.replace('https://diariodarepublica.pt/dr/detalhe/', '').split('/')[0];
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+      }
+      return new Response(JSON.stringify({
+        success: true, dryRun: true, totalDiscovered: diplomaUrls.length,
+        newToImport: newUrls.length, alreadyImported: diplomaUrls.length - newUrls.length,
+        byType: typeCounts, sampleUrls: newUrls.slice(0, 10),
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    if (newUrls.length === 0) {
+      return new Response(JSON.stringify({ success: true, message: 'No new legislation to import', total: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Load categories
+    const { data: categories } = await supabase.from('theme_categories').select('id, name, keywords, theme_id');
 
     // Create sync log
-    const { data: logEntry, error: logError } = await supabase
-      .from('sync_logs')
-      .insert({
-        sync_type: 'bulk_import_dre',
-        status: 'running',
-        items_processed: 0,
-        items_added: 0,
-      })
-      .select()
-      .single();
+    const { data: logEntry, error: logError } = await supabase.from('sync_logs').insert({
+      sync_type: 'bulk_import_dre', status: 'running', items_processed: 0, items_added: 0,
+    }).select().single();
 
     if (logError) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create sync log' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Failed to create sync log' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Start background processing
+    // Start background
     EdgeRuntime.waitUntil(processInBackground(
-      supabase, dates, logEntry.id, firecrawlApiKey,
-      categories || [], existingByNumber, existingByExtId, series
+      supabase, newUrls, logEntry.id, firecrawlApiKey,
+      categories || [], existingByNum, existingByExt,
     ));
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Background import started for ${dates.length} business days`,
-        jobId: logEntry.id,
-        totalDays: dates.length,
-        dateRange: { from: dates[0], to: dates[dates.length - 1] },
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({
+      success: true, jobId: logEntry.id,
+      message: `Importing ${newUrls.length} new legislation items in background`,
+      totalDiscovered: diplomaUrls.length, newToImport: newUrls.length,
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
   } catch (error) {
     console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: String(error) }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: false, error: String(error) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
