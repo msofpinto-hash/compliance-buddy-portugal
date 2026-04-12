@@ -1671,6 +1671,17 @@ export type Database = {
           id: string
         }[]
       }
+      get_legislation_without_requirements: {
+        Args: { p_limit?: number; p_origin?: string }
+        Returns: {
+          document_url: string
+          id: string
+          number: string
+          origin: string
+          summary: string
+          title: string
+        }[]
+      }
       get_processable_legislation_ids: {
         Args: { p_failure_type: string; p_limit?: number }
         Returns: {

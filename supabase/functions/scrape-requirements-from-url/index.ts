@@ -16,17 +16,87 @@ interface ScrapeResult {
   legislationNumber: string;
   requirements: Requirement[];
   textLength: number;
+  scrapeMethod?: string;
   error?: string;
 }
 
 const AI_ENDPOINT = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
-// Scrape URL using Firecrawl
-async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<{ markdown: string; html: string } | null> {
+// Native fetch scraper (no external API credits needed)
+async function nativeScrape(url: string): Promise<string | null> {
   try {
-    console.log('Scraping URL:', url);
-    
-    // Format URL
+    console.log('Native scraping:', url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; LegalBot/1.0)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.5',
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.error(`Native fetch failed: ${response.status}`);
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
+      console.log('Skipping binary content:', contentType);
+      return null;
+    }
+
+    const html = await response.text();
+    if (html.length > 500000) {
+      return html.substring(0, 500000);
+    }
+    return html;
+  } catch (error) {
+    console.error('Native scrape error:', error);
+    return null;
+  }
+}
+
+// Strip HTML tags and extract meaningful text
+function htmlToText(html: string): string {
+  // Remove scripts, styles, nav, header, footer
+  let text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, '');
+  
+  // Convert block elements to newlines
+  text = text.replace(/<\/?(p|div|br|h[1-6]|li|tr|td|th|article|section|blockquote)[^>]*>/gi, '\n');
+  
+  // Remove remaining tags
+  text = text.replace(/<[^>]+>/g, '');
+  
+  // Decode HTML entities
+  text = text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#\d+;/g, ' ');
+  
+  // Clean up whitespace
+  text = text.replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
+  
+  return text;
+}
+
+// Scrape URL using Firecrawl (if available)
+async function scrapeWithFirecrawl(url: string, firecrawlApiKey: string): Promise<string | null> {
+  try {
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
@@ -40,11 +110,17 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<{ markdo
       },
       body: JSON.stringify({
         url: formattedUrl,
-        formats: ['markdown', 'html'],
+        formats: ['markdown'],
         onlyMainContent: true,
         waitFor: 3000,
       }),
     });
+
+    // 402 = credits exhausted, signal to use fallback
+    if (response.status === 402) {
+      console.log('Firecrawl credits exhausted (402), switching to native fetch');
+      return null;
+    }
 
     if (!response.ok) {
       console.error('Firecrawl error:', response.status);
@@ -52,14 +128,49 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<{ markdo
     }
 
     const data = await response.json();
-    return {
-      markdown: data.data?.markdown || data.markdown || '',
-      html: data.data?.html || data.html || '',
-    };
+    return data.data?.markdown || data.markdown || '';
   } catch (error) {
-    console.error('Scrape error:', error);
+    console.error('Firecrawl error:', error);
     return null;
   }
+}
+
+// Smart scrape: try Firecrawl first, fall back to native fetch
+async function smartScrape(url: string, firecrawlApiKey: string | undefined, firecrawlExhausted: { value: boolean }): Promise<{ text: string; method: string } | null> {
+  let formattedUrl = url.trim();
+  if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+    formattedUrl = `https://${formattedUrl}`;
+  }
+
+  // Skip PDFs and binary files
+  if (formattedUrl.match(/\.(pdf|doc|docx|xls|xlsx)(\?|$)/i) || formattedUrl.includes('files.dre.pt')) {
+    console.log('Skipping binary URL:', formattedUrl);
+    return null;
+  }
+
+  // Try Firecrawl if available and not exhausted
+  if (firecrawlApiKey && !firecrawlExhausted.value) {
+    const markdown = await scrapeWithFirecrawl(formattedUrl, firecrawlApiKey);
+    if (markdown === null && !firecrawlExhausted.value) {
+      // Check if it was a 402 (the function sets this via the null return)
+      // We'll mark exhausted and try native
+      firecrawlExhausted.value = true;
+    }
+    if (markdown && markdown.length > 100) {
+      return { text: markdown, method: 'firecrawl' };
+    }
+  }
+
+  // Native fetch fallback
+  const html = await nativeScrape(formattedUrl);
+  if (html && html.length > 200) {
+    const text = htmlToText(html);
+    if (text.length > 100) {
+      return { text, method: 'native' };
+    }
+  }
+
+  return null;
 }
 
 // Extract requirements from legislation text using AI
@@ -71,7 +182,6 @@ async function extractRequirementsFromText(
   try {
     console.log(`Extracting requirements with AI for: ${legislation.number} (text: ${fullText.length} chars)`);
     
-    // Truncate text to avoid token limits, but keep more than just summary
     const textForAI = fullText.length > 15000 ? fullText.substring(0, 15000) + '...' : fullText;
     
     const prompt = `Analisa o seguinte diploma legal e extrai os REQUISITOS LEGAIS - obrigações, deveres, proibições e condições que as entidades devem cumprir.
@@ -119,24 +229,19 @@ Retorna APENAS um array JSON válido. Exemplo:
 
     if (!response.ok) {
       console.error(`AI API error: ${response.status}`);
-      const errorText = await response.text();
-      console.error('Error details:', errorText);
       return [];
     }
 
     const aiData = await response.json();
     const content = aiData.choices?.[0]?.message?.content || '';
     
-    // Parse JSON response
     let jsonContent = content.trim();
-    // Remove markdown code blocks
     if (jsonContent.startsWith('```json')) {
       jsonContent = jsonContent.replace(/^```json\s*\n?/, '').replace(/\n?\s*```$/, '');
     } else if (jsonContent.startsWith('```')) {
       jsonContent = jsonContent.replace(/^```\s*\n?/, '').replace(/\n?\s*```$/, '');
     }
     
-    // Find JSON array
     const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
       jsonContent = arrayMatch[0];
@@ -144,12 +249,9 @@ Retorna APENAS um array JSON válido. Exemplo:
     
     const parsed = JSON.parse(jsonContent);
     
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+    if (!Array.isArray(parsed)) return [];
     
-    // Validate and clean requirements
-    const requirements = parsed
+    return parsed
       .filter((r: any) => r && typeof r === 'object' && (r.requirement_text || r.text))
       .map((r: any) => ({
         article: String(r.article || 'Geral').substring(0, 50),
@@ -157,9 +259,6 @@ Retorna APENAS um array JSON válido. Exemplo:
         notes: r.notes ? String(r.notes).substring(0, 300) : undefined,
       }))
       .slice(0, 20);
-    
-    console.log(`AI extracted ${requirements.length} requirements for ${legislation.number}`);
-    return requirements;
     
   } catch (error) {
     console.error(`AI extraction error:`, error);
@@ -180,13 +279,7 @@ Deno.serve(async (req) => {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
 
-    if (!firecrawlApiKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'FIRECRAWL_API_KEY não configurada. Ative o conector Firecrawl.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Firecrawl is optional now - native fetch works as fallback
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get legislation to process
@@ -202,34 +295,58 @@ Deno.serve(async (req) => {
       if (error) throw error;
       legislationToProcess = data || [];
     } else {
-      // Get legislation without requirements that have URLs
-      const { data: existingReqs } = await supabase
-        .from('legal_requirements')
-        .select('legislation_id');
-      
-      const idsWithReqs = new Set(existingReqs?.map(r => r.legislation_id) || []);
-      
-      // Build query with optional origin filter
-      let query = supabase
-        .from('legislation')
-        .select('id, number, title, summary, document_url, origin')
-        .not('document_url', 'is', null)
-        .order('publication_date', { ascending: false });
-      
-      // Apply origin filter
+      // Use raw SQL via RPC to efficiently find legislation without requirements
+      let originFilter = '';
       if (origin === 'PT') {
-        query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+        originFilter = `AND (l.origin = 'PT' OR l.origin = 'dre' OR l.origin IS NULL)`;
       } else if (origin === 'EU') {
-        query = query.or('origin.eq.EU,origin.eq.eurlex');
+        originFilter = `AND (l.origin = 'EU' OR l.origin = 'eurlex')`;
       }
-      
-      const { data: allLegislation } = await query;
-      
-      const toProcess = replaceExisting 
-        ? allLegislation 
-        : allLegislation?.filter(l => !idsWithReqs.has(l.id));
-      
-      legislationToProcess = (toProcess || []).slice(0, limit);
+
+      // Fetch legislation without requirements efficiently
+      const { data: candidates, error: candidateError } = await supabase.rpc('get_legislation_without_requirements', {
+        p_origin: origin || null,
+        p_limit: limit
+      });
+
+      if (candidateError) {
+        // Fallback: fetch all and filter client-side with pagination
+        console.log('RPC not available, using fallback query');
+        const idsWithReqs = new Set<string>();
+        if (!replaceExisting) {
+          let offset = 0;
+          while (true) {
+            const { data: batch } = await supabase
+              .from('legal_requirements')
+              .select('legislation_id')
+              .range(offset, offset + 999);
+            if (!batch || batch.length === 0) break;
+            batch.forEach(r => idsWithReqs.add(r.legislation_id));
+            if (batch.length < 1000) break;
+            offset += 1000;
+          }
+        }
+        
+        // Fetch more legislation to compensate for filtering
+        let query = supabase
+          .from('legislation')
+          .select('id, number, title, summary, document_url, origin')
+          .not('document_url', 'is', null)
+          .order('publication_date', { ascending: false })
+          .limit(1000);
+        
+        if (origin === 'PT') {
+          query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+        } else if (origin === 'EU') {
+          query = query.or('origin.eq.EU,origin.eq.eurlex');
+        }
+        
+        const { data: allLeg } = await query;
+        const filtered = replaceExisting ? allLeg : allLeg?.filter(l => !idsWithReqs.has(l.id));
+        legislationToProcess = (filtered || []).slice(0, limit);
+      } else {
+        legislationToProcess = candidates || [];
+      }
     }
 
     if (legislationToProcess.length === 0) {
@@ -244,21 +361,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${legislationToProcess.length} legislation items with URL scraping (origin filter: ${origin || 'all'})`);
+    console.log(`Processing ${legislationToProcess.length} legislation items (origin: ${origin || 'all'})`);
 
     const results: ScrapeResult[] = [];
     let totalRequirements = 0;
+    const firecrawlExhausted = { value: false };
 
     for (const leg of legislationToProcess) {
       console.log(`\n=== Processing: ${leg.number} ===`);
-      console.log(`URL: ${leg.document_url}`);
       
       try {
-        // Step 1: Scrape the URL
-        const scraped = await scrapeUrl(leg.document_url, firecrawlApiKey);
+        const scraped = await smartScrape(leg.document_url, firecrawlApiKey, firecrawlExhausted);
         
-        if (!scraped || (!scraped.markdown && !scraped.html)) {
-          console.log(`No content scraped for ${leg.number}`);
+        if (!scraped) {
           results.push({ 
             legislationId: leg.id, 
             legislationNumber: leg.number, 
@@ -269,51 +384,47 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const textContent = scraped.markdown || scraped.html;
-        console.log(`Scraped ${textContent.length} characters for ${leg.number}`);
+        console.log(`Scraped ${scraped.text.length} chars via ${scraped.method} for ${leg.number}`);
 
-        // Check for error pages (DRE and EUR-Lex)
-        const isEurlexError = textContent.includes('The requested document does not exist') ||
-                              textContent.includes('Access denied') ||
-                              textContent.includes('Page not found');
-        const isDreError = textContent.includes('página que acedeu não se encontra disponível') ||
-                           (textContent.includes('Lamentamos') && textContent.length < 500);
+        // Check for error pages
+        const isErrorPage = scraped.text.includes('The requested document does not exist') ||
+                            scraped.text.includes('Access denied') ||
+                            scraped.text.includes('Page not found') ||
+                            scraped.text.includes('página que acedeu não se encontra disponível') ||
+                            (scraped.text.includes('Lamentamos') && scraped.text.length < 500);
         
-        if (isEurlexError || isDreError) {
-          const errorSource = isEurlexError ? 'EUR-Lex' : 'DRE';
-          console.log(`Error page detected for ${leg.number} (${errorSource})`);
+        if (isErrorPage) {
           results.push({ 
             legislationId: leg.id, 
             legislationNumber: leg.number, 
             requirements: [],
-            textLength: textContent.length,
-            error: `Página de erro no ${errorSource}` 
+            textLength: scraped.text.length,
+            scrapeMethod: scraped.method,
+            error: 'Página de erro detetada' 
           });
           continue;
         }
 
-        // Step 2: Extract requirements using AI with full text
+        // Extract requirements using AI
         const requirements = await extractRequirementsFromText(
           { number: leg.number, title: leg.title, summary: leg.summary || '' },
-          textContent,
+          scraped.text,
           lovableApiKey
         );
 
         if (requirements.length === 0) {
-          console.log(`No requirements extracted for ${leg.number}`);
           results.push({ 
             legislationId: leg.id, 
             legislationNumber: leg.number, 
             requirements: [],
-            textLength: textContent.length,
+            textLength: scraped.text.length,
+            scrapeMethod: scraped.method,
             error: 'Nenhum requisito identificado' 
           });
           continue;
         }
 
-        // Step 3: Save to database (unless dry run)
         if (!dryRun) {
-          // Delete existing requirements if replacing
           if (replaceExisting) {
             await supabase
               .from('legal_requirements')
@@ -338,7 +449,8 @@ Deno.serve(async (req) => {
               legislationId: leg.id, 
               legislationNumber: leg.number, 
               requirements,
-              textLength: textContent.length,
+              textLength: scraped.text.length,
+              scrapeMethod: scraped.method,
               error: insertError.message 
             });
             continue;
@@ -352,11 +464,12 @@ Deno.serve(async (req) => {
           legislationId: leg.id, 
           legislationNumber: leg.number, 
           requirements,
-          textLength: textContent.length
+          textLength: scraped.text.length,
+          scrapeMethod: scraped.method
         });
 
-        // Delay between requests
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Small delay between requests
+        await new Promise(resolve => setTimeout(resolve, 800));
 
       } catch (error) {
         console.error(`Error processing ${leg.number}:`, error);
@@ -373,8 +486,7 @@ Deno.serve(async (req) => {
     const successful = results.filter(r => !r.error && r.requirements.length > 0).length;
     const failed = results.filter(r => r.error).length;
 
-    console.log(`\n=== COMPLETE ===`);
-    console.log(`Successful: ${successful}, Failed: ${failed}, Total requirements: ${totalRequirements}`);
+    console.log(`\n=== COMPLETE === Successful: ${successful}, Failed: ${failed}, Total reqs: ${totalRequirements}`);
 
     return new Response(
       JSON.stringify({ 
@@ -384,11 +496,13 @@ Deno.serve(async (req) => {
         successful,
         failed,
         totalRequirements,
+        firecrawlExhausted: firecrawlExhausted.value,
         results: results.map(r => ({
           legislationId: r.legislationId,
           legislationNumber: r.legislationNumber,
           requirementsCount: r.requirements.length,
           textLength: r.textLength,
+          scrapeMethod: r.scrapeMethod,
           requirements: r.requirements,
           error: r.error,
         })),
