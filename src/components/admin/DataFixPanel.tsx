@@ -455,7 +455,7 @@ export function DataFixPanel() {
           break;
         case "categories":
           functionName = "bulk-suggest-categories";
-          body = { limit: batchSize, background: true };
+          body = { limit: batchSize, autoAssign: true };
           break;
       }
 

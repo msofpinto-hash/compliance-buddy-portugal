@@ -237,12 +237,15 @@ export function UnifiedDataQualityPanel() {
 
       const urlsCount = (urlsFalseRes.count ?? 0) + (urlsNullRes.count ?? 0);
 
-      const [datesResult, genericTitlesResult, shortSummariesResult, categoriesResult] = await Promise.all([
+      const [datesResult, genericTitlesResult, shortSummariesResult, eligibleSummaryResult, totalMissingCategoriesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .not("document_url", "is", null)
           .or("publication_date.is.null,effective_date.is.null"),
         supabase.rpc("count_generic_titles"),
         supabase.rpc("count_short_summaries"),
+        supabase.from("legislation").select("id", { count: "exact", head: true })
+          .is("revocation_date", null)
+          .not("summary", "is", null),
         supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
@@ -255,6 +258,12 @@ export function UnifiedDataQualityPanel() {
 
       const totalLeg = totalLegResult.count || 0;
       const legWithReqs = (legWithReqsResult.data as number) || 0;
+      const eligibleWithSummary = eligibleSummaryResult.count || 0;
+      const missingCategories = (totalMissingCategoriesResult.data as number) || 0;
+      const categoriesPendingEligible = Math.max(
+        0,
+        Math.min(eligibleWithSummary - ((shortSummariesResult.data as number) || 0), missingCategories),
+      );
 
       return {
         urls: urlsCount,
@@ -263,7 +272,7 @@ export function UnifiedDataQualityPanel() {
         summaries: (shortSummariesResult.data as number) || 0,
         requirements: Math.max(0, totalLeg - legWithReqs),
         relations: Math.max(0, totalLeg - (processedRelationsResult.count || 0)),
-        categories: (categoriesResult.data as number) || 0,
+        categories: categoriesPendingEligible,
       };
     },
     staleTime: 1000,
@@ -425,35 +434,8 @@ export function UnifiedDataQualityPanel() {
         break;
       case "categories":
         {
-          // Fetch legislation IDs without categories
-          const { data: legWithoutCats, error: catError } = await supabase
-            .from("legislation")
-            .select("id")
-            .is("revocation_date", null)
-            .not("id", "in", `(SELECT legislation_id FROM legislation_category_mapping)`)
-            .limit(50);
-          
-          if (catError) {
-            // Fallback: use raw SQL via RPC if subquery doesn't work
-            const { data: fallbackData, error: fallbackError } = await supabase.rpc(
-              "get_legislation_without_categories_ids" as any,
-              { p_limit: 50 }
-            );
-            
-            if (fallbackError || !fallbackData || fallbackData.length === 0) {
-              toast.info("Não há legislação sem categorias para processar.");
-              return;
-            }
-            
-            functionName = "bulk-suggest-categories";
-            body = { legislationIds: fallbackData.map((r: any) => r.id), autoAssign: true };
-          } else if (!legWithoutCats || legWithoutCats.length === 0) {
-            toast.info("Não há legislação sem categorias para processar.");
-            return;
-          } else {
-            functionName = "bulk-suggest-categories";
-            body = { legislationIds: legWithoutCats.map(r => r.id), autoAssign: true };
-          }
+          functionName = "bulk-suggest-categories";
+          body = { autoAssign: true, limit: 50 };
         }
         break;
     }
