@@ -141,8 +141,7 @@ async function checkPendingMetadataCorrection(
       .from('legislation')
       .select('id', { count: 'exact', head: true })
       .not('document_url', 'is', null)
-      .is('publication_date', null)
-      .or('no_digital_version.is.null,no_digital_version.eq.false');
+      .or('publication_date.is.null,effective_date.is.null');
     
     return { hasPending: (count || 0) > 0, count: count || 0 };
   }
