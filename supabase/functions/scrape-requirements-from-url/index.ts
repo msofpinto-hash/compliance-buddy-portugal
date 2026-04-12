@@ -295,17 +295,31 @@ Deno.serve(async (req) => {
       if (error) throw error;
       legislationToProcess = data || [];
     } else {
-      const { data: existingReqs } = await supabase
-        .from('legal_requirements')
-        .select('legislation_id');
-      
-      const idsWithReqs = new Set(existingReqs?.map(r => r.legislation_id) || []);
+      // Use RPC to get count, then use a smarter query
+      // Get legislation IDs that already have requirements using pagination
+      const idsWithReqs = new Set<string>();
+      if (!replaceExisting) {
+        let offset = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data: batch } = await supabase
+            .from('legal_requirements')
+            .select('legislation_id')
+            .range(offset, offset + pageSize - 1);
+          if (!batch || batch.length === 0) break;
+          batch.forEach(r => idsWithReqs.add(r.legislation_id));
+          if (batch.length < pageSize) break;
+          offset += pageSize;
+        }
+        console.log(`Found ${idsWithReqs.size} legislation IDs with existing requirements`);
+      }
       
       let query = supabase
         .from('legislation')
         .select('id, number, title, summary, document_url, origin')
         .not('document_url', 'is', null)
-        .order('publication_date', { ascending: false });
+        .order('publication_date', { ascending: false })
+        .limit(limit * 3); // fetch more to account for filtering
       
       if (origin === 'PT') {
         query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
