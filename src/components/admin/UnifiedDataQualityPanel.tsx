@@ -20,7 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExportMetadataIssuesDialog } from "./ExportMetadataIssuesDialog";
 
 const isSourceUnavailable = (source?: { status: string; blocked_until: string | null } | null) =>
-  !source || source.status === "offline" || Boolean(source.blocked_until && new Date(source.blocked_until) > new Date());
+  source ? source.status === "offline" || Boolean(source.blocked_until && new Date(source.blocked_until) > new Date()) : false;
 
 // Constants
 const STALE_JOB_THRESHOLD_MINUTES = 10;
