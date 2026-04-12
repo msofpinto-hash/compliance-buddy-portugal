@@ -1,0 +1,1 @@
+UPDATE sync_logs SET status = 'completed_timeout', error_message = 'Auto-cancelled: stale job' WHERE status = 'running' AND started_at < now() - interval '10 minutes';
