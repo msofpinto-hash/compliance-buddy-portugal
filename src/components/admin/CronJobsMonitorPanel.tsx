@@ -80,6 +80,7 @@ export function CronJobsMonitorPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [runningJob, setRunningJob] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("scheduled");
 
   // Fetch execution history from sync_logs
   const { data: executionHistory, isLoading, refetch } = useQuery({
@@ -198,7 +199,6 @@ export function CronJobsMonitorPanel() {
     );
   }
 
-  const [activeTab, setActiveTab] = useState("scheduled");
 
   return (
     <div className="space-y-4">
