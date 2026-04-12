@@ -41,13 +41,13 @@ async function getSourceStatus(supabase: any, sourceName: string): Promise<{ ava
 // Map job types to their required external source
 // Jobs will be skipped automatically if the source is offline/blocked
 const JOB_SOURCE_REQUIREMENTS: Record<string, string> = {
-  // PT metadata jobs - require DRE sources
-  'duplicate_cleanup': 'dre_opendata', // Wait for DRE to be stable before cleanup
+  // PT metadata jobs - these use Firecrawl to scrape DRE website pages
+  'duplicate_cleanup': 'dre_website',
   'find_dre_urls': 'dre_website',
   'fix_legacy_urls': 'dre_website',
-  'fix_missing_dates': 'dre_opendata',
-  'fix_generic_titles': 'dre_opendata',
-  'fix_short_summary': 'dre_opendata',
+  'fix_missing_dates': 'firecrawl',
+  'fix_generic_titles': 'firecrawl',
+  'fix_short_summary': 'firecrawl',
   // EU metadata jobs - require EUR-Lex
   'fix_missing_urls_eu': 'eurlex',
   'fix_eu_metadata_all': 'eurlex',
