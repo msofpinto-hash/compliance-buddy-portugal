@@ -243,7 +243,9 @@ export function UnifiedDataQualityPanel() {
           .or("publication_date.is.null,effective_date.is.null"),
         supabase.rpc("count_generic_titles"),
         supabase.rpc("count_short_summaries"),
-        supabase.rpc("get_legislation_without_categories_count"),
+        supabase.from("legislation").select("id", { count: "exact", head: true })
+          .is("revocation_date", null)
+          .or(`summary.not.is.null,summary.gt.${" ".repeat(20)}`),
       ]);
 
       // Use RPCs for accurate server-side counting (avoids client-side LIMIT issues)
@@ -256,6 +258,11 @@ export function UnifiedDataQualityPanel() {
       const totalLeg = totalLegResult.count || 0;
       const legWithReqs = (legWithReqsResult.data as number) || 0;
 
+      const categoriesPendingEligible = Math.max(
+        0,
+        (categoriesResult.count || 0) - ((shortSummariesResult.data as number) || 0),
+      );
+
       return {
         urls: urlsCount,
         dates: datesResult.count || 0,
@@ -263,7 +270,7 @@ export function UnifiedDataQualityPanel() {
         summaries: (shortSummariesResult.data as number) || 0,
         requirements: Math.max(0, totalLeg - legWithReqs),
         relations: Math.max(0, totalLeg - (processedRelationsResult.count || 0)),
-        categories: (categoriesResult.data as number) || 0,
+        categories: categoriesPendingEligible,
       };
     },
     staleTime: 1000,
