@@ -1693,53 +1693,68 @@ async function runBackgroundCompletion(params: {
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   // ========== SOURCE AVAILABILITY CHECK ==========
-  // Check if DRE OpenData is available before processing PT legislation
-  // This prevents wasting credits on jobs that will fail
-  const dreSourceName = 'dre_opendata';
-  let dreSourceAvailable = true;
-  
-  try {
-    const { data: sourceStatus } = await supabase
+  // PT metadata can run with either DRE OpenData or the DRE Web + Firecrawl fallback.
+  const readSourceAvailability = async (sourceName: string) => {
+    const { data } = await supabase
       .from('external_source_status')
       .select('status, blocked_until')
-      .eq('source_name', dreSourceName)
-      .single();
-    
-    if (sourceStatus) {
-      const isOffline = sourceStatus.status === 'offline';
-      const isBlocked = sourceStatus.blocked_until && new Date(sourceStatus.blocked_until) > new Date();
-      dreSourceAvailable = !isOffline && !isBlocked;
-      
-      if (!dreSourceAvailable) {
-        console.log(`[SourceCheck] DRE OpenData is ${sourceStatus.status}${isBlocked ? ` (blocked until ${sourceStatus.blocked_until})` : ''}`);
-      }
+      .eq('source_name', sourceName)
+      .maybeSingle();
+
+    if (!data) {
+      return { available: true, status: 'unknown', blocked_until: null as string | null };
+    }
+
+    const isOffline = data.status === 'offline';
+    const isBlocked = Boolean(data.blocked_until && new Date(data.blocked_until) > new Date());
+
+    return {
+      available: !isOffline && !isBlocked,
+      status: data.status,
+      blocked_until: data.blocked_until,
+    };
+  };
+
+  const isPTMetadataMode = ['generic_titles', 'short_summary', 'missing_dates'].includes(mode);
+  let dreOpenDataAvailable = true;
+  let canUsePtMetadataFallback = true;
+
+  try {
+    const [dreOpenDataSource, dreWebsiteSource, firecrawlSource] = await Promise.all([
+      readSourceAvailability('dre_opendata'),
+      readSourceAvailability('dre_website'),
+      readSourceAvailability('firecrawl'),
+    ]);
+
+    dreOpenDataAvailable = dreOpenDataSource.available;
+    canUsePtMetadataFallback = dreWebsiteSource.available && firecrawlSource.available;
+
+    if (isPTMetadataMode && includePT && !dreOpenDataAvailable && canUsePtMetadataFallback) {
+      console.log('[SourceCheck] DRE OpenData unavailable - continuing PT metadata job via DRE Web + Firecrawl fallback');
     }
   } catch (e) {
     console.log('[SourceCheck] Error checking source status, proceeding anyway:', e);
   }
-  
-  // For PT metadata modes, abort early if source is unavailable
-  const isPTMetadataMode = ['generic_titles', 'short_summary', 'missing_dates'].includes(mode);
-  if (isPTMetadataMode && !dreSourceAvailable && includePT) {
-    console.log('[SourceCheck] DRE source unavailable, aborting PT metadata job');
-    
-    // Create a sync log to record the skip
+
+  if (isPTMetadataMode && includePT && !dreOpenDataAvailable && !canUsePtMetadataFallback) {
+    console.log('[SourceCheck] PT metadata sources unavailable, aborting PT metadata job');
+
     const syncType = mode === 'missing_dates' ? 'fix_missing_dates'
                    : mode === 'short_summary' ? 'fix_short_summary'
                    : mode === 'generic_titles' ? 'fix_generic_titles'
                    : 'complete_auto_imported';
-    
+
     await supabase.from('sync_logs').insert({
       sync_type: syncType,
       status: 'completed',
       items_processed: 0,
       items_added: 0,
       items_updated: 0,
-      error_message: 'Fonte DRE OpenData indisponível - job cancelado',
+      error_message: 'Fontes PT indisponíveis - DRE OpenData offline e fallback DRE Web/Firecrawl indisponível',
       completed_at: new Date().toISOString(),
     });
-    
-    return; // Exit early without processing
+
+    return;
   }
   
   let syncLogId: string | null = null;
@@ -2197,10 +2212,17 @@ async function runBackgroundCompletion(params: {
           if (urlToScrape) {
             let metadata: LegislationUpdate | null = null;
             
-            // STRATEGY 1: Try DRE OpenData API first (no rate limits, structured data)
-            const { result: dreOpenData, error: dreApiError } = await fetchDREOpenData(urlToScrape);
-            
-            // If we got a source-level error (HTML response), record it for hard fail tracking
+            // STRATEGY 1: Try DRE OpenData API first when it is available
+            let dreOpenData: DREOpenDataResult | null = null;
+            let dreApiError: ExternalSourceError | undefined;
+
+            if (dreOpenDataAvailable) {
+              ({ result: dreOpenData, error: dreApiError } = await fetchDREOpenData(urlToScrape));
+            } else {
+              console.log('[Processing] Skipping DRE OpenData lookup because source is unavailable');
+            }
+
+            // If we got a source-level error (HTML response), record it for source tracking
             if (dreApiError && dreApiError.type === 'html_response') {
               console.log('[Processing] DRE OpenData API returned HTML - recording for source tracking');
               // Don't record individual hard fails for source-level issues
