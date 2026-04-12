@@ -295,45 +295,58 @@ Deno.serve(async (req) => {
       if (error) throw error;
       legislationToProcess = data || [];
     } else {
-      // Use RPC to get count, then use a smarter query
-      // Get legislation IDs that already have requirements using pagination
-      const idsWithReqs = new Set<string>();
-      if (!replaceExisting) {
-        let offset = 0;
-        const pageSize = 1000;
-        while (true) {
-          const { data: batch } = await supabase
-            .from('legal_requirements')
-            .select('legislation_id')
-            .range(offset, offset + pageSize - 1);
-          if (!batch || batch.length === 0) break;
-          batch.forEach(r => idsWithReqs.add(r.legislation_id));
-          if (batch.length < pageSize) break;
-          offset += pageSize;
-        }
-        console.log(`Found ${idsWithReqs.size} legislation IDs with existing requirements`);
-      }
-      
-      let query = supabase
-        .from('legislation')
-        .select('id, number, title, summary, document_url, origin')
-        .not('document_url', 'is', null)
-        .order('publication_date', { ascending: false })
-        .limit(limit * 3); // fetch more to account for filtering
-      
+      // Use raw SQL via RPC to efficiently find legislation without requirements
+      let originFilter = '';
       if (origin === 'PT') {
-        query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+        originFilter = `AND (l.origin = 'PT' OR l.origin = 'dre' OR l.origin IS NULL)`;
       } else if (origin === 'EU') {
-        query = query.or('origin.eq.EU,origin.eq.eurlex');
+        originFilter = `AND (l.origin = 'EU' OR l.origin = 'eurlex')`;
       }
-      
-      const { data: allLegislation } = await query;
-      
-      const toProcess = replaceExisting 
-        ? allLegislation 
-        : allLegislation?.filter(l => !idsWithReqs.has(l.id));
-      
-      legislationToProcess = (toProcess || []).slice(0, limit);
+
+      // Fetch legislation without requirements efficiently
+      const { data: candidates, error: candidateError } = await supabase.rpc('get_legislation_without_requirements', {
+        p_origin: origin || null,
+        p_limit: limit
+      });
+
+      if (candidateError) {
+        // Fallback: fetch all and filter client-side with pagination
+        console.log('RPC not available, using fallback query');
+        const idsWithReqs = new Set<string>();
+        if (!replaceExisting) {
+          let offset = 0;
+          while (true) {
+            const { data: batch } = await supabase
+              .from('legal_requirements')
+              .select('legislation_id')
+              .range(offset, offset + 999);
+            if (!batch || batch.length === 0) break;
+            batch.forEach(r => idsWithReqs.add(r.legislation_id));
+            if (batch.length < 1000) break;
+            offset += 1000;
+          }
+        }
+        
+        // Fetch more legislation to compensate for filtering
+        let query = supabase
+          .from('legislation')
+          .select('id, number, title, summary, document_url, origin')
+          .not('document_url', 'is', null)
+          .order('publication_date', { ascending: false })
+          .limit(1000);
+        
+        if (origin === 'PT') {
+          query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+        } else if (origin === 'EU') {
+          query = query.or('origin.eq.EU,origin.eq.eurlex');
+        }
+        
+        const { data: allLeg } = await query;
+        const filtered = replaceExisting ? allLeg : allLeg?.filter(l => !idsWithReqs.has(l.id));
+        legislationToProcess = (filtered || []).slice(0, limit);
+      } else {
+        legislationToProcess = candidates || [];
+      }
     }
 
     if (legislationToProcess.length === 0) {
