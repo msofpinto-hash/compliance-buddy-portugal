@@ -110,6 +110,15 @@ const SYNC_TYPE_TO_FIX: Record<string, FixType> = {
   "auto-categorize-legislation": "categories",
 };
 
+const isFreshManagedRunningJob = (job: RunningJob) => {
+  if (!SYNC_TYPE_TO_FIX[job.sync_type]) return false;
+
+  const startedAtMs = new Date(job.started_at).getTime();
+  if (!Number.isFinite(startedAtMs)) return false;
+
+  return Date.now() - startedAtMs < STALE_JOB_THRESHOLD_MINUTES * 60 * 1000;
+};
+
 const FIX_PHASES: { name: string; types: FixType[]; icon: React.ReactNode }[] = [
   { name: "URLs", types: ["urls"], icon: <Link className="h-4 w-4" /> },
   { name: "Metadados", types: ["dates", "titles", "summaries"], icon: <Calendar className="h-4 w-4" /> },
@@ -198,6 +207,11 @@ export function UnifiedDataQualityPanel() {
     refetchInterval: 2000,
     refetchIntervalInBackground: true,
   });
+
+  const freshRunningJobs = useMemo(
+    () => (runningJobs ?? []).filter(isFreshManagedRunningJob),
+    [runningJobs]
+  );
 
   // Query for pending counts
   const { data: fixStats, isLoading: isLoadingStats, refetch: refetchStats } = useQuery({
@@ -304,7 +318,7 @@ export function UnifiedDataQualityPanel() {
   }, [refetchStats, refetchJobs, refetch24h]);
 
   // Modo de atualização agressiva: refresh a cada 2s enquanto houver jobs a correr
-  const hasRunningJobs = (runningJobs?.length ?? 0) > 0;
+  const hasRunningJobs = freshRunningJobs.length > 0;
   useEffect(() => {
     if (hasRunningJobs) {
       // Se já tem intervalo ativo, não criar outro
@@ -331,8 +345,8 @@ export function UnifiedDataQualityPanel() {
   }, [hasRunningJobs, refetchStats, refetchJobs, refetch24h]);
 
   const getRunningJobsForType = useCallback((type: FixType): RunningJob[] => {
-    return runningJobs?.filter(job => SYNC_TYPE_TO_FIX[job.sync_type] === type) || [];
-  }, [runningJobs]);
+    return freshRunningJobs.filter((job) => SYNC_TYPE_TO_FIX[job.sync_type] === type);
+  }, [freshRunningJobs]);
 
   // Launch batch
   const launchBatch = useCallback(async (type: FixType) => {
@@ -462,7 +476,7 @@ export function UnifiedDataQualityPanel() {
     if (fullAutoMode || !activeFixType || !fixStats) return;
 
     const runBatchFix = async () => {
-      const currentRunning = runningJobs?.length ?? 0;
+      const currentRunning = freshRunningJobs.length;
       if (currentRunning >= MAX_CONCURRENT_JOBS) return;
 
       const count = fixStats[activeFixType];
@@ -478,14 +492,14 @@ export function UnifiedDataQualityPanel() {
     const interval = setInterval(runBatchFix, 5000);
     runBatchFix();
     return () => clearInterval(interval);
-  }, [activeFixType, fixStats, runningJobs, launchBatch, fullAutoMode]);
+  }, [activeFixType, fixStats, freshRunningJobs, launchBatch, fullAutoMode]);
 
   // Full Auto-fix mode - runs ALL types in parallel until complete
   useEffect(() => {
     if (!fullAutoMode || !fixStats) return;
 
     const runFullAutoFix = async () => {
-      const currentRunning = runningJobs?.length ?? 0;
+      const currentRunning = freshRunningJobs.length;
       
       // Check if all done
       const totalPendingNow = Object.values(fixStats).reduce((sum, val) => sum + val, 0);
@@ -522,7 +536,7 @@ export function UnifiedDataQualityPanel() {
     const interval = setInterval(runFullAutoFix, 4000);
     runFullAutoFix();
     return () => clearInterval(interval);
-  }, [fullAutoMode, fixStats, runningJobs, launchBatch, getRunningJobsForType]);
+  }, [fullAutoMode, fixStats, freshRunningJobs, launchBatch, getRunningJobsForType]);
 
   const toggleFullAutoMode = () => {
     if (fullAutoMode) {
@@ -570,7 +584,7 @@ export function UnifiedDataQualityPanel() {
   }, [fixStats, launchBatch]);
 
   const totalPending = Object.values(fixStats || {}).reduce((sum, val) => sum + val, 0);
-  const activeJobsCount = runningJobs?.length ?? 0;
+  const activeJobsCount = freshRunningJobs.length;
   const stats24h = statsQuery.data;
 
   const getPhaseStats = (types: FixType[]) => {
