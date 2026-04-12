@@ -237,7 +237,7 @@ export function UnifiedDataQualityPanel() {
 
       const urlsCount = (urlsFalseRes.count ?? 0) + (urlsNullRes.count ?? 0);
 
-      const [datesResult, genericTitlesResult, shortSummariesResult, categoriesResult] = await Promise.all([
+      const [datesResult, genericTitlesResult, shortSummariesResult, eligibleSummaryResult, totalMissingCategoriesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .not("document_url", "is", null)
           .or("publication_date.is.null,effective_date.is.null"),
@@ -245,7 +245,8 @@ export function UnifiedDataQualityPanel() {
         supabase.rpc("count_short_summaries"),
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .is("revocation_date", null)
-          .or(`summary.not.is.null,summary.gt.${" ".repeat(20)}`),
+          .not("summary", "is", null),
+        supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
       // Use RPCs for accurate server-side counting (avoids client-side LIMIT issues)
@@ -257,10 +258,11 @@ export function UnifiedDataQualityPanel() {
 
       const totalLeg = totalLegResult.count || 0;
       const legWithReqs = (legWithReqsResult.data as number) || 0;
-
+      const eligibleWithSummary = eligibleSummaryResult.count || 0;
+      const missingCategories = (totalMissingCategoriesResult.data as number) || 0;
       const categoriesPendingEligible = Math.max(
         0,
-        (categoriesResult.count || 0) - ((shortSummariesResult.data as number) || 0),
+        Math.min(eligibleWithSummary - ((shortSummariesResult.data as number) || 0), missingCategories),
       );
 
       return {
