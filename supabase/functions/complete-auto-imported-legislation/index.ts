@@ -2273,6 +2273,87 @@ async function runBackgroundCompletion(params: {
                 };
               }
             }
+
+            // STRATEGY 3: AI fallback when both DRE API and Firecrawl fail
+            const hasGoodTitleAfterScrape = Boolean(
+              metadata?.title &&
+                isValidTitle(metadata.title, leg.number) &&
+                (mode !== 'generic_titles' || !isGenericPTTitle(metadata.title, leg.number))
+            );
+            const hasGoodSummaryAfterScrape = Boolean(metadata?.summary && isValidSummary(metadata.summary));
+            
+            if ((!hasGoodTitleAfterScrape && needsTitle) || (!hasGoodSummaryAfterScrape && needsSummary)) {
+              const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+              if (lovableApiKey) {
+                try {
+                  console.log(`[AI Fallback] Using AI to generate metadata for ${leg.number}`);
+                  const aiPrompt = `Tens o seguinte diploma legislativo português:
+- Número: ${leg.number}
+- Título atual: ${leg.title || 'N/A'}
+- Data de publicação: ${leg.publication_date || 'desconhecida'}
+- Entidade: ${leg.entity || 'desconhecida'}
+- URL: ${urlToScrape || 'N/A'}
+
+Com base no número do diploma e no tipo de documento, indica:
+1. Um título descritivo curto (máx 200 chars) que identifique a matéria regulada
+2. Um sumário breve (máx 500 chars) descrevendo o conteúdo/objetivo do diploma
+
+IMPORTANTE: Se não conseguires determinar o conteúdo exato do diploma pelo seu número, gera um título baseado no tipo de documento e número (ex: "Despacho n.º 5738/2023 - Normas regulamentares").
+NÃO inventes conteúdo específico que não possas confirmar.
+
+Responde APENAS em JSON:
+{"title": "...", "summary": "..."}`;
+
+                  const aiResponse = await fetchWithTimeout(
+                    'https://ai.gateway.lovable.dev/v1/chat/completions',
+                    {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${lovableApiKey}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        model: 'google/gemini-2.5-flash-lite',
+                        messages: [
+                          { role: 'system', content: 'És um especialista em legislação portuguesa. Responde sempre em JSON válido.' },
+                          { role: 'user', content: aiPrompt }
+                        ],
+                      }),
+                    },
+                    15000
+                  );
+
+                  if (aiResponse.ok) {
+                    const aiData = await aiResponse.json();
+                    const content = aiData?.choices?.[0]?.message?.content || '';
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      const parsed = JSON.parse(jsonMatch[0]);
+                      if (parsed.title && !hasGoodTitleAfterScrape && needsTitle) {
+                        const aiTitle = parsed.title.substring(0, 500);
+                        if (isValidTitle(aiTitle, leg.number) && !isGenericPTTitle(aiTitle, leg.number)) {
+                          metadata = metadata || {};
+                          metadata.title = aiTitle;
+                          console.log(`[AI Fallback] Got title: ${aiTitle.substring(0, 80)}...`);
+                        }
+                      }
+                      if (parsed.summary && !hasGoodSummaryAfterScrape && needsSummary) {
+                        const aiSummary = parsed.summary.substring(0, 2000);
+                        if (isValidSummary(aiSummary)) {
+                          metadata = metadata || {};
+                          metadata.summary = aiSummary;
+                          console.log(`[AI Fallback] Got summary: ${aiSummary.substring(0, 80)}...`);
+                        }
+                      }
+                    }
+                  } else {
+                    console.log(`[AI Fallback] AI request failed: ${aiResponse.status}`);
+                  }
+                } catch (aiError) {
+                  console.warn('[AI Fallback] Error:', aiError);
+                }
+              }
+            }
             
             // Apply metadata updates
             if (metadata) {
