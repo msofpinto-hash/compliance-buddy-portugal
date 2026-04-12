@@ -199,7 +199,6 @@ export function CronJobsMonitorPanel() {
     );
   }
 
-  const [activeTab, setActiveTab] = useState("scheduled");
 
   return (
     <div className="space-y-4">
