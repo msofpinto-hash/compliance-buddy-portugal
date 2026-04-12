@@ -13,6 +13,27 @@ interface LegislationItem {
   summary?: string | null;
 }
 
+const MIN_SUMMARY_LENGTH = 20;
+
+async function resolveLegislationIds(
+  supabase: any,
+  providedIds: string[] | undefined,
+  limit: number,
+): Promise<string[]> {
+  if (Array.isArray(providedIds) && providedIds.length > 0) {
+    return [...new Set(providedIds.filter(Boolean))];
+  }
+
+  const expandedLimit = Math.min(Math.max(limit, 1) * 3, 300);
+  const { data, error } = await supabase.rpc("get_legislation_without_categories_ids" as any, {
+    p_limit: expandedLimit,
+  });
+
+  if (error) throw error;
+
+  return [...new Set((data || []).map((row: any) => row.id).filter(Boolean))];
+}
+
 async function processLegislationBatch(
   supabase: any,
   legislationIds: string[],
@@ -24,7 +45,6 @@ async function processLegislationBatch(
     throw new Error("LOVABLE_API_KEY is not configured");
   }
 
-  // Fetch all categories (only leaf categories)
   const { data: categories, error: catError } = await supabase
     .from("theme_categories")
     .select(`
@@ -40,7 +60,6 @@ async function processLegislationBatch(
 
   if (catError) throw catError;
 
-  // Build a set of category IDs that have children
   const parentIds = new Set<string>();
   categories?.forEach((cat: any) => {
     if (cat.parent_id) {
@@ -48,7 +67,6 @@ async function processLegislationBatch(
     }
   });
 
-  // Filter to only include leaf categories
   const leafCategories = categories?.filter((cat: any) => !parentIds.has(cat.id)) || [];
 
   const categoryList = leafCategories.map((cat: any) => ({
@@ -58,11 +76,10 @@ async function processLegislationBatch(
     keywords: cat.keywords || []
   }));
 
-  const categoryContext = categoryList.map((c: any) => 
+  const categoryContext = categoryList.map((c: any) =>
     `- ID: ${c.id} | Tema: ${c.theme} | Categoria: ${c.name}${c.keywords.length > 0 ? ` | Palavras-chave: ${c.keywords.join(", ")}` : ""}`
   ).join("\n");
 
-  // Fetch legislation items
   const { data: legislationItems, error: legError } = await supabase
     .from("legislation")
     .select("id, number, title, summary")
@@ -70,11 +87,15 @@ async function processLegislationBatch(
 
   if (legError) throw legError;
 
-  // Fetch existing category mappings
+  const eligibleItems = (legislationItems || []).filter((leg: LegislationItem) => {
+    const summary = leg.summary?.replace(/\s+/g, " ").trim() || "";
+    return summary.length >= MIN_SUMMARY_LENGTH;
+  });
+
   const { data: existingMappings } = await supabase
     .from("legislation_category_mapping")
     .select("legislation_id, category_id")
-    .in("legislation_id", legislationIds);
+    .in("legislation_id", eligibleItems.map((item) => item.id));
 
   const existingByLegislation = new Map<string, Set<string>>();
   existingMappings?.forEach((m: any) => {
@@ -87,18 +108,20 @@ async function processLegislationBatch(
   let processed = 0;
   let added = 0;
   let errors = 0;
+  let skipped = Math.max(0, legislationIds.length - eligibleItems.length);
 
   const validCategoryIds = new Set(categoryList.map((c: any) => c.id));
 
-  for (const leg of legislationItems || []) {
+  for (const leg of eligibleItems) {
     try {
+      const cleanSummary = leg.summary?.replace(/\s+/g, " ").trim() || "Sem sumário";
       const legislationText = `
 Número: ${leg.number || "N/A"}
 Título: ${leg.title || "Sem título"}
-Sumário: ${leg.summary || "Sem sumário"}
+Sumário: ${cleanSummary}
       `.trim();
 
-      const systemPrompt = `És um especialista em classificação de legislação portuguesa e europeia. 
+      const systemPrompt = `És um especialista em classificação de legislação portuguesa e europeia.
 A tua tarefa é analisar um diploma legal e sugerir as categorias mais apropriadas da lista fornecida.
 
 CATEGORIAS DISPONÍVEIS:
@@ -159,7 +182,6 @@ Se não encontrares categorias apropriadas, responde: []`;
         console.error("Failed to parse AI response:", aiResponse);
       }
 
-      // Filter to valid categories and exclude existing
       const existingIds = existingByLegislation.get(leg.id) || new Set();
       const newCategories = suggestedIds
         .filter(id => validCategoryIds.has(id) && !existingIds.has(id));
@@ -184,28 +206,26 @@ Se não encontrares categorias apropriadas, responde: []`;
 
       processed++;
 
-      // Update sync log progress periodically
-      if (processed % 10 === 0 || processed === legislationItems.length) {
+      if (processed % 10 === 0 || processed === eligibleItems.length) {
         await supabase
           .from("sync_logs")
           .update({
             items_processed: processed,
             items_added: added,
-            error_message: errors > 0 ? `${errors} erro(s)` : null,
+            error_message: errors > 0 || skipped > 0
+              ? `${errors} erro(s)${skipped > 0 ? ` | ${skipped} ignorado(s) sem sumário válido` : ""}`
+              : null,
           })
           .eq("id", syncLogId);
       }
 
-      // Small delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 300));
-
     } catch (e) {
       console.error(`Error processing ${leg.number}:`, e);
       errors++;
     }
   }
 
-  // Final update
   await supabase
     .from("sync_logs")
     .update({
@@ -213,7 +233,9 @@ Se não encontrares categorias apropriadas, responde: []`;
       completed_at: new Date().toISOString(),
       items_processed: processed,
       items_added: added,
-      error_message: errors > 0 ? `${errors} erro(s) durante o processamento` : null,
+      error_message: errors > 0 || skipped > 0
+        ? `${errors} erro(s) durante o processamento${skipped > 0 ? ` | ${skipped} ignorado(s) sem sumário válido` : ""}`
+        : null,
     })
     .eq("id", syncLogId);
 }
@@ -224,20 +246,21 @@ serve(async (req) => {
   }
 
   try {
-    const { legislationIds, autoAssign = true } = await req.json();
-
-    if (!legislationIds || !Array.isArray(legislationIds) || legislationIds.length === 0) {
-      return new Response(JSON.stringify({ error: "legislationIds array is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const { legislationIds: providedIds, autoAssign = true, limit = 50 } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Create sync log entry
+    const legislationIds = await resolveLegislationIds(supabase, providedIds, limit);
+
+    if (!legislationIds.length) {
+      return new Response(JSON.stringify({ error: "Nenhum diploma elegível para categorização" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: syncLog, error: syncError } = await supabase
       .from("sync_logs")
       .insert({
@@ -251,12 +274,11 @@ serve(async (req) => {
 
     if (syncError) throw syncError;
 
-    // Start background processing
     (globalThis as any).EdgeRuntime.waitUntil(
       processLegislationBatch(supabase, legislationIds, syncLog.id, autoAssign)
     );
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: true,
       syncLogId: syncLog.id,
       total: legislationIds.length,
@@ -264,11 +286,10 @@ serve(async (req) => {
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (e) {
     console.error("bulk-suggest-categories error:", e);
-    return new Response(JSON.stringify({ 
-      error: e instanceof Error ? e.message : "Erro desconhecido" 
+    return new Response(JSON.stringify({
+      error: e instanceof Error ? e.message : "Erro desconhecido"
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
