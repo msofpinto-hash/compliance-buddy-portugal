@@ -19,10 +19,8 @@ import { ExecutionHistoryPanel } from "./ExecutionHistoryPanel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExportMetadataIssuesDialog } from "./ExportMetadataIssuesDialog";
 
-// ========== PT SUSPENDED FLAG ==========
-// A API DRE OpenData (PT) está offline e devolve HTML em vez de JSON.
-// Suspender correções PT até a fonte estabilizar.
-const PT_CORRECTIONS_SUSPENDED = true;
+const isSourceUnavailable = (source?: { status: string; blocked_until: string | null } | null) =>
+  source ? source.status === "offline" || Boolean(source.blocked_until && new Date(source.blocked_until) > new Date()) : false;
 
 // Constants
 const STALE_JOB_THRESHOLD_MINUTES = 10;
@@ -144,9 +142,16 @@ export function UnifiedDataQualityPanel() {
     staleTime: 10000,
   });
 
-  const dreStatus = sourceStatus?.find(s => s.source_name === "dre_opendata");
-  const isDreOffline = dreStatus?.status === "offline" || 
-    (dreStatus?.blocked_until && new Date(dreStatus.blocked_until) > new Date());
+  const dreOpenDataStatus = sourceStatus?.find((s) => s.source_name === "dre_opendata");
+  const dreWebStatus = sourceStatus?.find((s) => s.source_name === "dre_website");
+  const firecrawlStatus = sourceStatus?.find((s) => s.source_name === "firecrawl");
+
+  const isDreOpenDataUnavailable = isSourceUnavailable(dreOpenDataStatus);
+  const isDreWebUnavailable = isSourceUnavailable(dreWebStatus);
+  const isFirecrawlUnavailable = isSourceUnavailable(firecrawlStatus);
+  const canRunPtMetadata = !isDreOpenDataUnavailable || (!isDreWebUnavailable && !isFirecrawlUnavailable);
+  const isPtMetadataBlocked = !canRunPtMetadata;
+  const isPtMetadataFallbackMode = isDreOpenDataUnavailable && canRunPtMetadata;
 
   // Query for 24h stats
   const statsQuery = useQuery({
@@ -337,72 +342,63 @@ export function UnifiedDataQualityPanel() {
     switch (type) {
       case "urls":
         {
-          // PT SUSPENDED: Apenas lançar correção de URLs EU
-          if (PT_CORRECTIONS_SUSPENDED) {
+          // Decide based on pending work:
+          // - EU missing URLs => fix-broken-urls (generates CELEX URLs)
+          // - PT missing URLs => find-missing-dre-urls (Firecrawl search)
+          const [euMissingFalseRes, euMissingNullRes] = await Promise.all([
+            supabase
+              .from("legislation")
+              .select("id", { count: "exact", head: true })
+              .in("origin", ["EU", "eurlex"])
+              .eq("no_digital_version", false)
+              .or(URL_MISSING_OR),
+            supabase
+              .from("legislation")
+              .select("id", { count: "exact", head: true })
+              .in("origin", ["EU", "eurlex"])
+              .is("no_digital_version", null)
+              .or(URL_MISSING_OR),
+          ]);
+
+          if (euMissingFalseRes.error) throw euMissingFalseRes.error;
+          if (euMissingNullRes.error) throw euMissingNullRes.error;
+
+          const euMissing = (euMissingFalseRes.count ?? 0) + (euMissingNullRes.count ?? 0);
+
+          if (euMissing > 0) {
             functionName = "fix-broken-urls";
             body = { syncType: "fix_missing_urls_eu", limit: 50, origin: "EU", mode: "recover", background: true };
           } else {
-            // Decide based on pending work:
-            // - EU missing URLs => fix-broken-urls (generates CELEX URLs)
-            // - PT missing URLs => find-missing-dre-urls (Firecrawl search)
-            const [euMissingFalseRes, euMissingNullRes] = await Promise.all([
-              supabase
-                .from("legislation")
-                .select("id", { count: "exact", head: true })
-                .in("origin", ["EU", "eurlex"])
-                .eq("no_digital_version", false)
-                .or(URL_MISSING_OR),
-              supabase
-                .from("legislation")
-                .select("id", { count: "exact", head: true })
-                .in("origin", ["EU", "eurlex"])
-                .is("no_digital_version", null)
-                .or(URL_MISSING_OR),
-            ]);
-
-            if (euMissingFalseRes.error) throw euMissingFalseRes.error;
-            if (euMissingNullRes.error) throw euMissingNullRes.error;
-
-            const euMissing = (euMissingFalseRes.count ?? 0) + (euMissingNullRes.count ?? 0);
-
-            if (euMissing > 0) {
-              functionName = "fix-broken-urls";
-              body = { syncType: "fix_missing_urls_eu", limit: 50, origin: "EU", mode: "recover", background: true };
-            } else {
-              functionName = "find-missing-dre-urls";
-              body = { limit: 50, background: true, dryRun: false };
-            }
+            functionName = "find-missing-dre-urls";
+            body = { limit: 50, background: true, dryRun: false };
           }
         }
         break;
       case "titles":
-        // PT SUSPENDED: Usar fix-eurlex-titles para EU apenas
-        if (PT_CORRECTIONS_SUSPENDED) {
+        if (isPtMetadataBlocked) {
           functionName = "fix-eurlex-titles";
           body = { limit: 50, background: true };
         } else {
           functionName = "complete-auto-imported-legislation";
-          body = { mode: "generic_titles", limit: 20, dryRun: false, requireUrl: true };
+          body = { mode: "generic_titles", limit: 20, dryRun: false, randomOffset: true };
         }
         break;
       case "summaries":
-        // PT SUSPENDED: Apenas EU
-        if (PT_CORRECTIONS_SUSPENDED) {
+        if (isPtMetadataBlocked) {
           functionName = "fix-eurlex-titles";
           body = { limit: 50, background: true, mode: "summaries" };
         } else {
           functionName = "complete-auto-imported-legislation";
-          body = { mode: "short_summary", limit: 20, dryRun: false, requireUrl: true };
+          body = { mode: "short_summary", limit: 20, dryRun: false, randomOffset: true };
         }
         break;
       case "dates":
-        // PT SUSPENDED: Apenas EU (reimport-eurlex-dates)
-        if (PT_CORRECTIONS_SUSPENDED) {
+        if (isPtMetadataBlocked) {
           functionName = "reimport-eurlex-dates";
           body = { limit: 50, background: true };
         } else {
           functionName = "complete-auto-imported-legislation";
-          body = { mode: "missing_dates", limit: 20, dryRun: false, requireUrl: true };
+          body = { mode: "missing_dates", limit: 20, dryRun: false, requireUrl: true, randomOffset: true };
         }
         break;
       case "requirements":
@@ -459,7 +455,7 @@ export function UnifiedDataQualityPanel() {
       toast.error(`Falha ao lançar "${functionName}": ${msg}`);
       throw e;
     }
-  }, [refetchJobs, refetchStats]);
+  }, [isPtMetadataBlocked, refetchJobs, refetchStats]);
 
   // Auto-fix loop for single type
   useEffect(() => {
@@ -751,30 +747,36 @@ export function UnifiedDataQualityPanel() {
         )}
 
         {/* Source Status Alert - Dynamic from DB */}
-        {isDreOffline && (
+        {isPtMetadataBlocked && (
           <Alert className="border-red-500 bg-red-50 dark:bg-red-950/50">
             <XCircle className="h-4 w-4 text-red-600" />
-            <AlertTitle className="text-red-800 dark:text-red-200">🚫 DRE OpenData Offline</AlertTitle>
+            <AlertTitle className="text-red-800 dark:text-red-200">🚫 Correções PT bloqueadas</AlertTitle>
             <AlertDescription className="text-red-700 dark:text-red-300 text-xs">
-              {dreStatus?.error_message || "API indisponível"}.
-              {dreStatus?.blocked_until && (
+              {dreOpenDataStatus?.error_message || "Fontes PT indisponíveis"}.
+              {dreOpenDataStatus?.blocked_until && (
                 <span className="ml-1">
-                  Bloqueado até: {new Date(dreStatus.blocked_until).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}
+                  Bloqueado até: {new Date(dreOpenDataStatus.blocked_until).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}
                 </span>
               )}
               <br />
-              <span className="font-medium">Correções PT bloqueadas automaticamente (fail-fast). Apenas EUR-Lex ativo.</span>
+              <span className="font-medium">É preciso ter DRE OpenData online ou DRE Web + Firecrawl disponíveis para retomar as correções PT.</span>
             </AlertDescription>
           </Alert>
         )}
-        
-        {/* PT Suspended Warning - Static flag */}
-        {PT_CORRECTIONS_SUSPENDED && !isDreOffline && (
+
+        {isPtMetadataFallbackMode && (
           <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/50">
             <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-800 dark:text-amber-200">Correções PT Suspensas</AlertTitle>
+            <AlertTitle className="text-amber-800 dark:text-amber-200">⚠️ DRE OpenData Offline</AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
-              Modo de baixa concorrência ativo. Máximo {MAX_CONCURRENT_JOBS} jobs simultâneos.
+              {dreOpenDataStatus?.error_message || "API indisponível"}.
+              {dreOpenDataStatus?.blocked_until && (
+                <span className="ml-1">
+                  Bloqueado até: {new Date(dreOpenDataStatus.blocked_until).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })}
+                </span>
+              )}
+              <br />
+              <span className="font-medium">Fallback ativo via DRE Web + Firecrawl. As correções PT continuam a correr.</span>
             </AlertDescription>
           </Alert>
         )}
