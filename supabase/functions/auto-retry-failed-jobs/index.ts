@@ -278,8 +278,8 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_missing_dates',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'missing_dates', limit: 20, dryRun: false, requireUrl: true, randomOffset: true },
-    maxParallelJobs: 3,
+    defaultPayload: { mode: 'missing_dates', limit: 40, dryRun: false, requireUrl: true, randomOffset: true },
+    maxParallelJobs: 5,
     priority: 2,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'missing_dates'),
   },
@@ -287,8 +287,8 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_generic_titles',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'generic_titles', limit: 20, dryRun: false, randomOffset: true },
-    maxParallelJobs: 3,
+    defaultPayload: { mode: 'generic_titles', limit: 40, dryRun: false, randomOffset: true },
+    maxParallelJobs: 5,
     priority: 3,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'generic_titles'),
   },
@@ -296,8 +296,8 @@ const JOB_CONFIGS: JobConfig[] = [
   {
     syncType: 'fix_short_summary',
     functionName: 'complete-auto-imported-legislation',
-    defaultPayload: { mode: 'short_summary', limit: 20, dryRun: false, randomOffset: true },
-    maxParallelJobs: 3,
+    defaultPayload: { mode: 'short_summary', limit: 40, dryRun: false, randomOffset: true },
+    maxParallelJobs: 5,
     priority: 4,
     checkPendingWork: (supabase) => checkPendingMetadataCorrection(supabase, 'short_summary'),
   },
