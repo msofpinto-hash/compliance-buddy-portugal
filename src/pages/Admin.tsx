@@ -8,6 +8,7 @@ import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
 import { UploadLegislationPanel } from "@/components/admin/UploadLegislationPanel";
 import { UploadHistoryPanel } from "@/components/admin/UploadHistoryPanel";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
+import { SourceStatusBanner } from "@/components/admin/SourceStatusBanner";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
