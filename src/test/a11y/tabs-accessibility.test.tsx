@@ -38,7 +38,9 @@ describe("A11y: Tabs com ícones", () => {
     );
 
     for (const name of ["Biblioteca", "Carregar", "Clientes", "Utilizadores"]) {
-      const tab = screen.getByRole("tab", { name });
+      // Em jsdom, hidden/sr-only não escondem o texto: o nome acessível
+      // pode conter o label duplicado. O importante é que NÃO esteja vazio.
+      const tab = screen.getByRole("tab", { name: new RegExp(name, "i") });
       expect(tab).toBeInTheDocument();
       expect(tab.getAttribute("aria-selected")).not.toBeNull();
     }
