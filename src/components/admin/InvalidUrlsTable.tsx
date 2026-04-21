@@ -151,7 +151,11 @@ export function InvalidUrlsTable() {
               </TableHeader>
               <TableBody>
                 {results.map((r: any) => (
-                  <TableRow key={r.id}>
+                  <TableRow
+                    key={r.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => openDetail(r)}
+                  >
                     <TableCell>{statusBadge(r.status, r.status_code)}</TableCell>
                     <TableCell className="font-mono text-xs">{r.number || "—"}</TableCell>
                     <TableCell className="max-w-[420px] truncate" title={r.title || ""}>
@@ -164,8 +168,16 @@ export function InvalidUrlsTable() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openDetail(r)}
+                          title="Ver detalhes"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
                         {r.document_url && (
                           <Button
                             size="sm"
@@ -200,6 +212,11 @@ export function InvalidUrlsTable() {
           </div>
         )}
       </CardContent>
+      <UrlValidationDetailSheet
+        result={selected}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </Card>
   );
 }
