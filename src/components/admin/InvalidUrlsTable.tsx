@@ -5,15 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, ExternalLink, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, FileText, Loader2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openExternalUrl } from "@/lib/openExternalUrl";
+import { UrlValidationDetailSheet } from "./UrlValidationDetailSheet";
 
 type StatusFilter = "invalid" | "all";
 
 export function InvalidUrlsTable() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("invalid");
+  const [selected, setSelected] = useState<any>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const openDetail = (row: any) => {
+    setSelected(row);
+    setSheetOpen(true);
+  };
 
   // Latest validation job
   const { data: latestJob } = useQuery({
