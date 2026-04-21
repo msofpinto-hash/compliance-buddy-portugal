@@ -11,15 +11,43 @@ interface RequestBody {
   file_hash?: string;
 }
 
-function normalizeUrl(url: string): string {
+// Hosts that always serve HTTPS — used to upgrade http→https for consistency
+const HTTPS_HOSTS = [
+  "dre.pt",
+  "diariodarepublica.pt",
+  "eur-lex.europa.eu",
+  "files.dre.pt",
+];
+
+// Canonical URL normalization (must mirror frontend `normalizeUrlInput`):
+// - trim
+// - lowercase host only (preserve path/query case)
+// - upgrade http→https for known secure hosts
+// - strip default ports (80/443)
+// - drop fragment (#...)
+// - remove trailing slash from path (except root)
+function normalizeUrl(raw: string): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
   try {
-    const u = new URL(url.trim());
+    const u = new URL(trimmed);
+    u.hostname = u.hostname.toLowerCase();
+    if (
+      u.protocol === "http:" &&
+      HTTPS_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith("." + h))
+    ) {
+      u.protocol = "https:";
+    }
+    if ((u.protocol === "https:" && u.port === "443") || (u.protocol === "http:" && u.port === "80")) {
+      u.port = "";
+    }
     u.hash = "";
-    // Strip trailing slash for consistency
-    let path = u.pathname.replace(/\/+$/, "");
-    return `${u.origin}${path}${u.search}`.toLowerCase();
+    if (u.pathname.length > 1 && u.pathname.endsWith("/")) {
+      u.pathname = u.pathname.replace(/\/+$/, "");
+    }
+    return u.toString();
   } catch {
-    return url.trim().toLowerCase();
+    return trimmed;
   }
 }
 
