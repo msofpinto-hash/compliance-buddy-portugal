@@ -11,15 +11,43 @@ interface RequestBody {
   file_hash?: string;
 }
 
-function normalizeUrl(url: string): string {
+// Hosts that always serve HTTPS — used to upgrade http→https for consistency
+const HTTPS_HOSTS = [
+  "dre.pt",
+  "diariodarepublica.pt",
+  "eur-lex.europa.eu",
+  "files.dre.pt",
+];
+
+// Canonical URL normalization (must mirror frontend `normalizeUrlInput`):
+// - trim
+// - lowercase host only (preserve path/query case)
+// - upgrade http→https for known secure hosts
+// - strip default ports (80/443)
+// - drop fragment (#...)
+// - remove trailing slash from path (except root)
+function normalizeUrl(raw: string): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
   try {
-    const u = new URL(url.trim());
+    const u = new URL(trimmed);
+    u.hostname = u.hostname.toLowerCase();
+    if (
+      u.protocol === "http:" &&
+      HTTPS_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith("." + h))
+    ) {
+      u.protocol = "https:";
+    }
+    if ((u.protocol === "https:" && u.port === "443") || (u.protocol === "http:" && u.port === "80")) {
+      u.port = "";
+    }
     u.hash = "";
-    // Strip trailing slash for consistency
-    let path = u.pathname.replace(/\/+$/, "");
-    return `${u.origin}${path}${u.search}`.toLowerCase();
+    if (u.pathname.length > 1 && u.pathname.endsWith("/")) {
+      u.pathname = u.pathname.replace(/\/+$/, "");
+    }
+    return u.toString();
   } catch {
-    return url.trim().toLowerCase();
+    return trimmed;
   }
 }
 
@@ -88,17 +116,47 @@ Deno.serve(async (req) => {
       legislation: { id: string; number: string; title: string; document_url: string | null };
     }> = [];
 
-    // 1) URL match (exact + normalized)
+    // 1) URL match — try both the raw input and the normalized form,
+    //    then compare normalized values to catch trailing-slash / scheme variants.
     if (document_url) {
       const normalized = normalizeUrl(document_url);
-      const { data } = await admin
-        .from("legislation")
-        .select("id, number, title, document_url")
-        .or(`document_url.eq.${document_url},document_url.eq.${normalized}`)
-        .limit(5);
-      data?.forEach((l) =>
-        matches.push({ type: "url", legislation: l })
-      );
+      const candidates = Array.from(new Set([document_url, normalized].filter(Boolean)));
+
+      // Direct equality lookups (one query per variant — avoids .or() escaping issues)
+      for (const candidate of candidates) {
+        const { data } = await admin
+          .from("legislation")
+          .select("id, number, title, document_url")
+          .eq("document_url", candidate)
+          .limit(5);
+        data?.forEach((l) => {
+          if (!matches.find((m) => m.legislation.id === l.id)) {
+            matches.push({ type: "url", legislation: l });
+          }
+        });
+      }
+
+      // Fallback: scan recent rows on same host and compare normalized form,
+      // catching variants like trailing slashes that direct eq missed.
+      if (matches.length === 0) {
+        try {
+          const host = new URL(normalized).hostname;
+          const { data: hostMatches } = await admin
+            .from("legislation")
+            .select("id, number, title, document_url")
+            .ilike("document_url", `%${host}%`)
+            .limit(50);
+          hostMatches?.forEach((l) => {
+            if (l.document_url && normalizeUrl(l.document_url) === normalized) {
+              if (!matches.find((m) => m.legislation.id === l.id)) {
+                matches.push({ type: "url", legislation: l });
+              }
+            }
+          });
+        } catch {
+          // ignore — invalid URL already handled above
+        }
+      }
     }
 
     // 2) Number match (normalized)
