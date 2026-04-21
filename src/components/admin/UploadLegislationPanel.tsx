@@ -30,7 +30,7 @@ import {
   RefreshCw,
   Clipboard,
 } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 const ACCEPTED_TYPES = {
   "application/pdf": [".pdf"],
