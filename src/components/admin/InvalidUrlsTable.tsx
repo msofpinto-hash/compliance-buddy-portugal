@@ -5,15 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, ExternalLink, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, FileText, Loader2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openExternalUrl } from "@/lib/openExternalUrl";
+import { UrlValidationDetailSheet } from "./UrlValidationDetailSheet";
 
 type StatusFilter = "invalid" | "all";
 
 export function InvalidUrlsTable() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("invalid");
+  const [selected, setSelected] = useState<any>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const openDetail = (row: any) => {
+    setSelected(row);
+    setSheetOpen(true);
+  };
 
   // Latest validation job
   const { data: latestJob } = useQuery({
@@ -143,7 +151,11 @@ export function InvalidUrlsTable() {
               </TableHeader>
               <TableBody>
                 {results.map((r: any) => (
-                  <TableRow key={r.id}>
+                  <TableRow
+                    key={r.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => openDetail(r)}
+                  >
                     <TableCell>{statusBadge(r.status, r.status_code)}</TableCell>
                     <TableCell className="font-mono text-xs">{r.number || "—"}</TableCell>
                     <TableCell className="max-w-[420px] truncate" title={r.title || ""}>
@@ -156,8 +168,16 @@ export function InvalidUrlsTable() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openDetail(r)}
+                          title="Ver detalhes"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
                         {r.document_url && (
                           <Button
                             size="sm"
@@ -192,6 +212,11 @@ export function InvalidUrlsTable() {
           </div>
         )}
       </CardContent>
+      <UrlValidationDetailSheet
+        result={selected}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </Card>
   );
 }
