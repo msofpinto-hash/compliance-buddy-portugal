@@ -1738,7 +1738,12 @@ async function runBackgroundCompletion(params: {
   const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')!;
   
   const supabase = createClient(supabaseUrl, supabaseKey);
-  
+
+  // Reset per-run flags (module-level vars persist across invocations in the same isolate)
+  dreOpenDataFailed = false;
+  dreOpenDataFailureCount = 0;
+  dreOpenDataBlocked = false;
+
   // ========== SOURCE AVAILABILITY CHECK ==========
   // PT metadata can run with either DRE OpenData or the DRE Web + Firecrawl fallback.
   const readSourceAvailability = async (sourceName: string) => {
