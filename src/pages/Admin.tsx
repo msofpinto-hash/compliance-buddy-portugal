@@ -72,23 +72,23 @@ const Admin = () => {
             <TabsList className="inline-flex h-auto gap-0.5 sm:gap-1 bg-secondary/30 border border-border p-1 sm:p-1.5 w-full sm:w-fit">
               <TabsTrigger value="biblioteca" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
                 <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden xs:inline sm:inline">Biblioteca</span>
-                <span className="xs:hidden">Bib.</span>
+                <span className="hidden sm:inline">Biblioteca</span>
+                <span className="sr-only sm:hidden">Biblioteca</span>
               </TabsTrigger>
               <TabsTrigger value="carregar" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
                 <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden xs:inline sm:inline">Carregar</span>
-                <span className="xs:hidden">Up.</span>
+                <span className="hidden sm:inline">Carregar</span>
+                <span className="sr-only sm:hidden">Carregar</span>
               </TabsTrigger>
               <TabsTrigger value="clients" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
                 <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden xs:inline sm:inline">Clientes</span>
-                <span className="xs:hidden">Cli.</span>
+                <span className="hidden sm:inline">Clientes</span>
+                <span className="sr-only sm:hidden">Clientes</span>
               </TabsTrigger>
               <TabsTrigger value="users" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
                 <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden xs:inline sm:inline">Utilizadores</span>
-                <span className="xs:hidden">Users</span>
+                <span className="hidden sm:inline">Utilizadores</span>
+                <span className="sr-only sm:hidden">Utilizadores</span>
               </TabsTrigger>
             </TabsList>
           </div>
