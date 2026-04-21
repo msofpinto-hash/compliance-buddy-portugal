@@ -66,6 +66,9 @@ const Admin = () => {
         </div>
       </header>
 
+      {/* Source status alert (DRE OpenData / fallback) */}
+      <SourceStatusBanner />
+
       {/* Main Content */}
       <main className="container mx-auto px-2 py-3 sm:px-4 sm:py-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 sm:space-y-6">
