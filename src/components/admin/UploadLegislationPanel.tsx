@@ -71,6 +71,44 @@ type DupMatch = {
   legislation: { id: string; number: string; title: string; document_url: string | null };
 };
 
+// Normalize a URL: trim, http→https for known secure hosts, drop hash,
+// remove trailing slash from pathname, strip default ports.
+const HTTPS_HOSTS = [
+  "dre.pt",
+  "diariodarepublica.pt",
+  "eur-lex.europa.eu",
+  "files.dre.pt",
+];
+function normalizeUrlInput(raw: string): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
+  try {
+    const u = new URL(trimmed);
+    // Lowercase host
+    u.hostname = u.hostname.toLowerCase();
+    // Upgrade http → https for known hosts that always serve HTTPS
+    if (
+      u.protocol === "http:" &&
+      HTTPS_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith("." + h))
+    ) {
+      u.protocol = "https:";
+    }
+    // Strip default ports
+    if ((u.protocol === "https:" && u.port === "443") || (u.protocol === "http:" && u.port === "80")) {
+      u.port = "";
+    }
+    // Remove fragment
+    u.hash = "";
+    // Remove trailing slash from path (but keep root "/")
+    if (u.pathname.length > 1 && u.pathname.endsWith("/")) {
+      u.pathname = u.pathname.replace(/\/+$/, "");
+    }
+    return u.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 async function sha256OfFile(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   const hashBuf = await crypto.subtle.digest("SHA-256", buf);
@@ -196,13 +234,15 @@ export function UploadLegislationPanel() {
 
   const saveEditAndRevalidate = async () => {
     if (editingRow === null) return;
-    const newUrl = editValue.trim();
+    const newUrl = normalizeUrlInput(editValue);
     if (!newUrl) {
       toast({ title: "URL vazio", variant: "destructive" });
       return;
     }
-    // Detect duplicate within current list (other rows)
-    const dupInList = bulkResults.findIndex((r, idx) => idx !== editingRow && r.url === newUrl);
+    // Detect duplicate within current list (other rows) using normalized comparison
+    const dupInList = bulkResults.findIndex(
+      (r, idx) => idx !== editingRow && normalizeUrlInput(r.url) === newUrl
+    );
     if (dupInList !== -1) {
       toast({
         title: "URL repetido na lista",
@@ -224,8 +264,9 @@ export function UploadLegislationPanel() {
     setBulkResults((prev) => prev.map((r) => (r.url === u ? { ...r, opened: true } : r)));
   };
 
-  const validateOne = async (url: string): Promise<BulkRow> => {
+  const validateOne = async (rawUrl: string): Promise<BulkRow> => {
     const checked_at = new Date().toISOString();
+    const url = normalizeUrlInput(rawUrl);
     const parsed = urlSchema.safeParse(url);
     if (!parsed.success) {
       const msg = parsed.error.issues[0].message;
@@ -299,13 +340,23 @@ export function UploadLegislationPanel() {
 
   // ===== BULK URL HANDLER =====
   const handleBulkCheck = async () => {
-    const urls = bulkUrls
+    const rawUrls = bulkUrls
       .split(/\r?\n/)
       .map((u) => u.trim())
       .filter(Boolean);
-    if (urls.length === 0) {
+    if (rawUrls.length === 0) {
       toast({ title: "Sem URLs", description: "Cola pelo menos um URL.", variant: "destructive" });
       return;
+    }
+    // Normalize and dedupe within input (preserves first occurrence)
+    const seen = new Set<string>();
+    const urls: string[] = [];
+    for (const raw of rawUrls) {
+      const norm = normalizeUrlInput(raw);
+      if (!seen.has(norm)) {
+        seen.add(norm);
+        urls.push(norm);
+      }
     }
     if (urls.length > 50) {
       toast({
