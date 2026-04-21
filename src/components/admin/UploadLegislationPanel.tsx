@@ -163,12 +163,58 @@ export function UploadLegislationPanel() {
     }
   };
 
-  const retryRow = async (i: number) => {
+  const retryRow = async (i: number, overrideUrl?: string) => {
     const row = bulkResults[i];
     if (!row) return;
-    const result = await validateOne(row.url);
+    const url = overrideUrl ?? row.url;
+    // mark as checking
+    setBulkResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, url, reason: "A revalidar…" } : r)));
+    const result = await validateOne(url);
     setBulkResults((prev) => prev.map((r, idx) => (idx === i ? result : r)));
   };
+
+  // ----- Inline URL editing for failed/duplicate rows -----
+  const [editingRow, setEditingRow] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const startEdit = (i: number) => {
+    setEditingRow(i);
+    setEditValue(bulkResults[i]?.url ?? "");
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.add(i);
+      return next;
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingRow(null);
+    setEditValue("");
+  };
+
+  const saveEditAndRevalidate = async () => {
+    if (editingRow === null) return;
+    const newUrl = editValue.trim();
+    if (!newUrl) {
+      toast({ title: "URL vazio", variant: "destructive" });
+      return;
+    }
+    // Detect duplicate within current list (other rows)
+    const dupInList = bulkResults.findIndex((r, idx) => idx !== editingRow && r.url === newUrl);
+    if (dupInList !== -1) {
+      toast({
+        title: "URL repetido na lista",
+        description: `Já está na linha ${dupInList + 1}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const idx = editingRow;
+    setEditingRow(null);
+    await retryRow(idx, newUrl);
+    setEditValue("");
+  };
+
 
   const openImportFor = (u: string) => {
     setUrlDialogInitial(u);
