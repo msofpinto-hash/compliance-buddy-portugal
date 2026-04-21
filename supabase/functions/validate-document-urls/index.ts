@@ -25,16 +25,28 @@ async function validateUrlsInBackground(
 ) {
   const summary = { total: 0, valid: 0, invalid: 0, redirect: 0, timeout: 0, error: 0 };
   const invalidIds: string[] = [];
+  let resultsBuffer: any[] = [];
+
+  const flushBuffer = async () => {
+    if (resultsBuffer.length === 0) return;
+    const toInsert = resultsBuffer;
+    resultsBuffer = [];
+    const { error } = await supabase.from("url_validation_results").insert(toInsert);
+    if (error) console.error("Failed to insert validation results:", error);
+  };
 
   for (let i = 0; i < legislation.length; i++) {
     const leg = legislation[i];
     summary.total++;
 
+    let status: "valid" | "invalid" | "redirect" | "timeout" | "error" = "error";
+    let statusCode: number | null = null;
+    let errorMessage: string | null = null;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      // Use GET with Range header instead of HEAD - DRE blocks HEAD requests with 405
       const response = await fetch(leg.document_url, {
         method: "GET",
         headers: {
@@ -46,34 +58,59 @@ async function validateUrlsInBackground(
       });
 
       clearTimeout(timeoutId);
-      const statusCode = response.status;
+      statusCode = response.status;
 
-      // 200 and 206 (Partial Content) are both valid responses
       if (statusCode >= 200 && statusCode < 300) {
+        status = "valid";
         summary.valid++;
       } else if (statusCode >= 300 && statusCode < 400) {
+        status = "redirect";
         summary.redirect++;
       } else if (statusCode === 404 || statusCode === 410) {
+        status = "invalid";
         summary.invalid++;
         invalidIds.push(leg.id);
-        console.log(`Invalid URL for ${leg.number}: HTTP ${statusCode}`);
+        errorMessage = `HTTP ${statusCode}`;
       } else if (statusCode === 403 || statusCode === 429 || statusCode === 405) {
-        // Anti-bot blocking - treat as "unverified but likely valid"
+        status = "valid";
         summary.valid++;
-        console.log(`URL blocked for ${leg.number}: HTTP ${statusCode} (treating as valid)`);
+        errorMessage = `HTTP ${statusCode} (anti-bot, treated as valid)`;
       } else {
+        status = "error";
         summary.error++;
+        errorMessage = `HTTP ${statusCode}`;
       }
     } catch (err: unknown) {
       const error = err as Error;
       if (error.name === "AbortError") {
+        status = "timeout";
+        errorMessage = "Request timeout (10s)";
         summary.timeout++;
       } else {
+        status = "error";
+        errorMessage = error.message || "Unknown error";
         summary.error++;
       }
     }
 
-    // Update progress every 20 items
+    resultsBuffer.push({
+      job_id: logId,
+      legislation_id: leg.id,
+      number: leg.number,
+      title: (leg.title || "").substring(0, 500),
+      document_url: leg.document_url,
+      status,
+      status_code: statusCode,
+      error_message: errorMessage,
+      cleared: false,
+    });
+
+    // Flush results every 10 items for near real-time UI
+    if (resultsBuffer.length >= 10) {
+      await flushBuffer();
+    }
+
+    // Update job progress every 20 items
     if ((i + 1) % 20 === 0 || i === legislation.length - 1) {
       await supabase
         .from("sync_logs")
@@ -86,9 +123,10 @@ async function validateUrlsInBackground(
         .eq("id", logId);
     }
 
-    // Small delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 200));
   }
+
+  await flushBuffer();
 
   // Clear invalid URLs if not dry run
   if (!dryRun && invalidIds.length > 0) {
@@ -101,10 +139,15 @@ async function validateUrlsInBackground(
       console.error("Failed to clear invalid URLs:", updateError);
     } else {
       console.log(`Cleared ${invalidIds.length} invalid URLs from database`);
+      // Mark results as cleared
+      await supabase
+        .from("url_validation_results")
+        .update({ cleared: true })
+        .eq("job_id", logId)
+        .in("legislation_id", invalidIds);
     }
   }
 
-  // Final update
   await supabase
     .from("sync_logs")
     .update({
@@ -175,7 +218,7 @@ Deno.serve(async (req) => {
       const { data: logData, error: logError } = await supabase
         .from("sync_logs")
         .insert({
-          sync_type: "validate_urls",
+          sync_type: "validate_document_urls",
           status: "running",
           items_processed: 0,
           items_added: 0,

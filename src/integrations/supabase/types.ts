@@ -1547,6 +1547,48 @@ export type Database = {
         }
         Relationships: []
       }
+      url_validation_results: {
+        Row: {
+          checked_at: string
+          cleared: boolean
+          document_url: string
+          error_message: string | null
+          id: string
+          job_id: string
+          legislation_id: string
+          number: string | null
+          status: string
+          status_code: number | null
+          title: string | null
+        }
+        Insert: {
+          checked_at?: string
+          cleared?: boolean
+          document_url: string
+          error_message?: string | null
+          id?: string
+          job_id: string
+          legislation_id: string
+          number?: string | null
+          status: string
+          status_code?: number | null
+          title?: string | null
+        }
+        Update: {
+          checked_at?: string
+          cleared?: boolean
+          document_url?: string
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          legislation_id?: string
+          number?: string | null
+          status?: string
+          status_code?: number | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       user_legislation_reads: {
         Row: {
           created_at: string
