@@ -234,13 +234,15 @@ export function UploadLegislationPanel() {
 
   const saveEditAndRevalidate = async () => {
     if (editingRow === null) return;
-    const newUrl = editValue.trim();
+    const newUrl = normalizeUrlInput(editValue);
     if (!newUrl) {
       toast({ title: "URL vazio", variant: "destructive" });
       return;
     }
-    // Detect duplicate within current list (other rows)
-    const dupInList = bulkResults.findIndex((r, idx) => idx !== editingRow && r.url === newUrl);
+    // Detect duplicate within current list (other rows) using normalized comparison
+    const dupInList = bulkResults.findIndex(
+      (r, idx) => idx !== editingRow && normalizeUrlInput(r.url) === newUrl
+    );
     if (dupInList !== -1) {
       toast({
         title: "URL repetido na lista",
@@ -262,8 +264,9 @@ export function UploadLegislationPanel() {
     setBulkResults((prev) => prev.map((r) => (r.url === u ? { ...r, opened: true } : r)));
   };
 
-  const validateOne = async (url: string): Promise<BulkRow> => {
+  const validateOne = async (rawUrl: string): Promise<BulkRow> => {
     const checked_at = new Date().toISOString();
+    const url = normalizeUrlInput(rawUrl);
     const parsed = urlSchema.safeParse(url);
     if (!parsed.success) {
       const msg = parsed.error.issues[0].message;
@@ -337,13 +340,23 @@ export function UploadLegislationPanel() {
 
   // ===== BULK URL HANDLER =====
   const handleBulkCheck = async () => {
-    const urls = bulkUrls
+    const rawUrls = bulkUrls
       .split(/\r?\n/)
       .map((u) => u.trim())
       .filter(Boolean);
-    if (urls.length === 0) {
+    if (rawUrls.length === 0) {
       toast({ title: "Sem URLs", description: "Cola pelo menos um URL.", variant: "destructive" });
       return;
+    }
+    // Normalize and dedupe within input (preserves first occurrence)
+    const seen = new Set<string>();
+    const urls: string[] = [];
+    for (const raw of rawUrls) {
+      const norm = normalizeUrlInput(raw);
+      if (!seen.has(norm)) {
+        seen.add(norm);
+        urls.push(norm);
+      }
     }
     if (urls.length > 50) {
       toast({
