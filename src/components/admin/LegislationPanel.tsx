@@ -947,13 +947,13 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           <TabsList className="inline-flex w-full sm:w-auto h-auto gap-1 p-1">
             <TabsTrigger value="global" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
               <Globe2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Global</span>
-              <span className="xs:hidden">Glob.</span>
+              <span className="hidden sm:inline">Global</span>
+              <span className="sr-only sm:hidden">Global</span>
             </TabsTrigger>
             <TabsTrigger value="clients" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
               <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">Clientes</span>
-              <span className="xs:hidden">Cli.</span>
+              <span className="hidden sm:inline">Clientes</span>
+              <span className="sr-only sm:hidden">Clientes</span>
             </TabsTrigger>
           </TabsList>
         </div>
