@@ -817,6 +817,7 @@ export type Database = {
           effective_date: string | null
           entity: string | null
           external_id: string | null
+          file_hash: string | null
           id: string
           no_digital_version: boolean | null
           number: string
@@ -827,6 +828,8 @@ export type Database = {
           summary: string | null
           title: string
           updated_at: string
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
         }
         Insert: {
           category?: string | null
@@ -836,6 +839,7 @@ export type Database = {
           effective_date?: string | null
           entity?: string | null
           external_id?: string | null
+          file_hash?: string | null
           id?: string
           no_digital_version?: boolean | null
           number: string
@@ -846,6 +850,8 @@ export type Database = {
           summary?: string | null
           title: string
           updated_at?: string
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
         }
         Update: {
           category?: string | null
@@ -855,6 +861,7 @@ export type Database = {
           effective_date?: string | null
           entity?: string | null
           external_id?: string | null
+          file_hash?: string | null
           id?: string
           no_digital_version?: boolean | null
           number?: string
@@ -865,6 +872,8 @@ export type Database = {
           summary?: string | null
           title?: string
           updated_at?: string
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
         }
         Relationships: []
       }
