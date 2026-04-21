@@ -87,16 +87,141 @@ export function UploadLegislationPanel() {
   const [urlDialogInitial, setUrlDialogInitial] = useState<string | undefined>(undefined);
 
   // ----- Bulk URL state -----
+  type BulkRow = {
+    url: string;
+    status: "ok" | "duplicate" | "invalid";
+    reason?: string;
+    matches?: DupMatch[];
+    opened?: boolean;
+    error?: {
+      stage: "schema" | "network" | "function" | "unknown";
+      message: string;
+      code?: string | number;
+      details?: string;
+      hint?: string;
+      checked_at: string;
+    };
+  };
   const [bulkUrls, setBulkUrls] = useState("");
   const [bulkChecking, setBulkChecking] = useState(false);
-  const [bulkResults, setBulkResults] = useState<
-    Array<{ url: string; status: "ok" | "duplicate" | "invalid"; reason?: string; matches?: DupMatch[]; opened?: boolean }>
-  >([]);
+  const [bulkResults, setBulkResults] = useState<BulkRow[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (i: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  };
+
+  const copyErrorReport = async (r: BulkRow) => {
+    const lines = [
+      `URL: ${r.url}`,
+      `Status: ${r.status}`,
+      r.reason ? `Motivo: ${r.reason}` : "",
+      r.error?.stage ? `Fase: ${r.error.stage}` : "",
+      r.error?.code !== undefined ? `Código: ${r.error.code}` : "",
+      r.error?.message ? `Mensagem: ${r.error.message}` : "",
+      r.error?.hint ? `Sugestão: ${r.error.hint}` : "",
+      r.error?.details ? `Detalhes: ${r.error.details}` : "",
+      r.error?.checked_at ? `Verificado em: ${r.error.checked_at}` : "",
+    ].filter(Boolean);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast({ title: "Erro copiado", description: "Detalhes copiados para a área de transferência." });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const copyAllErrors = async () => {
+    const failed = bulkResults.filter((r) => r.status === "invalid");
+    if (failed.length === 0) {
+      toast({ title: "Sem erros para copiar" });
+      return;
+    }
+    const text = failed
+      .map((r) =>
+        [
+          `URL: ${r.url}`,
+          `Motivo: ${r.reason ?? "—"}`,
+          r.error?.stage ? `Fase: ${r.error.stage}` : "",
+          r.error?.code !== undefined ? `Código: ${r.error.code}` : "",
+          r.error?.hint ? `Sugestão: ${r.error.hint}` : "",
+          r.error?.details ? `Detalhes: ${r.error.details}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n---\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: `${failed.length} erro(s) copiado(s)` });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const retryRow = async (i: number) => {
+    const row = bulkResults[i];
+    if (!row) return;
+    const result = await validateOne(row.url);
+    setBulkResults((prev) => prev.map((r, idx) => (idx === i ? result : r)));
+  };
 
   const openImportFor = (u: string) => {
     setUrlDialogInitial(u);
     setUrlDialogOpen(true);
     setBulkResults((prev) => prev.map((r) => (r.url === u ? { ...r, opened: true } : r)));
+  };
+
+  const validateOne = async (url: string): Promise<BulkRow> => {
+    const checked_at = new Date().toISOString();
+    const parsed = urlSchema.safeParse(url);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0].message;
+      return {
+        url,
+        status: "invalid",
+        reason: msg,
+        error: {
+          stage: "schema",
+          message: msg,
+          hint: "Verifica que o URL começa por https:// e pertence a dre.pt, diariodarepublica.pt ou eur-lex.europa.eu.",
+          checked_at,
+        },
+      };
+    }
+    try {
+      const dup = await checkDuplicate({ document_url: url });
+      if (dup.is_duplicate) {
+        return { url, status: "duplicate", matches: dup.matches };
+      }
+      return { url, status: "ok" };
+    } catch (e: unknown) {
+      const err = e as { message?: string; status?: number; code?: string; context?: { status?: number; statusText?: string } };
+      const status = err?.status ?? err?.context?.status;
+      const message = err?.message ?? "Erro desconhecido";
+      let hint = "Tenta repetir; se persistir, verifica se o URL responde no browser.";
+      if (status === 401 || status === 403) hint = "Sessão expirada ou sem permissões. Faz login novamente como admin.";
+      else if (status === 429) hint = "Demasiados pedidos — aguarda alguns segundos e repete.";
+      else if (status && status >= 500) hint = "Erro do servidor de validação. Repete em alguns segundos.";
+      else if (/network|fetch|failed/i.test(message)) hint = "Falha de rede. Verifica a tua ligação e repete.";
+      return {
+        url,
+        status: "invalid",
+        reason: message,
+        error: {
+          stage: status ? "function" : "network",
+          message,
+          code: status ?? err?.code,
+          details: JSON.stringify(err?.context ?? err, null, 2).slice(0, 800),
+          hint,
+          checked_at,
+        },
+      };
+    }
   };
 
 
