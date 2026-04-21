@@ -55,7 +55,7 @@ const statusBadge = (s: string) => {
   switch (s) {
     case "completed":
       return (
-        <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700">
+        <Badge variant="default" className="gap-1">
           <CheckCircle2 className="h-3 w-3" /> Concluído
         </Badge>
       );
@@ -357,10 +357,10 @@ export function UploadHistoryPanel() {
                           <span>📊 {log.items_processed} processado(s)</span>
                         )}
                         {(log.items_added ?? 0) > 0 && (
-                          <span className="text-green-700">+{log.items_added} novo(s)</span>
+                          <span className="text-primary">+{log.items_added} novo(s)</span>
                         )}
                         {(log.items_updated ?? 0) > 0 && (
-                          <span className="text-blue-700">~{log.items_updated} atualizado(s)</span>
+                          <span className="text-muted-foreground">~{log.items_updated} atualizado(s)</span>
                         )}
                       </div>
                       {log.error_message && (
