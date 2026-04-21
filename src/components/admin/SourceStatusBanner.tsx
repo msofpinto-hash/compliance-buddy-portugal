@@ -160,12 +160,12 @@ export function SourceStatusBanner() {
                 >
                   {ok ? (
                     <CheckCircle2
-                      className="h-3.5 w-3.5 text-emerald-600"
+                      className="h-3.5 w-3.5 text-primary"
                       aria-hidden="true"
                     />
                   ) : (
                     <AlertTriangle
-                      className="h-3.5 w-3.5 text-amber-600"
+                      className="h-3.5 w-3.5 text-destructive"
                       aria-hidden="true"
                     />
                   )}
