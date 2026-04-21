@@ -78,13 +78,62 @@ export function UploadLegislationPanel() {
 
   // ----- Single URL dialog -----
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
+  const [urlDialogInitial, setUrlDialogInitial] = useState<string | undefined>(undefined);
 
   // ----- Bulk URL state -----
   const [bulkUrls, setBulkUrls] = useState("");
   const [bulkChecking, setBulkChecking] = useState(false);
   const [bulkResults, setBulkResults] = useState<
-    Array<{ url: string; status: "ok" | "duplicate" | "invalid"; reason?: string; matches?: DupMatch[] }>
+    Array<{ url: string; status: "ok" | "duplicate" | "invalid"; reason?: string; matches?: DupMatch[]; imported?: boolean }>
   >([]);
+  const [bulkImporting, setBulkImporting] = useState(false);
+
+  const openImportFor = (u: string) => {
+    setUrlDialogInitial(u);
+    setUrlDialogOpen(true);
+  };
+
+  const markRowImported = (url: string) => {
+    setBulkResults((prev) =>
+      prev.map((r) => (r.url === url ? { ...r, imported: true } : r))
+    );
+  };
+
+  const handleImportAllValid = async () => {
+    const valid = bulkResults.filter((r) => r.status === "ok" && !r.imported);
+    if (valid.length === 0) {
+      toast({ title: "Nada para importar", description: "Sem URLs novos válidos." });
+      return;
+    }
+    setBulkImporting(true);
+    let added = 0;
+    let failed = 0;
+    for (const r of valid) {
+      try {
+        const { data, error } = await supabase.functions.invoke("firecrawl-scrape", {
+          body: { url: r.url, autoImport: true },
+        });
+        if (error || (data && data.success === false)) {
+          failed++;
+          continue;
+        }
+        added++;
+        markRowImported(r.url);
+      } catch {
+        failed++;
+      }
+    }
+    setBulkImporting(false);
+    queryClient.invalidateQueries({ queryKey: ["legislation"] });
+    queryClient.invalidateQueries({ queryKey: ["sync_logs"] });
+    queryClient.invalidateQueries({ queryKey: ["upload-history"] });
+    toast({
+      title: "Importação concluída",
+      description: `${added} importado(s)${failed ? `, ${failed} falha(s)` : ""}.`,
+      variant: failed > 0 ? "destructive" : "default",
+    });
+  };
+
 
   // ----- File state -----
   const [file, setFile] = useState<File | null>(null);
