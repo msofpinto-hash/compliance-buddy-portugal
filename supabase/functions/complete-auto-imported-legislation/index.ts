@@ -1776,6 +1776,13 @@ async function runBackgroundCompletion(params: {
     dreOpenDataAvailable = dreOpenDataSource.available;
     canUsePtMetadataFallback = dreWebsiteSource.available && firecrawlSource.available;
 
+    // Activate global gate: skip OpenData calls everywhere during the block window
+    dreOpenDataBlocked = !dreOpenDataAvailable;
+    if (dreOpenDataBlocked) {
+      const until = dreOpenDataSource.blocked_until ? ` (blocked until ${dreOpenDataSource.blocked_until})` : '';
+      console.log(`[SourceCheck] DRE OpenData is OFFLINE${until} - fallback-only mode active for this run`);
+    }
+
     if (isPTMetadataMode && includePT && !dreOpenDataAvailable && canUsePtMetadataFallback) {
       console.log('[SourceCheck] DRE OpenData unavailable - continuing PT metadata job via DRE Web + Firecrawl fallback');
     }
