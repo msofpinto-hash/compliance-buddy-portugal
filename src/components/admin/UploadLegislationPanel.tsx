@@ -29,6 +29,8 @@ import {
   Copy,
   RefreshCw,
   Clipboard,
+  Pencil,
+  Check,
 } from "lucide-react";
 
 
