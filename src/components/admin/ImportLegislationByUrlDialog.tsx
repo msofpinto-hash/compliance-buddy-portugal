@@ -41,6 +41,33 @@ interface ImportLegislationByUrlDialogProps {
   initialUrl?: string;
 }
 
+// Mirrors backend (validate-legislation-duplicate) and bulk panel normalization.
+const HTTPS_HOSTS = ["dre.pt", "diariodarepublica.pt", "eur-lex.europa.eu", "files.dre.pt"];
+function normalizeUrlInput(raw: string): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
+  try {
+    const u = new URL(trimmed);
+    u.hostname = u.hostname.toLowerCase();
+    if (
+      u.protocol === "http:" &&
+      HTTPS_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith("." + h))
+    ) {
+      u.protocol = "https:";
+    }
+    if ((u.protocol === "https:" && u.port === "443") || (u.protocol === "http:" && u.port === "80")) {
+      u.port = "";
+    }
+    u.hash = "";
+    if (u.pathname.length > 1 && u.pathname.endsWith("/")) {
+      u.pathname = u.pathname.replace(/\/+$/, "");
+    }
+    return u.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }: ImportLegislationByUrlDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
