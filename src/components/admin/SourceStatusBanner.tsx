@@ -104,8 +104,8 @@ export function SourceStatusBanner() {
   const isCritical = openDataDown;
   const containerClasses = isCritical
     ? "border-destructive/40 bg-destructive/5"
-    : "border-amber-500/40 bg-amber-500/5";
-  const iconClasses = isCritical ? "text-destructive" : "text-amber-600";
+    : "border-primary/40 bg-primary/5";
+  const iconClasses = isCritical ? "text-destructive" : "text-primary";
   const Icon = isCritical ? AlertTriangle : Clock;
 
   return (
