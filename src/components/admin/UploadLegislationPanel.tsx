@@ -414,10 +414,10 @@ export function UploadLegislationPanel() {
                         className="flex items-start gap-2 p-2 rounded bg-muted/40 text-xs"
                       >
                         {r.status === "ok" && (
-                          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                         )}
                         {r.status === "duplicate" && (
-                          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                          <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                         )}
                         {r.status === "invalid" && (
                           <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
@@ -425,7 +425,7 @@ export function UploadLegislationPanel() {
                         <div className="flex-1 min-w-0">
                           <div className="truncate font-mono">{r.url}</div>
                           {r.status === "duplicate" && r.matches && (
-                            <div className="text-amber-700 mt-0.5">
+                            <div className="text-muted-foreground mt-0.5">
                               Já existe: {r.matches[0].legislation.number} —{" "}
                               {r.matches[0].legislation.title.slice(0, 60)}
                             </div>
