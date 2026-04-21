@@ -640,14 +640,33 @@ export function UploadLegislationPanel() {
                                 <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                               )}
                               <div className="flex-1 min-w-0">
-                                <div className="truncate font-mono">{r.url}</div>
-                                {r.status === "duplicate" && r.matches && (
+                                {editingRow === i ? (
+                                  <Input
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        saveEditAndRevalidate();
+                                      } else if (e.key === "Escape") {
+                                        e.preventDefault();
+                                        cancelEdit();
+                                      }
+                                    }}
+                                    autoFocus
+                                    className="h-7 text-xs font-mono"
+                                    placeholder="https://diariodarepublica.pt/..."
+                                  />
+                                ) : (
+                                  <div className="truncate font-mono">{r.url}</div>
+                                )}
+                                {r.status === "duplicate" && r.matches && editingRow !== i && (
                                   <div className="text-muted-foreground mt-0.5">
                                     Já existe: {r.matches[0].legislation.number} —{" "}
                                     {r.matches[0].legislation.title.slice(0, 60)}
                                   </div>
                                 )}
-                                {r.status === "invalid" && (
+                                {r.status === "invalid" && editingRow !== i && (
                                   <div className="text-destructive mt-0.5 flex items-center gap-1 flex-wrap">
                                     {r.error?.stage && (
                                       <Badge variant="outline" className="text-[10px] h-4 px-1 border-destructive/40 text-destructive">
@@ -663,57 +682,95 @@ export function UploadLegislationPanel() {
                                   </div>
                                 )}
                               </div>
-                              <Badge
-                                variant={
-                                  r.status === "ok"
-                                    ? "default"
-                                    : r.status === "duplicate"
-                                    ? "secondary"
-                                    : "destructive"
-                                }
-                                className="shrink-0"
-                              >
-                                {r.status === "ok"
-                                  ? r.opened
-                                    ? "Aberto"
-                                    : "Novo"
-                                  : r.status === "duplicate"
-                                  ? "Duplicado"
-                                  : "Inválido"}
-                              </Badge>
-                              {r.status === "ok" && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 shrink-0"
-                                  onClick={() => openImportFor(r.url)}
-                                >
-                                  Importar
-                                </Button>
-                              )}
-                              {r.status === "duplicate" && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 shrink-0"
-                                  onClick={() => openImportFor(r.url)}
-                                >
-                                  Importar mesmo assim
-                                </Button>
-                              )}
-                              {r.status === "invalid" && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 shrink-0"
-                                  onClick={() => retryRow(i)}
-                                  title="Repetir validação"
-                                >
-                                  <RefreshCw className="h-3 w-3" />
-                                </Button>
+                              {editingRow === i ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="h-7 px-2 shrink-0"
+                                    onClick={saveEditAndRevalidate}
+                                    title="Guardar e revalidar"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 shrink-0"
+                                    onClick={cancelEdit}
+                                    title="Cancelar edição"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Badge
+                                    variant={
+                                      r.status === "ok"
+                                        ? "default"
+                                        : r.status === "duplicate"
+                                        ? "secondary"
+                                        : "destructive"
+                                    }
+                                    className="shrink-0"
+                                  >
+                                    {r.status === "ok"
+                                      ? r.opened
+                                        ? "Aberto"
+                                        : "Novo"
+                                      : r.status === "duplicate"
+                                      ? "Duplicado"
+                                      : "Inválido"}
+                                  </Badge>
+                                  {(r.status === "invalid" || r.status === "duplicate") && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 shrink-0"
+                                      onClick={() => startEdit(i)}
+                                      title="Editar URL"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                  {r.status === "ok" && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 shrink-0"
+                                      onClick={() => openImportFor(r.url)}
+                                    >
+                                      Importar
+                                    </Button>
+                                  )}
+                                  {r.status === "duplicate" && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 shrink-0"
+                                      onClick={() => openImportFor(r.url)}
+                                    >
+                                      Importar mesmo assim
+                                    </Button>
+                                  )}
+                                  {r.status === "invalid" && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 shrink-0"
+                                      onClick={() => retryRow(i)}
+                                      title="Repetir validação"
+                                    >
+                                      <RefreshCw className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </div>
                             {isExpanded && r.error && (
