@@ -1043,24 +1043,28 @@ async function scrapeUrl(url: string, firecrawlKey: string, supabase: any): Prom
   // Step 2: Check if this is a DRE URL - try OpenData API as alternative
   const lowerUrl = url.toLowerCase();
   if (lowerUrl.includes('dre.pt') || lowerUrl.includes('diariodarepublica.pt')) {
-    console.log('[Scrape] DRE detected - trying OpenData API...');
-    const { result: openDataResult, error: openDataError } = await fetchDREOpenData(url);
-    if (openDataError && openDataError.type === 'html_response') {
-      console.log('[Scrape] DRE OpenData API returning HTML - source likely offline');
-    }
-    if (openDataResult) {
-      // Convert OpenData result to text format for parsing
-      const parts: string[] = [];
-      if (openDataResult.title) parts.push(`TITLE: ${openDataResult.title}`);
-      if (openDataResult.summary) parts.push(`SUMMARY: ${openDataResult.summary}`);
-      if (openDataResult.entity) parts.push(`ENTITY: ${openDataResult.entity}`);
-      if (openDataResult.publicationDate) parts.push(`PUB_DATE: ${openDataResult.publicationDate}`);
-      if (openDataResult.effectiveDate) parts.push(`EFF_DATE: ${openDataResult.effectiveDate}`);
-      
-      const apiContent = parts.join('\n');
-      if (apiContent.length > 50) {
-        console.log(`[Scrape] DRE OpenData API SUCCESS (${apiContent.length} chars)`);
-        return apiContent;
+    if (dreOpenDataBlocked) {
+      console.log('[Scrape] DRE OpenData is BLOCKED - skipping API, going straight to fallback');
+    } else {
+      console.log('[Scrape] DRE detected - trying OpenData API...');
+      const { result: openDataResult, error: openDataError } = await fetchDREOpenData(url);
+      if (openDataError && openDataError.type === 'html_response') {
+        console.log('[Scrape] DRE OpenData API returning HTML - source likely offline');
+      }
+      if (openDataResult) {
+        // Convert OpenData result to text format for parsing
+        const parts: string[] = [];
+        if (openDataResult.title) parts.push(`TITLE: ${openDataResult.title}`);
+        if (openDataResult.summary) parts.push(`SUMMARY: ${openDataResult.summary}`);
+        if (openDataResult.entity) parts.push(`ENTITY: ${openDataResult.entity}`);
+        if (openDataResult.publicationDate) parts.push(`PUB_DATE: ${openDataResult.publicationDate}`);
+        if (openDataResult.effectiveDate) parts.push(`EFF_DATE: ${openDataResult.effectiveDate}`);
+
+        const apiContent = parts.join('\n');
+        if (apiContent.length > 50) {
+          console.log(`[Scrape] DRE OpenData API SUCCESS (${apiContent.length} chars)`);
+          return apiContent;
+        }
       }
     }
   }
