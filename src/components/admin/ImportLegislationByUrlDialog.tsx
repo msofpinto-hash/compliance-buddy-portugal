@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,14 +38,19 @@ interface ScrapedData {
 interface ImportLegislationByUrlDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialUrl?: string;
 }
 
-export function ImportLegislationByUrlDialog({ open, onOpenChange }: ImportLegislationByUrlDialogProps) {
+export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }: ImportLegislationByUrlDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: themesWithCategories } = useThemesWithCategories();
   
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl ?? "");
+
+  useEffect(() => {
+    if (open && initialUrl) setUrl(initialUrl);
+  }, [open, initialUrl]);
   const [isLoading, setIsLoading] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);

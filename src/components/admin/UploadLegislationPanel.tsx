@@ -78,13 +78,21 @@ export function UploadLegislationPanel() {
 
   // ----- Single URL dialog -----
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
+  const [urlDialogInitial, setUrlDialogInitial] = useState<string | undefined>(undefined);
 
   // ----- Bulk URL state -----
   const [bulkUrls, setBulkUrls] = useState("");
   const [bulkChecking, setBulkChecking] = useState(false);
   const [bulkResults, setBulkResults] = useState<
-    Array<{ url: string; status: "ok" | "duplicate" | "invalid"; reason?: string; matches?: DupMatch[] }>
+    Array<{ url: string; status: "ok" | "duplicate" | "invalid"; reason?: string; matches?: DupMatch[]; opened?: boolean }>
   >([]);
+
+  const openImportFor = (u: string) => {
+    setUrlDialogInitial(u);
+    setUrlDialogOpen(true);
+    setBulkResults((prev) => prev.map((r) => (r.url === u ? { ...r, opened: true } : r)));
+  };
+
 
   // ----- File state -----
   const [file, setFile] = useState<File | null>(null);
@@ -355,10 +363,15 @@ export function UploadLegislationPanel() {
                 Os metadados são extraídos automaticamente.
               </AlertDescription>
             </Alert>
-            <Button onClick={() => setUrlDialogOpen(true)} className="gap-2">
+            <Button
+              onClick={() => {
+                setUrlDialogInitial(undefined);
+                setUrlDialogOpen(true);
+              }}
+              className="gap-2"
+            >
               <LinkIcon className="h-4 w-4" /> Importar diploma por URL
             </Button>
-            <ImportLegislationByUrlDialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen} />
           </TabsContent>
 
           {/* ---------- TAB 2: Bulk URLs ---------- */}
@@ -400,58 +413,99 @@ export function UploadLegislationPanel() {
               </div>
             </div>
 
-            {bulkResults.length > 0 && (
-              <div className="space-y-2">
-                <Separator />
-                <div className="text-sm text-muted-foreground">
-                  Resultado: usa o "Por URL" individual para importar cada novo. Os duplicados são bloqueados.
-                </div>
-                <ScrollArea className="h-64 rounded-md border">
-                  <div className="p-2 space-y-1">
-                    {bulkResults.map((r, i) => (
-                      <div
-                        key={i}
-                        className="flex items-start gap-2 p-2 rounded bg-muted/40 text-xs"
-                      >
-                        {r.status === "ok" && (
-                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        )}
-                        {r.status === "duplicate" && (
-                          <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                        )}
-                        {r.status === "invalid" && (
-                          <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="truncate font-mono">{r.url}</div>
-                          {r.status === "duplicate" && r.matches && (
-                            <div className="text-muted-foreground mt-0.5">
-                              Já existe: {r.matches[0].legislation.number} —{" "}
-                              {r.matches[0].legislation.title.slice(0, 60)}
-                            </div>
+            {bulkResults.length > 0 && (() => {
+              const okCount = bulkResults.filter((r) => r.status === "ok").length;
+              const dupCount = bulkResults.filter((r) => r.status === "duplicate").length;
+              const invCount = bulkResults.filter((r) => r.status === "invalid").length;
+              return (
+                <div className="space-y-2">
+                  <Separator />
+                  <Alert>
+                    <ListChecks className="h-4 w-4" />
+                    <AlertTitle>
+                      {okCount} novo(s) · {dupCount} duplicado(s) · {invCount} inválido(s)
+                    </AlertTitle>
+                    <AlertDescription>
+                      A importação automática está bloqueada para URLs duplicados. Importa
+                      cada novo individualmente ou usa <strong>"Importar mesmo assim"</strong> linha a linha
+                      para forçar.
+                    </AlertDescription>
+                  </Alert>
+                  <ScrollArea className="h-72 rounded-md border">
+                    <div className="p-2 space-y-1">
+                      {bulkResults.map((r, i) => (
+                        <div
+                          key={i}
+                          className="flex items-start gap-2 p-2 rounded bg-muted/40 text-xs"
+                        >
+                          {r.status === "ok" && (
+                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          )}
+                          {r.status === "duplicate" && (
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                           )}
                           {r.status === "invalid" && (
-                            <div className="text-destructive mt-0.5">{r.reason}</div>
+                            <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-mono">{r.url}</div>
+                            {r.status === "duplicate" && r.matches && (
+                              <div className="text-muted-foreground mt-0.5">
+                                Já existe: {r.matches[0].legislation.number} —{" "}
+                                {r.matches[0].legislation.title.slice(0, 60)}
+                              </div>
+                            )}
+                            {r.status === "invalid" && (
+                              <div className="text-destructive mt-0.5">{r.reason}</div>
+                            )}
+                          </div>
+                          <Badge
+                            variant={
+                              r.status === "ok"
+                                ? "default"
+                                : r.status === "duplicate"
+                                ? "secondary"
+                                : "destructive"
+                            }
+                            className="shrink-0"
+                          >
+                            {r.status === "ok"
+                              ? r.opened
+                                ? "Aberto"
+                                : "Novo"
+                              : r.status === "duplicate"
+                              ? "Duplicado"
+                              : "Inválido"}
+                          </Badge>
+                          {r.status === "ok" && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 shrink-0"
+                              onClick={() => openImportFor(r.url)}
+                            >
+                              Importar
+                            </Button>
+                          )}
+                          {r.status === "duplicate" && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 shrink-0"
+                              onClick={() => openImportFor(r.url)}
+                            >
+                              Importar mesmo assim
+                            </Button>
                           )}
                         </div>
-                        <Badge
-                          variant={
-                            r.status === "ok"
-                              ? "default"
-                              : r.status === "duplicate"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                          className="shrink-0"
-                        >
-                          {r.status === "ok" ? "Novo" : r.status === "duplicate" ? "Duplicado" : "Inválido"}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              );
+            })()}
           </TabsContent>
 
           {/* ---------- TAB 3: File upload ---------- */}
@@ -578,6 +632,17 @@ export function UploadLegislationPanel() {
           </TabsContent>
         </Tabs>
       </CardContent>
+      <ImportLegislationByUrlDialog
+        open={urlDialogOpen}
+        onOpenChange={(o) => {
+          setUrlDialogOpen(o);
+          if (!o) {
+            setUrlDialogInitial(undefined);
+            queryClient.invalidateQueries({ queryKey: ["legislation"] });
+          }
+        }}
+        initialUrl={urlDialogInitial}
+      />
     </Card>
   );
 }
