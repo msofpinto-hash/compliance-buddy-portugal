@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
       const { data: logData, error: logError } = await supabase
         .from("sync_logs")
         .insert({
-          sync_type: "validate_urls",
+          sync_type: "validate_document_urls",
           status: "running",
           items_processed: 0,
           items_added: 0,

@@ -8,6 +8,7 @@ import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
 import { UploadLegislationPanel } from "@/components/admin/UploadLegislationPanel";
 import { UploadHistoryPanel } from "@/components/admin/UploadHistoryPanel";
 import { RevalidateDreUrlsPanel } from "@/components/admin/RevalidateDreUrlsPanel";
+import { InvalidUrlsTable } from "@/components/admin/InvalidUrlsTable";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
 import { SourceStatusBanner } from "@/components/admin/SourceStatusBanner";
 import { Link } from "react-router-dom";
@@ -105,6 +106,7 @@ const Admin = () => {
           <TabsContent value="carregar" className="space-y-4">
             <UploadLegislationPanel />
             <RevalidateDreUrlsPanel />
+            <InvalidUrlsTable />
             <UploadHistoryPanel />
           </TabsContent>
 
