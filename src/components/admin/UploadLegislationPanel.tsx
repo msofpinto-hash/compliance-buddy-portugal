@@ -632,6 +632,17 @@ export function UploadLegislationPanel() {
           </TabsContent>
         </Tabs>
       </CardContent>
+      <ImportLegislationByUrlDialog
+        open={urlDialogOpen}
+        onOpenChange={(o) => {
+          setUrlDialogOpen(o);
+          if (!o) {
+            setUrlDialogInitial(undefined);
+            queryClient.invalidateQueries({ queryKey: ["legislation"] });
+          }
+        }}
+        initialUrl={urlDialogInitial}
+      />
     </Card>
   );
 }
