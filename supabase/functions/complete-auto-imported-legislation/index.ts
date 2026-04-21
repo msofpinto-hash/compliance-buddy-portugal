@@ -211,25 +211,64 @@ async function recordHardFail(
   }
 }
 
-// Update source status when we detect consistent failures
+// Update source status when we detect consistent failures.
+// Graduated response that also considers the HISTORICAL failure count so we
+// don't keep hammering an API that has been broken for weeks.
 async function updateSourceStatusIfNeeded(supabase: any): Promise<void> {
-  // If we've seen 3+ failures in this run, mark source as degraded/offline
-  if (dreOpenDataFailed && dreOpenDataFailureCount >= 3) {
-    // Graduated response: 3-5 failures = degraded (30 min), 6+ = offline (2h)
-    const isHeavyFailure = dreOpenDataFailureCount >= 6;
-    const status = isHeavyFailure ? 'offline' : 'degraded';
-    const blockHours = isHeavyFailure ? 2 : 0; // degraded = no block, just status flag
-    try {
-      await supabase.rpc('update_source_status', {
-        p_source_name: 'dre_opendata',
-        p_status: status,
-        p_error_message: `API returning HTML instead of JSON (${dreOpenDataFailureCount} failures this run)`,
-        p_block_hours: blockHours,
-      });
-      console.log(`[SourceStatus] Marked dre_opendata as ${status.toUpperCase()} (${dreOpenDataFailureCount} failures)`);
-    } catch (e) {
-      console.error('[SourceStatus] Failed to update source status:', e);
-    }
+  if (!dreOpenDataFailed || dreOpenDataFailureCount < 2) return;
+
+  // Read persistent history to escalate faster if the source has been failing
+  // across many runs (e.g., DRE OpenData has been returning HTML for months).
+  let totalHistoricalFailures = 0;
+  let lastSuccessAt: string | null = null;
+  try {
+    const { data } = await supabase
+      .from('external_source_status')
+      .select('failure_count, last_success_at')
+      .eq('source_name', 'dre_opendata')
+      .maybeSingle();
+    totalHistoricalFailures = data?.failure_count ?? 0;
+    lastSuccessAt = data?.last_success_at ?? null;
+  } catch (e) {
+    console.warn('[SourceStatus] Could not read historical failure_count:', e);
+  }
+
+  // If the source hasn't worked in > 7 days OR we accumulated > 50 failures,
+  // mark it OFFLINE with a 24h block so we stop retrying every cron tick.
+  const lastSuccessMs = lastSuccessAt ? Date.parse(lastSuccessAt) : 0;
+  const daysSinceSuccess = lastSuccessMs ? (Date.now() - lastSuccessMs) / (24 * 60 * 60 * 1000) : Infinity;
+  const isLongTermOutage = totalHistoricalFailures >= 50 || daysSinceSuccess > 7;
+
+  let status: 'degraded' | 'offline';
+  let blockHours = 0;
+  let message: string;
+
+  if (isLongTermOutage) {
+    status = 'offline';
+    blockHours = 24;
+    message = `API DRE OpenData indisponível há ${Number.isFinite(daysSinceSuccess) ? Math.round(daysSinceSuccess) + 'd' : 'muito tempo'} (${totalHistoricalFailures} falhas totais). A usar fallback Firecrawl/DRE Web.`;
+  } else if (dreOpenDataFailureCount >= 6) {
+    status = 'offline';
+    blockHours = 2;
+    message = `API returning HTML instead of JSON (${dreOpenDataFailureCount} failures this run)`;
+  } else if (dreOpenDataFailureCount >= 3) {
+    status = 'degraded';
+    blockHours = 0;
+    message = `API returning HTML instead of JSON (${dreOpenDataFailureCount} failures this run)`;
+  } else {
+    return;
+  }
+
+  try {
+    await supabase.rpc('update_source_status', {
+      p_source_name: 'dre_opendata',
+      p_status: status,
+      p_error_message: message,
+      p_block_hours: blockHours,
+    });
+    console.log(`[SourceStatus] Marked dre_opendata as ${status.toUpperCase()} for ${blockHours}h (historical=${totalHistoricalFailures}, daysSinceSuccess=${daysSinceSuccess})`);
+  } catch (e) {
+    console.error('[SourceStatus] Failed to update source status:', e);
   }
 }
 
