@@ -245,24 +245,14 @@ export function ManualDataFixPanel() {
 
   const openDocument = () => {
     if (currentItem?.document_url) {
-      // Use about:blank technique to completely break referrer chain
-      const newWindow = window.open('about:blank', '_blank');
-      if (newWindow) {
-        newWindow.opener = null;
-        newWindow.location.href = currentItem.document_url;
-      }
+      openExternalUrl(currentItem.document_url);
     }
   };
 
   const generateDreUrl = () => {
     if (!currentItem) return;
     const searchUrl = `https://diariodarepublica.pt/dr/pesquisa/-/search/basic?q=${encodeURIComponent(currentItem.number)}`;
-    // Use about:blank technique to completely break referrer chain
-    const newWindow = window.open('about:blank', '_blank');
-    if (newWindow) {
-      newWindow.opener = null;
-      newWindow.location.href = searchUrl;
-    }
+    openExternalUrl(searchUrl);
   };
 
   // Recursive category renderer
