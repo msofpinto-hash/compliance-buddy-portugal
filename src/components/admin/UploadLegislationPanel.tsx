@@ -270,28 +270,13 @@ export function UploadLegislationPanel() {
 
     setBulkChecking(true);
     setBulkResults([]);
-    const results: typeof bulkResults = [];
+    setExpandedRows(new Set());
+    const results: BulkRow[] = [];
 
     for (const url of urls) {
-      const parsed = urlSchema.safeParse(url);
-      if (!parsed.success) {
-        results.push({ url, status: "invalid", reason: parsed.error.issues[0].message });
-        continue;
-      }
-      try {
-        const dup = await checkDuplicate({ document_url: url });
-        if (dup.is_duplicate) {
-          results.push({ url, status: "duplicate", matches: dup.matches });
-        } else {
-          results.push({ url, status: "ok" });
-        }
-      } catch (e) {
-        results.push({
-          url,
-          status: "invalid",
-          reason: e instanceof Error ? e.message : "Erro de validação",
-        });
-      }
+      const r = await validateOne(url);
+      results.push(r);
+      setBulkResults([...results]);
     }
 
     setBulkResults(results);
