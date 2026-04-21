@@ -71,6 +71,44 @@ type DupMatch = {
   legislation: { id: string; number: string; title: string; document_url: string | null };
 };
 
+// Normalize a URL: trim, http→https for known secure hosts, drop hash,
+// remove trailing slash from pathname, strip default ports.
+const HTTPS_HOSTS = [
+  "dre.pt",
+  "diariodarepublica.pt",
+  "eur-lex.europa.eu",
+  "files.dre.pt",
+];
+function normalizeUrlInput(raw: string): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
+  try {
+    const u = new URL(trimmed);
+    // Lowercase host
+    u.hostname = u.hostname.toLowerCase();
+    // Upgrade http → https for known hosts that always serve HTTPS
+    if (
+      u.protocol === "http:" &&
+      HTTPS_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith("." + h))
+    ) {
+      u.protocol = "https:";
+    }
+    // Strip default ports
+    if ((u.protocol === "https:" && u.port === "443") || (u.protocol === "http:" && u.port === "80")) {
+      u.port = "";
+    }
+    // Remove fragment
+    u.hash = "";
+    // Remove trailing slash from path (but keep root "/")
+    if (u.pathname.length > 1 && u.pathname.endsWith("/")) {
+      u.pathname = u.pathname.replace(/\/+$/, "");
+    }
+    return u.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 async function sha256OfFile(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   const hashBuf = await crypto.subtle.digest("SHA-256", buf);
