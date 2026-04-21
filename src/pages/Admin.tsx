@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Building2, Users, BookOpen } from "lucide-react";
+import { Settings, Building2, Users, BookOpen, Upload } from "lucide-react";
 import { BibliotecaPanel } from "@/components/admin/BibliotecaPanel";
 import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
+import { UploadLegislationPanel } from "@/components/admin/UploadLegislationPanel";
+import { UploadHistoryPanel } from "@/components/admin/UploadHistoryPanel";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useBackgroundJobNotifications } from "@/hooks/useBackgroundJobNotifications";
 
-const validTabs = ["biblioteca", "clients", "users"];
+const validTabs = ["biblioteca", "carregar", "clients", "users"];
 
 const Admin = () => {
   const { user, signOut } = useAuth();
@@ -73,6 +75,11 @@ const Admin = () => {
                 <span className="hidden xs:inline sm:inline">Biblioteca</span>
                 <span className="xs:hidden">Bib.</span>
               </TabsTrigger>
+              <TabsTrigger value="carregar" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
+                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline sm:inline">Carregar</span>
+                <span className="xs:hidden">Up.</span>
+              </TabsTrigger>
               <TabsTrigger value="clients" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
                 <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span className="hidden xs:inline sm:inline">Clientes</span>
@@ -88,6 +95,11 @@ const Admin = () => {
 
           <TabsContent value="biblioteca">
             <BibliotecaPanel />
+          </TabsContent>
+
+          <TabsContent value="carregar" className="space-y-4">
+            <UploadLegislationPanel />
+            <UploadHistoryPanel />
           </TabsContent>
 
           <TabsContent value="clients">
