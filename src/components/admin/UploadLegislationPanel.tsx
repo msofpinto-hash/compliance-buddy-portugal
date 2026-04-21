@@ -538,90 +538,192 @@ export function UploadLegislationPanel() {
                   <Separator />
                   <Alert>
                     <ListChecks className="h-4 w-4" />
-                    <AlertTitle>
-                      {okCount} novo(s) · {dupCount} duplicado(s) · {invCount} inválido(s)
+                    <AlertTitle className="flex items-center justify-between gap-2">
+                      <span>
+                        {okCount} novo(s) · {dupCount} duplicado(s) ·{" "}
+                        <span className={invCount > 0 ? "text-destructive" : ""}>
+                          {invCount} inválido(s)
+                        </span>
+                      </span>
+                      {invCount > 0 && (
+                        <Button type="button" size="sm" variant="outline" className="h-7" onClick={copyAllErrors}>
+                          <Clipboard className="h-3 w-3 mr-1" />
+                          Copiar erros
+                        </Button>
+                      )}
                     </AlertTitle>
                     <AlertDescription>
                       A importação automática está bloqueada para URLs duplicados. Importa
                       cada novo individualmente ou usa <strong>"Importar mesmo assim"</strong> linha a linha
-                      para forçar.
+                      para forçar. Para falhas de validação, expande a linha para ver o erro detalhado.
                     </AlertDescription>
                   </Alert>
                   <ScrollArea className="h-72 rounded-md border">
                     <div className="p-2 space-y-1">
-                      {bulkResults.map((r, i) => (
-                        <div
-                          key={i}
-                          className="flex items-start gap-2 p-2 rounded bg-muted/40 text-xs"
-                        >
-                          {r.status === "ok" && (
-                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          )}
-                          {r.status === "duplicate" && (
-                            <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                          )}
-                          {r.status === "invalid" && (
-                            <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate font-mono">{r.url}</div>
-                            {r.status === "duplicate" && r.matches && (
-                              <div className="text-muted-foreground mt-0.5">
-                                Já existe: {r.matches[0].legislation.number} —{" "}
-                                {r.matches[0].legislation.title.slice(0, 60)}
+                      {bulkResults.map((r, i) => {
+                        const isExpanded = expandedRows.has(i);
+                        const hasDetails = r.status === "invalid";
+                        return (
+                          <div key={i} className="rounded bg-muted/40 text-xs">
+                            <div className="flex items-start gap-2 p-2">
+                              {hasDetails ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpand(i)}
+                                  className="shrink-0 mt-0.5 hover:bg-muted rounded p-0.5"
+                                  aria-label={isExpanded ? "Recolher" : "Expandir"}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              ) : (
+                                <span className="w-4 shrink-0" />
+                              )}
+                              {r.status === "ok" && (
+                                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                              )}
+                              {r.status === "duplicate" && (
+                                <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                              )}
+                              {r.status === "invalid" && (
+                                <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-mono">{r.url}</div>
+                                {r.status === "duplicate" && r.matches && (
+                                  <div className="text-muted-foreground mt-0.5">
+                                    Já existe: {r.matches[0].legislation.number} —{" "}
+                                    {r.matches[0].legislation.title.slice(0, 60)}
+                                  </div>
+                                )}
+                                {r.status === "invalid" && (
+                                  <div className="text-destructive mt-0.5 flex items-center gap-1 flex-wrap">
+                                    {r.error?.stage && (
+                                      <Badge variant="outline" className="text-[10px] h-4 px-1 border-destructive/40 text-destructive">
+                                        {r.error.stage}
+                                      </Badge>
+                                    )}
+                                    {r.error?.code !== undefined && (
+                                      <Badge variant="outline" className="text-[10px] h-4 px-1">
+                                        {r.error.code}
+                                      </Badge>
+                                    )}
+                                    <span className="truncate">{r.reason}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <Badge
+                                variant={
+                                  r.status === "ok"
+                                    ? "default"
+                                    : r.status === "duplicate"
+                                    ? "secondary"
+                                    : "destructive"
+                                }
+                                className="shrink-0"
+                              >
+                                {r.status === "ok"
+                                  ? r.opened
+                                    ? "Aberto"
+                                    : "Novo"
+                                  : r.status === "duplicate"
+                                  ? "Duplicado"
+                                  : "Inválido"}
+                              </Badge>
+                              {r.status === "ok" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 shrink-0"
+                                  onClick={() => openImportFor(r.url)}
+                                >
+                                  Importar
+                                </Button>
+                              )}
+                              {r.status === "duplicate" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 shrink-0"
+                                  onClick={() => openImportFor(r.url)}
+                                >
+                                  Importar mesmo assim
+                                </Button>
+                              )}
+                              {r.status === "invalid" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 shrink-0"
+                                  onClick={() => retryRow(i)}
+                                  title="Repetir validação"
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            {isExpanded && r.error && (
+                              <div className="border-t border-border/50 px-2 py-2 space-y-1.5 bg-background/60">
+                                <div className="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1">
+                                  <span className="text-muted-foreground">Fase:</span>
+                                  <span className="font-mono">{r.error.stage}</span>
+                                  {r.error.code !== undefined && (
+                                    <>
+                                      <span className="text-muted-foreground">Código:</span>
+                                      <span className="font-mono">{r.error.code}</span>
+                                    </>
+                                  )}
+                                  <span className="text-muted-foreground">Mensagem:</span>
+                                  <span className="font-mono break-all">{r.error.message}</span>
+                                  {r.error.hint && (
+                                    <>
+                                      <span className="text-muted-foreground">Sugestão:</span>
+                                      <span>{r.error.hint}</span>
+                                    </>
+                                  )}
+                                  <span className="text-muted-foreground">Verificado:</span>
+                                  <span className="font-mono text-[10px]">
+                                    {new Date(r.error.checked_at).toLocaleString("pt-PT")}
+                                  </span>
+                                </div>
+                                {r.error.details && (
+                                  <details className="mt-1">
+                                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                      Detalhes técnicos
+                                    </summary>
+                                    <pre className="mt-1 p-2 bg-muted rounded text-[10px] overflow-auto max-h-32 whitespace-pre-wrap break-all">
+                                      {r.error.details}
+                                    </pre>
+                                  </details>
+                                )}
+                                <div className="flex gap-1 pt-1">
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => copyErrorReport(r)}>
+                                    <Copy className="h-3 w-3 mr-1" /> Copiar erro
+                                  </Button>
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => retryRow(i)}>
+                                    <RefreshCw className="h-3 w-3 mr-1" /> Repetir
+                                  </Button>
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" asChild>
+                                    <a href={r.url} target="_blank" rel="noopener noreferrer">Abrir URL</a>
+                                  </Button>
+                                </div>
                               </div>
                             )}
-                            {r.status === "invalid" && (
-                              <div className="text-destructive mt-0.5">{r.reason}</div>
-                            )}
                           </div>
-                          <Badge
-                            variant={
-                              r.status === "ok"
-                                ? "default"
-                                : r.status === "duplicate"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                            className="shrink-0"
-                          >
-                            {r.status === "ok"
-                              ? r.opened
-                                ? "Aberto"
-                                : "Novo"
-                              : r.status === "duplicate"
-                              ? "Duplicado"
-                              : "Inválido"}
-                          </Badge>
-                          {r.status === "ok" && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 shrink-0"
-                              onClick={() => openImportFor(r.url)}
-                            >
-                              Importar
-                            </Button>
-                          )}
-                          {r.status === "duplicate" && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 shrink-0"
-                              onClick={() => openImportFor(r.url)}
-                            >
-                              Importar mesmo assim
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </div>
               );
             })()}
+
           </TabsContent>
 
           {/* ---------- TAB 3: File upload ---------- */}
