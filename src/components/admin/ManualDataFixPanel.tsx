@@ -14,6 +14,7 @@ import {
   FolderTree, Loader2, Save, ChevronLeft, ChevronRight,
   ExternalLink, CheckCircle, RefreshCw, ChevronDown, FileText, Layers, XCircle, Trash2, ArrowRight
 } from "lucide-react";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { LegislationCategoryEditor } from "./LegislationCategoryEditor";
 import { LegislationRelationsEditor } from "./LegislationRelationsEditor";
 import { AddLegislationToCategoryDialog } from "./AddLegislationToCategoryDialog";
