@@ -134,6 +134,10 @@ type ExternalSourceError = {
 let dreOpenDataFailed = false;
 let dreOpenDataFailureCount = 0;
 
+// Global gate: when true, skip all DRE OpenData calls and go straight to fallback
+// (Firecrawl/DRE Web). Set at the start of each run based on external_source_status.
+let dreOpenDataBlocked = false;
+
 async function safeJsonFromResponse(res: Response): Promise<{ data: any | null; error?: ExternalSourceError }> {
   const contentType = (res.headers.get("content-type") || "").toLowerCase();
   const text = await res.text(); // Always consume body
