@@ -24,7 +24,13 @@ import {
   X,
   FileUp,
   ListChecks,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  RefreshCw,
+  Clipboard,
 } from "lucide-react";
+
 
 const ACCEPTED_TYPES = {
   "application/pdf": [".pdf"],
@@ -81,16 +87,141 @@ export function UploadLegislationPanel() {
   const [urlDialogInitial, setUrlDialogInitial] = useState<string | undefined>(undefined);
 
   // ----- Bulk URL state -----
+  type BulkRow = {
+    url: string;
+    status: "ok" | "duplicate" | "invalid";
+    reason?: string;
+    matches?: DupMatch[];
+    opened?: boolean;
+    error?: {
+      stage: "schema" | "network" | "function" | "unknown";
+      message: string;
+      code?: string | number;
+      details?: string;
+      hint?: string;
+      checked_at: string;
+    };
+  };
   const [bulkUrls, setBulkUrls] = useState("");
   const [bulkChecking, setBulkChecking] = useState(false);
-  const [bulkResults, setBulkResults] = useState<
-    Array<{ url: string; status: "ok" | "duplicate" | "invalid"; reason?: string; matches?: DupMatch[]; opened?: boolean }>
-  >([]);
+  const [bulkResults, setBulkResults] = useState<BulkRow[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (i: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  };
+
+  const copyErrorReport = async (r: BulkRow) => {
+    const lines = [
+      `URL: ${r.url}`,
+      `Status: ${r.status}`,
+      r.reason ? `Motivo: ${r.reason}` : "",
+      r.error?.stage ? `Fase: ${r.error.stage}` : "",
+      r.error?.code !== undefined ? `Código: ${r.error.code}` : "",
+      r.error?.message ? `Mensagem: ${r.error.message}` : "",
+      r.error?.hint ? `Sugestão: ${r.error.hint}` : "",
+      r.error?.details ? `Detalhes: ${r.error.details}` : "",
+      r.error?.checked_at ? `Verificado em: ${r.error.checked_at}` : "",
+    ].filter(Boolean);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast({ title: "Erro copiado", description: "Detalhes copiados para a área de transferência." });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const copyAllErrors = async () => {
+    const failed = bulkResults.filter((r) => r.status === "invalid");
+    if (failed.length === 0) {
+      toast({ title: "Sem erros para copiar" });
+      return;
+    }
+    const text = failed
+      .map((r) =>
+        [
+          `URL: ${r.url}`,
+          `Motivo: ${r.reason ?? "—"}`,
+          r.error?.stage ? `Fase: ${r.error.stage}` : "",
+          r.error?.code !== undefined ? `Código: ${r.error.code}` : "",
+          r.error?.hint ? `Sugestão: ${r.error.hint}` : "",
+          r.error?.details ? `Detalhes: ${r.error.details}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n---\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: `${failed.length} erro(s) copiado(s)` });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const retryRow = async (i: number) => {
+    const row = bulkResults[i];
+    if (!row) return;
+    const result = await validateOne(row.url);
+    setBulkResults((prev) => prev.map((r, idx) => (idx === i ? result : r)));
+  };
 
   const openImportFor = (u: string) => {
     setUrlDialogInitial(u);
     setUrlDialogOpen(true);
     setBulkResults((prev) => prev.map((r) => (r.url === u ? { ...r, opened: true } : r)));
+  };
+
+  const validateOne = async (url: string): Promise<BulkRow> => {
+    const checked_at = new Date().toISOString();
+    const parsed = urlSchema.safeParse(url);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0].message;
+      return {
+        url,
+        status: "invalid",
+        reason: msg,
+        error: {
+          stage: "schema",
+          message: msg,
+          hint: "Verifica que o URL começa por https:// e pertence a dre.pt, diariodarepublica.pt ou eur-lex.europa.eu.",
+          checked_at,
+        },
+      };
+    }
+    try {
+      const dup = await checkDuplicate({ document_url: url });
+      if (dup.is_duplicate) {
+        return { url, status: "duplicate", matches: dup.matches };
+      }
+      return { url, status: "ok" };
+    } catch (e: unknown) {
+      const err = e as { message?: string; status?: number; code?: string; context?: { status?: number; statusText?: string } };
+      const status = err?.status ?? err?.context?.status;
+      const message = err?.message ?? "Erro desconhecido";
+      let hint = "Tenta repetir; se persistir, verifica se o URL responde no browser.";
+      if (status === 401 || status === 403) hint = "Sessão expirada ou sem permissões. Faz login novamente como admin.";
+      else if (status === 429) hint = "Demasiados pedidos — aguarda alguns segundos e repete.";
+      else if (status && status >= 500) hint = "Erro do servidor de validação. Repete em alguns segundos.";
+      else if (/network|fetch|failed/i.test(message)) hint = "Falha de rede. Verifica a tua ligação e repete.";
+      return {
+        url,
+        status: "invalid",
+        reason: message,
+        error: {
+          stage: status ? "function" : "network",
+          message,
+          code: status ?? err?.code,
+          details: JSON.stringify(err?.context ?? err, null, 2).slice(0, 800),
+          hint,
+          checked_at,
+        },
+      };
+    }
   };
 
 
@@ -139,28 +270,13 @@ export function UploadLegislationPanel() {
 
     setBulkChecking(true);
     setBulkResults([]);
-    const results: typeof bulkResults = [];
+    setExpandedRows(new Set());
+    const results: BulkRow[] = [];
 
     for (const url of urls) {
-      const parsed = urlSchema.safeParse(url);
-      if (!parsed.success) {
-        results.push({ url, status: "invalid", reason: parsed.error.issues[0].message });
-        continue;
-      }
-      try {
-        const dup = await checkDuplicate({ document_url: url });
-        if (dup.is_duplicate) {
-          results.push({ url, status: "duplicate", matches: dup.matches });
-        } else {
-          results.push({ url, status: "ok" });
-        }
-      } catch (e) {
-        results.push({
-          url,
-          status: "invalid",
-          reason: e instanceof Error ? e.message : "Erro de validação",
-        });
-      }
+      const r = await validateOne(url);
+      results.push(r);
+      setBulkResults([...results]);
     }
 
     setBulkResults(results);
@@ -422,90 +538,192 @@ export function UploadLegislationPanel() {
                   <Separator />
                   <Alert>
                     <ListChecks className="h-4 w-4" />
-                    <AlertTitle>
-                      {okCount} novo(s) · {dupCount} duplicado(s) · {invCount} inválido(s)
+                    <AlertTitle className="flex items-center justify-between gap-2">
+                      <span>
+                        {okCount} novo(s) · {dupCount} duplicado(s) ·{" "}
+                        <span className={invCount > 0 ? "text-destructive" : ""}>
+                          {invCount} inválido(s)
+                        </span>
+                      </span>
+                      {invCount > 0 && (
+                        <Button type="button" size="sm" variant="outline" className="h-7" onClick={copyAllErrors}>
+                          <Clipboard className="h-3 w-3 mr-1" />
+                          Copiar erros
+                        </Button>
+                      )}
                     </AlertTitle>
                     <AlertDescription>
                       A importação automática está bloqueada para URLs duplicados. Importa
                       cada novo individualmente ou usa <strong>"Importar mesmo assim"</strong> linha a linha
-                      para forçar.
+                      para forçar. Para falhas de validação, expande a linha para ver o erro detalhado.
                     </AlertDescription>
                   </Alert>
                   <ScrollArea className="h-72 rounded-md border">
                     <div className="p-2 space-y-1">
-                      {bulkResults.map((r, i) => (
-                        <div
-                          key={i}
-                          className="flex items-start gap-2 p-2 rounded bg-muted/40 text-xs"
-                        >
-                          {r.status === "ok" && (
-                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          )}
-                          {r.status === "duplicate" && (
-                            <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                          )}
-                          {r.status === "invalid" && (
-                            <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate font-mono">{r.url}</div>
-                            {r.status === "duplicate" && r.matches && (
-                              <div className="text-muted-foreground mt-0.5">
-                                Já existe: {r.matches[0].legislation.number} —{" "}
-                                {r.matches[0].legislation.title.slice(0, 60)}
+                      {bulkResults.map((r, i) => {
+                        const isExpanded = expandedRows.has(i);
+                        const hasDetails = r.status === "invalid";
+                        return (
+                          <div key={i} className="rounded bg-muted/40 text-xs">
+                            <div className="flex items-start gap-2 p-2">
+                              {hasDetails ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpand(i)}
+                                  className="shrink-0 mt-0.5 hover:bg-muted rounded p-0.5"
+                                  aria-label={isExpanded ? "Recolher" : "Expandir"}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              ) : (
+                                <span className="w-4 shrink-0" />
+                              )}
+                              {r.status === "ok" && (
+                                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                              )}
+                              {r.status === "duplicate" && (
+                                <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                              )}
+                              {r.status === "invalid" && (
+                                <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-mono">{r.url}</div>
+                                {r.status === "duplicate" && r.matches && (
+                                  <div className="text-muted-foreground mt-0.5">
+                                    Já existe: {r.matches[0].legislation.number} —{" "}
+                                    {r.matches[0].legislation.title.slice(0, 60)}
+                                  </div>
+                                )}
+                                {r.status === "invalid" && (
+                                  <div className="text-destructive mt-0.5 flex items-center gap-1 flex-wrap">
+                                    {r.error?.stage && (
+                                      <Badge variant="outline" className="text-[10px] h-4 px-1 border-destructive/40 text-destructive">
+                                        {r.error.stage}
+                                      </Badge>
+                                    )}
+                                    {r.error?.code !== undefined && (
+                                      <Badge variant="outline" className="text-[10px] h-4 px-1">
+                                        {r.error.code}
+                                      </Badge>
+                                    )}
+                                    <span className="truncate">{r.reason}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <Badge
+                                variant={
+                                  r.status === "ok"
+                                    ? "default"
+                                    : r.status === "duplicate"
+                                    ? "secondary"
+                                    : "destructive"
+                                }
+                                className="shrink-0"
+                              >
+                                {r.status === "ok"
+                                  ? r.opened
+                                    ? "Aberto"
+                                    : "Novo"
+                                  : r.status === "duplicate"
+                                  ? "Duplicado"
+                                  : "Inválido"}
+                              </Badge>
+                              {r.status === "ok" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 shrink-0"
+                                  onClick={() => openImportFor(r.url)}
+                                >
+                                  Importar
+                                </Button>
+                              )}
+                              {r.status === "duplicate" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 shrink-0"
+                                  onClick={() => openImportFor(r.url)}
+                                >
+                                  Importar mesmo assim
+                                </Button>
+                              )}
+                              {r.status === "invalid" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 shrink-0"
+                                  onClick={() => retryRow(i)}
+                                  title="Repetir validação"
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            {isExpanded && r.error && (
+                              <div className="border-t border-border/50 px-2 py-2 space-y-1.5 bg-background/60">
+                                <div className="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1">
+                                  <span className="text-muted-foreground">Fase:</span>
+                                  <span className="font-mono">{r.error.stage}</span>
+                                  {r.error.code !== undefined && (
+                                    <>
+                                      <span className="text-muted-foreground">Código:</span>
+                                      <span className="font-mono">{r.error.code}</span>
+                                    </>
+                                  )}
+                                  <span className="text-muted-foreground">Mensagem:</span>
+                                  <span className="font-mono break-all">{r.error.message}</span>
+                                  {r.error.hint && (
+                                    <>
+                                      <span className="text-muted-foreground">Sugestão:</span>
+                                      <span>{r.error.hint}</span>
+                                    </>
+                                  )}
+                                  <span className="text-muted-foreground">Verificado:</span>
+                                  <span className="font-mono text-[10px]">
+                                    {new Date(r.error.checked_at).toLocaleString("pt-PT")}
+                                  </span>
+                                </div>
+                                {r.error.details && (
+                                  <details className="mt-1">
+                                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                      Detalhes técnicos
+                                    </summary>
+                                    <pre className="mt-1 p-2 bg-muted rounded text-[10px] overflow-auto max-h-32 whitespace-pre-wrap break-all">
+                                      {r.error.details}
+                                    </pre>
+                                  </details>
+                                )}
+                                <div className="flex gap-1 pt-1">
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => copyErrorReport(r)}>
+                                    <Copy className="h-3 w-3 mr-1" /> Copiar erro
+                                  </Button>
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => retryRow(i)}>
+                                    <RefreshCw className="h-3 w-3 mr-1" /> Repetir
+                                  </Button>
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" asChild>
+                                    <a href={r.url} target="_blank" rel="noopener noreferrer">Abrir URL</a>
+                                  </Button>
+                                </div>
                               </div>
                             )}
-                            {r.status === "invalid" && (
-                              <div className="text-destructive mt-0.5">{r.reason}</div>
-                            )}
                           </div>
-                          <Badge
-                            variant={
-                              r.status === "ok"
-                                ? "default"
-                                : r.status === "duplicate"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                            className="shrink-0"
-                          >
-                            {r.status === "ok"
-                              ? r.opened
-                                ? "Aberto"
-                                : "Novo"
-                              : r.status === "duplicate"
-                              ? "Duplicado"
-                              : "Inválido"}
-                          </Badge>
-                          {r.status === "ok" && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 shrink-0"
-                              onClick={() => openImportFor(r.url)}
-                            >
-                              Importar
-                            </Button>
-                          )}
-                          {r.status === "duplicate" && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 shrink-0"
-                              onClick={() => openImportFor(r.url)}
-                            >
-                              Importar mesmo assim
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </div>
               );
             })()}
+
           </TabsContent>
 
           {/* ---------- TAB 3: File upload ---------- */}
