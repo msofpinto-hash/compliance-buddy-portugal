@@ -106,6 +106,7 @@ const Admin = () => {
 
           <TabsContent value="carregar" className="space-y-4">
             <UploadLegislationPanel />
+            <ConfirmUrlFixesPanel />
             <RevalidateDreUrlsPanel />
             <InvalidUrlsTable />
             <UploadHistoryPanel />
