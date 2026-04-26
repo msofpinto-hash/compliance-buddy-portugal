@@ -17,20 +17,44 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  // Always create a log entry up-front so it shows in the history panel
+  let logId: string | null = null;
+  try {
+    const { data: logRow } = await supabase
+      .from("sync_logs")
+      .insert({
+        sync_type: "apply_url_fixes",
+        status: "running",
+        started_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    logId = logRow?.id ?? null;
+  } catch (e) {
+    console.error("Failed to create sync_logs entry:", e);
+  }
+
   try {
     const { items, jobId } = (await req.json()) as { items: FixItem[]; jobId?: string };
 
     if (!Array.isArray(items) || items.length === 0) {
+      if (logId) {
+        await supabase.from("sync_logs").update({
+          status: "failed",
+          completed_at: new Date().toISOString(),
+          error_message: "No items provided",
+        }).eq("id", logId);
+      }
       return new Response(
         JSON.stringify({ success: false, error: "No items provided" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     const summary = { cleared: 0, updated: 0, kept: 0, failed: 0 };
     const errors: { legislation_id: string; error: string }[] = [];
@@ -70,24 +94,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (jobId) {
-      await supabase.from("sync_logs").insert({
-        sync_type: "apply_url_fixes",
-        status: "completed",
+    // Compose structured message: human summary + JSON errors block
+    const humanSummary = `Cleared: ${summary.cleared}, Updated: ${summary.updated}, Kept: ${summary.kept}, Failed: ${summary.failed}`;
+    const errorPayload = errors.length > 0
+      ? `${humanSummary}\n__ERRORS_JSON__${JSON.stringify(errors.slice(0, 200))}`
+      : humanSummary;
+
+    if (logId) {
+      await supabase.from("sync_logs").update({
+        status: summary.failed > 0 && summary.cleared + summary.updated === 0 ? "failed" : "completed",
         items_processed: items.length,
         items_added: summary.updated,
         items_updated: summary.cleared,
         completed_at: new Date().toISOString(),
-        error_message: `Cleared: ${summary.cleared}, Updated: ${summary.updated}, Kept: ${summary.kept}, Failed: ${summary.failed}`,
-      });
+        error_message: errorPayload,
+      }).eq("id", logId);
     }
 
     return new Response(
-      JSON.stringify({ success: true, summary, errors }),
+      JSON.stringify({ success: true, summary, errors, log_id: logId }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("apply-url-fixes error:", error);
+    if (logId) {
+      await supabase.from("sync_logs").update({
+        status: "failed",
+        completed_at: new Date().toISOString(),
+        error_message: error?.message || "Unknown error",
+      }).eq("id", logId);
+    }
     return new Response(
       JSON.stringify({ success: false, error: error?.message || "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -9,6 +9,7 @@ import { UploadLegislationPanel } from "@/components/admin/UploadLegislationPane
 import { UploadHistoryPanel } from "@/components/admin/UploadHistoryPanel";
 import { RevalidateDreUrlsPanel } from "@/components/admin/RevalidateDreUrlsPanel";
 import { ConfirmUrlFixesPanel } from "@/components/admin/ConfirmUrlFixesPanel";
+import { ApplyUrlFixesHistoryPanel } from "@/components/admin/ApplyUrlFixesHistoryPanel";
 import { InvalidUrlsTable } from "@/components/admin/InvalidUrlsTable";
 import { AlertsNotificationBell } from "@/components/admin/AlertsNotificationBell";
 import { SourceStatusBanner } from "@/components/admin/SourceStatusBanner";
@@ -107,6 +108,7 @@ const Admin = () => {
           <TabsContent value="carregar" className="space-y-4">
             <UploadLegislationPanel />
             <ConfirmUrlFixesPanel />
+            <ApplyUrlFixesHistoryPanel />
             <RevalidateDreUrlsPanel />
             <InvalidUrlsTable />
             <UploadHistoryPanel />
