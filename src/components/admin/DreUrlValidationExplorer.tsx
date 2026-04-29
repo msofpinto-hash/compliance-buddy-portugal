@@ -438,8 +438,15 @@ export function DreUrlValidationExplorer() {
             </div>
           ) : grouped ? (
             <div className="divide-y">
-              {groups.map((g) => {
+              {groupsWithTotals.map((g) => {
                 const isOpen = expanded.has(g.legislation_id);
+                const filtersActive =
+                  !!from ||
+                  !!to ||
+                  search.trim().length >= 2 ||
+                  statuses.length < STATUS_OPTIONS.length;
+                const hasGlobal =
+                  g.totalAll !== undefined && g.totalAll !== g.total;
                 return (
                   <Collapsible
                     key={g.legislation_id}
@@ -447,41 +454,70 @@ export function DreUrlValidationExplorer() {
                     onOpenChange={() => toggleExpanded(g.legislation_id)}
                   >
                     <CollapsibleTrigger className="w-full text-left p-2.5 hover:bg-muted/40 transition-colors">
-                      <div className="flex items-center gap-2 flex-wrap text-xs">
-                        {isOpen ? (
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-                        )}
-                        <span className="font-medium truncate">
-                          {g.number || "—"}
-                        </span>
-                        <span className="text-muted-foreground truncate flex-1">
-                          {g.title || ""}
-                        </span>
-                        <Badge variant="outline" className="text-[10px]">
-                          {g.total} chk
-                        </Badge>
-                        {STATUS_OPTIONS.filter((o) => g.counts[o.value]).map(
-                          (o) => (
-                            <Badge
-                              key={o.value}
-                              variant={
-                                o.value === "valid"
-                                  ? "default"
-                                  : o.value === "redirect"
-                                    ? "secondary"
-                                    : "destructive"
-                              }
-                              className="text-[10px] uppercase"
-                            >
-                              {o.label}: {g.counts[o.value]}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          {isOpen ? (
+                            <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                          )}
+                          <span className="font-medium truncate">
+                            {g.number || "—"}
+                          </span>
+                          <span className="text-muted-foreground truncate flex-1">
+                            {g.title || ""}
+                          </span>
+                          <span className="ml-auto text-[10px] text-muted-foreground">
+                            {new Date(g.latest).toLocaleString("pt-PT")}
+                          </span>
+                        </div>
+
+                        {/* Filtered counts row */}
+                        <div className="flex items-center gap-1.5 flex-wrap pl-5">
+                          <Badge
+                            variant={filtersActive ? "default" : "outline"}
+                            className="text-[10px]"
+                          >
+                            {filtersActive ? "Filtrado" : "Total"}: {g.total}
+                          </Badge>
+                          {STATUS_OPTIONS.filter((o) => g.counts[o.value]).map(
+                            (o) => (
+                              <Badge
+                                key={o.value}
+                                variant={
+                                  o.value === "valid"
+                                    ? "default"
+                                    : o.value === "redirect"
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                                className="text-[10px] uppercase"
+                              >
+                                {o.label}: {g.counts[o.value]}
+                              </Badge>
+                            ),
+                          )}
+                        </div>
+
+                        {/* Global counts row (only when filters are hiding data) */}
+                        {filtersActive && hasGlobal && (
+                          <div className="flex items-center gap-1.5 flex-wrap pl-5 opacity-70">
+                            <Badge variant="outline" className="text-[10px]">
+                              Global: {g.totalAll}
                             </Badge>
-                          ),
+                            {STATUS_OPTIONS.filter(
+                              (o) => g.countsAll?.[o.value],
+                            ).map((o) => (
+                              <Badge
+                                key={`all-${o.value}`}
+                                variant="outline"
+                                className="text-[10px] uppercase"
+                              >
+                                {o.label}: {g.countsAll?.[o.value]}
+                              </Badge>
+                            ))}
+                          </div>
                         )}
-                        <span className="ml-auto text-[10px] text-muted-foreground">
-                          {new Date(g.latest).toLocaleString("pt-PT")}
-                        </span>
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
