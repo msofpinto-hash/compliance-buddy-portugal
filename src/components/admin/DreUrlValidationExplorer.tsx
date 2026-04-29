@@ -114,6 +114,9 @@ export function DreUrlValidationExplorer() {
     total: number;
     latest: string;
     rows: Row[];
+    countsAll?: Record<string, number>;
+    totalAll?: number;
+    latestAll?: string;
   };
 
   const groups = useMemo<Group[]>(() => {
@@ -143,6 +146,58 @@ export function DreUrlValidationExplorer() {
       a.latest < b.latest ? 1 : -1,
     );
   }, [grouped, rows]);
+
+  // Fetch unfiltered totals for the diplomas in view, so the header can show
+  // both the filtered counts and the global counts side by side.
+  const groupIds = useMemo(
+    () => groups.map((g) => g.legislation_id),
+    [groups],
+  );
+
+  const { data: groupTotals } = useQuery({
+    queryKey: ["dre-url-validation-group-totals", groupIds.join(",")],
+    enabled: grouped && groupIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("url_validation_results")
+        .select("legislation_id,status,checked_at")
+        .in("legislation_id", groupIds);
+      if (error) throw error;
+      const acc = new Map<
+        string,
+        { counts: Record<string, number>; total: number; latest: string }
+      >();
+      for (const r of data || []) {
+        const id = r.legislation_id as string;
+        let a = acc.get(id);
+        if (!a) {
+          a = { counts: {}, total: 0, latest: r.checked_at as string };
+          acc.set(id, a);
+        }
+        a.counts[r.status as string] = (a.counts[r.status as string] ?? 0) + 1;
+        a.total += 1;
+        if ((r.checked_at as string) > a.latest)
+          a.latest = r.checked_at as string;
+      }
+      return acc;
+    },
+  });
+
+  const groupsWithTotals = useMemo<Group[]>(() => {
+    if (!grouped) return [];
+    if (!groupTotals) return groups;
+    return groups.map((g) => {
+      const a = groupTotals.get(g.legislation_id);
+      return a
+        ? {
+            ...g,
+            countsAll: a.counts,
+            totalAll: a.total,
+            latestAll: a.latest,
+          }
+        : g;
+    });
+  }, [grouped, groups, groupTotals]);
 
   const toggleExpanded = (id: string) => {
     setExpanded((prev) => {
