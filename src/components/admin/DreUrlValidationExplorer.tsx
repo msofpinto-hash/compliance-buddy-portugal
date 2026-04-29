@@ -52,6 +52,8 @@ export function DreUrlValidationExplorer() {
   const [to, setTo] = useState<Date | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [grouped, setGrouped] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const queryKey = useMemo(
     () => [
