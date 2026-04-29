@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 50, dryRun = true, origin, background = false, legislationIds, onlyUnchecked = false } = await req.json();
+    const { limit = 50, dryRun = true, origin, background = false, legislationIds, onlyUnchecked = false, offset = 0 } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -202,12 +202,15 @@ Deno.serve(async (req) => {
       legislation = data;
       console.log(`onlyUnchecked: ${legislation?.length ?? 0} new URLs to validate`);
     } else {
-      let q = query.limit(limit);
+      let q = query
+        .order("created_at", { ascending: true })
+        .range(offset, offset + limit - 1);
       if (origin === "PT") q = q.or("origin.eq.PT,origin.eq.dre");
       else if (origin === "EU") q = q.or("origin.eq.EU,origin.eq.eurlex");
       const { data, error: fErr } = await q;
       if (fErr) throw new Error(`Failed to fetch legislation: ${fErr.message}`);
       legislation = data;
+      console.log(`Paginated fetch: offset=${offset}, limit=${limit}, returned=${legislation?.length ?? 0}`);
     }
 
     // legislation is already populated above
