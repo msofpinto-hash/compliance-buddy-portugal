@@ -126,6 +126,7 @@ export function DreUrlValidationExplorer() {
     counts: Record<string, number>;
     total: number;
     latest: string;
+    latestStatus: string;
     rows: Row[];
     countsAll?: Record<string, number>;
     totalAll?: number;
@@ -146,13 +147,17 @@ export function DreUrlValidationExplorer() {
           counts: {},
           total: 0,
           latest: r.checked_at,
+          latestStatus: r.status,
           rows: [],
         };
         map.set(r.legislation_id, g);
       }
       g.counts[r.status] = (g.counts[r.status] ?? 0) + 1;
       g.total += 1;
-      if (r.checked_at > g.latest) g.latest = r.checked_at;
+      if (r.checked_at > g.latest) {
+        g.latest = r.checked_at;
+        g.latestStatus = r.status;
+      }
       g.rows.push(r);
     }
     return Array.from(map.values()).sort((a, b) =>
