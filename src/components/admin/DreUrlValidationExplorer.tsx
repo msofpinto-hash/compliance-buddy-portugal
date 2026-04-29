@@ -105,6 +105,54 @@ export function DreUrlValidationExplorer() {
   const rows = data?.rows ?? [];
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  type Group = {
+    legislation_id: string;
+    number: string | null;
+    title: string | null;
+    document_url: string;
+    counts: Record<string, number>;
+    total: number;
+    latest: string;
+    rows: Row[];
+  };
+
+  const groups = useMemo<Group[]>(() => {
+    if (!grouped) return [];
+    const map = new Map<string, Group>();
+    for (const r of rows) {
+      let g = map.get(r.legislation_id);
+      if (!g) {
+        g = {
+          legislation_id: r.legislation_id,
+          number: r.number,
+          title: r.title,
+          document_url: r.document_url,
+          counts: {},
+          total: 0,
+          latest: r.checked_at,
+          rows: [],
+        };
+        map.set(r.legislation_id, g);
+      }
+      g.counts[r.status] = (g.counts[r.status] ?? 0) + 1;
+      g.total += 1;
+      if (r.checked_at > g.latest) g.latest = r.checked_at;
+      g.rows.push(r);
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.latest < b.latest ? 1 : -1,
+    );
+  }, [grouped, rows]);
+
+  const toggleExpanded = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const toggleStatus = (s: ValidationStatus) => {
     setPage(0);
     setStatuses((prev) =>
