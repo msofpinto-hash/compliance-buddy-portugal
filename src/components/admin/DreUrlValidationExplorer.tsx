@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, ExternalLink, Filter, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, ChevronRight, ExternalLink, Filter, Layers, List, Loader2, RefreshCw, Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -51,6 +52,8 @@ export function DreUrlValidationExplorer() {
   const [to, setTo] = useState<Date | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [grouped, setGrouped] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const queryKey = useMemo(
     () => [
@@ -101,6 +104,54 @@ export function DreUrlValidationExplorer() {
   const total = data?.total ?? 0;
   const rows = data?.rows ?? [];
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  type Group = {
+    legislation_id: string;
+    number: string | null;
+    title: string | null;
+    document_url: string;
+    counts: Record<string, number>;
+    total: number;
+    latest: string;
+    rows: Row[];
+  };
+
+  const groups = useMemo<Group[]>(() => {
+    if (!grouped) return [];
+    const map = new Map<string, Group>();
+    for (const r of rows) {
+      let g = map.get(r.legislation_id);
+      if (!g) {
+        g = {
+          legislation_id: r.legislation_id,
+          number: r.number,
+          title: r.title,
+          document_url: r.document_url,
+          counts: {},
+          total: 0,
+          latest: r.checked_at,
+          rows: [],
+        };
+        map.set(r.legislation_id, g);
+      }
+      g.counts[r.status] = (g.counts[r.status] ?? 0) + 1;
+      g.total += 1;
+      if (r.checked_at > g.latest) g.latest = r.checked_at;
+      g.rows.push(r);
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.latest < b.latest ? 1 : -1,
+    );
+  }, [grouped, rows]);
+
+  const toggleExpanded = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const toggleStatus = (s: ValidationStatus) => {
     setPage(0);
@@ -277,21 +328,46 @@ export function DreUrlValidationExplorer() {
                   {total.toLocaleString("pt-PT")}
                 </span>{" "}
                 resultado{total === 1 ? "" : "s"}
+                {grouped && (
+                  <>
+                    {" · "}
+                    <span className="font-semibold text-foreground">
+                      {groups.length.toLocaleString("pt-PT")}
+                    </span>{" "}
+                    diploma{groups.length === 1 ? "" : "s"}
+                  </>
+                )}
                 {(from || to || search.trim() || statuses.length < STATUS_OPTIONS.length) && (
                   <> · filtros aplicados</>
                 )}
               </>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="h-7 text-xs"
-          >
-            <X className="h-3.5 w-3.5 mr-1" />
-            Limpar filtros
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant={grouped ? "default" : "outline"}
+              size="sm"
+              onClick={() => setGrouped((g) => !g)}
+              className="h-7 text-xs"
+              title="Agrupar por diploma"
+            >
+              {grouped ? (
+                <Layers className="h-3.5 w-3.5 mr-1" />
+              ) : (
+                <List className="h-3.5 w-3.5 mr-1" />
+              )}
+              {grouped ? "Agrupado" : "Lista"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-7 text-xs"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Limpar filtros
+            </Button>
+          </div>
         </div>
 
         {/* Results */}
@@ -304,6 +380,97 @@ export function DreUrlValidationExplorer() {
           ) : rows.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               Sem resultados para os filtros atuais.
+            </div>
+          ) : grouped ? (
+            <div className="divide-y">
+              {groups.map((g) => {
+                const isOpen = expanded.has(g.legislation_id);
+                return (
+                  <Collapsible
+                    key={g.legislation_id}
+                    open={isOpen}
+                    onOpenChange={() => toggleExpanded(g.legislation_id)}
+                  >
+                    <CollapsibleTrigger className="w-full text-left p-2.5 hover:bg-muted/40 transition-colors">
+                      <div className="flex items-center gap-2 flex-wrap text-xs">
+                        {isOpen ? (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                        )}
+                        <span className="font-medium truncate">
+                          {g.number || "—"}
+                        </span>
+                        <span className="text-muted-foreground truncate flex-1">
+                          {g.title || ""}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {g.total} chk
+                        </Badge>
+                        {STATUS_OPTIONS.filter((o) => g.counts[o.value]).map(
+                          (o) => (
+                            <Badge
+                              key={o.value}
+                              variant={
+                                o.value === "valid"
+                                  ? "default"
+                                  : o.value === "redirect"
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                              className="text-[10px] uppercase"
+                            >
+                              {o.label}: {g.counts[o.value]}
+                            </Badge>
+                          ),
+                        )}
+                        <span className="ml-auto text-[10px] text-muted-foreground">
+                          {new Date(g.latest).toLocaleString("pt-PT")}
+                        </span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="bg-muted/20 divide-y border-t">
+                        {g.rows.map((r) => (
+                          <div
+                            key={r.id}
+                            className="p-2.5 pl-8 text-xs space-y-1"
+                          >
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {statusBadge(r.status, r.status_code)}
+                              {r.cleared && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px]"
+                                >
+                                  Removido
+                                </Badge>
+                              )}
+                              <span className="ml-auto text-[10px] text-muted-foreground">
+                                {new Date(r.checked_at).toLocaleString("pt-PT")}
+                              </span>
+                            </div>
+                            <a
+                              href={r.document_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline break-all flex items-center gap-1"
+                            >
+                              <ExternalLink className="h-3 w-3 shrink-0" />
+                              {r.document_url}
+                            </a>
+                            {r.error_message && (
+                              <div className="text-destructive break-words">
+                                {r.error_message}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
           ) : (
             <div className="divide-y">
