@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 50, dryRun = true, origin, background = false } = await req.json();
+    const { limit = 50, dryRun = true, origin, background = false, legislationIds } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -182,14 +182,21 @@ Deno.serve(async (req) => {
       .from("legislation")
       .select("id, number, title, document_url, origin")
       .not("document_url", "is", null)
-      .neq("document_url", "")
-      .limit(limit);
+      .neq("document_url", "");
 
-    if (origin) {
-      if (origin === "PT") {
-        query = query.or("origin.eq.PT,origin.eq.dre");
-      } else if (origin === "EU") {
-        query = query.or("origin.eq.EU,origin.eq.eurlex");
+    // Retry mode: only specific IDs (e.g. timeout/error from previous run)
+    if (Array.isArray(legislationIds) && legislationIds.length > 0) {
+      const ids = legislationIds.slice(0, Math.min(limit, 2000));
+      query = query.in("id", ids).limit(ids.length);
+      console.log(`Retry mode: reprocessing ${ids.length} specific IDs`);
+    } else {
+      query = query.limit(limit);
+      if (origin) {
+        if (origin === "PT") {
+          query = query.or("origin.eq.PT,origin.eq.dre");
+        } else if (origin === "EU") {
+          query = query.or("origin.eq.EU,origin.eq.eurlex");
+        }
       }
     }
 

@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Link2, Loader2, Play, CheckCircle2, AlertTriangle, RefreshCw,
-  CheckCheck, XCircle, ArrowRightLeft, Timer, Bug, ExternalLink, Eye,
+  CheckCheck, XCircle, ArrowRightLeft, Timer, Bug, ExternalLink, Eye, RotateCcw,
 } from "lucide-react";
 
 interface SyncLogRow {
@@ -161,6 +161,28 @@ export function RevalidateDreUrlsPanel() {
     enabled: detailsOpen && !!latestJob?.id,
   });
 
+  // Retry candidates: timeout/error from latest job (always loaded for the retry button)
+  const { data: retryCandidates } = useQuery({
+    queryKey: ["revalidate-dre-retry-candidates", latestJob?.id],
+    queryFn: async () => {
+      if (!latestJob?.id) return [] as { legislation_id: string }[];
+      const { data } = await supabase
+        .from("url_validation_results")
+        .select("legislation_id")
+        .eq("job_id", latestJob.id)
+        .in("status", ["timeout", "error"])
+        .limit(2000);
+      return (data || []) as { legislation_id: string }[];
+    },
+    enabled: !!latestJob?.id && !isRunning,
+  });
+
+  const retryAvailable = retryCandidates?.length ?? 0;
+  const [retryLimit, setRetryLimit] = useState<number>(200);
+  useEffect(() => {
+    if (retryAvailable > 0) setRetryLimit((prev) => Math.min(prev || 200, retryAvailable));
+  }, [retryAvailable]);
+
   const handleStart = async () => {
     setStarting(true);
     try {
@@ -170,6 +192,27 @@ export function RevalidateDreUrlsPanel() {
       if (error) throw error;
       if (data?.success === false) throw new Error(data.error || "Falha ao iniciar");
       toast.success(`Revalidação iniciada para até ${limit} URLs do DRE`);
+      refetch();
+    } catch (e: any) {
+      toast.error(`Erro: ${e.message}`);
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!retryCandidates || retryCandidates.length === 0) return;
+    const ids = retryCandidates
+      .map((r) => r.legislation_id)
+      .slice(0, Math.max(1, Math.min(retryLimit, retryCandidates.length)));
+    setStarting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-document-urls", {
+        body: { legislationIds: ids, limit: ids.length, dryRun: false, background: true },
+      });
+      if (error) throw error;
+      if (data?.success === false) throw new Error(data.error || "Falha ao iniciar");
+      toast.success(`A reprocessar ${ids.length} URLs com timeout/erro`);
       refetch();
     } catch (e: any) {
       toast.error(`Erro: ${e.message}`);
@@ -225,7 +268,48 @@ export function RevalidateDreUrlsPanel() {
           </div>
         </div>
 
-        {/* Live status card */}
+        {/* Retry timeout/error from last run */}
+        {!isRunning && retryAvailable > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <RotateCcw className="h-4 w-4 text-amber-700" />
+              <span className="font-medium text-amber-900">
+                {retryAvailable} URL{retryAvailable === 1 ? "" : "s"} com timeout/erro na última execução
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 items-end">
+              <div className="col-span-1 space-y-1">
+                <Label htmlFor="retryLimit" className="text-[11px] text-muted-foreground">Quantidade a reprocessar</Label>
+                <Input
+                  id="retryLimit"
+                  type="number"
+                  min={1}
+                  max={retryAvailable}
+                  step={50}
+                  value={retryLimit}
+                  onChange={(e) => setRetryLimit(Math.max(1, Math.min(retryAvailable, Number(e.target.value) || 1)))}
+                  disabled={starting}
+                  className="h-8"
+                />
+              </div>
+              <div className="col-span-2">
+                <Button
+                  onClick={handleRetry}
+                  disabled={starting || retryAvailable === 0}
+                  variant="outline"
+                  className="w-full h-8 border-amber-400 hover:bg-amber-100"
+                >
+                  {starting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                  ) : (
+                    <RotateCcw className="h-3.5 w-3.5 mr-2" />
+                  )}
+                  Tentar novamente ({Math.min(retryLimit, retryAvailable)})
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         {latestJob && (
           <div className="rounded-lg border p-4 space-y-3 bg-muted/30" data-tick={tick}>
             <div className="flex items-center justify-between flex-wrap gap-2">
