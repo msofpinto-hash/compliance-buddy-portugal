@@ -328,21 +328,46 @@ export function DreUrlValidationExplorer() {
                   {total.toLocaleString("pt-PT")}
                 </span>{" "}
                 resultado{total === 1 ? "" : "s"}
+                {grouped && (
+                  <>
+                    {" · "}
+                    <span className="font-semibold text-foreground">
+                      {groups.length.toLocaleString("pt-PT")}
+                    </span>{" "}
+                    diploma{groups.length === 1 ? "" : "s"}
+                  </>
+                )}
                 {(from || to || search.trim() || statuses.length < STATUS_OPTIONS.length) && (
                   <> · filtros aplicados</>
                 )}
               </>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="h-7 text-xs"
-          >
-            <X className="h-3.5 w-3.5 mr-1" />
-            Limpar filtros
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant={grouped ? "default" : "outline"}
+              size="sm"
+              onClick={() => setGrouped((g) => !g)}
+              className="h-7 text-xs"
+              title="Agrupar por diploma"
+            >
+              {grouped ? (
+                <Layers className="h-3.5 w-3.5 mr-1" />
+              ) : (
+                <List className="h-3.5 w-3.5 mr-1" />
+              )}
+              {grouped ? "Agrupado" : "Lista"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-7 text-xs"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Limpar filtros
+            </Button>
+          </div>
         </div>
 
         {/* Results */}
