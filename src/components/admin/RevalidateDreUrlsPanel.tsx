@@ -177,6 +177,40 @@ export function RevalidateDreUrlsPanel() {
     enabled: !!latestJob?.id && !isRunning,
   });
 
+  // Global coverage across all DRE URLs ever validated
+  const { data: coverage } = useQuery({
+    queryKey: ["revalidate-dre-coverage"],
+    queryFn: async () => {
+      // Total DRE eligible
+      const { count: totalDre } = await supabase
+        .from("legislation")
+        .select("id", { count: "exact", head: true })
+        .not("document_url", "is", null)
+        .neq("document_url", "")
+        .or("origin.eq.PT,origin.eq.dre,origin.is.null")
+        .or("no_digital_version.is.null,no_digital_version.eq.false");
+
+      // Aggregate by status across ALL jobs (latest result per legislation)
+      const { data: rows } = await supabase
+        .from("url_validation_results")
+        .select("legislation_id,status")
+        .limit(20000);
+
+      const latestByLeg = new Map<string, string>();
+      (rows || []).forEach((r: any) => {
+        // Order is not guaranteed; assume last write wins via overwrite
+        latestByLeg.set(r.legislation_id, r.status);
+      });
+      const totals = { valid: 0, redirect: 0, invalid: 0, timeout: 0, error: 0 };
+      latestByLeg.forEach((s) => {
+        if (s in totals) (totals as any)[s]++;
+      });
+      const checked = latestByLeg.size;
+      return { totalDre: totalDre || 0, checked, ...totals };
+    },
+    refetchInterval: 10000,
+  });
+
   const retryAvailable = retryCandidates?.length ?? 0;
   const [retryLimit, setRetryLimit] = useState<number>(200);
   useEffect(() => {
@@ -268,7 +302,58 @@ export function RevalidateDreUrlsPanel() {
           </div>
         </div>
 
-        {/* Retry timeout/error from last run */}
+        {/* Global coverage */}
+        {coverage && (
+          <div className="rounded-lg border p-3 bg-gradient-to-br from-primary/5 to-transparent space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <CheckCheck className="h-4 w-4 text-primary" />
+                Cobertura global do DRE
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{coverage.checked.toLocaleString("pt-PT")}</span>
+                {" / "}
+                {coverage.totalDre.toLocaleString("pt-PT")} URLs validadas
+                {" "}
+                <span className="font-semibold text-primary">
+                  ({coverage.totalDre > 0 ? Math.round((coverage.checked / coverage.totalDre) * 100) : 0}%)
+                </span>
+              </div>
+            </div>
+            <Progress
+              value={coverage.totalDre > 0 ? (coverage.checked / coverage.totalDre) * 100 : 0}
+              className="h-2"
+            />
+            <div className="grid grid-cols-5 gap-2 text-center pt-1">
+              <div className="rounded bg-background border p-1.5">
+                <div className="text-sm font-bold text-primary">{coverage.valid.toLocaleString("pt-PT")}</div>
+                <div className="text-[9px] text-muted-foreground uppercase">Válidas</div>
+              </div>
+              <div className="rounded bg-background border p-1.5">
+                <div className="text-sm font-bold text-amber-600">{coverage.redirect.toLocaleString("pt-PT")}</div>
+                <div className="text-[9px] text-muted-foreground uppercase">Redirect</div>
+              </div>
+              <div className="rounded bg-background border p-1.5">
+                <div className="text-sm font-bold text-destructive">{coverage.invalid.toLocaleString("pt-PT")}</div>
+                <div className="text-[9px] text-muted-foreground uppercase">Inválidas</div>
+              </div>
+              <div className="rounded bg-background border p-1.5">
+                <div className="text-sm font-bold">{coverage.timeout.toLocaleString("pt-PT")}</div>
+                <div className="text-[9px] text-muted-foreground uppercase">
+                  Timeout {coverage.checked > 0 ? `(${((coverage.timeout / coverage.checked) * 100).toFixed(1)}%)` : ""}
+                </div>
+              </div>
+              <div className="rounded bg-background border p-1.5">
+                <div className="text-sm font-bold">{coverage.error.toLocaleString("pt-PT")}</div>
+                <div className="text-[9px] text-muted-foreground uppercase">
+                  Erro {coverage.checked > 0 ? `(${((coverage.error / coverage.checked) * 100).toFixed(1)}%)` : ""}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+
         {!isRunning && retryAvailable > 0 && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
