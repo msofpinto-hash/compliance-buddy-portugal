@@ -169,13 +169,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 50, dryRun = true, origin, background = false, legislationIds } = await req.json();
+    const { limit = 50, dryRun = true, origin, background = false, legislationIds, onlyUnchecked = false } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(`Starting URL validation: limit=${limit}, dryRun=${dryRun}, origin=${origin || 'all'}, background=${background}`);
+    console.log(`Starting URL validation: limit=${limit}, dryRun=${dryRun}, origin=${origin || 'all'}, background=${background}, onlyUnchecked=${onlyUnchecked}`);
 
     // Fetch legislation with URLs
     let query = supabase
@@ -190,6 +190,32 @@ Deno.serve(async (req) => {
       query = query.in("id", ids).limit(ids.length);
       console.log(`Retry mode: reprocessing ${ids.length} specific IDs`);
     } else {
+      // onlyUnchecked: exclude IDs already validated previously (any past job)
+      if (onlyUnchecked) {
+        const checkedIds: string[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data: page } = await supabase
+            .from("url_validation_results")
+            .select("legislation_id")
+            .range(from, from + pageSize - 1);
+          if (!page || page.length === 0) break;
+          for (const r of page) checkedIds.push((r as any).legislation_id);
+          if (page.length < pageSize) break;
+          from += pageSize;
+        }
+        const uniqueChecked = Array.from(new Set(checkedIds));
+        console.log(`onlyUnchecked: excluding ${uniqueChecked.length} previously checked IDs`);
+        if (uniqueChecked.length > 0) {
+          // PostgREST limit: split into chunks for the not-in filter
+          const chunkSize = 500;
+          for (let i = 0; i < uniqueChecked.length; i += chunkSize) {
+            const chunk = uniqueChecked.slice(i, i + chunkSize);
+            query = query.not("id", "in", `(${chunk.join(",")})`);
+          }
+        }
+      }
       query = query.limit(limit);
       if (origin) {
         if (origin === "PT") {
