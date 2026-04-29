@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Link2, Loader2, Play, CheckCircle2, AlertTriangle, RefreshCw,
-  CheckCheck, XCircle, ArrowRightLeft, Timer, Bug, ExternalLink, Eye,
+  CheckCheck, XCircle, ArrowRightLeft, Timer, Bug, ExternalLink, Eye, RotateCcw,
 } from "lucide-react";
 
 interface SyncLogRow {
