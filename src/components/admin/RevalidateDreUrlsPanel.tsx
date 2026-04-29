@@ -399,6 +399,41 @@ export function RevalidateDreUrlsPanel() {
         )}
 
 
+        {/* Scheduled (cron) revalidation banner */}
+        <div className="rounded-lg border p-3 bg-gradient-to-br from-secondary/30 to-transparent space-y-1.5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-sm font-medium flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-primary" />
+              Revalidação automática semanal
+            </div>
+            <Badge variant="outline" className="text-[10px]">domingos 03:00 UTC</Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded bg-background border p-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Última execução</div>
+              {lastCronRun ? (
+                <div className="space-y-0.5 mt-0.5">
+                  <div className="font-medium">{fmtDate(lastCronRun.started_at)}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {lastCronRun.status === "running"
+                      ? `A correr — ${lastCronRun.items_processed || 0} lotes despachados`
+                      : `${lastCronRun.items_added || 0} jobs · ${lastCronRun.items_updated || 0} URLs alvo`}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[11px] text-muted-foreground mt-0.5">Ainda não correu</div>
+              )}
+            </div>
+            <div className="rounded bg-background border p-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Próxima execução</div>
+              <div className="font-medium mt-0.5">{fmtDate(nextCronRun.toISOString())}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {Math.ceil((nextCronRun.getTime() - Date.now()) / (24 * 60 * 60 * 1000))} dia(s)
+              </div>
+            </div>
+          </div>
+        </div>
+
         {!isRunning && retryAvailable > 0 && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
