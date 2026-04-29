@@ -448,6 +448,23 @@ export function DreUrlValidationExplorer() {
               )}
               {grouped ? "Agrupado" : "Lista"}
             </Button>
+            {grouped && groupIds.length > 0 && (
+              <>
+                <span className="text-[10px] text-muted-foreground px-1">
+                  cache {cachedCount}/{groupIds.length}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={refreshTotals}
+                  className="h-7 text-xs"
+                  title="Refrescar totais globais em cache"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  Refrescar totais
+                </Button>
+              </>
+            )}
             <Button
               variant="ghost"
               size="sm"
