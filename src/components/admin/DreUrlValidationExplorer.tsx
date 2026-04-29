@@ -42,6 +42,16 @@ interface Row {
 
 const PAGE_SIZE = 100;
 
+type GroupTotals = {
+  counts: Record<string, number>;
+  total: number;
+  latest: string;
+};
+
+// Session-level cache (lives until full page reload). Shared across mount/unmount
+// so toggling filters or remounting the panel doesn't re-issue queries.
+const GROUP_TOTALS_CACHE = new Map<string, GroupTotals>();
+
 export function DreUrlValidationExplorer() {
   const [statuses, setStatuses] = useState<ValidationStatus[]>([
     "invalid",
@@ -54,6 +64,9 @@ export function DreUrlValidationExplorer() {
   const [page, setPage] = useState(0);
   const [grouped, setGrouped] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Bumped whenever the cache is mutated, to trigger memo recomputation.
+  const [cacheVersion, setCacheVersion] = useState(0);
+  const bumpCache = () => setCacheVersion((v) => v + 1);
 
   const queryKey = useMemo(
     () => [
@@ -149,45 +162,58 @@ export function DreUrlValidationExplorer() {
 
   // Fetch unfiltered totals for the diplomas in view, so the header can show
   // both the filtered counts and the global counts side by side.
+  // Uses a session-level cache to avoid re-querying the same legislation_ids
+  // when filters change or diplomas are expanded.
   const groupIds = useMemo(
     () => groups.map((g) => g.legislation_id),
     [groups],
   );
 
-  const { data: groupTotals } = useQuery({
-    queryKey: ["dre-url-validation-group-totals", groupIds.join(",")],
-    enabled: grouped && groupIds.length > 0,
+  // Only the IDs missing from the session cache need a network round-trip.
+  const missingIds = useMemo(
+    () => groupIds.filter((id) => !GROUP_TOTALS_CACHE.has(id)),
+    [groupIds, cacheVersion],
+  );
+
+  const { data: fetchedTotals } = useQuery({
+    queryKey: [
+      "dre-url-validation-group-totals",
+      missingIds.slice().sort().join(","),
+    ],
+    enabled: grouped && missingIds.length > 0,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("url_validation_results")
         .select("legislation_id,status,checked_at")
-        .in("legislation_id", groupIds);
+        .in("legislation_id", missingIds);
       if (error) throw error;
-      const acc = new Map<
-        string,
-        { counts: Record<string, number>; total: number; latest: string }
-      >();
+      const acc = new Map<string, GroupTotals>();
+      // Seed all requested ids so diplomas with zero history are still cached.
+      for (const id of missingIds) {
+        acc.set(id, { counts: {}, total: 0, latest: "" });
+      }
       for (const r of data || []) {
         const id = r.legislation_id as string;
-        let a = acc.get(id);
-        if (!a) {
-          a = { counts: {}, total: 0, latest: r.checked_at as string };
-          acc.set(id, a);
-        }
+        const a = acc.get(id)!;
         a.counts[r.status as string] = (a.counts[r.status as string] ?? 0) + 1;
         a.total += 1;
         if ((r.checked_at as string) > a.latest)
           a.latest = r.checked_at as string;
       }
+      // Persist into the session-level cache.
+      for (const [id, v] of acc) GROUP_TOTALS_CACHE.set(id, v);
+      bumpCache();
       return acc;
     },
   });
 
   const groupsWithTotals = useMemo<Group[]>(() => {
     if (!grouped) return [];
-    if (!groupTotals) return groups;
     return groups.map((g) => {
-      const a = groupTotals.get(g.legislation_id);
+      const a =
+        GROUP_TOTALS_CACHE.get(g.legislation_id) ??
+        fetchedTotals?.get(g.legislation_id);
       return a
         ? {
             ...g,
@@ -197,7 +223,16 @@ export function DreUrlValidationExplorer() {
           }
         : g;
     });
-  }, [grouped, groups, groupTotals]);
+  }, [grouped, groups, fetchedTotals, cacheVersion]);
+
+  const cachedCount = groupIds.filter((id) =>
+    GROUP_TOTALS_CACHE.has(id),
+  ).length;
+
+  const refreshTotals = () => {
+    for (const id of groupIds) GROUP_TOTALS_CACHE.delete(id);
+    bumpCache();
+  };
 
   const toggleExpanded = (id: string) => {
     setExpanded((prev) => {
@@ -413,6 +448,23 @@ export function DreUrlValidationExplorer() {
               )}
               {grouped ? "Agrupado" : "Lista"}
             </Button>
+            {grouped && groupIds.length > 0 && (
+              <>
+                <span className="text-[10px] text-muted-foreground px-1">
+                  cache {cachedCount}/{groupIds.length}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={refreshTotals}
+                  className="h-7 text-xs"
+                  title="Refrescar totais globais em cache"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  Refrescar totais
+                </Button>
+              </>
+            )}
             <Button
               variant="ghost"
               size="sm"
