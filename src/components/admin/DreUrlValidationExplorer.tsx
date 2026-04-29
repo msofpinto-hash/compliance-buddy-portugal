@@ -381,6 +381,97 @@ export function DreUrlValidationExplorer() {
             <div className="p-8 text-center text-sm text-muted-foreground">
               Sem resultados para os filtros atuais.
             </div>
+          ) : grouped ? (
+            <div className="divide-y">
+              {groups.map((g) => {
+                const isOpen = expanded.has(g.legislation_id);
+                return (
+                  <Collapsible
+                    key={g.legislation_id}
+                    open={isOpen}
+                    onOpenChange={() => toggleExpanded(g.legislation_id)}
+                  >
+                    <CollapsibleTrigger className="w-full text-left p-2.5 hover:bg-muted/40 transition-colors">
+                      <div className="flex items-center gap-2 flex-wrap text-xs">
+                        {isOpen ? (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                        )}
+                        <span className="font-medium truncate">
+                          {g.number || "—"}
+                        </span>
+                        <span className="text-muted-foreground truncate flex-1">
+                          {g.title || ""}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {g.total} chk
+                        </Badge>
+                        {STATUS_OPTIONS.filter((o) => g.counts[o.value]).map(
+                          (o) => (
+                            <Badge
+                              key={o.value}
+                              variant={
+                                o.value === "valid"
+                                  ? "default"
+                                  : o.value === "redirect"
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                              className="text-[10px] uppercase"
+                            >
+                              {o.label}: {g.counts[o.value]}
+                            </Badge>
+                          ),
+                        )}
+                        <span className="ml-auto text-[10px] text-muted-foreground">
+                          {new Date(g.latest).toLocaleString("pt-PT")}
+                        </span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="bg-muted/20 divide-y border-t">
+                        {g.rows.map((r) => (
+                          <div
+                            key={r.id}
+                            className="p-2.5 pl-8 text-xs space-y-1"
+                          >
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {statusBadge(r.status, r.status_code)}
+                              {r.cleared && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px]"
+                                >
+                                  Removido
+                                </Badge>
+                              )}
+                              <span className="ml-auto text-[10px] text-muted-foreground">
+                                {new Date(r.checked_at).toLocaleString("pt-PT")}
+                              </span>
+                            </div>
+                            <a
+                              href={r.document_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline break-all flex items-center gap-1"
+                            >
+                              <ExternalLink className="h-3 w-3 shrink-0" />
+                              {r.document_url}
+                            </a>
+                            {r.error_message && (
+                              <div className="text-destructive break-words">
+                                {r.error_message}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+            </div>
           ) : (
             <div className="divide-y">
               {rows.map((r) => (
