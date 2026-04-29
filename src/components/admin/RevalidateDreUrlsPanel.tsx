@@ -177,6 +177,40 @@ export function RevalidateDreUrlsPanel() {
     enabled: !!latestJob?.id && !isRunning,
   });
 
+  // Global coverage across all DRE URLs ever validated
+  const { data: coverage } = useQuery({
+    queryKey: ["revalidate-dre-coverage"],
+    queryFn: async () => {
+      // Total DRE eligible
+      const { count: totalDre } = await supabase
+        .from("legislation")
+        .select("id", { count: "exact", head: true })
+        .not("document_url", "is", null)
+        .neq("document_url", "")
+        .or("origin.eq.PT,origin.eq.dre,origin.is.null")
+        .or("no_digital_version.is.null,no_digital_version.eq.false");
+
+      // Aggregate by status across ALL jobs (latest result per legislation)
+      const { data: rows } = await supabase
+        .from("url_validation_results")
+        .select("legislation_id,status")
+        .limit(20000);
+
+      const latestByLeg = new Map<string, string>();
+      (rows || []).forEach((r: any) => {
+        // Order is not guaranteed; assume last write wins via overwrite
+        latestByLeg.set(r.legislation_id, r.status);
+      });
+      const totals = { valid: 0, redirect: 0, invalid: 0, timeout: 0, error: 0 };
+      latestByLeg.forEach((s) => {
+        if (s in totals) (totals as any)[s]++;
+      });
+      const checked = latestByLeg.size;
+      return { totalDre: totalDre || 0, checked, ...totals };
+    },
+    refetchInterval: 10000,
+  });
+
   const retryAvailable = retryCandidates?.length ?? 0;
   const [retryLimit, setRetryLimit] = useState<number>(200);
   useEffect(() => {
