@@ -190,25 +190,36 @@ export function RevalidateDreUrlsPanel() {
         .or("origin.eq.PT,origin.eq.dre,origin.is.null")
         .or("no_digital_version.is.null,no_digital_version.eq.false");
 
-      // Aggregate by status across ALL jobs (latest result per legislation)
-      const { data: rows } = await supabase
-        .from("url_validation_results")
-        .select("legislation_id,status")
-        .limit(20000);
-
-      const latestByLeg = new Map<string, string>();
-      (rows || []).forEach((r: any) => {
-        // Order is not guaranteed; assume last write wins via overwrite
-        latestByLeg.set(r.legislation_id, r.status);
-      });
+      // Fetch all results ordered by checked_at DESC and keep only the most recent per legislation_id
+      const pageSize = 1000;
+      const latestByLeg = new Map<string, { status: string; checked_at: string }>();
+      let from = 0;
+      // Cap at 50k rows to avoid runaway loops
+      for (let i = 0; i < 50; i++) {
+        const { data: page, error } = await supabase
+          .from("url_validation_results")
+          .select("legislation_id,status,checked_at")
+          .order("checked_at", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) break;
+        const rows = page || [];
+        for (const r of rows as any[]) {
+          const prev = latestByLeg.get(r.legislation_id);
+          if (!prev || new Date(r.checked_at) > new Date(prev.checked_at)) {
+            latestByLeg.set(r.legislation_id, { status: r.status, checked_at: r.checked_at });
+          }
+        }
+        if (rows.length < pageSize) break;
+        from += pageSize;
+      }
       const totals = { valid: 0, redirect: 0, invalid: 0, timeout: 0, error: 0 };
-      latestByLeg.forEach((s) => {
-        if (s in totals) (totals as any)[s]++;
+      latestByLeg.forEach((v) => {
+        if (v.status in totals) (totals as any)[v.status]++;
       });
       const checked = latestByLeg.size;
       return { totalDre: totalDre || 0, checked, ...totals };
     },
-    refetchInterval: 10000,
+    refetchInterval: 15000,
   });
 
   const retryAvailable = retryCandidates?.length ?? 0;
