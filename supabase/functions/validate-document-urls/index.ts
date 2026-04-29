@@ -185,63 +185,29 @@ Deno.serve(async (req) => {
       .neq("document_url", "");
 
     // Retry mode: only specific IDs (e.g. timeout/error from previous run)
+    let legislation: any[] | null = null;
     if (Array.isArray(legislationIds) && legislationIds.length > 0) {
       const ids = legislationIds.slice(0, Math.min(limit, 2000));
-      query = query.in("id", ids).limit(ids.length);
+      const { data, error: fErr } = await supabase
+        .from("legislation")
+        .select("id, number, title, document_url, origin")
+        .in("id", ids)
+        .limit(ids.length);
+      if (fErr) throw new Error(`Failed to fetch legislation: ${fErr.message}`);
+      legislation = data;
       console.log(`Retry mode: reprocessing ${ids.length} specific IDs`);
     } else if (onlyUnchecked) {
-      // Get all already-checked IDs (paginated)
-      const checkedSet = new Set<string>();
-      let from = 0;
-      const pageSize = 1000;
-      while (true) {
-        const { data: page } = await supabase
-          .from("url_validation_results")
-          .select("legislation_id")
-          .range(from, from + pageSize - 1);
-        if (!page || page.length === 0) break;
-        for (const r of page) checkedSet.add((r as any).legislation_id);
-        if (page.length < pageSize) break;
-        from += pageSize;
-      }
-      // Fetch all candidate DRE IDs (paginated) and filter out checked ones
-      const candidates: string[] = [];
-      let cFrom = 0;
-      while (true) {
-        let cQuery = supabase
-          .from("legislation")
-          .select("id")
-          .not("document_url", "is", null)
-          .neq("document_url", "")
-          .range(cFrom, cFrom + pageSize - 1);
-        if (origin === "PT") cQuery = cQuery.or("origin.eq.PT,origin.eq.dre");
-        else if (origin === "EU") cQuery = cQuery.or("origin.eq.EU,origin.eq.eurlex");
-        const { data: page } = await cQuery;
-        if (!page || page.length === 0) break;
-        for (const r of page) {
-          if (!checkedSet.has((r as any).id)) candidates.push((r as any).id);
-          if (candidates.length >= limit) break;
-        }
-        if (candidates.length >= limit || page.length < pageSize) break;
-        cFrom += pageSize;
-      }
-      console.log(`onlyUnchecked: ${checkedSet.size} previously checked, ${candidates.length} new IDs selected (limit ${limit})`);
-      if (candidates.length === 0) {
-        return new Response(
-          JSON.stringify({ success: true, message: "All URLs already validated", total: 0 }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      query = query.in("id", candidates).limit(candidates.length);
+      const { data, error: rpcErr } = await supabase.rpc("get_unchecked_dre_urls", { p_limit: limit });
+      if (rpcErr) throw new Error(`Failed to fetch unchecked: ${rpcErr.message}`);
+      legislation = data;
+      console.log(`onlyUnchecked: ${legislation?.length ?? 0} new URLs to validate`);
     } else {
-      query = query.limit(limit);
-      if (origin) {
-        if (origin === "PT") {
-          query = query.or("origin.eq.PT,origin.eq.dre");
-        } else if (origin === "EU") {
-          query = query.or("origin.eq.EU,origin.eq.eurlex");
-        }
-      }
+      let q = query.limit(limit);
+      if (origin === "PT") q = q.or("origin.eq.PT,origin.eq.dre");
+      else if (origin === "EU") q = q.or("origin.eq.EU,origin.eq.eurlex");
+      const { data, error: fErr } = await q;
+      if (fErr) throw new Error(`Failed to fetch legislation: ${fErr.message}`);
+      legislation = data;
     }
 
     const { data: legislation, error: fetchError } = await query;
