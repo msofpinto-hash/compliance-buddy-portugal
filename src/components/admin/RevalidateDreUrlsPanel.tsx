@@ -222,6 +222,40 @@ export function RevalidateDreUrlsPanel() {
     refetchInterval: 15000,
   });
 
+  // Latest scheduled (cron) revalidation run
+  const { data: lastCronRun } = useQuery({
+    queryKey: ["revalidate-dre-cron-last"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sync_logs")
+        .select("id, status, started_at, completed_at, items_processed, items_added, items_updated, error_message")
+        .eq("sync_type", "cron_revalidate_dre_urls")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as SyncLogRow | null;
+    },
+    refetchInterval: 30000,
+  });
+
+  // Compute next Sunday 03:00 UTC
+  const nextCronRun = useMemo(() => {
+    const now = new Date();
+    const next = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      3, 0, 0, 0
+    ));
+    const dayOfWeek = next.getUTCDay(); // 0 = Sunday
+    let daysUntilSunday = (7 - dayOfWeek) % 7;
+    if (daysUntilSunday === 0 && now.getTime() >= next.getTime()) {
+      daysUntilSunday = 7;
+    }
+    next.setUTCDate(next.getUTCDate() + daysUntilSunday);
+    return next;
+  }, []);
+
   const retryAvailable = retryCandidates?.length ?? 0;
   const [retryLimit, setRetryLimit] = useState<number>(200);
   useEffect(() => {
