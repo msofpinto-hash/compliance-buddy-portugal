@@ -42,6 +42,16 @@ interface Row {
 
 const PAGE_SIZE = 100;
 
+type GroupTotals = {
+  counts: Record<string, number>;
+  total: number;
+  latest: string;
+};
+
+// Session-level cache (lives until full page reload). Shared across mount/unmount
+// so toggling filters or remounting the panel doesn't re-issue queries.
+const GROUP_TOTALS_CACHE = new Map<string, GroupTotals>();
+
 export function DreUrlValidationExplorer() {
   const [statuses, setStatuses] = useState<ValidationStatus[]>([
     "invalid",
@@ -54,6 +64,9 @@ export function DreUrlValidationExplorer() {
   const [page, setPage] = useState(0);
   const [grouped, setGrouped] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Bumped whenever the cache is mutated, to trigger memo recomputation.
+  const [cacheVersion, setCacheVersion] = useState(0);
+  const bumpCache = () => setCacheVersion((v) => v + 1);
 
   const queryKey = useMemo(
     () => [
