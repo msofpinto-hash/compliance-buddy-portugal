@@ -161,6 +161,28 @@ export function RevalidateDreUrlsPanel() {
     enabled: detailsOpen && !!latestJob?.id,
   });
 
+  // Retry candidates: timeout/error from latest job (always loaded for the retry button)
+  const { data: retryCandidates } = useQuery({
+    queryKey: ["revalidate-dre-retry-candidates", latestJob?.id],
+    queryFn: async () => {
+      if (!latestJob?.id) return [] as { legislation_id: string }[];
+      const { data } = await supabase
+        .from("url_validation_results")
+        .select("legislation_id")
+        .eq("job_id", latestJob.id)
+        .in("status", ["timeout", "error"])
+        .limit(2000);
+      return (data || []) as { legislation_id: string }[];
+    },
+    enabled: !!latestJob?.id && !isRunning,
+  });
+
+  const retryAvailable = retryCandidates?.length ?? 0;
+  const [retryLimit, setRetryLimit] = useState<number>(200);
+  useEffect(() => {
+    if (retryAvailable > 0) setRetryLimit((prev) => Math.min(prev || 200, retryAvailable));
+  }, [retryAvailable]);
+
   const handleStart = async () => {
     setStarting(true);
     try {
@@ -170,6 +192,27 @@ export function RevalidateDreUrlsPanel() {
       if (error) throw error;
       if (data?.success === false) throw new Error(data.error || "Falha ao iniciar");
       toast.success(`Revalidação iniciada para até ${limit} URLs do DRE`);
+      refetch();
+    } catch (e: any) {
+      toast.error(`Erro: ${e.message}`);
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!retryCandidates || retryCandidates.length === 0) return;
+    const ids = retryCandidates
+      .map((r) => r.legislation_id)
+      .slice(0, Math.max(1, Math.min(retryLimit, retryCandidates.length)));
+    setStarting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-document-urls", {
+        body: { legislationIds: ids, limit: ids.length, dryRun: false, background: true },
+      });
+      if (error) throw error;
+      if (data?.success === false) throw new Error(data.error || "Falha ao iniciar");
+      toast.success(`A reprocessar ${ids.length} URLs com timeout/erro`);
       refetch();
     } catch (e: any) {
       toast.error(`Erro: ${e.message}`);
