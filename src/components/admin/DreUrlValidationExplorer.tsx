@@ -524,7 +524,25 @@ export function DreUrlValidationExplorer() {
                           <span className="text-muted-foreground truncate flex-1">
                             {g.title || ""}
                           </span>
-                          <span className="ml-auto text-[10px] text-muted-foreground">
+                          {(() => {
+                            const opt = STATUS_OPTIONS.find((o) => o.value === g.latestStatus);
+                            const variant =
+                              g.latestStatus === "valid"
+                                ? "default"
+                                : g.latestStatus === "redirect"
+                                  ? "secondary"
+                                  : "destructive";
+                            return (
+                              <Badge
+                                variant={variant}
+                                className="text-[10px] uppercase shrink-0"
+                                title={`Último check: ${new Date(g.latest).toLocaleString("pt-PT")}`}
+                              >
+                                Atual: {opt?.label ?? g.latestStatus}
+                              </Badge>
+                            );
+                          })()}
+                          <span className="text-[10px] text-muted-foreground shrink-0">
                             {new Date(g.latest).toLocaleString("pt-PT")}
                           </span>
                         </div>
