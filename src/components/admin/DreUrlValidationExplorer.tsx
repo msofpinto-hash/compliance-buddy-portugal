@@ -114,6 +114,9 @@ export function DreUrlValidationExplorer() {
     total: number;
     latest: string;
     rows: Row[];
+    countsAll?: Record<string, number>;
+    totalAll?: number;
+    latestAll?: string;
   };
 
   const groups = useMemo<Group[]>(() => {
@@ -143,6 +146,58 @@ export function DreUrlValidationExplorer() {
       a.latest < b.latest ? 1 : -1,
     );
   }, [grouped, rows]);
+
+  // Fetch unfiltered totals for the diplomas in view, so the header can show
+  // both the filtered counts and the global counts side by side.
+  const groupIds = useMemo(
+    () => groups.map((g) => g.legislation_id),
+    [groups],
+  );
+
+  const { data: groupTotals } = useQuery({
+    queryKey: ["dre-url-validation-group-totals", groupIds.join(",")],
+    enabled: grouped && groupIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("url_validation_results")
+        .select("legislation_id,status,checked_at")
+        .in("legislation_id", groupIds);
+      if (error) throw error;
+      const acc = new Map<
+        string,
+        { counts: Record<string, number>; total: number; latest: string }
+      >();
+      for (const r of data || []) {
+        const id = r.legislation_id as string;
+        let a = acc.get(id);
+        if (!a) {
+          a = { counts: {}, total: 0, latest: r.checked_at as string };
+          acc.set(id, a);
+        }
+        a.counts[r.status as string] = (a.counts[r.status as string] ?? 0) + 1;
+        a.total += 1;
+        if ((r.checked_at as string) > a.latest)
+          a.latest = r.checked_at as string;
+      }
+      return acc;
+    },
+  });
+
+  const groupsWithTotals = useMemo<Group[]>(() => {
+    if (!grouped) return [];
+    if (!groupTotals) return groups;
+    return groups.map((g) => {
+      const a = groupTotals.get(g.legislation_id);
+      return a
+        ? {
+            ...g,
+            countsAll: a.counts,
+            totalAll: a.total,
+            latestAll: a.latest,
+          }
+        : g;
+    });
+  }, [grouped, groups, groupTotals]);
 
   const toggleExpanded = (id: string) => {
     setExpanded((prev) => {
@@ -383,8 +438,15 @@ export function DreUrlValidationExplorer() {
             </div>
           ) : grouped ? (
             <div className="divide-y">
-              {groups.map((g) => {
+              {groupsWithTotals.map((g) => {
                 const isOpen = expanded.has(g.legislation_id);
+                const filtersActive =
+                  !!from ||
+                  !!to ||
+                  search.trim().length >= 2 ||
+                  statuses.length < STATUS_OPTIONS.length;
+                const hasGlobal =
+                  g.totalAll !== undefined && g.totalAll !== g.total;
                 return (
                   <Collapsible
                     key={g.legislation_id}
@@ -392,41 +454,70 @@ export function DreUrlValidationExplorer() {
                     onOpenChange={() => toggleExpanded(g.legislation_id)}
                   >
                     <CollapsibleTrigger className="w-full text-left p-2.5 hover:bg-muted/40 transition-colors">
-                      <div className="flex items-center gap-2 flex-wrap text-xs">
-                        {isOpen ? (
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-                        )}
-                        <span className="font-medium truncate">
-                          {g.number || "—"}
-                        </span>
-                        <span className="text-muted-foreground truncate flex-1">
-                          {g.title || ""}
-                        </span>
-                        <Badge variant="outline" className="text-[10px]">
-                          {g.total} chk
-                        </Badge>
-                        {STATUS_OPTIONS.filter((o) => g.counts[o.value]).map(
-                          (o) => (
-                            <Badge
-                              key={o.value}
-                              variant={
-                                o.value === "valid"
-                                  ? "default"
-                                  : o.value === "redirect"
-                                    ? "secondary"
-                                    : "destructive"
-                              }
-                              className="text-[10px] uppercase"
-                            >
-                              {o.label}: {g.counts[o.value]}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          {isOpen ? (
+                            <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                          )}
+                          <span className="font-medium truncate">
+                            {g.number || "—"}
+                          </span>
+                          <span className="text-muted-foreground truncate flex-1">
+                            {g.title || ""}
+                          </span>
+                          <span className="ml-auto text-[10px] text-muted-foreground">
+                            {new Date(g.latest).toLocaleString("pt-PT")}
+                          </span>
+                        </div>
+
+                        {/* Filtered counts row */}
+                        <div className="flex items-center gap-1.5 flex-wrap pl-5">
+                          <Badge
+                            variant={filtersActive ? "default" : "outline"}
+                            className="text-[10px]"
+                          >
+                            {filtersActive ? "Filtrado" : "Total"}: {g.total}
+                          </Badge>
+                          {STATUS_OPTIONS.filter((o) => g.counts[o.value]).map(
+                            (o) => (
+                              <Badge
+                                key={o.value}
+                                variant={
+                                  o.value === "valid"
+                                    ? "default"
+                                    : o.value === "redirect"
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                                className="text-[10px] uppercase"
+                              >
+                                {o.label}: {g.counts[o.value]}
+                              </Badge>
+                            ),
+                          )}
+                        </div>
+
+                        {/* Global counts row (only when filters are hiding data) */}
+                        {filtersActive && hasGlobal && (
+                          <div className="flex items-center gap-1.5 flex-wrap pl-5 opacity-70">
+                            <Badge variant="outline" className="text-[10px]">
+                              Global: {g.totalAll}
                             </Badge>
-                          ),
+                            {STATUS_OPTIONS.filter(
+                              (o) => g.countsAll?.[o.value],
+                            ).map((o) => (
+                              <Badge
+                                key={`all-${o.value}`}
+                                variant="outline"
+                                className="text-[10px] uppercase"
+                              >
+                                {o.label}: {g.countsAll?.[o.value]}
+                              </Badge>
+                            ))}
+                          </div>
                         )}
-                        <span className="ml-auto text-[10px] text-muted-foreground">
-                          {new Date(g.latest).toLocaleString("pt-PT")}
-                        </span>
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
