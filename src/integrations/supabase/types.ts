@@ -1752,6 +1752,16 @@ export type Database = {
           title: string
         }[]
       }
+      get_unchecked_dre_urls: {
+        Args: { p_limit?: number }
+        Returns: {
+          document_url: string
+          id: string
+          number: string
+          origin: string
+          title: string
+        }[]
+      }
       get_user_modules: {
         Args: { _org_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_module"][]

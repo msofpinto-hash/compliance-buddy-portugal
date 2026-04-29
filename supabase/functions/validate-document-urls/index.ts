@@ -169,13 +169,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { limit = 50, dryRun = true, origin, background = false, legislationIds } = await req.json();
+    const { limit = 50, dryRun = true, origin, background = false, legislationIds, onlyUnchecked = false } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(`Starting URL validation: limit=${limit}, dryRun=${dryRun}, origin=${origin || 'all'}, background=${background}`);
+    console.log(`Starting URL validation: limit=${limit}, dryRun=${dryRun}, origin=${origin || 'all'}, background=${background}, onlyUnchecked=${onlyUnchecked}`);
 
     // Fetch legislation with URLs
     let query = supabase
@@ -185,26 +185,32 @@ Deno.serve(async (req) => {
       .neq("document_url", "");
 
     // Retry mode: only specific IDs (e.g. timeout/error from previous run)
+    let legislation: any[] | null = null;
     if (Array.isArray(legislationIds) && legislationIds.length > 0) {
       const ids = legislationIds.slice(0, Math.min(limit, 2000));
-      query = query.in("id", ids).limit(ids.length);
+      const { data, error: fErr } = await supabase
+        .from("legislation")
+        .select("id, number, title, document_url, origin")
+        .in("id", ids)
+        .limit(ids.length);
+      if (fErr) throw new Error(`Failed to fetch legislation: ${fErr.message}`);
+      legislation = data;
       console.log(`Retry mode: reprocessing ${ids.length} specific IDs`);
+    } else if (onlyUnchecked) {
+      const { data, error: rpcErr } = await supabase.rpc("get_unchecked_dre_urls", { p_limit: limit });
+      if (rpcErr) throw new Error(`Failed to fetch unchecked: ${rpcErr.message}`);
+      legislation = data;
+      console.log(`onlyUnchecked: ${legislation?.length ?? 0} new URLs to validate`);
     } else {
-      query = query.limit(limit);
-      if (origin) {
-        if (origin === "PT") {
-          query = query.or("origin.eq.PT,origin.eq.dre");
-        } else if (origin === "EU") {
-          query = query.or("origin.eq.EU,origin.eq.eurlex");
-        }
-      }
+      let q = query.limit(limit);
+      if (origin === "PT") q = q.or("origin.eq.PT,origin.eq.dre");
+      else if (origin === "EU") q = q.or("origin.eq.EU,origin.eq.eurlex");
+      const { data, error: fErr } = await q;
+      if (fErr) throw new Error(`Failed to fetch legislation: ${fErr.message}`);
+      legislation = data;
     }
 
-    const { data: legislation, error: fetchError } = await query;
-
-    if (fetchError) {
-      throw new Error(`Failed to fetch legislation: ${fetchError.message}`);
-    }
+    // legislation is already populated above
 
     if (!legislation || legislation.length === 0) {
       return new Response(
