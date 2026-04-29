@@ -8,6 +8,7 @@ import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
 import { UploadLegislationPanel } from "@/components/admin/UploadLegislationPanel";
 import { UploadHistoryPanel } from "@/components/admin/UploadHistoryPanel";
 import { RevalidateDreUrlsPanel } from "@/components/admin/RevalidateDreUrlsPanel";
+import { DreUrlValidationExplorer } from "@/components/admin/DreUrlValidationExplorer";
 import { ConfirmUrlFixesPanel } from "@/components/admin/ConfirmUrlFixesPanel";
 import { ApplyUrlFixesHistoryPanel } from "@/components/admin/ApplyUrlFixesHistoryPanel";
 import { InvalidUrlsTable } from "@/components/admin/InvalidUrlsTable";
@@ -110,6 +111,7 @@ const Admin = () => {
             <ConfirmUrlFixesPanel />
             <ApplyUrlFixesHistoryPanel />
             <RevalidateDreUrlsPanel />
+            <DreUrlValidationExplorer />
             <InvalidUrlsTable />
             <UploadHistoryPanel />
           </TabsContent>
