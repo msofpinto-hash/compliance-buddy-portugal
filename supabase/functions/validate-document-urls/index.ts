@@ -210,11 +210,7 @@ Deno.serve(async (req) => {
       legislation = data;
     }
 
-    const { data: legislation, error: fetchError } = await query;
-
-    if (fetchError) {
-      throw new Error(`Failed to fetch legislation: ${fetchError.message}`);
-    }
+    // legislation is already populated above
 
     if (!legislation || legislation.length === 0) {
       return new Response(
