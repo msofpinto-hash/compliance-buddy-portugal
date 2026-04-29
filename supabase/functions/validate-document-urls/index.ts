@@ -189,33 +189,51 @@ Deno.serve(async (req) => {
       const ids = legislationIds.slice(0, Math.min(limit, 2000));
       query = query.in("id", ids).limit(ids.length);
       console.log(`Retry mode: reprocessing ${ids.length} specific IDs`);
-    } else {
-      // onlyUnchecked: exclude IDs already validated previously (any past job)
-      if (onlyUnchecked) {
-        const checkedIds: string[] = [];
-        let from = 0;
-        const pageSize = 1000;
-        while (true) {
-          const { data: page } = await supabase
-            .from("url_validation_results")
-            .select("legislation_id")
-            .range(from, from + pageSize - 1);
-          if (!page || page.length === 0) break;
-          for (const r of page) checkedIds.push((r as any).legislation_id);
-          if (page.length < pageSize) break;
-          from += pageSize;
-        }
-        const uniqueChecked = Array.from(new Set(checkedIds));
-        console.log(`onlyUnchecked: excluding ${uniqueChecked.length} previously checked IDs`);
-        if (uniqueChecked.length > 0) {
-          // PostgREST limit: split into chunks for the not-in filter
-          const chunkSize = 500;
-          for (let i = 0; i < uniqueChecked.length; i += chunkSize) {
-            const chunk = uniqueChecked.slice(i, i + chunkSize);
-            query = query.not("id", "in", `(${chunk.join(",")})`);
-          }
-        }
+    } else if (onlyUnchecked) {
+      // Get all already-checked IDs (paginated)
+      const checkedSet = new Set<string>();
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data: page } = await supabase
+          .from("url_validation_results")
+          .select("legislation_id")
+          .range(from, from + pageSize - 1);
+        if (!page || page.length === 0) break;
+        for (const r of page) checkedSet.add((r as any).legislation_id);
+        if (page.length < pageSize) break;
+        from += pageSize;
       }
+      // Fetch all candidate DRE IDs (paginated) and filter out checked ones
+      const candidates: string[] = [];
+      let cFrom = 0;
+      while (true) {
+        let cQuery = supabase
+          .from("legislation")
+          .select("id")
+          .not("document_url", "is", null)
+          .neq("document_url", "")
+          .range(cFrom, cFrom + pageSize - 1);
+        if (origin === "PT") cQuery = cQuery.or("origin.eq.PT,origin.eq.dre");
+        else if (origin === "EU") cQuery = cQuery.or("origin.eq.EU,origin.eq.eurlex");
+        const { data: page } = await cQuery;
+        if (!page || page.length === 0) break;
+        for (const r of page) {
+          if (!checkedSet.has((r as any).id)) candidates.push((r as any).id);
+          if (candidates.length >= limit) break;
+        }
+        if (candidates.length >= limit || page.length < pageSize) break;
+        cFrom += pageSize;
+      }
+      console.log(`onlyUnchecked: ${checkedSet.size} previously checked, ${candidates.length} new IDs selected (limit ${limit})`);
+      if (candidates.length === 0) {
+        return new Response(
+          JSON.stringify({ success: true, message: "All URLs already validated", total: 0 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      query = query.in("id", candidates).limit(candidates.length);
+    } else {
       query = query.limit(limit);
       if (origin) {
         if (origin === "PT") {
