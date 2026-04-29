@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.cleanup-duplicate-eu-legislation]
 verify_jwt = false
+
+[functions.cron-revalidate-dre-urls]
+verify_jwt = false

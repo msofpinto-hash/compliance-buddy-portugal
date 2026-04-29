@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Link2, Loader2, Play, CheckCircle2, AlertTriangle, RefreshCw,
-  CheckCheck, XCircle, ArrowRightLeft, Timer, Bug, ExternalLink, Eye, RotateCcw,
+  CheckCheck, XCircle, ArrowRightLeft, Timer, Bug, ExternalLink, Eye, RotateCcw, CalendarClock,
 } from "lucide-react";
 
 interface SyncLogRow {
@@ -222,6 +222,40 @@ export function RevalidateDreUrlsPanel() {
     refetchInterval: 15000,
   });
 
+  // Latest scheduled (cron) revalidation run
+  const { data: lastCronRun } = useQuery({
+    queryKey: ["revalidate-dre-cron-last"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sync_logs")
+        .select("id, status, started_at, completed_at, items_processed, items_added, items_updated, error_message")
+        .eq("sync_type", "cron_revalidate_dre_urls")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as SyncLogRow | null;
+    },
+    refetchInterval: 30000,
+  });
+
+  // Compute next Sunday 03:00 UTC
+  const nextCronRun = useMemo(() => {
+    const now = new Date();
+    const next = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      3, 0, 0, 0
+    ));
+    const dayOfWeek = next.getUTCDay(); // 0 = Sunday
+    let daysUntilSunday = (7 - dayOfWeek) % 7;
+    if (daysUntilSunday === 0 && now.getTime() >= next.getTime()) {
+      daysUntilSunday = 7;
+    }
+    next.setUTCDate(next.getUTCDate() + daysUntilSunday);
+    return next;
+  }, []);
+
   const retryAvailable = retryCandidates?.length ?? 0;
   const [retryLimit, setRetryLimit] = useState<number>(200);
   useEffect(() => {
@@ -364,6 +398,41 @@ export function RevalidateDreUrlsPanel() {
           </div>
         )}
 
+
+        {/* Scheduled (cron) revalidation banner */}
+        <div className="rounded-lg border p-3 bg-gradient-to-br from-secondary/30 to-transparent space-y-1.5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-sm font-medium flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-primary" />
+              Revalidação automática semanal
+            </div>
+            <Badge variant="outline" className="text-[10px]">domingos 03:00 UTC</Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded bg-background border p-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Última execução</div>
+              {lastCronRun ? (
+                <div className="space-y-0.5 mt-0.5">
+                  <div className="font-medium">{fmtDate(lastCronRun.started_at)}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {lastCronRun.status === "running"
+                      ? `A correr — ${lastCronRun.items_processed || 0} lotes despachados`
+                      : `${lastCronRun.items_added || 0} jobs · ${lastCronRun.items_updated || 0} URLs alvo`}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[11px] text-muted-foreground mt-0.5">Ainda não correu</div>
+              )}
+            </div>
+            <div className="rounded bg-background border p-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Próxima execução</div>
+              <div className="font-medium mt-0.5">{fmtDate(nextCronRun.toISOString())}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {Math.ceil((nextCronRun.getTime() - Date.now()) / (24 * 60 * 60 * 1000))} dia(s)
+              </div>
+            </div>
+          </div>
+        </div>
 
         {!isRunning && retryAvailable > 0 && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
