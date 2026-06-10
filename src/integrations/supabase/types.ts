@@ -1704,6 +1704,11 @@ export type Database = {
         Returns: Json
       }
       count_generic_titles: { Args: never; Returns: number }
+      count_pending_relations: { Args: never; Returns: number }
+      count_pending_requirements: {
+        Args: { p_origin: string }
+        Returns: number
+      }
       count_short_summaries: { Args: never; Returns: number }
       get_generic_title_ids: {
         Args: { p_limit?: number; p_offset?: number }
