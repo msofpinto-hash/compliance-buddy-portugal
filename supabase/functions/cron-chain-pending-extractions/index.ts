@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     log.pending = { ptPending: ptCount, euPending: euCount, relPending: relCount };
 
 
-    // 2. Active jobs (loose match by sync_type prefix)
+    // 2. Active jobs (real sync_type names: 'background-requirements-extraction', 'extract_relations')
     const sinceIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     const { data: activeJobs } = await supabase
       .from("sync_logs")
@@ -43,12 +43,18 @@ Deno.serve(async (req) => {
       .gte("started_at", sinceIso);
 
     const activeTypes = (activeJobs || []).map((j: any) => String(j.sync_type || ""));
-    const hasActive = (needle: string) => activeTypes.some((t) => t.includes(needle));
+    const reqActive = activeTypes.filter((t) => t === "background-requirements-extraction").length;
+    const relActive = activeTypes.filter((t) => t === "extract_relations").length;
     log.activeTypes = activeTypes;
+    log.reqActive = reqActive;
+    log.relActive = relActive;
 
     const launched: string[] = [];
+    const MAX_REQ_CONCURRENT = 2;
+    const MAX_REL_CONCURRENT = 1;
 
-    if (ptCount > 0 && !hasActive("extract-requirements-background-PT")) {
+    // Launch PT only if total req jobs < max
+    if (ptCount > 0 && reqActive < MAX_REQ_CONCURRENT) {
       await fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
         method: "POST",
         headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
@@ -57,7 +63,7 @@ Deno.serve(async (req) => {
       launched.push("PT-requirements");
     }
 
-    if (euCount > 0 && !hasActive("extract-requirements-background-EU")) {
+    if (euCount > 0 && reqActive + launched.filter(l=>l.includes("requirements")).length < MAX_REQ_CONCURRENT) {
       await fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
         method: "POST",
         headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
@@ -66,7 +72,7 @@ Deno.serve(async (req) => {
       launched.push("EU-requirements");
     }
 
-    if (relCount > 0 && !hasActive("extract-legislation-relations")) {
+    if (relCount > 0 && relActive < MAX_REL_CONCURRENT) {
       await fetch(`${supabaseUrl}/functions/v1/extract-legislation-relations`, {
         method: "POST",
         headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
@@ -74,6 +80,7 @@ Deno.serve(async (req) => {
       });
       launched.push("relations");
     }
+
 
     log.launched = launched;
 
