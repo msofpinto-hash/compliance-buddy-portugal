@@ -50,36 +50,53 @@ Deno.serve(async (req) => {
     log.relActive = relActive;
 
     const launched: string[] = [];
-    const MAX_REQ_CONCURRENT = 2;
-    const MAX_REL_CONCURRENT = 1;
+    const MAX_REQ_CONCURRENT = 6;
+    const MAX_REL_CONCURRENT = 3;
 
-    // Launch PT only if total req jobs < max
-    if (ptCount > 0 && reqActive < MAX_REQ_CONCURRENT) {
-      await fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
+    // Compute available slots and split between PT/EU based on pending work
+    const reqSlots = Math.max(0, MAX_REQ_CONCURRENT - reqActive);
+    const totalReqPending = ptCount + euCount;
+    let ptSlots = 0, euSlots = 0;
+    if (totalReqPending > 0 && reqSlots > 0) {
+      ptSlots = Math.min(ptCount > 0 ? Math.max(1, Math.round(reqSlots * ptCount / totalReqPending)) : 0, reqSlots);
+      euSlots = Math.min(euCount > 0 ? reqSlots - ptSlots : 0, reqSlots - ptSlots);
+      // if only one side has pending, give it all
+      if (ptCount === 0) { euSlots = reqSlots; ptSlots = 0; }
+      if (euCount === 0) { ptSlots = reqSlots; euSlots = 0; }
+    }
+
+    const launches: Promise<unknown>[] = [];
+    for (let i = 0; i < ptSlots; i++) {
+      launches.push(fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
         method: "POST",
         headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ origin: "PT", batchSize: 25, maxBatches: 40, useUrl: true, background: true }),
-      });
+      }));
       launched.push("PT-requirements");
     }
-
-    if (euCount > 0 && reqActive + launched.filter(l=>l.includes("requirements")).length < MAX_REQ_CONCURRENT) {
-      await fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
+    for (let i = 0; i < euSlots; i++) {
+      launches.push(fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
         method: "POST",
         headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ origin: "EU", batchSize: 25, maxBatches: 40, useUrl: true, background: true }),
-      });
+      }));
       launched.push("EU-requirements");
     }
 
-    if (relCount > 0 && relActive < MAX_REL_CONCURRENT) {
-      await fetch(`${supabaseUrl}/functions/v1/extract-legislation-relations`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 200, background: true, autoImport: true }),
-      });
-      launched.push("relations");
+    const relSlots = Math.max(0, MAX_REL_CONCURRENT - relActive);
+    if (relCount > 0) {
+      for (let i = 0; i < relSlots; i++) {
+        launches.push(fetch(`${supabaseUrl}/functions/v1/extract-legislation-relations`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ limit: 200, background: true, autoImport: true }),
+        }));
+        launched.push("relations");
+      }
     }
+
+    // fire-and-forget all in parallel
+    await Promise.allSettled(launches);
 
 
     log.launched = launched;
