@@ -1,0 +1,1 @@
+UPDATE sync_logs SET status='completed_timeout', completed_at=now(), error_message=COALESCE(error_message,'')||' [auto-cleanup: stuck >30min]' WHERE status='running' AND started_at < now() - interval '30 minutes';
