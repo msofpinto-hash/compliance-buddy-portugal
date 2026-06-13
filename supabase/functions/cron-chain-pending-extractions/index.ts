@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
     log.relActive = relActive;
 
     const launched: string[] = [];
-    const MAX_REQ_CONCURRENT = 2;
-    const MAX_REL_CONCURRENT = 1;
+    const MAX_REQ_CONCURRENT = 6;
+    const MAX_REL_CONCURRENT = 3;
 
     // Launch PT only if total req jobs < max
     if (ptCount > 0 && reqActive < MAX_REQ_CONCURRENT) {
