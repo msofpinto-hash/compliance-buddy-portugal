@@ -110,28 +110,34 @@ serve(async (req) => {
 
   console.log(`Authenticated admin user: ${userId}`);
 
-  try {
-    const { syncType = 'daily', startDate, endDate, themeId } = await req.json().catch(() => ({}));
-    
-    console.log(`Starting DRE sync - Type: ${syncType}, Theme: ${themeId || 'all'}`);
+  const { syncType = 'daily', startDate, endDate, themeId } = await req.json().catch(() => ({}));
 
-    // Create sync log entry
-    const { data: syncLog, error: syncLogError } = await supabase
-      .from('sync_logs')
-      .insert({
-        sync_type: `dre-${syncType}`,
-        status: 'in_progress',
-        started_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+  console.log(`Starting DRE sync - Type: ${syncType}, Theme: ${themeId || 'all'}`);
 
-    if (syncLogError) {
-      console.error('Error creating sync log:', syncLogError);
-      throw new Error('Failed to create sync log');
-    }
+  // Create sync log entry
+  const { data: syncLog, error: syncLogError } = await supabase
+    .from('sync_logs')
+    .insert({
+      sync_type: `dre-${syncType}`,
+      status: 'in_progress',
+      started_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
 
-    console.log(`Sync log created: ${syncLog.id}`);
+  if (syncLogError || !syncLog) {
+    console.error('Error creating sync log:', syncLogError);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Failed to create sync log' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  console.log(`Sync log created: ${syncLog.id}`);
+
+  // Process in background to avoid 150s idle timeout
+  const backgroundWork = (async () => {
+    try {
 
     // Fetch theme categories and keywords for matching
     const { data: categories, error: catError } = await supabase
