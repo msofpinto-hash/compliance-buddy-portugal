@@ -1537,11 +1537,12 @@ async function createMissingLegislation(
     if (noDigitalVersion) insertData.no_digital_version = true;
     
     if (documentUrl) {
-      const { data: existingByUrl } = await supabase
+      const { data: existingByUrlRows } = await supabase
         .from('legislation')
         .select('id, number')
         .eq('document_url', documentUrl)
-        .maybeSingle();
+        .limit(1);
+      const existingByUrl = existingByUrlRows?.[0];
       if (existingByUrl) {
         console.log(`[CREATE] Reusing existing legislation by URL: ${existingByUrl.number}`);
         return existingByUrl;
