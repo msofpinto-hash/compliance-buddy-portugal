@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.cron-chain-pending-extractions]
 verify_jwt = false
+
+[functions.check-dre-opendata-health]
+verify_jwt = false
