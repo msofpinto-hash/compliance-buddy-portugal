@@ -1678,6 +1678,11 @@ async function processRelationsInBackground(
           relations: [],
           error: 'Não foi possível obter conteúdo da página' 
         });
+        if (!dryRun) {
+          await supabase.from('legislation_relations_processed').upsert({
+            legislation_id: leg.id, relations_found: 0, relations_matched: 0, processed_at: new Date().toISOString(),
+          }, { onConflict: 'legislation_id' });
+        }
         continue;
       }
 
@@ -1697,8 +1702,14 @@ async function processRelationsInBackground(
           relationsCreated: 0,
           relations: []
         });
+        if (!dryRun) {
+          await supabase.from('legislation_relations_processed').upsert({
+            legislation_id: leg.id, relations_found: 0, relations_matched: 0, processed_at: new Date().toISOString(),
+          }, { onConflict: 'legislation_id' });
+        }
         continue;
       }
+
 
       totalRelationsFound += extractedRelations.length;
 
@@ -1990,15 +2001,24 @@ Deno.serve(async (req) => {
       existingRelations?.map(r => `${r.source_legislation_id}-${r.target_legislation_id}-${r.relation_type}`) || []
     );
 
-    // Get legislation that has already been processed (from the tracking table)
-    const { data: processedLegislation } = await supabase
-      .from('legislation_relations_processed')
-      .select('legislation_id');
-    
-    const processedLegislationIds = new Set(
-      processedLegislation?.map(r => r.legislation_id) || []
-    );
+    // Get legislation that has already been processed (paginate to bypass 1000-row default)
+    const processedLegislationIds = new Set<string>();
+    {
+      const pageSize = 1000;
+      let offset = 0;
+      while (true) {
+        const { data: page } = await supabase
+          .from('legislation_relations_processed')
+          .select('legislation_id')
+          .range(offset, offset + pageSize - 1);
+        if (!page || page.length === 0) break;
+        for (const r of page) processedLegislationIds.add(r.legislation_id);
+        if (page.length < pageSize) break;
+        offset += pageSize;
+      }
+    }
     console.log(`Found ${processedLegislationIds.size} legislation already processed (from tracking table)`);
+
 
     // Get legislation to process
     let legislationToProcess: any[] = [];
@@ -2147,6 +2167,11 @@ Deno.serve(async (req) => {
             relations: [],
             error: 'Não foi possível obter conteúdo da página' 
           });
+          if (!dryRun) {
+            await supabase.from('legislation_relations_processed').upsert({
+              legislation_id: leg.id, relations_found: 0, relations_matched: 0, processed_at: new Date().toISOString(),
+            }, { onConflict: 'legislation_id' });
+          }
           continue;
         }
 
@@ -2167,8 +2192,14 @@ Deno.serve(async (req) => {
             relationsCreated: 0,
             relations: []
           });
+          if (!dryRun) {
+            await supabase.from('legislation_relations_processed').upsert({
+              legislation_id: leg.id, relations_found: 0, relations_matched: 0, processed_at: new Date().toISOString(),
+            }, { onConflict: 'legislation_id' });
+          }
           continue;
         }
+
 
         totalRelationsFound += extractedRelations.length;
 
