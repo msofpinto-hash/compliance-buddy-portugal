@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
     log.relActive = relActive;
 
     const launched: string[] = [];
-    const MAX_REQ_CONCURRENT = 6;
-    const MAX_REL_CONCURRENT = 3;
+    const MAX_REQ_CONCURRENT = 12;
+    const MAX_REL_CONCURRENT = 6;
 
     // Compute available slots and split between PT/EU based on pending work
     const reqSlots = Math.max(0, MAX_REQ_CONCURRENT - reqActive);
