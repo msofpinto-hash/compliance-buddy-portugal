@@ -2042,30 +2042,42 @@ Deno.serve(async (req) => {
         console.log(`Filtered: ${legislationToProcess.length} of ${data?.length || 0} legislation to process (${data?.length || 0 - legislationToProcess.length} already processed)`);
       }
     } else {
-      // Get legislation with URLs, optionally filtered by origin
-      // We fetch more than limit to account for skipped ones
-      let query = supabase
-        .from('legislation')
-        .select('id, number, title, summary, document_url, origin, publication_date')
-        .not('document_url', 'is', null)
-        .or('no_digital_version.is.null,no_digital_version.eq.false')
-        .order('publication_date', { ascending: false });
-      
-      if (origin === 'PT') {
-        query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
-      } else if (origin === 'EU') {
-        query = query.or('origin.eq.EU,origin.eq.eurlex');
+      // Paginate through legislation until we have enough unprocessed candidates.
+      // Without pagination, Supabase caps at 1000 rows and the top-1000 by
+      // publication_date may already all be processed, leaving zero to process.
+      const pageSize = 1000;
+      let offset = 0;
+      const collected: any[] = [];
+      while (collected.length < limit) {
+        let query = supabase
+          .from('legislation')
+          .select('id, number, title, summary, document_url, origin, publication_date')
+          .not('document_url', 'is', null)
+          .or('no_digital_version.is.null,no_digital_version.eq.false')
+          .order('publication_date', { ascending: false })
+          .range(offset, offset + pageSize - 1);
+
+        if (origin === 'PT') {
+          query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
+        } else if (origin === 'EU') {
+          query = query.or('origin.eq.EU,origin.eq.eurlex');
+        }
+
+        const { data: page } = await query;
+        if (!page || page.length === 0) break;
+
+        for (const leg of page) {
+          if (!processedLegislationIds.has(leg.id)) {
+            collected.push(leg);
+            if (collected.length >= limit) break;
+          }
+        }
+        if (page.length < pageSize) break;
+        offset += pageSize;
       }
-      
-      // Fetch more to account for already-processed ones
-      const { data } = await query.limit(limit * 5);
-      
-      // Filter out already processed legislation and apply limit
-      legislationToProcess = (data || [])
-        .filter(leg => !processedLegislationIds.has(leg.id))
-        .slice(0, limit);
-      
-      console.log(`After filtering processed: ${legislationToProcess.length} legislation to process`);
+      legislationToProcess = collected;
+
+      console.log(`After filtering processed: ${legislationToProcess.length} legislation to process (scanned offset ${offset})`);
     }
 
     if (legislationToProcess.length === 0) {
