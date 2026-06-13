@@ -1434,6 +1434,7 @@ async function createMissingLegislation(
     let publicationDate = sanitizeDate(year);
     let effectiveDate: string | null = null;
     let metadataExtracted = false;
+    let noDigitalVersion = false;
     
     // Try to fetch full metadata based on origin
     if (origin === 'PT') {
@@ -1505,6 +1506,7 @@ async function createMissingLegislation(
           }
         } else {
           console.log(`[CREATE] EUR-Lex scraping returned no/short content (${content?.length || 0} chars)`);
+          noDigitalVersion = true;
         }
       } else {
         console.log(`[CREATE] Could not build EUR-Lex URL for ${targetNumber}`);
@@ -1532,6 +1534,7 @@ async function createMissingLegislation(
     if (entity) insertData.entity = entity;
     if (publicationDate) insertData.publication_date = publicationDate;
     if (effectiveDate) insertData.effective_date = effectiveDate;
+    if (noDigitalVersion) insertData.no_digital_version = true;
     
     console.log(`[CREATE] Inserting legislation with data:`, JSON.stringify({
       number: targetNumber,
