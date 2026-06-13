@@ -312,7 +312,8 @@ const JOB_CONFIGS: JobConfig[] = [
         .from('legislation')
         .select('id')
         .or('origin.eq.PT,origin.eq.dre,origin.is.null')
-        .not('document_url', 'is', null);
+        .not('document_url', 'is', null)
+        .or('no_digital_version.is.null,no_digital_version.eq.false');
       
       const { data: processed } = await supabase
         .from('legislation_relations_processed')
@@ -337,7 +338,8 @@ const JOB_CONFIGS: JobConfig[] = [
       const { data: allLeg } = await supabase
         .from('legislation')
         .select('id')
-        .not('document_url', 'is', null);
+        .not('document_url', 'is', null)
+        .or('no_digital_version.is.null,no_digital_version.eq.false');
       
       const idsWithReqs = new Set(withReqs?.map((r: any) => r.legislation_id) || []);
       const pending = (allLeg || []).filter((l: any) => !idsWithReqs.has(l.id));

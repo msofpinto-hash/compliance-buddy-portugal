@@ -1434,6 +1434,7 @@ async function createMissingLegislation(
     let publicationDate = sanitizeDate(year);
     let effectiveDate: string | null = null;
     let metadataExtracted = false;
+    let noDigitalVersion = false;
     
     // Try to fetch full metadata based on origin
     if (origin === 'PT') {
@@ -1505,6 +1506,7 @@ async function createMissingLegislation(
           }
         } else {
           console.log(`[CREATE] EUR-Lex scraping returned no/short content (${content?.length || 0} chars)`);
+          noDigitalVersion = true;
         }
       } else {
         console.log(`[CREATE] Could not build EUR-Lex URL for ${targetNumber}`);
@@ -1532,6 +1534,20 @@ async function createMissingLegislation(
     if (entity) insertData.entity = entity;
     if (publicationDate) insertData.publication_date = publicationDate;
     if (effectiveDate) insertData.effective_date = effectiveDate;
+    if (noDigitalVersion) insertData.no_digital_version = true;
+    
+    if (documentUrl) {
+      const { data: existingByUrlRows } = await supabase
+        .from('legislation')
+        .select('id, number')
+        .eq('document_url', documentUrl)
+        .limit(1);
+      const existingByUrl = existingByUrlRows?.[0];
+      if (existingByUrl) {
+        console.log(`[CREATE] Reusing existing legislation by URL: ${existingByUrl.number}`);
+        return existingByUrl;
+      }
+    }
     
     console.log(`[CREATE] Inserting legislation with data:`, JSON.stringify({
       number: targetNumber,
@@ -1992,7 +2008,8 @@ Deno.serve(async (req) => {
         .from('legislation')
         .select('id, number, title, summary, document_url, origin, publication_date')
         .in('id', legislationIds)
-        .not('document_url', 'is', null);
+        .not('document_url', 'is', null)
+        .or('no_digital_version.is.null,no_digital_version.eq.false');
       
       if (error) throw error;
       
@@ -2011,6 +2028,7 @@ Deno.serve(async (req) => {
         .from('legislation')
         .select('id, number, title, summary, document_url, origin, publication_date')
         .not('document_url', 'is', null)
+        .or('no_digital_version.is.null,no_digital_version.eq.false')
         .order('publication_date', { ascending: false });
       
       if (origin === 'PT') {
