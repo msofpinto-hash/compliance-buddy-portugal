@@ -237,27 +237,33 @@ export function UnifiedDataQualityPanel() {
 
       const urlsCount = (urlsFalseRes.count ?? 0) + (urlsNullRes.count ?? 0);
 
-      const [datesResult, genericTitlesResult, shortSummariesResult, eligibleSummaryResult, totalMissingCategoriesResult] = await Promise.all([
+      const [datesFalseResult, datesNullResult, genericTitlesResult, shortSummariesResult, eligibleSummaryResult, totalMissingCategoriesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .not("document_url", "is", null)
+          .eq("no_digital_version", false)
+          .or("publication_date.is.null,effective_date.is.null"),
+        supabase.from("legislation").select("id", { count: "exact", head: true })
+          .not("document_url", "is", null)
+          .is("no_digital_version", null)
           .or("publication_date.is.null,effective_date.is.null"),
         supabase.rpc("count_generic_titles"),
         supabase.rpc("count_short_summaries"),
         supabase.from("legislation").select("id", { count: "exact", head: true })
           .is("revocation_date", null)
+          .or("no_digital_version.is.null,no_digital_version.eq.false")
           .not("summary", "is", null),
         supabase.rpc("get_legislation_without_categories_count"),
       ]);
 
       // Use RPCs for accurate server-side counting (avoids client-side LIMIT issues)
-      const [totalLegResult, processedRelationsResult, legWithReqsResult] = await Promise.all([
-        supabase.from("legislation").select("id", { count: "exact", head: true }),
-        supabase.from("legislation_relations_processed").select("id", { count: "exact", head: true }),
-        supabase.rpc("get_legislation_with_requirements_count"),
+      const [ptReqResult, euReqResult, pendingRelationsResult] = await Promise.all([
+        supabase.rpc("count_pending_requirements", { p_origin: "PT" }),
+        supabase.rpc("count_pending_requirements", { p_origin: "EU" }),
+        supabase.rpc("count_pending_relations"),
       ]);
 
-      const totalLeg = totalLegResult.count || 0;
-      const legWithReqs = (legWithReqsResult.data as number) || 0;
+      const datesCount = (datesFalseResult.count ?? 0) + (datesNullResult.count ?? 0);
+      const requirementsCount = ((ptReqResult.data as number) || 0) + ((euReqResult.data as number) || 0);
       const eligibleWithSummary = eligibleSummaryResult.count || 0;
       const missingCategories = (totalMissingCategoriesResult.data as number) || 0;
       const categoriesPendingEligible = Math.max(
@@ -267,11 +273,11 @@ export function UnifiedDataQualityPanel() {
 
       return {
         urls: urlsCount,
-        dates: datesResult.count || 0,
+        dates: datesCount,
         titles: (genericTitlesResult.data as number) || 0,
         summaries: (shortSummariesResult.data as number) || 0,
-        requirements: Math.max(0, totalLeg - legWithReqs),
-        relations: Math.max(0, totalLeg - (processedRelationsResult.count || 0)),
+        requirements: Math.max(0, requirementsCount),
+        relations: Math.max(0, (pendingRelationsResult.data as number) || 0),
         categories: categoriesPendingEligible,
       };
     },
