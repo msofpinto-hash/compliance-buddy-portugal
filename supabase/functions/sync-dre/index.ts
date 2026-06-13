@@ -415,33 +415,42 @@ serve(async (req) => {
       console.error('Error updating sync log:', updateLogError);
     }
 
-    const result = {
+      console.log('Sync completed:', {
+        syncId: syncLog.id,
+        itemsProcessed,
+        itemsAdded,
+        itemsUpdated,
+        itemsMerged,
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error in sync-dre background work:', error);
+      await supabase
+        .from('sync_logs')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error_message: errorMessage,
+        })
+        .eq('id', syncLog.id);
+    }
+  })();
+
+  // @ts-ignore - EdgeRuntime is available in the Supabase edge runtime
+  if (typeof EdgeRuntime !== 'undefined') {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(backgroundWork);
+  }
+
+  return new Response(
+    JSON.stringify({
       success: true,
       syncId: syncLog.id,
-      itemsProcessed,
-      itemsAdded,
-      itemsUpdated,
-      itemsMerged,
-      message: `Sync completed: ${itemsAdded} added, ${itemsUpdated} updated, ${itemsMerged} merged (duplicates) out of ${itemsProcessed} processed`
-    };
-
-    console.log('Sync completed:', result);
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in sync-dre function:', error);
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: errorMessage 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+      status: 'started',
+      message: 'Sync iniciado em background. Acompanha o progresso em sync_logs.',
+    }),
+    { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
 });
 
 // Generate array of dates between start and end
