@@ -463,87 +463,71 @@ async function runBackgroundExtraction(
 
   try {
     while (batchesCompleted < maxBatches) {
-      // Get ALL legislation IDs with requirements (paginated to avoid 1000 row limit)
-      const idsWithReqs = new Set<string>();
-      let page = 0;
-      const pageSize = 1000;
-      
-      while (true) {
-        const { data: existingReqs, error: reqsError } = await supabase
-          .from('legal_requirements')
-          .select('legislation_id')
-          .range(page * pageSize, (page + 1) * pageSize - 1);
-        
-        if (reqsError) {
-          console.error('Error fetching requirements:', reqsError);
-          break;
-        }
-        
-        if (!existingReqs || existingReqs.length === 0) break;
-        
-        existingReqs.forEach((r: any) => idsWithReqs.add(r.legislation_id));
-        
-        if (existingReqs.length < pageSize) break;
-        page++;
-      }
-      
-      console.log(`📊 Found ${idsWithReqs.size} legislation IDs with existing requirements`);
-      
       let legislationWithoutReqs: any[];
-      
-      // If we have specific IDs, use them; otherwise query all legislation
+
       if (isTargetedExtraction) {
-        // Process specific legislation IDs (from post-fix extraction)
-        // If forceReplace is true, process all specified IDs regardless of existing requirements
-        const idsToProcess = forceReplace 
-          ? legislationIds 
+        // Targeted mode: still need to know which ids already have reqs
+        const idsWithReqs = new Set<string>();
+        if (!forceReplace) {
+          const { data: existing } = await supabase
+            .from('legal_requirements')
+            .select('legislation_id')
+            .in('legislation_id', legislationIds);
+          (existing || []).forEach((r: any) => idsWithReqs.add(r.legislation_id));
+        }
+        const idsToProcess = forceReplace
+          ? legislationIds
           : legislationIds.filter(id => !idsWithReqs.has(id));
-        
+
         if (idsToProcess.length === 0) {
           console.log('All specified legislation already has requirements');
           break;
         }
-        
-        // Fetch the specific legislation
+
         const { data: specificLegislation } = await supabase
           .from('legislation')
           .select('id, number, title, summary, document_url, origin')
           .in('id', idsToProcess.slice(0, batchSize));
-        
+
         legislationWithoutReqs = specificLegislation || [];
         console.log(`📋 Targeted: ${legislationIds.length} specified, ${idsToProcess.length} to process (forceReplace=${forceReplace}), fetched ${legislationWithoutReqs.length}`);
       } else {
-        // Build query with optional origin filter and random offset for parallel jobs
-        let query = supabase
-          .from('legislation')
-          .select('id, number, title, summary, document_url, origin')
-          .order('publication_date', { ascending: false });
-        
+        // Use RPC that directly returns legislation WITHOUT requirements (fast, no client filtering)
         const originUpper = origin?.toUpperCase();
-        if (originUpper === 'PT') {
-          query = query.or('origin.eq.PT,origin.eq.dre,origin.is.null');
-        } else if (originUpper === 'EU') {
-          query = query.or('origin.eq.EU,origin.eq.eurlex');
+        const rpcOrigin = originUpper === 'PT' || originUpper === 'EU' ? originUpper : null;
+
+        // Fetch a larger pool to allow parallel jobs to pick different items via randomOffset shuffle
+        const poolSize = Math.max(batchSize * 4, 100);
+        const { data: pool, error: poolError } = await supabase.rpc('get_legislation_without_requirements', {
+          p_origin: rpcOrigin,
+          p_limit: poolSize,
+        });
+
+        if (poolError) {
+          console.error('RPC get_legislation_without_requirements error:', poolError);
+          break;
         }
-        
-        // Apply random offset and limit for parallel job isolation
-        const fetchLimit = batchSize * maxBatches + randomOffset;
-        query = query.range(randomOffset, fetchLimit - 1);
-        
-        const { data: allLegislation } = await query;
-        
-        legislationWithoutReqs = allLegislation?.filter((l: any) => !idsWithReqs.has(l.id)) || [];
-        console.log(`📋 ${origin || 'ALL'}: fetched ${allLegislation?.length || 0} (offset ${randomOffset}), ${legislationWithoutReqs.length} without reqs`);
+
+        // Shuffle deterministically by randomOffset so parallel jobs pick different items
+        const arr = (pool || []) as any[];
+        const seed = randomOffset || Math.floor(Math.random() * 1000);
+        for (let k = arr.length - 1; k > 0; k--) {
+          const j = (seed * (k + 1) * 9301 + 49297) % (k + 1);
+          [arr[k], arr[j]] = [arr[j], arr[k]];
+        }
+        legislationWithoutReqs = arr;
+        console.log(`📋 ${origin || 'ALL'}: pool ${arr.length} (RPC, seed ${seed})`);
       }
-      
+
       const legislationToProcess = legislationWithoutReqs.slice(0, batchSize);
 
       if (legislationToProcess.length === 0) {
-        console.log('All legislation processed, stopping background extraction');
+        console.log('No pending legislation found, stopping background extraction');
         break;
       }
 
       console.log(`📦 Batch ${batchesCompleted + 1}: processing ${legislationToProcess.length} items in parallel`);
+
 
       // Process in parallel chunks of 5 for much faster throughput
       const PARALLEL_CHUNK_SIZE = 5;
