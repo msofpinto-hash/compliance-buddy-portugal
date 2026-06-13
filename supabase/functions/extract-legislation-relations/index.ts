@@ -2158,6 +2158,11 @@ Deno.serve(async (req) => {
             relations: [],
             error: 'Não foi possível obter conteúdo da página' 
           });
+          if (!dryRun) {
+            await supabase.from('legislation_relations_processed').upsert({
+              legislation_id: leg.id, relations_found: 0, relations_matched: 0, processed_at: new Date().toISOString(),
+            }, { onConflict: 'legislation_id' });
+          }
           continue;
         }
 
@@ -2178,8 +2183,14 @@ Deno.serve(async (req) => {
             relationsCreated: 0,
             relations: []
           });
+          if (!dryRun) {
+            await supabase.from('legislation_relations_processed').upsert({
+              legislation_id: leg.id, relations_found: 0, relations_matched: 0, processed_at: new Date().toISOString(),
+            }, { onConflict: 'legislation_id' });
+          }
           continue;
         }
+
 
         totalRelationsFound += extractedRelations.length;
 
