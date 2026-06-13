@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.check-dre-opendata-health]
 verify_jwt = false
+
+[functions.resolve-dre-via-search]
+verify_jwt = false
