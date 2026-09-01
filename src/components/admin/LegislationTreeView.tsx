@@ -1045,13 +1045,10 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     );
   };
 
-  if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">A carregar temas...</div>;
-  }
-
   const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter;
 
   // List mode - filter legislation based on selected theme/category/subcategory
+
   const listFilteredLegislation = useMemo(() => {
     let result = filteredLegislation;
     
