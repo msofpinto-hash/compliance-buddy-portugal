@@ -450,6 +450,9 @@ export function EvidenceRequestsPanel({
       setUploadDialogOpen(false);
       setSelectedRequest(null);
       setNotes("");
+      setPendingDocs([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
     },
     onError: (error) => {
       console.error("Error submitting evidence:", error);
