@@ -239,6 +239,8 @@ export function GoalsPanel({ organizationId }: { organizationId?: string | null 
       start_date: goal.start_date || "",
       due_date: goal.due_date || "",
       status: goal.status,
+      auto_metric: goal.auto_metric || "none",
+
     });
     setOpen(true);
   };
