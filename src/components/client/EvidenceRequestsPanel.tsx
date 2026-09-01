@@ -1532,10 +1532,9 @@ export function EvidenceRequestsPanel({
                 setUploadDialogOpen(false);
                 setSelectedRequest(null);
                 setNotes("");
-                setPendingFile(null);
-                setHasValidity(false);
-                setValidityDate(undefined);
-                setDocumentNotes("");
+                setPendingDocs([]);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+
               }}
             >
               Cancelar
