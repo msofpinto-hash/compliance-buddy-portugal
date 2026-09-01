@@ -71,6 +71,10 @@ export function EvidenceTemplatesPanel() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [onlyHabitual, setOnlyHabitual] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestOrgId, setSuggestOrgId] = useState<string>("");
+
 
   // Fetch evidence templates
   const { data: templates, isLoading: loadingTemplates } = useQuery({
