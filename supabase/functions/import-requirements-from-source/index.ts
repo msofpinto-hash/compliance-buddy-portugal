@@ -349,9 +349,8 @@ Deno.serve(async (req) => {
                   console.log('[v2] Ignoring SPA shell response');
                 }
               }
-
-              }
             }
+
           } catch (apiError) {
             console.log('[v2] API error:', apiError instanceof Error ? apiError.message : 'unknown');
           }
