@@ -240,6 +240,38 @@ export default function Biblioteca() {
     organizations.find((o) => o.id === (selectedOrgId || organizationIds[0])) ||
     organizations[0];
 
+  // Themes assigned to the current organization
+  const { data: orgThemeIds } = useQuery({
+    queryKey: ["organization-themes", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [] as string[];
+      const { data, error } = await supabase
+        .from("organization_themes")
+        .select("theme_id")
+        .eq("organization_id", currentOrg.id);
+      if (error) throw error;
+      return (data || []).map((t) => t.theme_id as string);
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Only show themes assigned to the organization (all themes for admins/no org)
+  const themes = useMemo(() => {
+    if (!allThemes) return allThemes;
+    if (!currentOrg?.id || !orgThemeIds) return allThemes;
+    if (orgThemeIds.length === 0) return [];
+    return allThemes.filter((t) => orgThemeIds.includes(t.id));
+  }, [allThemes, orgThemeIds, currentOrg?.id]);
+
+  // Clear theme selection if it is no longer visible
+  useEffect(() => {
+    if (selectedThemeId && themes && !themes.some((t) => t.id === selectedThemeId)) {
+      setSelectedThemeId(null);
+      setSelectedCategoryId(null);
+    }
+  }, [themes, selectedThemeId]);
+
+
   // Fetch legislation applicabilities for user's organization
   const { data: legislationApplicabilitiesMap } = useQuery({
     queryKey: ["org-legislation-applicabilities", currentOrg?.id],
