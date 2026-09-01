@@ -1049,7 +1049,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     );
   };
 
-  const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter;
+  const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter || unclassifiedOnly;
 
   // List mode - filter legislation based on selected theme/category/subcategory
 
