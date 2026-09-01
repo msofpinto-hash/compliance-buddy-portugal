@@ -31,7 +31,7 @@ import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useLegislationWithCategories } from "@/hooks/useLegislation";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
-import { IDSidebar } from "@/components/client/IDSidebar";
+import { IDTopNav } from "@/components/client/IDTopNav";
 import { IDBackground, IDParticles, IDHeroSection, IDCard } from "@/components/client/IDBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
@@ -272,45 +272,16 @@ export default function Biblioteca() {
   };
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       {/* I&D Inspired Background */}
       <IDBackground />
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512] shadow-sm">
-        <IDSidebar currentOrg={currentOrg} />
-      </aside>
-
-      {/* Mobile Sidebar */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512]">
-          <IDSidebar currentOrg={currentOrg} onCloseMobile={() => setSidebarOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
       {/* Main Content */}
-      <div className="flex-1 lg:pl-64 relative z-10">
-        {/* Top Header - Warm institutional style */}
-        <header className="sticky top-0 z-20 bg-white/95 dark:bg-[#1a1512]/95 backdrop-blur-md border-b border-stone-200/60 dark:border-amber-900/30">
-          <div className="flex items-center justify-between px-4 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="lg:hidden text-stone-700 dark:text-amber-200 hover:text-stone-800 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-amber-900/30"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-              <div>
-                <p className="text-xs text-amber-700/70 dark:text-amber-300/60 uppercase tracking-wider font-medium">{currentOrg?.name || "Biblioteca"}</p>
-                <h1 className="text-lg font-semibold text-stone-800 dark:text-white flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  Legislação
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
+      <div className="relative z-10">
+        <IDTopNav
+          currentOrg={currentOrg}
+          actions={
+            <>
               {organizations.length > 1 && (
                 <OrganizationSelector
                   organizations={organizations}
@@ -319,9 +290,10 @@ export default function Biblioteca() {
                 />
               )}
               <ThemeToggle />
-            </div>
-          </div>
-        </header>
+            </>
+          }
+        />
+
 
         {/* Page Content */}
         <main className="p-4 lg:p-8 space-y-5">

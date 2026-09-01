@@ -62,7 +62,7 @@ import { TechWelcomeHero } from "@/components/client/TechWelcomeHero";
 import { TechModuleCard } from "@/components/client/TechModuleCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { IDBackground, IDHeroSection, IDCard } from "@/components/client/IDBackground";
-import { IDSidebar } from "@/components/client/IDSidebar";
+import { IDTopNav } from "@/components/client/IDTopNav";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -552,73 +552,20 @@ export default function Dashboard() {
   // SidebarContent removed - using IDSidebar component instead
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       {/* I&D Background */}
       <IDBackground />
 
-      {/* Desktop Sidebar - I&D Style */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512] shadow-sm">
-        <IDSidebar currentOrg={currentOrg} />
-      </aside>
-
-      {/* Mobile Sidebar */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-r border-stone-200/50 dark:border-amber-900/30 bg-white dark:bg-[#1a1512]">
-          <IDSidebar currentOrg={currentOrg} onCloseMobile={() => setSidebarOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
       {/* Main Content */}
-      <div className="flex-1 lg:pl-64 relative z-10">
-        {/* Top Header - I&D Style */}
-        <header className="sticky top-0 z-20 bg-white/95 dark:bg-[#1a1512]/95 backdrop-blur-md border-b border-stone-200/60 dark:border-amber-900/30">
-          <div className="flex items-center justify-between px-4 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="lg:hidden text-stone-700 dark:text-amber-200 hover:text-stone-800 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-amber-900/30"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-              <div>
-                <p className="text-xs text-amber-700/70 dark:text-amber-300/60 uppercase tracking-wider font-medium">{currentOrg?.name || "Dashboard"}</p>
-                <h1 className="text-lg font-semibold text-stone-800 dark:text-white flex items-center gap-2">
-                  {activeTab === "overview" && (
-                    <>
-                      <LayoutDashboard className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Painel de Controlo
-                    </>
-                  )}
-                  {activeTab === "actions" && (
-                    <>
-                      <ClipboardList className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Planos de Ação
-                    </>
-                  )}
-                  {activeTab === "audits" && (
-                    <>
-                      <ClipboardCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Auditorias
-                    </>
-                  )}
-                  {activeTab === "documents" && (
-                    <>
-                      <FolderOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Evidências
-                    </>
-                  )}
-                  {activeTab === "indicators" && (
-                    <>
-                      <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Indicadores
-                    </>
-                  )}
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
+      <div className="relative z-10">
+        <IDTopNav
+          currentOrg={currentOrg}
+          counts={{
+            legislacao: unreadLegislationCount,
+            planos_acao: actionPlanStats.pending + actionPlanStats.inProgress,
+          }}
+          actions={
+            <>
               {organizations.length > 1 && (
                 <OrganizationSelector
                   organizations={organizations}
@@ -628,9 +575,9 @@ export default function Dashboard() {
               )}
               <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <Input 
-                  placeholder="Pesquisa" 
-                  className="pl-9 w-64 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-amber-300/40 focus:border-amber-500 focus:ring-amber-500/20"
+                <Input
+                  placeholder="Pesquisa"
+                  className="pl-9 w-56 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-amber-300/40 focus:border-amber-500 focus:ring-amber-500/20"
                 />
               </div>
               <TooltipProvider>
@@ -653,9 +600,10 @@ export default function Dashboard() {
                 </UITooltip>
               </TooltipProvider>
               <ThemeToggle />
-            </div>
-          </div>
-        </header>
+            </>
+          }
+        />
+
 
         {/* Page Content */}
         <main className="p-4 lg:p-8 space-y-5">
@@ -671,59 +619,6 @@ export default function Dashboard() {
                 compliancePercent={complianceRate}
               />
 
-              {/* Modules Bento Grid */}
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 rounded-lg bg-primary/10">
-                    <Leaf className="h-5 w-5 text-primary" aria-hidden="true" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground">Acesso Rápido</h2>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 [&>*:first-child]:lg:col-span-2 [&>*:first-child]:lg:row-span-1">
-                  <TechModuleCard
-                    title="Legislação"
-                    description="Consulte a biblioteca de diplomas legais aplicáveis"
-                    icon={Gavel}
-                    href="/biblioteca"
-                    image={sustainLeaves}
-                    glowColor="emerald"
-                    count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
-                    countLabel="novos"
-                    index={0}
-                  />
-                  <TechModuleCard
-                    title="Planos de Ação"
-                    description="Gerir ações de conformidade e prazos"
-                    icon={ClipboardList}
-                    href="/dashboard?tab=actions"
-                    image={sustainEnergy}
-                    glowColor="terracotta"
-                    count={actionPlanStats.pending + actionPlanStats.inProgress}
-                    countLabel="ativos"
-                    index={1}
-                  />
-                  <TechModuleCard
-                    title="Auditorias"
-                    description="Acompanhe o estado das auditorias"
-                    icon={ClipboardCheck}
-                    href="/dashboard?tab=audits"
-                    image={moduleAudits}
-                    glowColor="amber"
-                    count={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length}
-                    countLabel="ativas"
-                    index={2}
-                  />
-                  <TechModuleCard
-                    title="Evidências"
-                    description="Submeta documentos de conformidade"
-                    icon={FolderOpen}
-                    href="/dashboard?tab=documents"
-                    image={moduleDocuments}
-                    glowColor="rose"
-                    index={3}
-                  />
-                </div>
-              </div>
 
 
 
