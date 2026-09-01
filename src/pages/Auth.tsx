@@ -280,12 +280,13 @@ const Auth = () => {
   if (showForgotPassword) {
     return (
       <PageShell>
+        <h1 className="sr-only">Aceder à Plataforma</h1>
         <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary border border-border">
-                <Mail className="h-7 w-7 text-foreground" />
+                <Mail className="h-7 w-7 text-foreground" aria-hidden="true" />
               </div>
               <CardTitle className="text-xl">Recuperar Password</CardTitle>
               <CardDescription>
@@ -296,28 +297,28 @@ const Auth = () => {
               {resetEmailSent ? (
                 <>
                   <Alert className="bg-accent/20 border-accent">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" />
                     <AlertDescription>Enviámos um email com instruções para redefinir a sua password. Verifique também a pasta de spam.</AlertDescription>
                   </Alert>
                   <Button variant="outline" className="w-full gap-2" onClick={handleBackToLogin}>
-                    <ArrowLeft className="h-4 w-4" /> Voltar ao login
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar ao login
                   </Button>
                 </>
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   {error && (
-                    <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>
+                    <Alert variant="destructive"><AlertCircle className="h-4 w-4" aria-hidden="true" /><AlertDescription>{error}</AlertDescription></Alert>
                   )}
                   <div className="space-y-2">
                     <Label htmlFor="reset-email">Email</Label>
                     <Input id="reset-email" type="email" placeholder="email@exemplo.pt" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
                     Enviar instruções
                   </Button>
                   <Button type="button" variant="ghost" className="w-full gap-2" onClick={handleBackToLogin}>
-                    <ArrowLeft className="h-4 w-4" /> Voltar ao login
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar ao login
                   </Button>
                 </form>
               )}
