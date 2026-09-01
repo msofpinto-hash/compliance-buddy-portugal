@@ -14,6 +14,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
 import { motion } from "framer-motion";
+import authVisual from "@/assets/sustain-hero.jpg";
+
 
 interface LoginCheckResult {
   allowed: boolean;
@@ -25,19 +27,27 @@ interface LoginCheckResult {
 }
 
 // Clean brand logo
-const BrandLogo = () => (
-  <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200">
-    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm">
-      <Scale className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
+const BrandLogo = ({ variant = "default" }: { variant?: "default" | "light" }) => (
+  <Link
+    to="/"
+    className={
+      variant === "light"
+        ? "inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-foreground/10 border border-primary-foreground/20 backdrop-blur-md transition-all duration-200 hover:bg-primary-foreground/15"
+        : "inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200"
+    }
+  >
+    <div className={variant === "light" ? "flex h-10 w-10 items-center justify-center rounded-lg bg-primary-foreground/20" : "flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm"}>
+      <Scale className={variant === "light" ? "h-5 w-5 text-primary-foreground" : "h-5 w-5 text-primary-foreground"} aria-hidden="true" />
     </div>
     <div className="flex flex-col items-start">
-      <span className="text-lg font-heading font-bold text-foreground tracking-tight">I&D</span>
-      <span className="text-xs font-heading font-semibold tracking-[0.15em] text-primary">
+      <span className={variant === "light" ? "text-lg font-heading font-bold tracking-tight text-primary-foreground" : "text-lg font-heading font-bold tracking-tight text-foreground"}>I&D</span>
+      <span className={variant === "light" ? "text-xs font-heading font-semibold tracking-[0.15em] text-primary-foreground/80" : "text-xs font-heading font-semibold tracking-[0.15em] text-primary"}>
         COMPLIANCE
       </span>
     </div>
   </Link>
 );
+
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -178,18 +188,71 @@ const Auth = () => {
   const handleSignOut = async () => { await signOut(); setRegistrationSuccess(false); };
   const handleBackToLogin = () => { setShowForgotPassword(false); setResetEmailSent(false); setError(null); };
 
-  // --- Page wrapper with clean brand background ---
+  // --- Split-screen shell: immersive brand panel + clean form panel ---
   const PageShell = ({ children }: { children: React.ReactNode }) => (
-    <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden bg-background p-4">
-      {/* Subtle decorative blurs */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-accent/15 blur-[100px] -translate-y-1/3 translate-x-1/4" />
-      <div className="absolute bottom-0 left-0 w-[350px] h-[350px] rounded-full bg-secondary/30 blur-[80px] translate-y-1/4 -translate-x-1/4" />
-      {children}
-      <div className="absolute bottom-6 text-muted-foreground text-sm">
-        © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
-      </div>
+    <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-background">
+      {/* Visual panel */}
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden p-12">
+        <img
+          src={authVisual}
+          alt="Floresta iluminada pelo sol"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/65 to-terracotta/70" />
+
+        <div className="relative z-10">
+          <BrandLogo variant="light" />
+        </div>
+
+        <motion.div
+          className="relative z-10 max-w-lg"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+        >
+          <h2 className="text-4xl xl:text-5xl font-heading font-bold leading-[1.1] text-primary-foreground">
+            O seu assistente digital de conformidade
+          </h2>
+          <p className="mt-5 text-lg text-primary-foreground/80">
+            Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-2.5">
+            {[
+              { icon: CheckCircle2, text: "Monitorização 24/7" },
+              { icon: Scale, text: "Legislação atualizada" },
+              { icon: ShieldAlert, text: "Auditorias rigorosas" },
+            ].map((f) => (
+              <span
+                key={f.text}
+                className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3.5 py-1.5 text-sm text-primary-foreground backdrop-blur-sm"
+              >
+                <f.icon className="h-4 w-4" aria-hidden="true" />
+                {f.text}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+
+        <p className="relative z-10 text-sm text-primary-foreground/70">
+          © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
+        </p>
+      </aside>
+
+      {/* Form panel */}
+      <main className="relative flex flex-col items-center justify-center overflow-hidden bg-cream p-6 sm:p-10">
+        <div className="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-terracotta/15 blur-[110px]" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-primary/15 blur-[100px]" />
+        <div className="relative z-10 w-full max-w-md flex flex-col items-center">
+          <div className="lg:hidden mb-8"><BrandLogo /></div>
+          {children}
+        </div>
+        <p className="relative z-10 mt-8 text-xs text-muted-foreground lg:hidden text-center">
+          © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
+        </p>
+      </main>
     </div>
   );
+
 
   // Loading
   if (authLoading) {
@@ -221,7 +284,6 @@ const Auth = () => {
     return (
       <PageShell>
         <h1 className="sr-only">Aceder à Plataforma</h1>
-        <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
@@ -252,7 +314,6 @@ const Auth = () => {
     return (
       <PageShell>
         <h1 className="sr-only">Aceder à Plataforma</h1>
-        <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
@@ -285,7 +346,6 @@ const Auth = () => {
     return (
       <PageShell>
         <h1 className="sr-only">Aceder à Plataforma</h1>
-        <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
@@ -336,66 +396,27 @@ const Auth = () => {
   // --- Main auth form ---
   return (
     <PageShell>
-      <div className="relative z-10 w-full max-w-6xl mx-auto">
-        <div className="text-center mb-6 lg:mb-8">
-          <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">
+      <motion.div
+        className="w-full"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="mb-7">
+          <h1 className="text-3xl font-heading font-bold tracking-tight text-foreground">
             Aceder à Plataforma
           </h1>
-          <p className="text-muted-foreground mt-2 text-sm md:text-base">
+          <p className="text-muted-foreground mt-2">
             Gestão de conformidade legal para a sua organização
           </p>
         </div>
-        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-          
-          {/* Left column — value proposition */}
-          <motion.div 
-            className="flex-1 text-center lg:text-left hidden md:block"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="space-y-5">
-              <h2 className="text-3xl lg:text-4xl font-heading font-bold text-foreground leading-tight">
-                O seu{" "}
-                <span className="text-primary">assistente digital</span>
-                <br />de conformidade
-              </h2>
-              <p className="text-muted-foreground text-lg max-w-md mx-auto lg:mx-0">
-                Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
-              </p>
-              
-              <div className="flex flex-wrap gap-3 justify-center lg:justify-start pt-3">
-                {[
-                  { icon: CheckCircle2, text: "Monitorização 24/7" },
-                  { icon: Scale, text: "Legislação atualizada" },
-                  { icon: ShieldAlert, text: "Auditorias rigorosas" },
-                ].map((feature) => (
-                  <div
-                    key={feature.text}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border text-sm text-foreground shadow-sm"
-                  >
-                    <feature.icon className="h-4 w-4 text-primary" aria-hidden="true" />
-                    {feature.text}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
 
-          {/* Right column — form */}
-          <motion.div 
-            className="w-full max-w-md"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-          >
-            <div className="flex justify-center mb-6"><BrandLogo /></div>
+        <Card className="border-border/70 shadow-xl shadow-primary/5 rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Área de Cliente</CardTitle>
+            <CardDescription>Aceda à sua área de gestão de conformidade legal</CardDescription>
+          </CardHeader>
 
-            <Card className="shadow-md">
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">Área de Cliente</CardTitle>
-                <CardDescription>Aceda à sua área de gestão de conformidade legal</CardDescription>
-              </CardHeader>
               <CardContent>
                 <Tabs defaultValue="login" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
@@ -529,10 +550,9 @@ const Auth = () => {
                   </TabsContent>
                 </Tabs>
               </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
+        </Card>
+      </motion.div>
+
     </PageShell>
   );
 };

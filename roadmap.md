@@ -20,3 +20,5 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 
 ## Redesign Dashboard (2026-09-01)
 - [ ] Redesenhar /dashboard com tema de sustentabilidade, estética moderna e imagens de fundo
+
+- [x] Alinhar cores da app com incredibleanddynamic.com (verde sage, terracota, creme)
