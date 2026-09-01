@@ -645,6 +645,7 @@ export type Database = {
           description: string | null
           file_url: string | null
           id: string
+          issue_date: string | null
           name: string
           organization_id: string
           updated_at: string
@@ -658,6 +659,7 @@ export type Database = {
           description?: string | null
           file_url?: string | null
           id?: string
+          issue_date?: string | null
           name: string
           organization_id: string
           updated_at?: string
@@ -671,6 +673,7 @@ export type Database = {
           description?: string | null
           file_url?: string | null
           id?: string
+          issue_date?: string | null
           name?: string
           organization_id?: string
           updated_at?: string
