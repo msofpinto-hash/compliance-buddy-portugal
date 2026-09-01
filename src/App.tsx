@@ -21,6 +21,7 @@ import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
 import Diplomas from "./pages/Diplomas";
 import GestaoTemas from "./pages/GestaoTemas";
+import RequisitosTema from "./pages/RequisitosTema";
 
 import Progresso from "./pages/Progresso";
 import FontesOficiais from "./pages/FontesOficiais";
