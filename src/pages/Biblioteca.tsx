@@ -479,6 +479,14 @@ export default function Biblioteca() {
                     onClearAll={clearAllFilters}
                     hasActiveFilters={hasActiveFilters}
                   />
+
+                  <ExportApplicableDialog
+                    organizationId={currentOrg?.id}
+                    organizationName={currentOrg?.name}
+                    themes={(themes || []).map((t) => ({ id: t.id, name: t.name }))}
+                    legislation={legislationWithCategories || []}
+                  />
+
                 </div>
               </CardContent>
             </IDCard>
