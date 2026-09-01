@@ -122,12 +122,15 @@ export function LegislationApplicabilitySelect({
 
       // Invalidate relevant queries (the database propagates the classification
       // to every legal requirement of this diploma)
-      queryClient.invalidateQueries({ queryKey: ["legislation-applicability"] });
-      queryClient.invalidateQueries({ queryKey: ["biblioteca-legislation"] });
-      queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities"] });
-      queryClient.invalidateQueries({ queryKey: ["applicabilities"] });
-      queryClient.invalidateQueries({ queryKey: ["requisitos-tema"] });
-      queryClient.invalidateQueries({ queryKey: ["conformidade"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["legislation-applicability"] }),
+        queryClient.invalidateQueries({ queryKey: ["biblioteca-legislation"] }),
+        queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities"] }),
+        queryClient.invalidateQueries({ queryKey: ["applicabilities"] }),
+        queryClient.invalidateQueries({ queryKey: ["req-list"] }),
+        queryClient.invalidateQueries({ queryKey: ["requisitos-tema"] }),
+        queryClient.invalidateQueries({ queryKey: ["conformidade"] }),
+      ]);
 
       onUpdate?.(newValue);
     } catch (error) {

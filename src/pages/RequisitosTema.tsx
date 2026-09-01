@@ -195,10 +195,16 @@ export default function RequisitosTema() {
       }
       return legislationIds.length;
     },
-    onSuccess: (count) => {
+    onSuccess: async (count) => {
       toast.success(`${count} diploma(s) atualizado(s)`);
-      queryClient.invalidateQueries({ queryKey: ["req-by-descriptor"] });
-      queryClient.invalidateQueries({ queryKey: ["legislation-applicability"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["req-by-descriptor"] }),
+        queryClient.invalidateQueries({ queryKey: ["legislation-applicability"] }),
+        queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities"] }),
+        queryClient.invalidateQueries({ queryKey: ["applicabilities"] }),
+        queryClient.invalidateQueries({ queryKey: ["req-list"] }),
+        queryClient.invalidateQueries({ queryKey: ["conformidade"] }),
+      ]);
     },
     onError: (e: Error) => toast.error(e.message),
   });

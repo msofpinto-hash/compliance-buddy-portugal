@@ -87,8 +87,15 @@ export function BulkApplicabilityBar({
         title: "Aplicabilidade aplicada",
         description: `${legislationIds.length} diploma(s) de "${scopeLabel}" classificados.`,
       });
-      queryClient.invalidateQueries({ queryKey: ["legislation-applicability"] });
-      queryClient.invalidateQueries({ queryKey: ["biblioteca-legislation"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["legislation-applicability"] }),
+        queryClient.invalidateQueries({ queryKey: ["biblioteca-legislation"] }),
+        queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities"] }),
+        queryClient.invalidateQueries({ queryKey: ["applicabilities"] }),
+        queryClient.invalidateQueries({ queryKey: ["req-list"] }),
+        queryClient.invalidateQueries({ queryKey: ["requisitos-tema"] }),
+        queryClient.invalidateQueries({ queryKey: ["conformidade"] }),
+      ]);
     } catch (e: any) {
       toast({
         title: "Erro ao aplicar",

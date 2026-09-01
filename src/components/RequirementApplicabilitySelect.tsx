@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,10 @@ export function RequirementApplicabilitySelect({
   const { user } = useAuth();
   const [value, setValue] = useState(currentValue);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    setValue(currentValue);
+  }, [currentValue, organizationId, requirementId]);
 
   const handleValueChange = async (newValue: string) => {
     if (!user || readOnly) return;
