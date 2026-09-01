@@ -459,6 +459,62 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Admin-only: move/associate selected diplomas to another descriptor
+  const [selectedLegIds, setSelectedLegIds] = useState<Set<string>>(new Set());
+  const [targetCategoryId, setTargetCategoryId] = useState<string>("");
+
+  const toggleLegSelection = (id: string) => {
+    setSelectedLegIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const moveDiplomas = useMutation({
+    mutationFn: async ({ targetCategoryId, mode }: { targetCategoryId: string; mode: "move" | "add" }) => {
+      const ids = Array.from(selectedLegIds);
+      if (mode === "move" && selectedCategoryId) {
+        const { error: delError } = await supabase
+          .from("legislation_category_mapping")
+          .delete()
+          .eq("category_id", selectedCategoryId)
+          .in("legislation_id", ids);
+        if (delError) throw delError;
+      }
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("legislation_category_mapping")
+        .select("legislation_id")
+        .eq("category_id", targetCategoryId)
+        .in("legislation_id", ids);
+      if (fetchError) throw fetchError;
+
+      const already = new Set((existing || []).map((r) => r.legislation_id));
+      const toInsert = ids
+        .filter((id) => !already.has(id))
+        .map((id) => ({ legislation_id: id, category_id: targetCategoryId }));
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from("legislation_category_mapping").insert(toInsert);
+        if (error) throw error;
+      }
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} diploma(s) atualizado(s)`);
+      setSelectedLegIds(new Set());
+      setTargetCategoryId("");
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+      queryClient.invalidateQueries({ queryKey: ["biblioteca-legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
+
 
 
 
