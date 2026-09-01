@@ -85,7 +85,7 @@ import {
   ExportColumn,
 } from "@/components/ExportColumnsDialog";
 import { cn } from "@/lib/utils";
-import { AuditEvidenceOverview } from "@/components/client/AuditEvidenceOverview";
+
 
 interface EvidenceRequest {
   id: string;
@@ -867,8 +867,6 @@ export function EvidenceRequestsPanel({
         description={`Selecione as colunas para exportar ${filteredRequests?.length || 0} pedido(s).`}
       />
 
-      {/* Evidências por auditoria */}
-      <AuditEvidenceOverview organizationId={organizationId} />
 
       {/* Requests List */}
       {loadingRequests ? (
