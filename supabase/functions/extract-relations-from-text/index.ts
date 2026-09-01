@@ -105,6 +105,9 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const limit: number = Math.min(body.limit ?? 200, 400);
     const reprocess: boolean = body.reprocess !== false;
+    // force: ignora o intervalo de 24h e volta a analisar todos os diplomas
+    // que continuam sem relações (útil após nova extração de requisitos)
+    const force: boolean = body.force === true;
 
     // 1) Index every diploma in the database by normalized reference key
     const index = new Map<string, { id: string; origin: string | null; number: string }[]>();
@@ -138,7 +141,8 @@ Deno.serve(async (req) => {
       (processedRows ?? [])
         .filter((p) =>
           reprocess
-            ? (p.relations_found ?? 0) > 0 || new Date(p.processed_at).getTime() > cutoff
+            ? (p.relations_found ?? 0) > 0 ||
+              (!force && new Date(p.processed_at).getTime() > cutoff)
             : true
         )
         .map((p) => p.legislation_id),
