@@ -87,21 +87,18 @@ export function DashboardSidebar({ currentOrg, onCloseMobile }: DashboardSidebar
         onClick={handleNavClick}
         className="p-4 border-b border-stone-200/60 dark:border-stone-700/40 hover:bg-amber-50/50 dark:hover:bg-stone-800/50 transition-colors cursor-pointer"
       >
-        {currentOrg?.logo_url ? (
-          <img 
-            src={currentOrg.logo_url} 
-            alt={currentOrg.name} 
-            className="h-12 w-auto object-contain"
+        <div className="flex items-center gap-3">
+          <img
+            src={logoIdCompliance}
+            alt="I&D Compliance"
+            className="h-10 w-auto object-contain"
           />
-        ) : (
-          <div className="flex items-center gap-3">
-            <ClientAnimatedLogo />
-            <div className="flex flex-col">
-              <span className="font-bold text-emerald-700 dark:text-emerald-400 leading-tight">I&D</span>
-              <span className="text-xs text-stone-500 dark:text-stone-400 leading-tight font-medium tracking-wider">COMPLIANCE</span>
-            </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-primary leading-tight">I&D</span>
+            <span className="text-xs text-muted-foreground leading-tight font-medium tracking-wider">COMPLIANCE</span>
           </div>
-        )}
+        </div>
+
       </Link>
 
       {/* User Info */}
