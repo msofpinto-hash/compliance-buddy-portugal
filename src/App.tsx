@@ -109,6 +109,22 @@ const App = () => (
               }
             />
             <Route
+              path="/fontes-oficiais"
+              element={
+                <RequireAdmin>
+                  <FontesOficiais />
+                </RequireAdmin>
+              }
+            />
+            <Route
+              path="/conformidade"
+              element={
+                <RequireAuth>
+                  <Conformidade />
+                </RequireAuth>
+              }
+            />
+            <Route
               path="/legislacao-recente"
               element={
                 <RequireAuth>
