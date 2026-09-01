@@ -18,6 +18,6 @@
 - [x] Mover vários diplomas de um descritor para outro (multi-seleção)
 - [x] Eliminar descritores/subdescritores (diplomas mantidos na biblioteca)
 - [x] Retirar diplomas do cliente e corrigir aplicabilidades em massa
-- [ ] Importar página a página o restante da lista exaustiva (PDF SIAWISE), corrigindo quebras de página falhadas pelo parser
-- [ ] Corrigir/validar URLs de todos os diplomas carregados
-- [ ] Importar requisitos via URL depois de os URLs estarem corrigidos
+- [x] Importar página a página o restante da lista exaustiva (PDF SIAWISE), corrigindo quebras de página falhadas pelo parser (773 entradas, +198 diplomas novos)
+- [x] Corrigir/validar URLs dos diplomas carregados (restam 5 sem link)
+- [~] Importar requisitos via URL (jobs em curso em segundo plano)
