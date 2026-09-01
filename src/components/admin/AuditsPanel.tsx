@@ -76,6 +76,7 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
         description: form.description || null,
         auditor: form.auditor || null,
         audit_date: form.audit_date || null,
+        audit_type: form.audit_type,
         created_by: user?.id,
         status: "planned",
       });
@@ -83,9 +84,10 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
       if (error) throw error;
 
       toast({ title: "Auditoria criada", description: "A auditoria foi criada com sucesso" });
-      setForm({ organization_id: "", title: "", description: "", auditor: "", audit_date: "" });
+      setForm({ organization_id: "", title: "", description: "", auditor: "", audit_date: "", audit_type: "anual" });
       setOpen(false);
       onCreated();
+
     } catch (error) {
       console.error("Error creating audit:", error);
       toast({ title: "Erro", description: "Não foi possível criar a auditoria", variant: "destructive" });
