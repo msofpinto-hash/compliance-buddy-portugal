@@ -302,8 +302,25 @@ async function scrapeUrl(url: string, firecrawlApiKey: string): Promise<{ markdo
       
       console.log(`⚠️ All direct fetch attempts failed to get PT content, falling back to Firecrawl...`);
     }
-    
+
+    // For DRE: the detail page is a JS-only SPA — use the official PDF instead
+    const dreMatch = formattedUrl.match(/diariodarepublica\.pt\/dr\/(?:detalhe|lexionario)\/([^\/]+)\/([\w-]+)-(\d{4})-(\d+)/i);
+    if (dreMatch) {
+      try {
+        const pdfText = await fetchDrePdfText(dreMatch[4]);
+        if (pdfText && pdfText.length > 1000) {
+          const designation = `${dreMatch[1].replace(/-/g, ' ')} n.º ${dreMatch[2].toUpperCase()}/${dreMatch[3]}`;
+          const sliced = sliceDiploma(pdfText, designation);
+          console.log(`✅ DRE PDF text: ${sliced.length} chars`);
+          return { markdown: sliced, html: '', language: 'portuguese' };
+        }
+      } catch (e) {
+        console.log('⚠️ DRE PDF fetch failed:', e instanceof Error ? e.message : e);
+      }
+    }
+
     // Fallback to Firecrawl for non-EUR-Lex or if direct fetch failed
+
     for (const tryUrl of urlsToTry) {
       console.log(`🔍 Firecrawl scraping (attempt ${urlsToTry.indexOf(tryUrl) + 1}/${urlsToTry.length}):`, tryUrl);
 
