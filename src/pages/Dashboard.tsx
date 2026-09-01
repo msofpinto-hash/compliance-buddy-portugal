@@ -1516,24 +1516,18 @@ export default function Dashboard() {
           {activeTab === "indicators" && (
             <div className="space-y-6">
               {/* Hero Header - I&D Warm Corporate Style */}
-              {/* Indicators Hero */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-white via-emerald-50/30 to-amber-50/20 dark:from-[#1a1512] dark:via-emerald-950/20 dark:to-amber-950/10 border border-stone-200/60 dark:border-amber-900/30 p-6 lg:p-8"
-              >
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-600 via-amber-500 to-orange-500" />
-                <div className="relative z-10 pl-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-amber-100/80 dark:from-emerald-800/50 dark:to-amber-800/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-700/40">
-                      <BarChart3 className="h-3.5 w-3.5" />
-                      Indicadores
-                    </span>
-                  </div>
-                  <h1 className="text-2xl font-semibold text-stone-800 dark:text-white">Indicadores de Desempenho</h1>
-                  <p className="text-stone-600 dark:text-amber-100/70 text-sm mt-1">Métricas calculadas com base nos dados reais da sua organização</p>
-                </div>
-              </motion.div>
+              <IDHeroSection
+                title="Indicadores de Desempenho"
+                subtitle="Métricas calculadas com base nos dados reais da sua organização"
+                badge="Indicadores"
+                icon={BarChart3}
+                stats={[
+                  { label: "Conformidade", value: `${complianceRate}%` },
+                  { label: "Planos", value: actionPlans?.length || 0 },
+                  { label: "Auditorias", value: audits?.length || 0 },
+                ]}
+              />
+
               
               {/* Real KPI Cards */}
               <div className="grid gap-4 md:grid-cols-3">
