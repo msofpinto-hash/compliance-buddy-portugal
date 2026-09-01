@@ -55,7 +55,9 @@ import {
   Trash2,
   type LucideIcon
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FolderTree as FolderTreeIcon } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
