@@ -85,3 +85,4 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 
 - [ ] Cliente com o mesmo dashboard visual (imagens/cores) do admin
 - [x] Admin pica aplicabilidade na Biblioteca do cliente
+- [ ] Admin pode eliminar/substituir anexos das auditorias
