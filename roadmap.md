@@ -50,4 +50,9 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [x] Excluir ficheiros Word dos anexos
 
 ## Auditorias
-- [ ] Substituir "Plano de auditorias" por calendário (semanal/mensal/anual) com datas planeadas vs executadas
+- [x] Substituir "Plano de auditorias" por calendário (semanal/mensal/anual) com datas planeadas vs executadas
+- [x] Calendário com datas reais 2025/2026 (planeado = executado)
+- [ ] Importar documentação real da AMCOR para cada auditoria (substituir ficheiros de exemplo)
+
+## Evidências (2026-09-01)
+- [ ] Criar pedidos de evidência reais para a AMCOR a partir dos ficheiros Pedidos - A / Pedidos - S
