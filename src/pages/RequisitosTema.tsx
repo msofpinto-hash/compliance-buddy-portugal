@@ -126,15 +126,24 @@ export default function RequisitosTema() {
       const counts: Record<string, number> = {};
       const applicability: Record<string, string> = {};
 
+      const PAGE = 1000;
       for (let i = 0; i < ids.length; i += 300) {
         const slice = ids.slice(i, i + 300);
-        const { data: reqs, error: reqError } = await supabase
-          .from("legal_requirements")
-          .select("legislation_id")
-          .in("legislation_id", slice)
-          .range(0, 49999);
-        if (reqError) throw reqError;
-        for (const r of reqs || []) counts[r.legislation_id] = (counts[r.legislation_id] || 0) + 1;
+
+        // PostgREST limita cada resposta a 1000 linhas -> paginar até esgotar
+        let from = 0;
+        while (true) {
+          const { data: reqs, error: reqError } = await supabase
+            .from("legal_requirements")
+            .select("legislation_id")
+            .in("legislation_id", slice)
+            .order("legislation_id", { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (reqError) throw reqError;
+          for (const r of reqs || []) counts[r.legislation_id] = (counts[r.legislation_id] || 0) + 1;
+          if (!reqs || reqs.length < PAGE) break;
+          from += PAGE;
+        }
 
         if (activeOrgId) {
           const { data: apps, error: appError } = await supabase
@@ -148,6 +157,7 @@ export default function RequisitosTema() {
           }
         }
       }
+
 
       return { categories, byCategory, counts, applicability };
     },
