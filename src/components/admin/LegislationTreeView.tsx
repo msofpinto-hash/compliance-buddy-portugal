@@ -919,6 +919,38 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               <ArrowLeftRight className="h-3.5 w-3.5" />
             </button>
           )}
+
+          {editableOrganizationId && (
+            <button
+              className={`p-1 rounded shrink-0 transition-colors ${
+                isSelected ? 'hover:bg-white/30' : 'hover:bg-accent text-muted-foreground'
+              }`}
+              title="Renomear descritor"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryToRename(node.category);
+                setRenameValue(node.category.name);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {editableOrganizationId && (
+            <button
+              className={`p-1 rounded shrink-0 transition-colors text-destructive ${
+                isSelected ? 'hover:bg-white/30' : 'hover:bg-accent'
+              }`}
+              title="Eliminar descritor"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryToDelete(node.category);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+
         </div>
         
 
