@@ -18,6 +18,7 @@ import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
 import LegislacaoRecente from "./pages/LegislacaoRecente";
 import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
+import Diplomas from "./pages/Diplomas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,14 @@ const App = () => (
                 <RequireAuth>
                   <Settings />
                 </RequireAuth>
+              }
+            />
+            <Route
+              path="/diplomas"
+              element={
+                <RequireAdmin>
+                  <Diplomas />
+                </RequireAdmin>
               }
             />
             <Route
