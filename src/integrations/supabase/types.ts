@@ -360,6 +360,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           audit_date: string | null
+          audit_type: string
           auditor: string | null
           created_at: string
           created_by: string | null
@@ -386,6 +387,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           audit_date?: string | null
+          audit_type?: string
           auditor?: string | null
           created_at?: string
           created_by?: string | null
@@ -412,6 +414,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           audit_date?: string | null
+          audit_type?: string
           auditor?: string | null
           created_at?: string
           created_by?: string | null
