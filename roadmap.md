@@ -25,4 +25,4 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 
 ## Fontes externas (2026-09-01)
 - [x] Marcar dre.pt e EUR-Lex como fontes oficiais aprovadas (painel + extração)
-- [ ] Scan de segurança completo e correção das falhas remanescentes
+- [x] Scan de segurança completo e correção das falhas remanescentes (edge functions autenticadas, gatilhos de âmbito, permissões de RPC)
