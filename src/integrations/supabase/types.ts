@@ -1710,6 +1710,7 @@ export type Database = {
         Returns: number
       }
       count_short_summaries: { Args: never; Returns: number }
+      get_diplomas_progress_stats: { Args: never; Returns: Json }
       get_generic_title_ids: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {

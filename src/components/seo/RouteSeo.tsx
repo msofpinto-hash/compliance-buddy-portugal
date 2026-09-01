@@ -27,6 +27,11 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Consulte a biblioteca de diplomas legais nacionais e europeus, organizada por temas, categorias e requisitos aplicáveis.",
   },
+  "/progresso": {
+    title: "Progresso da Base Legal | ID Compliance",
+    description:
+      "Gráficos em tempo real do progresso da base legal: diplomas por origem, categorias atribuídas, ligações europeias e relações mapeadas.",
+  },
   "/diplomas": {
     title: "Diplomas e Dados em Falta | ID Compliance",
     description:
