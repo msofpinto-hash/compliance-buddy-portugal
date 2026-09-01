@@ -38,3 +38,4 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 ## AMCOR — âmbito temático (2026-09-01)
 - [ ] Limitar visibilidade aos temas Ambiente e SST para a AMCOR
 - [ ] Corrigir dados (categorias, requisitos, relações) apenas nesses temas
+- [x] Biblioteca: mostrar apenas os temas atribuídos à organização do cliente
