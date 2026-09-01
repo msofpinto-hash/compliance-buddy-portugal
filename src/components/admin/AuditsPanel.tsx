@@ -126,6 +126,18 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
             </Select>
           </div>
           <div className="space-y-2">
+            <Label htmlFor="audit_type">Tipo de auditoria *</Label>
+            <Select value={form.audit_type} onValueChange={(v) => setForm({ ...form, audit_type: v })}>
+              <SelectTrigger id="audit_type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="anual">Auditoria de conformidade legal anual</SelectItem>
+                <SelectItem value="mensal">Verificação de conformidade legal mensal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="title">Título *</Label>
             <Input
               id="title"
@@ -134,6 +146,7 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
               placeholder="Ex: Auditoria Ambiental Q1 2026"
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>
             <Textarea
