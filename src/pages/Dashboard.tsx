@@ -62,7 +62,7 @@ import { TechWelcomeHero } from "@/components/client/TechWelcomeHero";
 import { TechModuleCard } from "@/components/client/TechModuleCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { IDBackground, IDHeroSection, IDCard } from "@/components/client/IDBackground";
-import { IDSidebar } from "@/components/client/IDSidebar";
+import { IDTopNav } from "@/components/client/IDTopNav";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
