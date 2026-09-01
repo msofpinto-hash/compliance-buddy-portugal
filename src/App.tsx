@@ -21,6 +21,7 @@ import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
 import Diplomas from "./pages/Diplomas";
 import Progresso from "./pages/Progresso";
+import PoliticaIA from "./pages/PoliticaIA";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/politica-ia" element={<PoliticaIA />} />
 
             <Route
               path="/biblioteca"

@@ -87,6 +87,59 @@ export type Database = {
           },
         ]
       }
+      ai_usage_log: {
+        Row: {
+          auto_applied: boolean
+          created_at: string
+          human_validated: boolean
+          id: string
+          input_summary: string | null
+          legislation_id: string | null
+          model: string | null
+          operation: string
+          output_summary: string | null
+          triggered_by: string | null
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          auto_applied?: boolean
+          created_at?: string
+          human_validated?: boolean
+          id?: string
+          input_summary?: string | null
+          legislation_id?: string | null
+          model?: string | null
+          operation: string
+          output_summary?: string | null
+          triggered_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          auto_applied?: boolean
+          created_at?: string
+          human_validated?: boolean
+          id?: string
+          input_summary?: string | null
+          legislation_id?: string | null
+          model?: string | null
+          operation?: string
+          output_summary?: string | null
+          triggered_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_log_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           created_at: string

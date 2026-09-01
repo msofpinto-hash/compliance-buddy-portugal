@@ -16,6 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Loader2, Check, AlertCircle, X, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AIDisclaimer, AIBadge } from "@/components/ai/AIBadge";
+import { logAiUsage } from "@/lib/aiAudit";
 import { useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -102,6 +104,13 @@ export function AISuggestCategoriesDialog({
       setSelectedToAdd(new Set(newSuggestions.map((s: SuggestedCategory) => s.id)));
       setHasFetched(true);
 
+      void logAiUsage({
+        operation: "suggest_categories",
+        legislationId: legislation.id,
+        inputSummary: `${legislation.number} - ${legislation.title}`,
+        outputSummary: newSuggestions.map((c: SuggestedCategory) => c.name).join(", ") || "sem sugestões",
+      });
+
       if (newSuggestions.length === 0 && data.suggestions?.length > 0) {
         toast.info("Todas as categorias sugeridas já estão atribuídas");
       }
@@ -178,6 +187,14 @@ export function AISuggestCategoriesDialog({
       if (selectedToRemove.size > 0) actions.push(`${selectedToRemove.size} removida(s)`);
       if (selectedToAdd.size > 0) actions.push(`${selectedToAdd.size} adicionada(s)`);
       
+      void logAiUsage({
+        operation: "suggest_categories",
+        legislationId: legislation.id,
+        inputSummary: `${legislation.number} - ${legislation.title}`,
+        outputSummary: `Validação humana: ${actions.join(", ")}`,
+        humanValidated: true,
+      });
+
       toast.success(`Categorias atualizadas: ${actions.join(", ")}`);
       queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
       onOpenChange(false);
@@ -215,6 +232,7 @@ export function AISuggestCategoriesDialog({
             {legislation?.number} - {legislation?.title?.substring(0, 80)}
             {(legislation?.title?.length || 0) > 80 ? "..." : ""}
           </DialogDescription>
+          <AIDisclaimer className="pt-1" />
         </DialogHeader>
 
         <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">

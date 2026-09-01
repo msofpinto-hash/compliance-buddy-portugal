@@ -12,6 +12,11 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Plataforma portuguesa de gestão de conformidade legal: legislação atualizada, requisitos, auditorias e planos de ação num só lugar.",
   },
+  "/politica-ia": {
+    title: "Política de Utilização de IA | ID Compliance",
+    description:
+      "Como a ID Compliance utiliza inteligência artificial: finalidades, transparência, supervisão humana e conformidade com o Regulamento (UE) 2024/1689.",
+  },
   "/auth": {
     title: "Aceder à Plataforma | ID Compliance",
     description:
