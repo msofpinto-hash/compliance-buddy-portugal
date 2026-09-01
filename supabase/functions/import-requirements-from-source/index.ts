@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { requireAdmin } from "../_shared/adminGuard.ts";
+import { fetchDrePdfText, sliceDiploma, cleanDreText } from "../_shared/drePdfText.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -261,13 +263,27 @@ Deno.serve(async (req) => {
         const docYear = dreMatch[3]; // e.g., "2007"
         const dreId = dreMatch[4]; // The numeric ID at the end
         console.log(`[v2] DRE document: type=${docType}, number=${docNumber}, year=${docYear}, id=${dreId}`);
-        
+
+        // Attempt 0: official DRE PDF (the only reliable full-text source)
+        try {
+          const pdfText = await fetchDrePdfText(dreId);
+          if (pdfText && pdfText.length > 400) {
+            const designation = `${docType.replace(/-/g, ' ')} n.º ${docNumber.toUpperCase()}/${docYear}`;
+            contentToProcess = sliceDiploma(pdfText, designation);
+            scrapeSuccess = contentToProcess.length > 400;
+            console.log('[v2] DRE PDF text length:', contentToProcess.length);
+          }
+        } catch (pdfError) {
+          console.log('[v2] DRE PDF error:', pdfError instanceof Error ? pdfError.message : 'unknown');
+        }
+
         // Try multiple API endpoints
-        const apiEndpoints = [
+        const apiEndpoints = scrapeSuccess ? [] : [
           `https://dre.pt/dr/api/diploma/${dreId}`,
           `https://dre.pt/opendata/document/${dreId}`,
           `https://dre.pt/dr/api/textoIntegral/${dreId}`,
         ];
+
         
         for (const endpoint of apiEndpoints) {
           if (scrapeSuccess) break;
@@ -313,9 +329,11 @@ Deno.serve(async (req) => {
               } else if (contentType.includes('text/html')) {
                 let html = await apiResponse.text();
                 console.log('[v2] API returned HTML, length:', html.length);
-                
-                // Extract text from HTML
-                if (html.length > 100) {
+
+                // Reject the OutSystems SPA shell (always ~2.3KB, no real content)
+                const isSpaShell = /window\.OutSystems|__OSVSTATE/i.test(html) || html.length < 5000;
+
+                if (!isSpaShell) {
                   contentToProcess = html
                     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
                     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -324,11 +342,15 @@ Deno.serve(async (req) => {
                     .replace(/&amp;/g, '&')
                     .replace(/\n{3,}/g, '\n\n')
                     .trim();
+                  contentToProcess = cleanDreText(contentToProcess);
                   console.log('[v2] Extracted text from HTML, length:', contentToProcess.length);
-                  scrapeSuccess = contentToProcess.length > 500;
+                  scrapeSuccess = contentToProcess.length > 1000 && /artigo/i.test(contentToProcess);
+                } else {
+                  console.log('[v2] Ignoring SPA shell response');
                 }
               }
             }
+
           } catch (apiError) {
             console.log('[v2] API error:', apiError instanceof Error ? apiError.message : 'unknown');
           }
@@ -372,21 +394,16 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Attempt 3: Try PDF URL for DRE documents
+      // Attempt 3: DRE official PDF (retry if earlier attempts consumed the flow)
       if (!scrapeSuccess && dreMatch) {
-        const dreId = dreMatch[4];
-        const pdfUrl = `https://files.dre.pt/1s/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${dreId}.pdf`;
-        console.log('DRE content not available, suggesting PDF alternative');
-        
-        // We can't easily extract from PDFs, so provide a helpful error
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Este diploma recente ainda não está disponível para extração automática. Por favor, aceda ao documento em ${url}, copie o texto integral e cole-o na aba "Colar Texto".`
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        const pdfText = await fetchDrePdfText(dreMatch[4]);
+        if (pdfText && pdfText.length > 400) {
+          contentToProcess = pdfText;
+          scrapeSuccess = true;
+        }
       }
+
+
 
       // If all methods failed
       if (!scrapeSuccess || contentToProcess.length < 50) {

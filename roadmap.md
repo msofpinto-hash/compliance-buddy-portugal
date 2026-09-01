@@ -10,3 +10,5 @@
 - [x] NÃO apagar descritores nem subdescritores (temas e categorias mantidos)
 - [x] Exportação Excel passa a ler diretamente da base de dados (aplicáveis + requisitos por tema)
 - [x] Biblioteca: aplicar aplicabilidade em massa aos diplomas do descritor/subdescritor selecionado
+- [x] Extração de requisitos DRE via PDF oficial (sem Firecrawl)
+- [x] Fusão de descritores Nacional/Comunitário num único descritor por nome
