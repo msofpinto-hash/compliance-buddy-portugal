@@ -392,7 +392,24 @@ export function ImportRequirementsDialog({
                   )}
                   Extrair Requisitos do URL
                 </Button>
+                {pdfFallbackUrl && (
+                  <div className="rounded-md border border-border bg-muted/40 p-3 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Este diploma está publicado apenas como imagem digitalizada. Abra o PDF oficial,
+                      copie o texto e cole-o na aba "Colar Texto".
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(pdfFallbackUrl, "_blank", "noopener,noreferrer")}
+                    >
+                      Abrir PDF oficial
+                    </Button>
+                  </div>
+                )}
               </div>
+
             ) : (
               <RequirementsPreview
                 requirements={extractedRequirements}
