@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Building2, Users, BookOpen, Upload } from "lucide-react";
+import { Settings, Building2, Users, BookOpen, Upload, Sparkles } from "lucide-react";
 import { BibliotecaPanel } from "@/components/admin/BibliotecaPanel";
+import { AIUsageLogPanel } from "@/components/admin/AIUsageLogPanel";
+import { AILiteracyNotice } from "@/components/ai/AILiteracyNotice";
 import { ClientsPanel } from "@/components/admin/ClientsPanel";
 import { UsersApprovalPanel } from "@/components/admin/UsersApprovalPanel";
 import { UploadLegislationPanel } from "@/components/admin/UploadLegislationPanel";
@@ -19,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useBackgroundJobNotifications } from "@/hooks/useBackgroundJobNotifications";
 
-const validTabs = ["biblioteca", "carregar", "clients", "users"];
+const validTabs = ["biblioteca", "carregar", "clients", "users", "ia"];
 
 const Admin = () => {
   const { user, signOut } = useAuth();
@@ -99,6 +101,10 @@ const Admin = () => {
                 <span className="hidden sm:inline">Utilizadores</span>
                 <span className="sr-only sm:hidden">Utilizadores</span>
               </TabsTrigger>
+              <TabsTrigger value="ia" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                <span>IA</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -123,8 +129,13 @@ const Admin = () => {
           <TabsContent value="users">
             <UsersApprovalPanel />
           </TabsContent>
+
+          <TabsContent value="ia">
+            <AIUsageLogPanel />
+          </TabsContent>
         </Tabs>
       </main>
+      <AILiteracyNotice />
     </div>
   );
 };
