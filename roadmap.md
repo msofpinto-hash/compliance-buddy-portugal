@@ -55,4 +55,5 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [ ] Importar documentação real da AMCOR para cada auditoria (substituir ficheiros de exemplo)
 
 ## Evidências (2026-09-01)
-- [ ] Criar pedidos de evidência reais para a AMCOR a partir dos ficheiros Pedidos - A / Pedidos - S
+- [x] Criar pedidos de evidência reais para a AMCOR a partir dos ficheiros Pedidos - A / Pedidos - S
+- [ ] Página de evidências: lista por auditoria com evidências já atribuídas e em falta
