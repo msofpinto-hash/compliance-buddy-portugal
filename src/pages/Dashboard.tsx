@@ -97,7 +97,8 @@ import moduleDocuments from "@/assets/module-documents-new.jpg";
 import auditHero from "@/assets/audit-hero.png";
 import evidenceHero from "@/assets/evidence-hero.png";
 import indicatorsHero from "@/assets/indicators-hero.png";
-import logoIdCompliance from "@/assets/logo-id-compliance.png";
+import logoIdAsset from "@/assets/id-logo-2026.png.asset.json";
+const logoIdCompliance = logoIdAsset.url;
 import heroVideo from "@/assets/hero-background.mp4";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
