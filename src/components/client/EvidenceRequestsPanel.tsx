@@ -85,6 +85,7 @@ import {
   ExportColumn,
 } from "@/components/ExportColumnsDialog";
 import { cn } from "@/lib/utils";
+import { AuditEvidenceOverview } from "@/components/client/AuditEvidenceOverview";
 
 interface EvidenceRequest {
   id: string;
@@ -170,6 +171,10 @@ const AREA_CONFIG = {
     color: "bg-teal-100 text-teal-800",
   },
 };
+
+/** Apenas os temas contratados pela organização (Ambiente e SST) são visíveis. */
+const VISIBLE_AREAS = ["area_ambiente", "area_seguranca"] as const;
+
 
 const STATUS_CONFIG = {
   pending: {
@@ -459,6 +464,11 @@ export function EvidenceRequestsPanel({
 
     const matchesStatus = !statusFilter || r.status === statusFilter;
 
+    // Só mostrar pedidos dos temas Ambiente e SST
+    const isVisibleTheme = VISIBLE_AREAS.some(
+      (area) => r.evidence_templates[area] === true,
+    );
+
     const matchesArea =
       areaFilters.length === 0 ||
       areaFilters.some(
@@ -467,7 +477,7 @@ export function EvidenceRequestsPanel({
           true,
       );
 
-    return matchesSearch && matchesStatus && matchesArea;
+    return matchesSearch && matchesStatus && matchesArea && isVisibleTheme;
   });
 
   const toggleAreaFilter = (area: string) => {
@@ -487,12 +497,16 @@ export function EvidenceRequestsPanel({
     {} as Record<string, EvidenceRequest[]>,
   );
 
-  // Calculate stats
+  // Calculate stats (apenas temas visíveis: Ambiente e SST)
+  const themeRequests = requests?.filter((r) =>
+    VISIBLE_AREAS.some((area) => r.evidence_templates[area] === true),
+  );
   const stats = {
-    total: requests?.length || 0,
-    pending: requests?.filter((r) => r.status === "pending").length || 0,
-    submitted: requests?.filter((r) => r.status === "submitted").length || 0,
-    approved: requests?.filter((r) => r.status === "approved").length || 0,
+    total: themeRequests?.length || 0,
+    pending: themeRequests?.filter((r) => r.status === "pending").length || 0,
+    submitted:
+      themeRequests?.filter((r) => r.status === "submitted").length || 0,
+    approved: themeRequests?.filter((r) => r.status === "approved").length || 0,
   };
 
   const progressPercentage =
@@ -755,37 +769,44 @@ export function EvidenceRequestsPanel({
             </Select>
           </div>
 
-          {/* Theme multi-select filters */}
+          {/* Theme multi-select filters (apenas Ambiente e SST) */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground ">
               Filtrar por temas:
             </Label>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(AREA_CONFIG).map(([key, config]) => {
+              {VISIBLE_AREAS.map((key) => {
+                const config = AREA_CONFIG[key];
                 const IconComponent = config.icon;
                 const isSelected = areaFilters.includes(key);
+                const count =
+                  themeRequests?.filter((r) => r.evidence_templates[key])
+                    .length || 0;
                 return (
-                  <Badge
+                  <button
                     key={key}
-                    variant={isSelected ? "default" : "outline"}
-                    className={cn(
-                      "cursor-pointer transition-colors",
-                      isSelected
-                        ? config.color
-                        : "hover:bg-accent border-border ",
-                    )}
+                    type="button"
                     onClick={() => toggleAreaFilter(key)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-all",
+                      isSelected
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border bg-background text-muted-foreground hover:bg-accent",
+                    )}
                   >
-                    <IconComponent className="h-3 w-3 mr-1" />
+                    <IconComponent className="h-3.5 w-3.5" />
                     {config.label}
-                  </Badge>
+                    <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold text-foreground/70">
+                      {count}
+                    </span>
+                  </button>
                 );
               })}
               {areaFilters.length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs text-primary hover:bg-accent "
+                  className="h-8 px-2 text-xs text-primary hover:bg-accent "
                   onClick={() => setAreaFilters([])}
                 >
                   Limpar filtros
@@ -803,7 +824,7 @@ export function EvidenceRequestsPanel({
               </span>{" "}
               de{" "}
               <span className="font-medium text-foreground dark:text-white">
-                {requests?.length || 0}
+                {themeRequests?.length || 0}
               </span>{" "}
               pedido(s)
             </p>
@@ -846,6 +867,9 @@ export function EvidenceRequestsPanel({
         description={`Selecione as colunas para exportar ${filteredRequests?.length || 0} pedido(s).`}
       />
 
+      {/* Evidências por auditoria */}
+      <AuditEvidenceOverview organizationId={organizationId} />
+
       {/* Requests List */}
       {loadingRequests ? (
         <div className="space-y-4">
@@ -854,14 +878,24 @@ export function EvidenceRequestsPanel({
           ))}
         </div>
       ) : (
-        <ScrollArea className="h-[500px]">
-          <div className="space-y-2">
+        <ScrollArea className="h-[600px] pr-3">
+          <div className="space-y-3">
             {Object.entries(groupedRequests || {}).map(
               ([groupName, groupRequests]) => {
                 const isExpanded = expandedGroups.has(groupName);
                 const pendingCount = groupRequests.filter(
                   (r) => r.status === "pending",
                 ).length;
+                const doneCount = groupRequests.length - pendingCount;
+                const groupPct = Math.round(
+                  (doneCount / groupRequests.length) * 100,
+                );
+                const groupArea = VISIBLE_AREAS.find(
+                  (a) => groupRequests[0]?.evidence_templates[a] === true,
+                );
+                const GroupIcon = groupArea
+                  ? AREA_CONFIG[groupArea].icon
+                  : FolderOpen;
 
                 return (
                   <Collapsible
@@ -869,30 +903,42 @@ export function EvidenceRequestsPanel({
                     open={isExpanded}
                     onOpenChange={() => toggleGroup(groupName)}
                   >
-                    <Card>
-                      <CardHeader className="p-4">
+                    <Card className="overflow-hidden border-0 shadow-md">
+                      <CardHeader className="p-0">
                         <CollapsibleTrigger asChild>
-                          <button className="w-full flex items-center gap-2 text-left hover:bg-accent/50 -m-2 p-2 rounded-lg transition-colors">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <div className="flex-1">
-                              <h3 className="font-medium">{groupName}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {groupRequests.length} pedidos
+                          <button className="w-full flex items-center gap-3 text-left p-4 hover:bg-accent/40 transition-colors">
+                            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                              <GroupIcon className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold truncate">
+                                {groupName}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                {groupRequests.length} pedidos • {doneCount}{" "}
+                                tratados
                                 {pendingCount > 0 &&
                                   ` • ${pendingCount} pendentes`}
+                              </p>
+                            </div>
+                            <div className="hidden sm:block w-32">
+                              <Progress value={groupPct} className="h-2" />
+                              <p className="mt-1 text-right text-[11px] font-semibold text-primary">
+                                {groupPct}%
                               </p>
                             </div>
                             {pendingCount > 0 && (
                               <Badge
                                 variant="secondary"
-                                className="bg-orange-100 text-orange-800"
+                                className="shrink-0 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15"
                               >
                                 {pendingCount} por responder
                               </Badge>
+                            )}
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                             )}
                           </button>
                         </CollapsibleTrigger>
