@@ -99,6 +99,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
             <img
               src={currentOrg?.logo_url || logoId.url}
               alt={currentOrg?.logo_url ? currentOrg.name : "I&D Compliance Lex"}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = logoId.url; }}
               className="h-9 lg:h-10 w-auto max-w-[210px] object-contain object-left"
             />
           </Link>
@@ -173,7 +174,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
                   {item.label}
                   {count !== undefined && count > 0 && (
                     <Badge className="ml-1 h-5 px-1.5 text-[11px] bg-amber-100 dark:bg-amber-800/40 text-amber-800 dark:text-amber-200 border-0">
-                      {count}
+                      {count > 99 ? "99+" : count}
                     </Badge>
                   )}
                   <span
