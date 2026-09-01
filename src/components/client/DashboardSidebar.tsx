@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
-import logoIdAsset from "@/assets/id-logo-2026.png.asset.json";
+import logoIdAsset from "@/assets/id-compliance-lex.png.asset.json";
 const logoIdCompliance = logoIdAsset.url;
 import { 
   Settings, 
