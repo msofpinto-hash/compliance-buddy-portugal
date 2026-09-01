@@ -47,11 +47,20 @@ const App = () => (
             <Route
               path="/biblioteca"
               element={
-                <RequireAdmin>
+                <RequireAuth>
                   <Biblioteca />
-                </RequireAdmin>
+                </RequireAuth>
               }
             />
+            <Route
+              path="/aprovacoes"
+              element={
+                <RequireAuth>
+                  <Aprovacoes />
+                </RequireAuth>
+              }
+            />
+
             <Route
               path="/legislacao/:id"
               element={
