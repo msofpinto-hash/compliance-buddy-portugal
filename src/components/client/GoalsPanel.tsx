@@ -97,6 +97,82 @@ export function GoalsPanel({ organizationId }: { organizationId?: string | null 
     enabled: !!organizationId,
   });
 
+  // Live metrics computed from real audits, action plans, compliance and evidence data
+  const { data: metrics } = useQuery({
+    queryKey: ["organization-goal-metrics", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return {} as Record<string, number>;
+      const year = new Date().getFullYear();
+      const [apps, plans, auditsRes, evidences] = await Promise.all([
+        supabase
+          .from("applicabilities")
+          .select("is_applicable, compliance_status")
+          .eq("organization_id", organizationId),
+        supabase
+          .from("action_plans")
+          .select("status, due_date")
+          .eq("organization_id", organizationId),
+        supabase
+          .from("audits")
+          .select("status, audit_type, audit_date")
+          .eq("organization_id", organizationId),
+        supabase
+          .from("organization_evidence_requests")
+          .select("status")
+          .eq("organization_id", organizationId),
+      ]);
+
+      const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+
+      const applicable = (apps.data || []).filter(
+        (a) => a.is_applicable && a.compliance_status !== "nao_aplicavel",
+      );
+      const evaluated = applicable.filter((a) => !!a.compliance_status);
+      const conformes = applicable.filter((a) => a.compliance_status === "conforme");
+
+      const allPlans = plans.data || [];
+      const activePlans = allPlans.filter((p) => p.status !== "cancelado");
+      const donePlans = allPlans.filter((p) => p.status === "concluido");
+      const today = new Date().toISOString().slice(0, 10);
+      const overdue = activePlans.filter(
+        (p) => p.status !== "concluido" && p.due_date && p.due_date < today,
+      );
+
+      const monthly = (auditsRes.data || []).filter(
+        (a) =>
+          (a.audit_type || "anual") === "mensal" &&
+          a.status === "closed" &&
+          a.audit_date &&
+          new Date(a.audit_date).getFullYear() === year,
+      );
+
+      const allEvidence = evidences.data || [];
+      const answered = allEvidence.filter((e) =>
+        ["submetido", "submitted", "aprovado", "approved", "concluido"].includes(
+          e.status,
+        ),
+      );
+
+      return {
+        conformidade_requisitos: pct(conformes.length, applicable.length),
+        requisitos_avaliados: pct(evaluated.length, applicable.length),
+        acoes_concluidas: pct(donePlans.length, activePlans.length),
+        acoes_no_prazo: pct(activePlans.length - overdue.length, activePlans.length),
+        verificacoes_mensais: pct(monthly.length, 12),
+        evidencias_respondidas: pct(answered.length, allEvidence.length),
+      } as Record<string, number>;
+    },
+    enabled: !!organizationId,
+    refetchInterval: 60000,
+  });
+
+  const valueOf = (g: Goal) =>
+    g.auto_metric && metrics && metrics[g.auto_metric] !== undefined
+      ? metrics[g.auto_metric]
+      : g.current_value;
+
+
+
   const saveGoal = useMutation({
     mutationFn: async () => {
       if (!organizationId) throw new Error("Sem organização selecionada");
