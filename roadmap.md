@@ -74,5 +74,5 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 ## Admin edita tudo no portal do cliente
 - [x] Aplicabilidade de diplomas/requisitos editável só por admin (cliente vê)
 - [x] Conformidade: admin edita estado e notas
-- [ ] Calendário de auditorias: clicar no evento abre documentação (pré-visualizar/exportar)
-- [ ] Plano/informação da auditoria editável pelo admin no próprio diálogo
+- [x] Calendário de auditorias: clicar no evento abre documentação (pré-visualizar/exportar)
+- [x] Plano/informação da auditoria editável pelo admin no próprio diálogo
