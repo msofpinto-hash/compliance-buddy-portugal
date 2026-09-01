@@ -11,8 +11,7 @@ import {
   ClipboardList, 
   ClipboardCheck, 
   FolderOpen, 
-  BarChart3,
-  Mountain
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
