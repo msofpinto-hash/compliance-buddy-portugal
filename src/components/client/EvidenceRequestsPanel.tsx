@@ -362,11 +362,13 @@ export function EvidenceRequestsPanel({
     mutationFn: async ({
       requestId,
       file,
+      issueDate,
       validityDate,
       userNotes,
     }: {
       requestId: string;
       file: File;
+      issueDate?: Date;
       validityDate?: Date;
       userNotes?: string;
     }) => {
@@ -387,6 +389,7 @@ export function EvidenceRequestsPanel({
           organization_id: organizationId,
           uploaded_by: user?.id,
           category: "evidence",
+          issue_date: issueDate ? format(issueDate, "yyyy-MM-dd") : null,
           validity_date: validityDate
             ? format(validityDate, "yyyy-MM-dd")
             : null,
@@ -410,30 +413,11 @@ export function EvidenceRequestsPanel({
 
       return doc;
     },
-    onSuccess: () => {
-      toast({
-        title: "Documento carregado",
-        description: "O documento foi adicionado com sucesso.",
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["evidence-request-documents", organizationId],
-      });
-      // Reset form
-      setPendingFile(null);
-      setHasValidity(false);
-      setValidityDate(undefined);
-      setDocumentNotes("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    },
     onError: (error) => {
       console.error("Error uploading document:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar o documento",
-        variant: "destructive",
-      });
     },
   });
+
 
   // Submit evidence mutation
   const submitMutation = useMutation({
