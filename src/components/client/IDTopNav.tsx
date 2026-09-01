@@ -12,6 +12,7 @@ import {
   FolderOpen,
   BarChart3,
   LayoutDashboard,
+  BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -68,6 +69,13 @@ const ALL_MODULES: NavItem[] = [
     href: "/dashboard?tab=documents",
   },
   {
+    id: "aprovacoes",
+    moduleKey: "auditorias",
+    label: "Aprovações",
+    icon: BadgeCheck,
+    href: "/aprovacoes",
+  },
+  {
     id: "indicadores",
     moduleKey: "indicadores",
     label: "Indicadores",
@@ -117,6 +125,8 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
 
   const isItemActive = (item: NavItem) => {
     if (item.id === "legislacao") return location.pathname === "/biblioteca";
+    if (item.id === "aprovacoes") return location.pathname === "/aprovacoes";
+
     if (location.pathname !== "/dashboard") return false;
     if (item.id === "overview") return !tabParam || tabParam === "overview";
     const map: Record<string, string> = {
