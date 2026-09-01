@@ -12,6 +12,7 @@ import { RequireAuth } from "@/components/auth/RequireAuth";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Biblioteca from "./pages/Biblioteca";
 import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
@@ -37,6 +38,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
             <Route
               path="/biblioteca"
               element={
