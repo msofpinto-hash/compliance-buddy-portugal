@@ -1592,7 +1592,14 @@ export default function Dashboard() {
                   <div
                     className={`space-y-4 ${auditSection === "plano" ? "" : "hidden"}`}
                   >
-                    <AuditCalendar audits={typedAudits as any} />
+                    <AuditCalendar
+                      audits={typedAudits as any}
+                      onSelectAudit={(auditId) => {
+                        const found = typedAudits.find((a) => a.id === auditId);
+                        if (found) setViewingAuditPlan(found as any);
+                      }}
+                    />
+
 
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10">
@@ -2457,7 +2464,9 @@ export default function Dashboard() {
         open={!!viewingAuditPlan}
         onOpenChange={(open) => !open && setViewingAuditPlan(null)}
         audit={viewingAuditPlan}
+        canEdit={isAdmin}
       />
+
     </div>
   );
 }

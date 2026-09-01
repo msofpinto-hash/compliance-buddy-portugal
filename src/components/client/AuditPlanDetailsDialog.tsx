@@ -1,5 +1,9 @@
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -7,8 +11,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
 import {
   Calendar,
   User,
@@ -19,87 +27,144 @@ import {
   Building2,
   AlertCircle,
   Crosshair,
+  Save,
 } from "lucide-react";
+
+type AuditPlan = {
+  id: string;
+  title: string;
+  description?: string | null;
+  auditor?: string | null;
+  audit_date?: string | null;
+  status?: string | null;
+  methodology?: string | null;
+  interlocutors?: string | null;
+  scope?: string | null;
+  objectives?: string | null;
+  executive_summary?: string | null;
+  strengths?: string | null;
+  weaknesses?: string | null;
+  plan_approved_at?: string | null;
+};
 
 interface AuditPlanDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  audit: {
-    id: string;
-    title: string;
-    description?: string | null;
-    auditor?: string | null;
-    audit_date?: string | null;
-    status?: string | null;
-    methodology?: string | null;
-    interlocutors?: string | null;
-    scope?: string | null;
-    objectives?: string | null;
-    executive_summary?: string | null;
-    strengths?: string | null;
-    weaknesses?: string | null;
-    plan_approved_at?: string | null;
-  } | null;
+  audit: AuditPlan | null;
+  /** Admins can fill in the plan directly here; clients only read. */
+  canEdit?: boolean;
 }
+
+const EDITABLE_FIELDS: {
+  key: keyof AuditPlan;
+  title: string;
+  icon: typeof Target;
+  description: string;
+  required?: boolean;
+}[] = [
+  {
+    key: "objectives",
+    title: "Objetivos da Auditoria",
+    icon: Crosshair,
+    description: "Objetivos e metas da auditoria",
+    required: true,
+  },
+  {
+    key: "methodology",
+    title: "Metodologia",
+    icon: Target,
+    description: "Metodologia a aplicar na auditoria",
+    required: true,
+  },
+  {
+    key: "scope",
+    title: "Estabelecimentos Abrangidos",
+    icon: Building2,
+    description: "Locais e instalações incluídos no âmbito",
+    required: true,
+  },
+  {
+    key: "interlocutors",
+    title: "Interlocutores",
+    icon: Users,
+    description: "Pessoas a contactar durante a auditoria",
+    required: true,
+  },
+  {
+    key: "executive_summary",
+    title: "Resumo Executivo",
+    icon: FileText,
+    description: "Síntese dos resultados",
+  },
+  {
+    key: "strengths",
+    title: "Pontos Fortes",
+    icon: CheckCircle2,
+    description: "Aspetos positivos identificados",
+  },
+  {
+    key: "weaknesses",
+    title: "Pontos a Melhorar",
+    icon: CheckCircle2,
+    description: "Aspetos a corrigir",
+  },
+];
 
 export function AuditPlanDetailsDialog({
   open,
   onOpenChange,
   audit,
+  canEdit = false,
 }: AuditPlanDetailsDialogProps) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!audit) return;
+    setForm({
+      description: audit.description ?? "",
+      auditor: audit.auditor ?? "",
+      audit_date: audit.audit_date ?? "",
+      objectives: audit.objectives ?? "",
+      methodology: audit.methodology ?? "",
+      scope: audit.scope ?? "",
+      interlocutors: audit.interlocutors ?? "",
+      executive_summary: audit.executive_summary ?? "",
+      strengths: audit.strengths ?? "",
+      weaknesses: audit.weaknesses ?? "",
+    });
+  }, [audit?.id, open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!audit) return;
+      const { error } = await supabase
+        .from("audits")
+        .update({
+          description: form.description || null,
+          auditor: form.auditor || null,
+          audit_date: form.audit_date || null,
+          objectives: form.objectives || null,
+          methodology: form.methodology || null,
+          scope: form.scope || null,
+          interlocutors: form.interlocutors || null,
+          executive_summary: form.executive_summary || null,
+          strengths: form.strengths || null,
+          weaknesses: form.weaknesses || null,
+        })
+        .eq("id", audit.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Plano de auditoria guardado");
+      queryClient.invalidateQueries({ queryKey: ["audits"] });
+    },
+    onError: () => toast.error("Não foi possível guardar o plano"),
+  });
+
   if (!audit) return null;
 
-  // Required fields that should always be visible with placeholder if empty
-  const requiredFields = [
-    {
-      title: "Objetivos da Auditoria",
-      content: audit.objectives,
-      icon: Crosshair,
-      required: true,
-      description: "Objetivos e metas da auditoria",
-    },
-    {
-      title: "Metodologia",
-      content: audit.methodology,
-      icon: Target,
-      required: true,
-      description: "Metodologia a aplicar na auditoria",
-    },
-    {
-      title: "Estabelecimentos Abrangidos",
-      content: audit.scope,
-      icon: Building2,
-      required: true,
-      description: "Locais e instalações incluídos no âmbito",
-    },
-    {
-      title: "Interlocutores",
-      content: audit.interlocutors,
-      icon: Users,
-      required: true,
-      description: "Pessoas a contactar durante a auditoria",
-    },
-  ];
-
-  const additionalSections = [
-    {
-      title: "Resumo Executivo",
-      content: audit.executive_summary,
-      icon: FileText,
-    },
-    {
-      title: "Pontos Fortes",
-      content: audit.strengths,
-      icon: CheckCircle2,
-      className: "text-green-600",
-    },
-    {
-      title: "Pontos a Melhorar",
-      content: audit.weaknesses,
-      icon: CheckCircle2,
-      className: "text-orange-600",
-    },
-  ].filter((s) => s.content);
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,9 +173,8 @@ export function AuditPlanDetailsDialog({
           <DialogTitle className="text-xl">{audit.title}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(85vh-120px)] pr-4">
+        <ScrollArea className="max-h-[calc(85vh-140px)] pr-4">
           <div className="space-y-6">
-            {/* Status and metadata */}
             <div className="flex flex-wrap gap-4 text-sm">
               <Badge
                 variant="outline"
@@ -126,7 +190,9 @@ export function AuditPlanDetailsDialog({
                   ? "Em Curso"
                   : audit.status === "planned"
                     ? "Planeada"
-                    : audit.status}
+                    : audit.status === "closed"
+                      ? "Executada"
+                      : audit.status}
               </Badge>
 
               {audit.plan_approved_at && (
@@ -142,117 +208,145 @@ export function AuditPlanDetailsDialog({
 
             {/* Basic info */}
             <div className="grid gap-4 sm:grid-cols-2">
-              {audit.audit_date && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Data prevista:</span>
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Data:</span>
+                {canEdit ? (
+                  <Input
+                    type="date"
+                    className="h-8 w-[170px]"
+                    value={form.audit_date || ""}
+                    onChange={(e) => set("audit_date", e.target.value)}
+                  />
+                ) : (
                   <span className="font-medium">
-                    {format(
-                      new Date(audit.audit_date),
-                      "d 'de' MMMM 'de' yyyy",
-                      { locale: pt },
-                    )}
+                    {audit.audit_date
+                      ? format(
+                          new Date(audit.audit_date),
+                          "d 'de' MMMM 'de' yyyy",
+                          { locale: pt },
+                        )
+                      : "—"}
                   </span>
-                </div>
-              )}
-              {audit.auditor && (
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Auditor:</span>
-                  <span className="font-medium">{audit.auditor}</span>
-                </div>
-              )}
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Auditor:</span>
+                {canEdit ? (
+                  <Input
+                    className="h-8 flex-1"
+                    value={form.auditor || ""}
+                    onChange={(e) => set("auditor", e.target.value)}
+                  />
+                ) : (
+                  <span className="font-medium">{audit.auditor || "—"}</span>
+                )}
+              </div>
             </div>
 
             {/* Description */}
-            {audit.description && (
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                  Descrição / Âmbito
-                </h3>
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                Descrição / Âmbito
+              </h3>
+              {canEdit ? (
+                <Textarea
+                  rows={3}
+                  value={form.description || ""}
+                  onChange={(e) => set("description", e.target.value)}
+                  placeholder="Descrição da auditoria"
+                />
+              ) : (
                 <p className="text-sm whitespace-pre-wrap">
-                  {audit.description}
+                  {audit.description || "—"}
                 </p>
-              </div>
-            )}
+              )}
+            </div>
 
             <Separator />
 
-            {/* Required fields - always visible */}
+            {/* Plan fields */}
             <div className="space-y-1">
               <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
                 Informação do Plano de Auditoria
               </h3>
-              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
-                {requiredFields.map((field, index) => (
-                  <div
-                    key={index}
-                    className={`rounded-lg border p-4 ${
-                      field.content
-                        ? "bg-card border-border"
-                        : "bg-muted/30 border-dashed border-muted-foreground/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <field.icon
-                        className={`h-4 w-4 ${field.content ? "text-primary" : "text-muted-foreground"}`}
-                      />
-                      <h4 className="font-medium text-sm">
-                        {field.title}
-                        <span className="text-destructive ml-1">*</span>
-                      </h4>
-                    </div>
-                    {field.content ? (
-                      <p className="text-sm whitespace-pre-wrap">
-                        {field.content}
-                      </p>
-                    ) : (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <AlertCircle className="h-3 w-3" />
-                        <span className="text-xs italic">
-                          {field.description}
-                        </span>
+              <div className="grid gap-4 md:grid-cols-2">
+                {EDITABLE_FIELDS.map((field) => {
+                  const value = (audit[field.key] as string | null) ?? "";
+                  if (!canEdit && !value && !field.required) return null;
+                  return (
+                    <div
+                      key={field.key as string}
+                      className={`rounded-lg border p-4 ${
+                        value
+                          ? "bg-card border-border"
+                          : "bg-muted/30 border-dashed border-muted-foreground/30"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <field.icon
+                          className={`h-4 w-4 ${value ? "text-primary" : "text-muted-foreground"}`}
+                        />
+                        <h4 className="font-medium text-sm">
+                          {field.title}
+                          {field.required && (
+                            <span className="text-destructive ml-1">*</span>
+                          )}
+                        </h4>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {canEdit ? (
+                        <Textarea
+                          rows={3}
+                          placeholder={field.description}
+                          value={form[field.key as string] || ""}
+                          onChange={(e) =>
+                            set(field.key as string, e.target.value)
+                          }
+                        />
+                      ) : value ? (
+                        <p className="text-sm whitespace-pre-wrap">{value}</p>
+                      ) : (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <AlertCircle className="h-3 w-3" />
+                          <span className="text-xs italic">
+                            {field.description}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Additional sections */}
-            {additionalSections.length > 0 && (
-              <>
-                <Separator />
-                <div className="space-y-6">
-                  {additionalSections.map((section, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <section.icon
-                          className={`h-4 w-4 ${section.className || "text-primary"}`}
-                        />
-                        <h3 className="font-semibold text-sm uppercase tracking-wide">
-                          {section.title}
-                        </h3>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded-md">
-                        {section.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            <Separator />
 
-            {additionalSections.length === 0 && !audit.description && (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">
-                  Detalhes adicionais ainda não disponíveis
-                </p>
-              </div>
-            )}
+            {/* Documentation */}
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                Documentação associada
+              </h3>
+              <AuditDocumentsList auditId={audit.id} variant="plain" />
+            </div>
           </div>
         </ScrollArea>
+
+        {canEdit && (
+          <div className="flex justify-end gap-2 border-t pt-3">
+            <Button
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={save.isPending}
+            >
+              Fechar
+            </Button>
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              <Save className="mr-1 h-4 w-4" />
+              Guardar plano
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

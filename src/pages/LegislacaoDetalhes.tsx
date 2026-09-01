@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
-import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -140,6 +142,51 @@ export default function LegislacaoDetalhes() {
     enabled: !!user,
   });
 
+  // Admin: escolher a organização em cujo contexto se está a editar
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orgParam = searchParams.get("org");
+  const [adminOrgId, setAdminOrgId] = useState<string | null>(
+    orgParam || sessionStorage.getItem("admin_org_context"),
+  );
+
+  const { data: allOrganizations } = useQuery({
+    queryKey: ["all-organizations-context"],
+    enabled: !!isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (!adminOrgId && allOrganizations?.length) {
+      setAdminOrgId(allOrganizations[0].id);
+    }
+  }, [isAdmin, adminOrgId, allOrganizations]);
+
+  useEffect(() => {
+    if (isAdmin && adminOrgId) {
+      sessionStorage.setItem("admin_org_context", adminOrgId);
+    }
+  }, [isAdmin, adminOrgId]);
+
+  const activeOrganization = useMemo(() => {
+    if (isAdmin) {
+      const found = allOrganizations?.find((o) => o.id === adminOrgId);
+      return found ? { id: found.id, name: found.name } : null;
+    }
+    return (userOrganization as { id: string; name: string } | null) || null;
+  }, [isAdmin, allOrganizations, adminOrgId, userOrganization]);
+
+  const canEditApplicability = !!isAdmin;
+
+
+
   // Fetch legislation details
   const { data: legislation, isLoading, error } = useQuery({
     queryKey: ["legislation-details", id],
@@ -260,13 +307,13 @@ export default function LegislacaoDetalhes() {
 
   // Fetch applicabilities for the user's organization (requirements)
   const { data: applicabilities } = useQuery({
-    queryKey: ["requirement-applicabilities", id, userOrganization?.id],
+    queryKey: ["requirement-applicabilities", id, activeOrganization?.id],
     queryFn: async () => {
-      if (!id || !userOrganization?.id) return {};
+      if (!id || !activeOrganization?.id) return {};
       const { data, error } = await supabase
         .from("applicabilities")
         .select("requirement_id, applicability_type")
-        .eq("organization_id", userOrganization.id);
+        .eq("organization_id", activeOrganization.id);
       if (error) throw error;
       
       // Convert to map for easy lookup
@@ -276,24 +323,24 @@ export default function LegislacaoDetalhes() {
       });
       return map;
     },
-    enabled: !!id && !!userOrganization?.id,
+    enabled: !!id && !!activeOrganization?.id,
   });
 
   // Fetch legislation applicability for the user's organization
   const { data: legislationApplicability } = useQuery({
-    queryKey: ["legislation-applicability", id, userOrganization?.id],
+    queryKey: ["legislation-applicability", id, activeOrganization?.id],
     queryFn: async () => {
-      if (!id || !userOrganization?.id) return null;
+      if (!id || !activeOrganization?.id) return null;
       const { data, error } = await supabase
         .from("organization_legislation")
         .select("id, applicability_type")
         .eq("legislation_id", id)
-        .eq("organization_id", userOrganization.id)
+        .eq("organization_id", activeOrganization.id)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!userOrganization?.id,
+    enabled: !!id && !!activeOrganization?.id,
   });
 
   // Fetch relations (this legislation affects or is affected by)
@@ -675,27 +722,53 @@ export default function LegislacaoDetalhes() {
                 </div>
 
                 {/* Legislation Applicability */}
-                {userOrganization && (
+                {activeOrganization && (
                   <Separator className="my-4" />
                 )}
-                {userOrganization && (
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+                {activeOrganization && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-muted/50 border">
                     <div className="flex items-center gap-3">
                       <Building className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Aplicabilidade do Diploma</p>
                         <p className="text-xs text-muted-foreground">
-                          Classificação para {userOrganization.name}
+                          Classificação para {activeOrganization.name}
                         </p>
                       </div>
                     </div>
-                    <LegislationApplicabilitySelect
-                      legislationId={id!}
-                      organizationId={userOrganization.id}
-                      currentValue={legislationApplicability?.applicability_type || "nao_avaliado"}
-                    />
+                    <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <Select
+                          value={adminOrgId ?? undefined}
+                          onValueChange={(v) => {
+                            setAdminOrgId(v);
+                            const next = new URLSearchParams(searchParams);
+                            next.set("org", v);
+                            setSearchParams(next, { replace: true });
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[220px] text-xs" aria-label="Organização em edição">
+                            <SelectValue placeholder="Selecionar cliente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allOrganizations?.map((o) => (
+                              <SelectItem key={o.id} value={o.id}>
+                                {o.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <LegislationApplicabilitySelect
+                        legislationId={id!}
+                        organizationId={activeOrganization.id}
+                        currentValue={legislationApplicability?.applicability_type || "nao_avaliado"}
+                        readOnly={!canEditApplicability}
+                      />
+                    </div>
                   </div>
                 )}
+
               </CardContent>
             </Card>
 
@@ -714,10 +787,10 @@ export default function LegislacaoDetalhes() {
                   </div>
                   <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
                 </div>
-                {userOrganization && (
+                {activeOrganization && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-2">
                     <Building className="h-4 w-4" />
-                    <span>Classificando para: <strong className="text-foreground">{userOrganization.name}</strong></span>
+                    <span>Classificando para: <strong className="text-foreground">{activeOrganization.name}</strong></span>
                   </div>
                 )}
               </CardHeader>
@@ -744,12 +817,14 @@ export default function LegislacaoDetalhes() {
                                     <p className="text-sm font-medium text-primary">{req.article}</p>
                                   )}
                                 </div>
-                                {userOrganization ? (
+                                {activeOrganization ? (
                                   <RequirementApplicabilitySelect
                                     requirementId={req.id}
-                                    organizationId={userOrganization.id}
+                                    organizationId={activeOrganization.id}
                                     currentValue={applicabilities?.[req.id] || "nao_avaliado"}
+                                    readOnly={!canEditApplicability}
                                   />
+
                                 ) : (
                                   <ApplicabilityBadge value="nao_avaliado" />
                                 )}

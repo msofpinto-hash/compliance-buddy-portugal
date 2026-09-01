@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import {
   Accordion,
   AccordionContent,
@@ -194,6 +196,34 @@ export default function Conformidade() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
+  // Admin: edição direta do estado de conformidade e notas
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftNotes, setDraftNotes] = useState("");
+
+  const updateRow = useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: { compliance_status?: string; notes?: string | null };
+    }) => {
+      const { error } = await supabase
+        .from("applicabilities")
+        .update(patch)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Conformidade atualizada");
+      queryClient.invalidateQueries({ queryKey: ["conformidade-rows", orgId] });
+    },
+    onError: () => toast.error("Não foi possível guardar a alteração"),
+  });
+
+
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -308,24 +338,92 @@ export default function Conformidade() {
                         <li key={r.id} className="rounded-md border bg-background p-3">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
                             {r.article && <Badge variant="outline">{r.article}</Badge>}
-                            <Badge
-                              variant="outline"
-                              className={STATUS_STYLES[k] ?? STATUS_STYLES.pendente}
-                            >
-                              {STATUS_LABELS[k] ?? r.compliance_status}
-                            </Badge>
+                            {isAdmin ? (
+                              <Select
+                                value={k}
+                                onValueChange={(v) =>
+                                  updateRow.mutate({ id: r.id, patch: { compliance_status: v } })
+                                }
+                              >
+                                <SelectTrigger className="h-8 w-[210px] text-xs" aria-label="Estado de conformidade">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="conforme">Conforme</SelectItem>
+                                  <SelectItem value="nao_conforme">Não conforme</SelectItem>
+                                  <SelectItem value="parcial">Parcialmente conforme</SelectItem>
+                                  <SelectItem value="nao_aplicavel">Não aplicável</SelectItem>
+                                  <SelectItem value="pendente">Por avaliar</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className={STATUS_STYLES[k] ?? STATUS_STYLES.pendente}
+                              >
+                                {STATUS_LABELS[k] ?? r.compliance_status}
+                              </Badge>
+                            )}
                             {r.applicability_type && (
                               <Badge variant="secondary">{r.applicability_type}</Badge>
                             )}
                             {!r.is_applicable && <Badge variant="outline">Não aplicável</Badge>}
                           </div>
                           <p className="whitespace-pre-line text-sm text-foreground">{r.requirementText}</p>
-                          {r.notes && (
-                            <p className="mt-2 rounded bg-muted p-2 text-sm text-muted-foreground">
-                              <span className="font-medium text-foreground">Notas: </span>
-                              {r.notes}
-                            </p>
+                          {isAdmin ? (
+                            editingId === r.id ? (
+                              <div className="mt-2 space-y-2">
+                                <Textarea
+                                  value={draftNotes}
+                                  onChange={(e) => setDraftNotes(e.target.value)}
+                                  rows={3}
+                                  placeholder="Notas internas sobre este requisito"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      updateRow.mutate({
+                                        id: r.id,
+                                        patch: { notes: draftNotes || null },
+                                      });
+                                      setEditingId(null);
+                                    }}
+                                  >
+                                    Guardar notas
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                                    Cancelar
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-2 flex items-start gap-2">
+                                <p className="flex-1 rounded bg-muted p-2 text-sm text-muted-foreground">
+                                  <span className="font-medium text-foreground">Notas: </span>
+                                  {r.notes || "—"}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingId(r.id);
+                                    setDraftNotes(r.notes ?? "");
+                                  }}
+                                >
+                                  Editar
+                                </Button>
+                              </div>
+                            )
+                          ) : (
+                            r.notes && (
+                              <p className="mt-2 rounded bg-muted p-2 text-sm text-muted-foreground">
+                                <span className="font-medium text-foreground">Notas: </span>
+                                {r.notes}
+                              </p>
+                            )
                           )}
+
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <Paperclip className="h-3 w-3" aria-hidden="true" />
