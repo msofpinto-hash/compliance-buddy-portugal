@@ -397,6 +397,68 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Admin-only: rename a descriptor
+  const [categoryToRename, setCategoryToRename] = useState<ThemeCategory | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const renameCategory = useMutation({
+    mutationFn: async ({ category, name }: { category: ThemeCategory; name: string }) => {
+      const { error } = await supabase
+        .from("theme_categories")
+        .update({ name })
+        .eq("id", category.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Descritor renomeado");
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Admin-only: delete a descriptor (and its sub-descriptors); diplomas stay in the library
+  const [categoryToDelete, setCategoryToDelete] = useState<ThemeCategory | null>(null);
+
+  const deleteCategory = useMutation({
+    mutationFn: async (category: ThemeCategory) => {
+      const all = themesWithCategories?.flatMap((t) => t.categories) || [];
+      const ids: string[] = [];
+      const collect = (parentId: string) => {
+        ids.push(parentId);
+        all.filter((c) => c.parent_id === parentId).forEach((c) => collect(c.id));
+      };
+      collect(category.id);
+
+      const { error: mapError } = await supabase
+        .from("legislation_category_mapping")
+        .delete()
+        .in("category_id", ids);
+      if (mapError) throw mapError;
+
+      const { error: linkError } = await supabase
+        .from("category_theme_links")
+        .delete()
+        .in("category_id", ids);
+      if (linkError) throw linkError;
+
+      for (const id of [...ids].reverse()) {
+        const { error } = await supabase.from("theme_categories").delete().eq("id", id);
+        if (error) throw error;
+      }
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} descritor(es) eliminado(s)`);
+      setSelectedCategoryId(null);
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
+
 
   
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
