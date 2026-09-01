@@ -171,6 +171,10 @@ const AREA_CONFIG = {
   },
 };
 
+/** Apenas os temas contratados pela organização (Ambiente e SST) são visíveis. */
+const VISIBLE_AREAS = ["area_ambiente", "area_seguranca"] as const;
+
+
 const STATUS_CONFIG = {
   pending: {
     label: "Pendente",
