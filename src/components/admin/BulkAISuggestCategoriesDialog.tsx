@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Check, AlertCircle, Server, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AIDisclaimer } from "@/components/ai/AIBadge";
 import { useQueryClient } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
 
@@ -162,6 +163,7 @@ export function BulkAISuggestCategoriesDialog({
           <DialogDescription>
             Processar {legislationList.length} diploma(s) selecionado(s)
           </DialogDescription>
+          <AIDisclaimer className="pt-1" />
         </DialogHeader>
 
         <div className="py-6">
