@@ -49,6 +49,72 @@ const BrandLogo = ({ variant = "default" }: { variant?: "default" | "light" }) =
 );
 
 
+// --- Split-screen shell: immersive brand panel + clean form panel ---
+const PageShell = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-background">
+    {/* Visual panel */}
+    <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden p-12">
+      <img
+        src={authVisual}
+        alt="Floresta iluminada pelo sol"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/65 to-terracotta/70" />
+
+      <div className="relative z-10">
+        <BrandLogo variant="light" />
+      </div>
+
+      <motion.div
+        className="relative z-10 max-w-lg"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
+      >
+        <h2 className="text-4xl xl:text-5xl font-heading font-bold leading-[1.1] text-primary-foreground">
+          O seu assistente digital de conformidade
+        </h2>
+        <p className="mt-5 text-lg text-primary-foreground/80">
+          Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-2.5">
+          {[
+            { icon: CheckCircle2, text: "Monitorização 24/7" },
+            { icon: Scale, text: "Legislação atualizada" },
+            { icon: ShieldAlert, text: "Auditorias rigorosas" },
+          ].map((f) => (
+            <span
+              key={f.text}
+              className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3.5 py-1.5 text-sm text-primary-foreground backdrop-blur-sm"
+            >
+              <f.icon className="h-4 w-4" aria-hidden="true" />
+              {f.text}
+            </span>
+          ))}
+        </div>
+      </motion.div>
+
+      <p className="relative z-10 text-sm text-primary-foreground/70">
+        © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
+      </p>
+    </aside>
+
+    {/* Form panel */}
+    <main className="relative flex flex-col items-center justify-center overflow-hidden bg-cream p-6 sm:p-10">
+      <div className="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-terracotta/15 blur-[110px]" />
+      <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-primary/15 blur-[100px]" />
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center">
+        <div className="lg:hidden mb-8"><BrandLogo /></div>
+        {children}
+      </div>
+      <p className="relative z-10 mt-8 text-xs text-muted-foreground lg:hidden text-center">
+        © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
+      </p>
+    </main>
+  </div>
+);
+
+
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -188,70 +254,6 @@ const Auth = () => {
   const handleSignOut = async () => { await signOut(); setRegistrationSuccess(false); };
   const handleBackToLogin = () => { setShowForgotPassword(false); setResetEmailSent(false); setError(null); };
 
-  // --- Split-screen shell: immersive brand panel + clean form panel ---
-  const PageShell = ({ children }: { children: React.ReactNode }) => (
-    <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-background">
-      {/* Visual panel */}
-      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden p-12">
-        <img
-          src={authVisual}
-          alt="Floresta iluminada pelo sol"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/65 to-terracotta/70" />
-
-        <div className="relative z-10">
-          <BrandLogo variant="light" />
-        </div>
-
-        <motion.div
-          className="relative z-10 max-w-lg"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-        >
-          <h2 className="text-4xl xl:text-5xl font-heading font-bold leading-[1.1] text-primary-foreground">
-            O seu assistente digital de conformidade
-          </h2>
-          <p className="mt-5 text-lg text-primary-foreground/80">
-            Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-2.5">
-            {[
-              { icon: CheckCircle2, text: "Monitorização 24/7" },
-              { icon: Scale, text: "Legislação atualizada" },
-              { icon: ShieldAlert, text: "Auditorias rigorosas" },
-            ].map((f) => (
-              <span
-                key={f.text}
-                className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3.5 py-1.5 text-sm text-primary-foreground backdrop-blur-sm"
-              >
-                <f.icon className="h-4 w-4" aria-hidden="true" />
-                {f.text}
-              </span>
-            ))}
-          </div>
-        </motion.div>
-
-        <p className="relative z-10 text-sm text-primary-foreground/70">
-          © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
-        </p>
-      </aside>
-
-      {/* Form panel */}
-      <main className="relative flex flex-col items-center justify-center overflow-hidden bg-cream p-6 sm:p-10">
-        <div className="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-terracotta/15 blur-[110px]" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-primary/15 blur-[100px]" />
-        <div className="relative z-10 w-full max-w-md flex flex-col items-center">
-          <div className="lg:hidden mb-8"><BrandLogo /></div>
-          {children}
-        </div>
-        <p className="relative z-10 mt-8 text-xs text-muted-foreground lg:hidden text-center">
-          © {new Date().getFullYear()} ID Compliance. Todos os direitos reservados.
-        </p>
-      </main>
-    </div>
-  );
 
 
   // Loading
