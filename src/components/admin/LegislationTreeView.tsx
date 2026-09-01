@@ -841,7 +841,25 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               {count}
             </Badge>
           )}
+
+          {editableOrganizationId && (
+            <button
+              className={`p-1 rounded shrink-0 transition-colors ${
+                isSelected ? 'hover:bg-white/30' : 'hover:bg-accent text-muted-foreground'
+              }`}
+              title="Mover descritor para outro tema"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryToMove(node.category);
+                setMoveThemeId("");
+              }}
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+        
+
         
         {hasChildren && isExpanded && (
           <div className="relative ml-4">
