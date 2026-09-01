@@ -1201,6 +1201,21 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 </SelectContent>
               </Select>
 
+              {applicabilityMap && (
+                <Button
+                  variant={unclassifiedOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setUnclassifiedOnly(!unclassifiedOnly);
+                    resetPage();
+                  }}
+                  title="Mostrar apenas diplomas sem aplicabilidade classificada"
+                >
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Por classificar
+                </Button>
+              )}
+
               {hasFilters && (
                 <Button
                   variant="ghost"
@@ -1209,6 +1224,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     setSearchTerm("");
                     setSourceFilter("all");
                     setDiplomaTypeFilter(null);
+                    setUnclassifiedOnly(false);
                   }}
                   className="text-muted-foreground"
                 >
