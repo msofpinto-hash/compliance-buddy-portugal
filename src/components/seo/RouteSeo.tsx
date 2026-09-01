@@ -47,6 +47,11 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Confirme os descritores e subdescritores de cada tema, associe automaticamente os diplomas ao cliente e ajuste aplicabilidades.",
   },
+  "/requisitos-tema": {
+    title: "Requisitos por Descritor | ID Compliance",
+    description:
+      "Painel por tema com todos os requisitos extraídos, o diploma de origem, a aplicabilidade do cliente e o estado da extração.",
+  },
 
   "/legislacao-recente": {
     title: "Legislação Recente | ID Compliance",
