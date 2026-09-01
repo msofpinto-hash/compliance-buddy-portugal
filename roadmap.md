@@ -24,4 +24,4 @@
 - [ ] Gestão de temas: mover descritores/subdescritores entre temas (Ambiente <-> SST) quando o nome se repete
 - [x] Biblioteca do cliente: mover descritores entre temas, renomear e eliminar descritores
 - [x] Biblioteca do cliente: mover diplomas selecionados entre descritores e associar novos descritores
-- [ ] Biblioteca: painel de requisitos por descritor/tema (diploma, aplicabilidade AMCOR, estado da extração) com correção automática
+- [x] Biblioteca: painel de requisitos por descritor/tema (diploma, aplicabilidade AMCOR, estado da extração) com correção automática
