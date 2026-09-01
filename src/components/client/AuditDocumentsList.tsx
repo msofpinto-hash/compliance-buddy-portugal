@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,9 +7,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, Download, Loader2, Eye } from "lucide-react";
-import { useState } from "react";
+import { FileText, Download, Loader2, Eye, Trash2, RefreshCw } from "lucide-react";
+import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   auditId: string;
@@ -22,7 +33,13 @@ type Doc = { id: string; name: string; file_url: string };
 /** Documents attached to an audit / monthly legal compliance verification. */
 export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const [opening, setOpening] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<Doc | null>(null);
+  const replaceInput = useRef<HTMLInputElement | null>(null);
+  const [replacing, setReplacing] = useState<Doc | null>(null);
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(
     null,
   );
@@ -65,6 +82,57 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
       });
     } finally {
       setOpening(null);
+    }
+  };
+
+  const storagePath = (doc: Doc) =>
+    doc.file_url.replace(/^.*requirement-documents\//, "");
+
+  const handleDelete = async (doc: Doc) => {
+    setBusy(doc.id);
+    try {
+      await supabase.storage
+        .from("requirement-documents")
+        .remove([storagePath(doc)]);
+      await supabase.from("audit_documents").delete().eq("audit_id", auditId).eq("document_id", doc.id);
+      await supabase.from("audit_requirement_documents").delete().eq("document_id", doc.id);
+      const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+      if (error) throw error;
+      toast({ title: "Anexo eliminado", description: doc.name });
+      queryClient.invalidateQueries({ queryKey: ["audit-documents", auditId] });
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Erro", description: "Não foi possível eliminar o anexo", variant: "destructive" });
+    } finally {
+      setBusy(null);
+      setToDelete(null);
+    }
+  };
+
+  const handleReplaceFile = async (file: File) => {
+    const doc = replacing;
+    if (!doc) return;
+    setBusy(doc.id);
+    try {
+      const path = `audits/${auditId}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage
+        .from("requirement-documents")
+        .upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { error } = await supabase
+        .from("documents")
+        .update({ name: file.name, file_url: path })
+        .eq("id", doc.id);
+      if (error) throw error;
+      await supabase.storage.from("requirement-documents").remove([storagePath(doc)]);
+      toast({ title: "Anexo substituído", description: file.name });
+      queryClient.invalidateQueries({ queryKey: ["audit-documents", auditId] });
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Erro", description: "Não foi possível substituir o anexo", variant: "destructive" });
+    } finally {
+      setBusy(null);
+      setReplacing(null);
     }
   };
 
@@ -121,6 +189,41 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
               <Download className="mr-1 h-3.5 w-3.5" />
               Exportar
             </Button>
+            {isAdmin && (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy === doc.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReplacing(doc);
+                    replaceInput.current?.click();
+                  }}
+                  title="Substituir anexo"
+                >
+                  {busy === doc.id ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Substituir
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  disabled={busy === doc.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setToDelete(doc);
+                  }}
+                  title="Eliminar anexo"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
           </span>
         </div>
       ))}
@@ -129,6 +232,18 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
 
   return (
     <>
+      {isAdmin && (
+        <input
+          ref={replaceInput}
+          type="file"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) handleReplaceFile(file);
+          }}
+        />
+      )}
       {variant === "card" ? (
         <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-3">
           <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -140,6 +255,26 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
       ) : (
         body
       )}
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar anexo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O ficheiro "{toDelete?.name}" será removido permanentemente desta auditoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => toDelete && handleDelete(toDelete)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="max-w-5xl">
