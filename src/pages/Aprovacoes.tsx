@@ -273,7 +273,7 @@ export default function Aprovacoes() {
           </div>
         )}
 
-        <AuditDocumentsList auditId={audit.id} canEdit={false} />
+        <AuditDocumentsList auditId={audit.id} />
 
         <div className="flex flex-wrap gap-2 pt-1">
           <Button
