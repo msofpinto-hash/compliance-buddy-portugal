@@ -796,7 +796,9 @@ export default function LegislacaoDetalhes() {
                                     requirementId={req.id}
                                     organizationId={activeOrganization.id}
                                     currentValue={applicabilities?.[req.id] || "nao_avaliado"}
+                                    readOnly={!canEditApplicability}
                                   />
+
                                 ) : (
                                   <ApplicabilityBadge value="nao_avaliado" />
                                 )}
