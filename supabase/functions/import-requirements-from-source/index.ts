@@ -403,18 +403,21 @@ Deno.serve(async (req) => {
         }
       }
 
-
-
       // If all methods failed
       if (!scrapeSuccess || contentToProcess.length < 50) {
+        const pdfUrl = dreMatch ? `https://dre.pt/application/conteudo/${dreMatch[4]}` : url;
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Não foi possível extrair conteúdo do URL. O site pode estar a bloquear acessos automatizados ou o documento ainda não está indexado. Copie o texto diretamente do documento e cole-o na aba "Colar Texto".' 
+          JSON.stringify({
+            success: false,
+            pdfUrl,
+            error: dreMatch
+              ? 'Este diploma foi publicado apenas como imagem digitalizada (o PDF oficial não tem texto pesquisável), pelo que não é possível extrair os requisitos automaticamente. Abra o PDF oficial, copie o texto e cole-o na aba "Colar Texto".'
+              : 'Não foi possível extrair conteúdo do URL. O site pode estar a bloquear acessos automatizados ou o documento ainda não está indexado. Copie o texto diretamente do documento e cole-o na aba "Colar Texto".',
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
     } else {
       // Source is text
       if (!text) {
