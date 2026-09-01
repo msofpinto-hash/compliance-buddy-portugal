@@ -329,9 +329,11 @@ Deno.serve(async (req) => {
               } else if (contentType.includes('text/html')) {
                 let html = await apiResponse.text();
                 console.log('[v2] API returned HTML, length:', html.length);
-                
-                // Extract text from HTML
-                if (html.length > 100) {
+
+                // Reject the OutSystems SPA shell (always ~2.3KB, no real content)
+                const isSpaShell = /window\.OutSystems|__OSVSTATE/i.test(html) || html.length < 5000;
+
+                if (!isSpaShell) {
                   contentToProcess = html
                     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
                     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -340,9 +342,14 @@ Deno.serve(async (req) => {
                     .replace(/&amp;/g, '&')
                     .replace(/\n{3,}/g, '\n\n')
                     .trim();
+                  contentToProcess = cleanDreText(contentToProcess);
                   console.log('[v2] Extracted text from HTML, length:', contentToProcess.length);
-                  scrapeSuccess = contentToProcess.length > 500;
+                  scrapeSuccess = contentToProcess.length > 1000 && /artigo/i.test(contentToProcess);
+                } else {
+                  console.log('[v2] Ignoring SPA shell response');
                 }
+              }
+
               }
             }
           } catch (apiError) {
