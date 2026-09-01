@@ -42,6 +42,12 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Lista de diplomas legais com título, categorias atribuídas e indicação do que falta: categoria, ligação à legislação europeia e relações.",
   },
+  "/gestao-temas": {
+    title: "Gestão de Temas e Descritores | ID Compliance",
+    description:
+      "Confirme os descritores e subdescritores de cada tema, associe automaticamente os diplomas ao cliente e ajuste aplicabilidades.",
+  },
+
   "/legislacao-recente": {
     title: "Legislação Recente | ID Compliance",
     description:
