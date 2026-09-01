@@ -1032,6 +1032,18 @@ export type Database = {
           },
         ]
       }
+      legislation_keep: {
+        Row: {
+          id: string
+        }
+        Insert: {
+          id: string
+        }
+        Update: {
+          id?: string
+        }
+        Relationships: []
+      }
       legislation_processing_failures: {
         Row: {
           created_at: string
