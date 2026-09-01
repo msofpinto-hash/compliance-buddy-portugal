@@ -1,0 +1,1 @@
+drop table if exists public.tmp_pdf_import;
