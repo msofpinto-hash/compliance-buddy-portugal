@@ -1276,6 +1276,7 @@ export type Database = {
       organization_goals: {
         Row: {
           area: string | null
+          auto_metric: string | null
           created_at: string
           created_by: string | null
           current_value: number
@@ -1292,6 +1293,7 @@ export type Database = {
         }
         Insert: {
           area?: string | null
+          auto_metric?: string | null
           created_at?: string
           created_by?: string | null
           current_value?: number
@@ -1308,6 +1310,7 @@ export type Database = {
         }
         Update: {
           area?: string | null
+          auto_metric?: string | null
           created_at?: string
           created_by?: string | null
           current_value?: number
