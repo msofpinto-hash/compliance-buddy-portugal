@@ -325,6 +325,33 @@ export default function GestaoTemas() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  /** Move a descriptor (and its sub-descriptors) to another theme */
+  const moveCategoryToTheme = useMutation({
+    mutationFn: async ({ cat, targetThemeId }: { cat: Category; targetThemeId: string }) => {
+      const ids = descendantIds(cat.id);
+      const { error } = await supabase
+        .from("theme_categories")
+        .update({ theme_id: targetThemeId })
+        .in("id", ids);
+      if (error) throw error;
+      // the moved descriptor becomes a top-level descriptor of the target theme
+      const { error: rootError } = await supabase
+        .from("theme_categories")
+        .update({ parent_id: null })
+        .eq("id", cat.id);
+      if (rootError) throw rootError;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} descritor(es) movido(s) de tema`);
+      setActiveCategoryId(null);
+      queryClient.invalidateQueries({ queryKey: ["gt-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["gt-diplomas"] });
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const renderNode = (cat: Category, level = 0) => {
     const kids = childrenOf.get(cat.id) || [];
     const isOpen = expanded.has(cat.id);
