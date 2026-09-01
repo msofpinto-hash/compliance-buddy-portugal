@@ -2167,6 +2167,65 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!categoryToRename} onOpenChange={(o) => !o && setCategoryToRename(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Renomear descritor</AlertDialogTitle>
+            <AlertDialogDescription>
+              O novo nome passa a aparecer em todos os temas e listas onde este descritor é usado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rename-category">Nome</Label>
+            <Input
+              id="rename-category"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Nome do descritor"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!renameValue.trim() || renameCategory.isPending}
+              onClick={() => {
+                if (categoryToRename && renameValue.trim()) {
+                  renameCategory.mutate({ category: categoryToRename, name: renameValue.trim() });
+                }
+                setCategoryToRename(null);
+              }}
+            >
+              Guardar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!categoryToDelete} onOpenChange={(o) => !o && setCategoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar descritor</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{categoryToDelete?.name}" e os seus subdescritores serão eliminados. Os diplomas
+              mantêm-se na biblioteca, mas deixam de estar associados a este descritor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteCategory.isPending}
+              onClick={() => {
+                if (categoryToDelete) deleteCategory.mutate(categoryToDelete);
+                setCategoryToDelete(null);
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
 
   );
