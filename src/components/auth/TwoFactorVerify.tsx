@@ -63,7 +63,7 @@ export function TwoFactorVerify({ factorId, onSuccess, onCancel }: TwoFactorVeri
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Shield className="h-6 w-6" />
+          <Shield className="h-6 w-6" aria-hidden="true" />
         </div>
         <CardTitle>Verificação de Dois Fatores</CardTitle>
         <CardDescription>
@@ -74,7 +74,7 @@ export function TwoFactorVerify({ factorId, onSuccess, onCancel }: TwoFactorVeri
         <form onSubmit={handleVerify} className="space-y-4">
           {error && (
             <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
