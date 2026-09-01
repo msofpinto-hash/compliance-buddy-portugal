@@ -1318,7 +1318,7 @@ export function EvidenceRequestsPanel({
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Submeter Evidência</DialogTitle>
             <DialogDescription>
