@@ -4,7 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -72,14 +78,18 @@ export function RequestComplianceChangeDialog({
 }: RequestComplianceChangeDialogProps) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [proposedComplianceStatus, setProposedComplianceStatus] = useState<string>("");
-  const [proposedApplicabilityType, setProposedApplicabilityType] = useState<string>("");
+  const [proposedComplianceStatus, setProposedComplianceStatus] =
+    useState<string>("");
+  const [proposedApplicabilityType, setProposedApplicabilityType] =
+    useState<string>("");
   const [proposedNotes, setProposedNotes] = useState<string>("");
   const [requestReason, setRequestReason] = useState<string>("");
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
 
       // Check if there's already a pending request for this applicability
@@ -133,7 +143,8 @@ export function RequestComplianceChangeDialog({
     if (!open) resetForm();
   };
 
-  const hasChanges = proposedComplianceStatus || proposedApplicabilityType || proposedNotes;
+  const hasChanges =
+    proposedComplianceStatus || proposedApplicabilityType || proposedNotes;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -163,19 +174,25 @@ export function RequestComplianceChangeDialog({
               <Badge variant="outline">{legislationNumber}</Badge>
               {article && <Badge variant="secondary">{article}</Badge>}
             </div>
-            <p className="text-muted-foreground line-clamp-2">{requirementText}</p>
+            <p className="text-muted-foreground line-clamp-2">
+              {requirementText}
+            </p>
           </div>
 
           {/* Current values */}
           <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Estado Atual</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Estado Atual
+              </p>
               <Badge variant="outline">
                 {statusLabels[currentComplianceStatus || ""] || "Não definido"}
               </Badge>
             </div>
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Aplicabilidade Atual</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Aplicabilidade Atual
+              </p>
               <Badge variant="outline">
                 {statusLabels[currentApplicabilityType || ""] || "Não definido"}
               </Badge>
@@ -192,7 +209,10 @@ export function RequestComplianceChangeDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="compliance-status">Novo Estado</Label>
-                <Select value={proposedComplianceStatus} onValueChange={setProposedComplianceStatus}>
+                <Select
+                  value={proposedComplianceStatus}
+                  onValueChange={setProposedComplianceStatus}
+                >
                   <SelectTrigger id="compliance-status">
                     <SelectValue placeholder="Selecionar..." />
                   </SelectTrigger>
@@ -209,7 +229,10 @@ export function RequestComplianceChangeDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="applicability-type">Nova Aplicabilidade</Label>
-                <Select value={proposedApplicabilityType} onValueChange={setProposedApplicabilityType}>
+                <Select
+                  value={proposedApplicabilityType}
+                  onValueChange={setProposedApplicabilityType}
+                >
                   <SelectTrigger id="applicability-type">
                     <SelectValue placeholder="Selecionar..." />
                   </SelectTrigger>
@@ -263,7 +286,9 @@ export function RequestComplianceChangeDialog({
           </Button>
           <Button
             onClick={() => submitMutation.mutate()}
-            disabled={submitMutation.isPending || !hasChanges || !requestReason.trim()}
+            disabled={
+              submitMutation.isPending || !hasChanges || !requestReason.trim()
+            }
             className="gap-2"
           >
             {submitMutation.isPending ? (

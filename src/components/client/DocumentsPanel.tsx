@@ -4,18 +4,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Search, 
-  FileText, 
+import {
+  Search,
+  FileText,
   Upload,
   Filter,
   FolderOpen,
   AlertTriangle,
   CheckCircle2,
-  Clock
+  Clock,
 } from "lucide-react";
 import { RequirementDocuments } from "./RequirementDocuments";
 
@@ -41,20 +53,24 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
         .in("organization_id", organizationIds);
 
       if (orgError) throw orgError;
-      
-      const legislationIds = [...new Set(orgLeg?.map(l => l.legislation_id) || [])];
+
+      const legislationIds = [
+        ...new Set(orgLeg?.map((l) => l.legislation_id) || []),
+      ];
       if (legislationIds.length === 0) return [];
 
       // Get requirements for these legislations
       const { data: reqs, error: reqError } = await supabase
         .from("legal_requirements")
-        .select(`
-          id,
-          article,
-          requirement_text,
-          legislation_id,
-          legislation(id, number, title)
-        `)
+        .select(
+          `
+ id,
+ article,
+ requirement_text,
+ legislation_id,
+ legislation(id, number, title)
+ `,
+        )
         .in("legislation_id", legislationIds)
         .order("article");
 
@@ -63,45 +79,66 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
       // Get applicabilities for status
       const { data: applicabilities, error: appError } = await supabase
         .from("applicabilities")
-        .select("requirement_id, compliance_status, evidence_files, organization_id")
+        .select(
+          "requirement_id, compliance_status, evidence_files, organization_id",
+        )
         .in("organization_id", organizationIds);
 
       if (appError) throw appError;
 
       // Merge data
-      const appMap = new Map(applicabilities?.map(a => [`${a.organization_id}-${a.requirement_id}`, a]));
-      
-      return reqs?.map(req => {
-        // Find org for this legislation
-        const orgForLeg = orgLeg?.find(ol => ol.legislation_id === req.legislation_id);
-        const orgId = orgForLeg?.organization_id || organizationIds[0];
-        const app = appMap.get(`${orgId}-${req.id}`);
-        
-        return {
-          ...req,
-          organizationId: orgId,
-          complianceStatus: app?.compliance_status,
-          hasDocuments: (app?.evidence_files as string[] | null)?.length ? true : false,
-          documentCount: (app?.evidence_files as string[] | null)?.length || 0,
-        };
-      }) || [];
+      const appMap = new Map(
+        applicabilities?.map((a) => [
+          `${a.organization_id}-${a.requirement_id}`,
+          a,
+        ]),
+      );
+
+      return (
+        reqs?.map((req) => {
+          // Find org for this legislation
+          const orgForLeg = orgLeg?.find(
+            (ol) => ol.legislation_id === req.legislation_id,
+          );
+          const orgId = orgForLeg?.organization_id || organizationIds[0];
+          const app = appMap.get(`${orgId}-${req.id}`);
+
+          return {
+            ...req,
+            organizationId: orgId,
+            complianceStatus: app?.compliance_status,
+            hasDocuments: (app?.evidence_files as string[] | null)?.length
+              ? true
+              : false,
+            documentCount:
+              (app?.evidence_files as string[] | null)?.length || 0,
+          };
+        }) || []
+      );
     },
     enabled: organizationIds.length > 0,
   });
 
   // Get unique legislations for filter
   const legislations = requirements
-    ? [...new Map(requirements.map(r => [(r.legislation as any)?.id, r.legislation])).values()]
+    ? [
+        ...new Map(
+          requirements.map((r) => [(r.legislation as any)?.id, r.legislation]),
+        ).values(),
+      ]
         .filter(Boolean)
         .sort((a: any, b: any) => a.number.localeCompare(b.number))
     : [];
 
   // Filter requirements
   const filteredRequirements = requirements?.filter((req) => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       req.requirement_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.article?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (req.legislation as any)?.number.toLowerCase().includes(searchTerm.toLowerCase());
+      (req.legislation as any)?.number
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
     let matchesStatus = true;
     if (statusFilter === "with-docs") {
@@ -113,10 +150,12 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
     } else if (statusFilter === "nao_conforme") {
       matchesStatus = req.complianceStatus === "nao_conforme";
     } else if (statusFilter === "em_curso") {
-      matchesStatus = !req.complianceStatus || req.complianceStatus === "em_curso";
+      matchesStatus =
+        !req.complianceStatus || req.complianceStatus === "em_curso";
     }
 
-    const matchesLegislation = legislationFilter === "all" || 
+    const matchesLegislation =
+      legislationFilter === "all" ||
       (req.legislation as any)?.id === legislationFilter;
 
     return matchesSearch && matchesStatus && matchesLegislation;
@@ -125,10 +164,17 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
   // Stats
   const stats = {
     total: requirements?.length || 0,
-    withDocs: requirements?.filter(r => r.hasDocuments).length || 0,
-    conforme: requirements?.filter(r => r.complianceStatus === "conforme").length || 0,
-    naoConforme: requirements?.filter(r => r.complianceStatus === "nao_conforme").length || 0,
-    emCurso: requirements?.filter(r => !r.complianceStatus || r.complianceStatus === "em_curso").length || 0,
+    withDocs: requirements?.filter((r) => r.hasDocuments).length || 0,
+    conforme:
+      requirements?.filter((r) => r.complianceStatus === "conforme").length ||
+      0,
+    naoConforme:
+      requirements?.filter((r) => r.complianceStatus === "nao_conforme")
+        .length || 0,
+    emCurso:
+      requirements?.filter(
+        (r) => !r.complianceStatus || r.complianceStatus === "em_curso",
+      ).length || 0,
   };
 
   if (isLoading) {
@@ -136,10 +182,14 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
       <div className="space-y-4">
         <Skeleton className="h-10 w-full" />
         <div className="grid gap-4 sm:grid-cols-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20" />)}
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
         </div>
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-32" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
       </div>
     );
@@ -149,7 +199,9 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
     return (
       <div className="text-center py-16">
         <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-        <h3 className="text-xl font-semibold mb-2">Sem Requisitos Disponíveis</h3>
+        <h3 className="text-xl font-semibold mb-2">
+          Sem Requisitos Disponíveis
+        </h3>
         <p className="text-muted-foreground">
           Não existem requisitos legais associados à sua organização.
         </p>
@@ -163,7 +215,8 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
       <div>
         <h2 className="text-2xl font-bold">Evidências Documentais</h2>
         <p className="text-muted-foreground">
-          Carregue documentos para comprovar a conformidade com os requisitos legais
+          Carregue documentos para comprovar a conformidade com os requisitos
+          legais
         </p>
       </div>
 
@@ -180,7 +233,7 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
             <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
@@ -189,9 +242,14 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{stats.withDocs}</div>
+            <div className="text-2xl font-bold text-primary">
+              {stats.withDocs}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {stats.total > 0 ? Math.round((stats.withDocs / stats.total) * 100) : 0}% documentados
+              {stats.total > 0
+                ? Math.round((stats.withDocs / stats.total) * 100)
+                : 0}
+              % documentados
             </p>
           </CardContent>
         </Card>
@@ -204,7 +262,9 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.conforme}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.conforme}
+            </div>
           </CardContent>
         </Card>
 
@@ -216,7 +276,9 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.naoConforme}</div>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.naoConforme}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -232,7 +294,7 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
             className="pl-9"
           />
         </div>
-        
+
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-[200px]">
             <Filter className="h-4 w-4 mr-2" />
@@ -281,7 +343,8 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
       {/* Results count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {filteredRequirements?.length || 0} de {requirements.length} requisitos
+          {filteredRequirements?.length || 0} de {requirements.length}{" "}
+          requisitos
         </p>
       </div>
 
@@ -299,7 +362,7 @@ export function DocumentsPanel({ organizationIds }: DocumentsPanelProps) {
               complianceStatus={req.complianceStatus}
             />
           ))}
-          
+
           {filteredRequirements?.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />

@@ -9,7 +9,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, User, FileText, Target, Users, CheckCircle2, Building2, AlertCircle, Crosshair } from "lucide-react";
+import {
+  Calendar,
+  User,
+  FileText,
+  Target,
+  Users,
+  CheckCircle2,
+  Building2,
+  AlertCircle,
+  Crosshair,
+} from "lucide-react";
 
 interface AuditPlanDetailsDialogProps {
   open: boolean;
@@ -97,27 +107,33 @@ export function AuditPlanDetailsDialog({
         <DialogHeader>
           <DialogTitle className="text-xl">{audit.title}</DialogTitle>
         </DialogHeader>
-        
+
         <ScrollArea className="max-h-[calc(85vh-120px)] pr-4">
           <div className="space-y-6">
             {/* Status and metadata */}
             <div className="flex flex-wrap gap-4 text-sm">
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className={`gap-1 ${
-                  audit.status === "in_progress" 
-                    ? "bg-yellow-500 text-white border-0" 
+                  audit.status === "in_progress"
+                    ? "bg-yellow-500 text-white border-0"
                     : audit.status === "planned"
-                    ? "bg-blue-500 text-white border-0"
-                    : "bg-gray-500 text-white border-0"
+                      ? "bg-blue-500 text-white border-0"
+                      : "bg-gray-500 text-white border-0"
                 }`}
               >
-                {audit.status === "in_progress" ? "Em Curso" : 
-                 audit.status === "planned" ? "Planeada" : audit.status}
+                {audit.status === "in_progress"
+                  ? "Em Curso"
+                  : audit.status === "planned"
+                    ? "Planeada"
+                    : audit.status}
               </Badge>
-              
+
               {audit.plan_approved_at && (
-                <Badge variant="outline" className="gap-1 bg-green-500 text-white border-0">
+                <Badge
+                  variant="outline"
+                  className="gap-1 bg-green-500 text-white border-0"
+                >
                   <CheckCircle2 className="h-3 w-3" />
                   Plano Aprovado
                 </Badge>
@@ -131,7 +147,11 @@ export function AuditPlanDetailsDialog({
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Data prevista:</span>
                   <span className="font-medium">
-                    {format(new Date(audit.audit_date), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                    {format(
+                      new Date(audit.audit_date),
+                      "d 'de' MMMM 'de' yyyy",
+                      { locale: pt },
+                    )}
                   </span>
                 </div>
               )}
@@ -150,7 +170,9 @@ export function AuditPlanDetailsDialog({
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
                   Descrição / Âmbito
                 </h3>
-                <p className="text-sm whitespace-pre-wrap">{audit.description}</p>
+                <p className="text-sm whitespace-pre-wrap">
+                  {audit.description}
+                </p>
               </div>
             )}
 
@@ -163,27 +185,33 @@ export function AuditPlanDetailsDialog({
               </h3>
               <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
                 {requiredFields.map((field, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className={`rounded-lg border p-4 ${
-                      field.content 
-                        ? "bg-card border-border" 
+                      field.content
+                        ? "bg-card border-border"
                         : "bg-muted/30 border-dashed border-muted-foreground/30"
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <field.icon className={`h-4 w-4 ${field.content ? "text-primary" : "text-muted-foreground"}`} />
+                      <field.icon
+                        className={`h-4 w-4 ${field.content ? "text-primary" : "text-muted-foreground"}`}
+                      />
                       <h4 className="font-medium text-sm">
                         {field.title}
                         <span className="text-destructive ml-1">*</span>
                       </h4>
                     </div>
                     {field.content ? (
-                      <p className="text-sm whitespace-pre-wrap">{field.content}</p>
+                      <p className="text-sm whitespace-pre-wrap">
+                        {field.content}
+                      </p>
                     ) : (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <AlertCircle className="h-3 w-3" />
-                        <span className="text-xs italic">{field.description}</span>
+                        <span className="text-xs italic">
+                          {field.description}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -199,7 +227,9 @@ export function AuditPlanDetailsDialog({
                   {additionalSections.map((section, index) => (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <section.icon className={`h-4 w-4 ${section.className || "text-primary"}`} />
+                        <section.icon
+                          className={`h-4 w-4 ${section.className || "text-primary"}`}
+                        />
                         <h3 className="font-semibold text-sm uppercase tracking-wide">
                           {section.title}
                         </h3>
@@ -216,7 +246,9 @@ export function AuditPlanDetailsDialog({
             {additionalSections.length === 0 && !audit.description && (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Detalhes adicionais ainda não disponíveis</p>
+                <p className="text-sm">
+                  Detalhes adicionais ainda não disponíveis
+                </p>
               </div>
             )}
           </div>

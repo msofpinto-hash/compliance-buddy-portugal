@@ -59,11 +59,13 @@ export function SustainHero({
         </span>
 
         <h2 className="mt-5 text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight text-foreground">
-          {greeting()}{firstName ? `, ${firstName}` : ""}
+          {greeting()}
+          {firstName ? `, ${firstName}` : ""}
         </h2>
         <p className="mt-3 max-w-xl text-base sm:text-lg text-muted-foreground">
           {organizationName ? `${organizationName} — ` : ""}
-          acompanhe o cumprimento legal ambiental, de segurança e qualidade num só lugar.
+          acompanhe o cumprimento legal ambiental, de segurança e qualidade num
+          só lugar.
         </p>
 
         <div className="mt-7 flex flex-wrap gap-3">
@@ -76,8 +78,12 @@ export function SustainHero({
                 <s.icon className="h-4 w-4" aria-hidden="true" />
               </span>
               <span className="leading-tight">
-                <span className="block text-xl font-semibold text-foreground">{s.value}</span>
-                <span className="block text-xs text-muted-foreground">{s.label}</span>
+                <span className="block text-xl font-semibold text-foreground">
+                  {s.value}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {s.label}
+                </span>
               </span>
             </div>
           ))}
@@ -89,7 +95,10 @@ export function SustainHero({
             className="group inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-md transition hover:opacity-90"
           >
             Explorar legislação
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+            <ArrowRight
+              className="h-4 w-4 transition-transform group-hover:translate-x-1"
+              aria-hidden="true"
+            />
           </Link>
           <Link
             to="/dashboard?tab=actions"

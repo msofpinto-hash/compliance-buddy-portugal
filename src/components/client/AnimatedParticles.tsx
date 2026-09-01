@@ -12,7 +12,7 @@ interface Particle {
 }
 
 const colors = [
-  "bg-emerald-400/30",
+  "bg-primary/30",
   "bg-teal-400/30",
   "bg-cyan-400/30",
   "bg-green-400/30",

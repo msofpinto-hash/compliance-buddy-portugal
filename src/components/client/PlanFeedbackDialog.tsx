@@ -46,12 +46,15 @@ export function PlanFeedbackDialog({
         <DialogHeader>
           <DialogTitle>Solicitar Alterações</DialogTitle>
           <DialogDescription>
-            Descreva as alterações pretendidas para o plano de auditoria "{auditTitle}"
+            Descreva as alterações pretendidas para o plano de auditoria "
+            {auditTitle}"
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="feedback">Observações / Alterações pretendidas</Label>
+            <Label htmlFor="feedback">
+              Observações / Alterações pretendidas
+            </Label>
             <Textarea
               id="feedback"
               placeholder="Descreva as alterações que pretende no plano de auditoria..."
@@ -76,8 +79,7 @@ export function PlanFeedbackDialog({
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                A enviar...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />A enviar...
               </>
             ) : (
               "Enviar Pedido"

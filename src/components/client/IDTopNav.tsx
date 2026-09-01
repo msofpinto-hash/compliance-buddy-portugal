@@ -18,7 +18,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import logoId from "@/assets/id-compliance-lex.png.asset.json";
 
-type ModuleType = "legislacao" | "planos_acao" | "auditorias" | "documentos" | "indicadores";
+type ModuleType =
+  "legislacao" | "planos_acao" | "auditorias" | "documentos" | "indicadores";
 
 type NavItem = {
   id: string;
@@ -30,12 +31,49 @@ type NavItem = {
 };
 
 const ALL_MODULES: NavItem[] = [
-  { id: "overview", label: "Painel", icon: LayoutDashboard, href: "/dashboard", alwaysShow: true },
-  { id: "legislacao", moduleKey: "legislacao", label: "Legislação", icon: Gavel, href: "/biblioteca", alwaysShow: true },
-  { id: "planos_acao", moduleKey: "planos_acao", label: "Planos de Ação", icon: ClipboardList, href: "/dashboard?tab=actions" },
-  { id: "auditorias", moduleKey: "auditorias", label: "Auditorias", icon: ClipboardCheck, href: "/dashboard?tab=audits" },
-  { id: "documentos", moduleKey: "documentos", label: "Evidências", icon: FolderOpen, href: "/dashboard?tab=documents" },
-  { id: "indicadores", moduleKey: "indicadores", label: "Indicadores", icon: BarChart3, href: "/dashboard?tab=indicators" },
+  {
+    id: "overview",
+    label: "Painel",
+    icon: LayoutDashboard,
+    href: "/dashboard",
+    alwaysShow: true,
+  },
+  {
+    id: "legislacao",
+    moduleKey: "legislacao",
+    label: "Legislação",
+    icon: Gavel,
+    href: "/biblioteca",
+    alwaysShow: true,
+  },
+  {
+    id: "planos_acao",
+    moduleKey: "planos_acao",
+    label: "Planos de Ação",
+    icon: ClipboardList,
+    href: "/dashboard?tab=actions",
+  },
+  {
+    id: "auditorias",
+    moduleKey: "auditorias",
+    label: "Auditorias",
+    icon: ClipboardCheck,
+    href: "/dashboard?tab=audits",
+  },
+  {
+    id: "documentos",
+    moduleKey: "documentos",
+    label: "Evidências",
+    icon: FolderOpen,
+    href: "/dashboard?tab=documents",
+  },
+  {
+    id: "indicadores",
+    moduleKey: "indicadores",
+    label: "Indicadores",
+    icon: BarChart3,
+    href: "/dashboard?tab=indicators",
+  },
 ];
 
 interface IDTopNavProps {
@@ -91,21 +129,25 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#1a1512]/95 backdrop-blur-md border-b border-stone-200/60 dark:border-amber-900/30">
+    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-md border-b border-border/60 ">
       {/* Row 1: brand + org + actions */}
       <div className="flex items-center justify-between gap-4 px-4 lg:px-8 py-3">
         <div className="flex flex-col min-w-0">
           <Link to="/dashboard" className="shrink-0">
             <img
               src={currentOrg?.logo_url || logoId.url}
-              alt={currentOrg?.logo_url ? currentOrg.name : "I&D Compliance Lex"}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = logoId.url; }}
+              alt={
+                currentOrg?.logo_url ? currentOrg.name : "I&D Compliance Lex"
+              }
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = logoId.url;
+              }}
               className="h-9 lg:h-10 w-auto max-w-[240px] object-contain object-left"
             />
           </Link>
           {currentOrg?.name && (
             <div className="mt-1 min-w-0 max-w-[280px]">
-              <p className="text-xs font-semibold text-stone-700 dark:text-amber-100/90 leading-tight break-words">
+              <p className="text-xs font-semibold text-foreground leading-tight break-words">
                 {currentOrg.name}
               </p>
             </div>
@@ -117,36 +159,36 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
           {isAdmin && (
             <Link
               to="/admin"
-              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-stone-600 dark:text-amber-100/80 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
             >
-              <Settings className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <Settings className="h-4 w-4 text-primary " />
               <span className="hidden lg:inline">Administração</span>
             </Link>
           )}
           <Link
             to="/settings"
-            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-stone-600 dark:text-amber-100/80 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
             aria-label="Definições"
           >
-            <User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <User className="h-4 w-4 text-primary " />
           </Link>
           <a
             href="mailto:suporte@incredibleanddynamic.com"
-            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-stone-600 dark:text-amber-100/80 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
             aria-label="Ajuda"
           >
-            <HelpCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <HelpCircle className="h-4 w-4 text-primary " />
           </a>
           <LogoutConfirmDialog
             onConfirm={signOut}
-            className="text-stone-500 dark:text-amber-200/70 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
+            className="text-muted-foreground hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
             variant="ghost"
           />
         </div>
       </div>
 
       {/* Row 2: horizontal module navigation */}
-      <nav className="px-2 lg:px-6 border-t border-stone-200/50 dark:border-amber-900/20">
+      <nav className="px-2 lg:px-6 border-t border-border/50 ">
         <ul className="flex items-center gap-1 overflow-x-auto scrollbar-none">
           {navItems.map((item) => {
             const active = isItemActive(item);
@@ -158,26 +200,28 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
                   className={cn(
                     "relative flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors",
                     active
-                      ? "text-emerald-700 dark:text-emerald-300"
-                      : "text-stone-600 dark:text-amber-100/70 hover:text-stone-900 dark:hover:text-white"
+                      ? "text-primary "
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded-t-md",
                   )}
                 >
                   <item.icon
                     className={cn(
                       "h-4 w-4",
-                      active ? "text-emerald-600 dark:text-emerald-400" : "text-stone-400 dark:text-amber-400/70"
+                      active ? "text-primary " : "text-muted-foreground ",
                     )}
                   />
                   {item.label}
                   {count !== undefined && count > 0 && (
-                    <Badge className="ml-1 h-5 px-1.5 text-[11px] bg-amber-100 dark:bg-amber-800/40 text-amber-800 dark:text-amber-200 border-0">
+                    <Badge className="ml-1 h-5 px-1.5 text-[11px] bg-terracotta/15 text-terracotta border-0">
                       {count > 99 ? "99+" : count}
                     </Badge>
                   )}
                   <span
                     className={cn(
                       "absolute left-3 right-3 -bottom-px h-[3px] rounded-full transition-all",
-                      active ? "bg-gradient-to-r from-emerald-500 to-emerald-700" : "bg-transparent"
+                      active
+                        ? "bg-gradient-to-r from-primary via-primary to-terracotta"
+                        : "bg-transparent",
                     )}
                   />
                 </Link>

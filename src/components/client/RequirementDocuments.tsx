@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,18 +32,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { 
-  Upload, 
-  FileText, 
-  Trash2, 
-  Download, 
-  Loader2, 
-  CheckCircle2, 
+import {
+  Upload,
+  FileText,
+  Trash2,
+  Download,
+  Loader2,
+  CheckCircle2,
   AlertTriangle,
   Paperclip,
   Eye,
   X,
-  Send
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -94,9 +100,9 @@ export function RequirementDocuments({
 
   // Parse evidence files from the stored JSON-like array
   const evidenceFiles: UploadedFile[] = applicability?.evidence_files
-    ? (applicability.evidence_files as string[]).map(f => {
+    ? (applicability.evidence_files as string[]).map((f) => {
         try {
-          return typeof f === 'string' ? JSON.parse(f) : f;
+          return typeof f === "string" ? JSON.parse(f) : f;
         } catch {
           return { name: f, path: f, uploadedAt: new Date().toISOString() };
         }
@@ -106,7 +112,7 @@ export function RequirementDocuments({
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${organizationId}/${requirementId}/${fileName}`;
 
@@ -126,7 +132,7 @@ export function RequirementDocuments({
       };
 
       // Update applicability with new evidence
-      const currentFiles = evidenceFiles.map(f => JSON.stringify(f));
+      const currentFiles = evidenceFiles.map((f) => JSON.stringify(f));
       const updatedFiles = [...currentFiles, JSON.stringify(newFile)];
 
       // Check if applicability exists
@@ -156,7 +162,9 @@ export function RequirementDocuments({
     },
     onSuccess: () => {
       toast.success("Documento carregado com sucesso");
-      queryClient.invalidateQueries({ queryKey: ["applicability-evidence", organizationId, requirementId] });
+      queryClient.invalidateQueries({
+        queryKey: ["applicability-evidence", organizationId, requirementId],
+      });
       setIsUploadOpen(false);
       setSelectedFile(null);
     },
@@ -178,8 +186,8 @@ export function RequirementDocuments({
 
       // Update applicability
       const updatedFiles = evidenceFiles
-        .filter(f => f.path !== file.path)
-        .map(f => JSON.stringify(f));
+        .filter((f) => f.path !== file.path)
+        .map((f) => JSON.stringify(f));
 
       const { error: updateError } = await supabase
         .from("applicabilities")
@@ -190,7 +198,9 @@ export function RequirementDocuments({
     },
     onSuccess: () => {
       toast.success("Documento removido");
-      queryClient.invalidateQueries({ queryKey: ["applicability-evidence", organizationId, requirementId] });
+      queryClient.invalidateQueries({
+        queryKey: ["applicability-evidence", organizationId, requirementId],
+      });
       setDeleteTarget(null);
     },
     onError: (error) => {
@@ -245,11 +255,23 @@ export function RequirementDocuments({
     const status = applicability?.compliance_status || complianceStatus;
     switch (status) {
       case "conforme":
-        return <Badge className="gap-1 bg-green-500 hover:bg-green-600"><CheckCircle2 className="h-3 w-3" /> Conforme</Badge>;
+        return (
+          <Badge className="gap-1 bg-green-500 hover:bg-green-600">
+            <CheckCircle2 className="h-3 w-3" /> Conforme
+          </Badge>
+        );
       case "nao_conforme":
-        return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> Não Conforme</Badge>;
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <AlertTriangle className="h-3 w-3" /> Não Conforme
+          </Badge>
+        );
       default:
-        return <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600 text-black">Em Avaliação</Badge>;
+        return (
+          <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600 text-black">
+            Em Avaliação
+          </Badge>
+        );
     }
   };
 
@@ -270,15 +292,21 @@ export function RequirementDocuments({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="shrink-0">{legislationNumber}</Badge>
-              {article && <Badge variant="secondary" className="shrink-0">{article}</Badge>}
+              <Badge variant="outline" className="shrink-0">
+                {legislationNumber}
+              </Badge>
+              {article && (
+                <Badge variant="secondary" className="shrink-0">
+                  {article}
+                </Badge>
+              )}
               {getStatusBadge()}
             </div>
             <CardDescription className="text-foreground line-clamp-2 mt-2">
               {requirementText}
             </CardDescription>
           </div>
-          
+
           {!isReadOnly && (
             <div className="flex gap-2 shrink-0">
               {applicability?.id && (
@@ -292,7 +320,12 @@ export function RequirementDocuments({
                   currentApplicabilityType={null}
                   currentNotes={applicability.notes}
                   trigger={
-                    <Button size="sm" variant="ghost" className="gap-2" title="Solicitar alteração">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-2"
+                      title="Solicitar alteração"
+                    >
                       <Send className="h-4 w-4" />
                     </Button>
                   }
@@ -305,78 +338,83 @@ export function RequirementDocuments({
                     Carregar
                   </Button>
                 </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Carregar Evidência</DialogTitle>
-                  <DialogDescription>
-                    Anexe um documento como evidência de conformidade para este requisito.
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <div className="space-y-4 py-4">
-                  <div className="rounded-lg border-2 border-dashed p-6 text-center">
-                    <Input
-                      type="file"
-                      id="file-upload"
-                      className="hidden"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                    />
-                    <Label
-                      htmlFor="file-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Paperclip className="h-8 w-8 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        Clique para selecionar um ficheiro
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        PDF, Word, Excel ou imagens (máx. 10MB)
-                      </span>
-                    </Label>
-                  </div>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Carregar Evidência</DialogTitle>
+                    <DialogDescription>
+                      Anexe um documento como evidência de conformidade para
+                      este requisito.
+                    </DialogDescription>
+                  </DialogHeader>
 
-                  {selectedFile && (
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-5 w-5 text-primary shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm truncate">{selectedFile.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatFileSize(selectedFile.size)}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSelectedFile(null)}
+                  <div className="space-y-4 py-4">
+                    <div className="rounded-lg border-2 border-dashed p-6 text-center">
+                      <Input
+                        type="file"
+                        id="file-upload"
+                        className="hidden"
+                        onChange={(e) =>
+                          setSelectedFile(e.target.files?.[0] || null)
+                        }
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      />
+                      <Label
+                        htmlFor="file-upload"
+                        className="cursor-pointer flex flex-col items-center gap-2"
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
+                        <Paperclip className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          Clique para selecionar um ficheiro
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          PDF, Word, Excel ou imagens (máx. 10MB)
+                        </span>
+                      </Label>
                     </div>
-                  )}
 
-                  <Button
-                    onClick={handleUpload}
-                    disabled={!selectedFile || isUploading}
-                    className="w-full gap-2"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        A carregar...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4" />
-                        Carregar Documento
-                      </>
+                    {selectedFile && (
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-5 w-5 text-primary shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {selectedFile.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(selectedFile.size)}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedFile(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+
+                    <Button
+                      onClick={handleUpload}
+                      disabled={!selectedFile || isUploading}
+                      className="w-full gap-2"
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />A
+                          carregar...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" />
+                          Carregar Documento
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </div>
@@ -398,9 +436,15 @@ export function RequirementDocuments({
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <FileText className="h-4 w-4 text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{file.name}</p>
+                        <p className="text-sm font-medium truncate">
+                          {file.name}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(file.uploadedAt), "dd MMM yyyy 'às' HH:mm", { locale: pt })}
+                          {format(
+                            new Date(file.uploadedAt),
+                            "dd MMM yyyy 'às' HH:mm",
+                            { locale: pt },
+                          )}
                           {file.size && ` • ${formatFileSize(file.size)}`}
                         </p>
                       </div>
@@ -449,25 +493,32 @@ export function RequirementDocuments({
           <div className="text-center py-4 text-muted-foreground text-sm">
             <Paperclip className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>Sem documentos anexados</p>
-            <p className="text-xs">Clique em "Carregar" para adicionar evidências</p>
+            <p className="text-xs">
+              Clique em "Carregar"para adicionar evidências
+            </p>
           </div>
         </CardContent>
       )}
 
       {/* Delete confirmation dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remover Documento</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem a certeza que deseja remover o documento "{deleteTarget?.name}"? 
-              Esta ação não pode ser revertida.
+              Tem a certeza que deseja remover o documento"{deleteTarget?.name}
+              "? Esta ação não pode ser revertida.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+              onClick={() =>
+                deleteTarget && deleteMutation.mutate(deleteTarget)
+              }
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? (
