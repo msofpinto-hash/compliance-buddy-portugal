@@ -712,6 +712,7 @@ export default function Biblioteca() {
                   hideFilters
                   externalThemeId={selectedThemeId}
                   applicabilityMap={legislationApplicabilitiesMap}
+                  editableOrganizationId={isAdmin && currentOrg?.id ? currentOrg.id : undefined}
                   externalSearchTerm={searchTerm}
                 />
               </IDCard>
