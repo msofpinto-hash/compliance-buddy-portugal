@@ -290,7 +290,69 @@ export function EvidenceRequestsPanel({
     enabled: !!requests?.length,
   });
 
-  // Upload document mutation
+  // Admin: alterar visibilidade do pedido para o cliente
+  const visibilityMutation = useMutation({
+    mutationFn: async ({
+      requestId,
+      visible,
+    }: {
+      requestId: string;
+      visible: boolean | null;
+    }) => {
+      const payload =
+        visible === null
+          ? { visibility_mode: "auto" }
+          : { visibility_mode: "manual", visible_to_client: visible };
+      const { error } = await supabase
+        .from("organization_evidence_requests")
+        .update(payload)
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evidence-requests"] });
+      toast({ title: "Visibilidade atualizada" });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Erro ao atualizar visibilidade",
+        description: e.message,
+        variant: "destructive",
+      }),
+  });
+
+  // Admin: validar / rejeitar evidências submetidas
+  const reviewMutation = useMutation({
+    mutationFn: async ({
+      requestId,
+      status,
+    }: {
+      requestId: string;
+      status: "approved" | "rejected" | "pending";
+    }) => {
+      const { error } = await supabase
+        .from("organization_evidence_requests")
+        .update({
+          status,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id ?? null,
+        })
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evidence-requests"] });
+      toast({ title: "Pedido atualizado" });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Erro ao atualizar pedido",
+        description: e.message,
+        variant: "destructive",
+      }),
+  });
+
+
   const uploadMutation = useMutation({
     mutationFn: async ({
       requestId,
