@@ -12,7 +12,7 @@
 
 @layer base {
   :root {
-    --background: 40 33% 97%;
+    --background: 33 82% 96%;
     --foreground: 210 30% 24%;
 
     --card: 0 0% 100%;
@@ -73,6 +73,12 @@
 
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+
+    /* I&D brand accents (incredibleanddynamic.com) */
+    --terracotta: 24 46% 46%;
+    --terracotta-foreground: 0 0% 100%;
+    --cream: 33 82% 96%;
+
   }
 
   .dark {
