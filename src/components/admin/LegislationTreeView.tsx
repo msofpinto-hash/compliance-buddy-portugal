@@ -1571,6 +1571,17 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             </CardDescription>
           </CardHeader>
           <CardContent className="p-2 flex flex-col">
+            {editableOrganizationId && displayedLegislation.length > 0 && (
+              <BulkApplicabilityBar
+                organizationId={editableOrganizationId}
+                legislationIds={displayedLegislation.map((l) => l.id)}
+                scopeLabel={
+                  (selectedCategoryId
+                    ? selectedTheme?.categories.find((c) => c.id === selectedCategoryId)?.name
+                    : selectedTheme?.name) || "Seleção"
+                }
+              />
+            )}
             {displayedLegislation.length > 0 ? (
               <>
               <ScrollArea className="h-[calc(100vh-380px)]">
