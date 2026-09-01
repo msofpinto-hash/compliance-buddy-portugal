@@ -278,7 +278,7 @@ export function EvidenceRequestsPanel({
         .select(
           `
  *,
- documents (id, name, file_url, validity_date, user_notes)
+ documents (id, name, file_url, issue_date, validity_date, user_notes)
  `,
         )
         .in("request_id", requestIds);
