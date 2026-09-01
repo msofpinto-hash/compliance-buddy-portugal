@@ -28,5 +28,5 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [x] Scan de segurança completo e correção das falhas remanescentes (edge functions autenticadas, gatilhos de âmbito, permissões de RPC)
 
 ## Novas páginas (2026-09-01)
-- [ ] Página de fontes oficiais: aprovar/rejeitar fontes com histórico e motivo
-- [ ] Página de conformidade por cliente: estado de cada requisito + evidências (admin e cliente)
+- [x] Página de fontes oficiais: aprovar/rejeitar fontes com histórico e motivo
+- [x] Página de conformidade por cliente: estado de cada requisito + evidências (admin e cliente)
