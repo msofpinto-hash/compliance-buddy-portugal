@@ -17,3 +17,6 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [x] Criar planos de ação (3 alta / 7 média)
 - [ ] Enriquecimento automático dos 383 novos diplomas (URLs DRE/EUR-Lex + sumários) — a correr em background
 - [ ] Categorização IA dos diplomas sem categoria — bloqueada por créditos do AI Gateway
+
+## Redesign Dashboard (2026-09-01)
+- [ ] Redesenhar /dashboard com tema de sustentabilidade, estética moderna e imagens de fundo

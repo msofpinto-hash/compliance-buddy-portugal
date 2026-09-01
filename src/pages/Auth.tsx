@@ -140,7 +140,11 @@ const Auth = () => {
     try {
       const { error } = await signUp(email, password, fullName);
       if (error) {
-        setError(error.message.includes("already registered") ? "Este email já está registado" : error.message);
+        const m = error.message || "";
+        if (m.includes("already registered")) setError("Este email já está registado");
+        else if (m.toLowerCase().includes("weak") || m.toLowerCase().includes("pwned")) setError("Esta password é demasiado comum ou apareceu em fugas de dados. Escolha outra mais forte.");
+        else if (m.includes("Signups not allowed")) setError("O registo de novas contas está desativado. Contacte o administrador.");
+        else setError(m);
       } else {
         setRegistrationSuccess(true);
         toast({ title: "Conta criada", description: "O seu registo foi submetido para aprovação." });
@@ -510,7 +514,7 @@ const Auth = () => {
                         )}
                       </div>
 
-                      <Button type="submit" className="w-full" disabled={isLoading || !isPasswordValid || password !== confirmPassword}>
+                      <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
                         Criar conta
                       </Button>
