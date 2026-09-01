@@ -397,10 +397,8 @@ export default function GestaoTemas() {
 
   return (
     <div className="min-h-screen bg-background">
-      <RouteSeo
-        title="Gestão de Temas e Descritores | I&D Compliance Lex"
-        description="Selecione temas, confirme descritores e subdescritores e associe automaticamente os diplomas ao cliente."
-      />
+      <RouteSeo />
+
       <IDTopNav />
 
       <main className="container mx-auto space-y-4 px-4 py-6">
