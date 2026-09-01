@@ -21,3 +21,4 @@
 - [x] Importar página a página o restante da lista exaustiva (PDF SIAWISE), corrigindo quebras de página falhadas pelo parser (773 entradas, +198 diplomas novos)
 - [x] Corrigir/validar URLs dos diplomas carregados (restam 5 sem link)
 - [~] Importar requisitos via URL (jobs em curso em segundo plano)
+- [ ] Gestão de temas: mover descritores/subdescritores entre temas (Ambiente <-> SST) quando o nome se repete

@@ -20,7 +20,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, FolderTree, Loader2, MoveRight, Trash2, Check } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderTree,
+  Loader2,
+  MoveRight,
+  Trash2,
+  Check,
+  ArrowLeftRight,
+} from "lucide-react";
 import { RouteSeo } from "@/components/seo/RouteSeo";
 import { IDTopNav } from "@/components/client/IDTopNav";
 
@@ -58,6 +67,9 @@ export default function GestaoTemas() {
   const [moveTargetId, setMoveTargetId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [categoryToMove, setCategoryToMove] = useState<Category | null>(null);
+  const [moveThemeId, setMoveThemeId] = useState<string>("");
+
 
   const { data: themes } = useQuery({
     queryKey: ["gt-themes"],
@@ -313,6 +325,33 @@ export default function GestaoTemas() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  /** Move a descriptor (and its sub-descriptors) to another theme */
+  const moveCategoryToTheme = useMutation({
+    mutationFn: async ({ cat, targetThemeId }: { cat: Category; targetThemeId: string }) => {
+      const ids = descendantIds(cat.id);
+      const { error } = await supabase
+        .from("theme_categories")
+        .update({ theme_id: targetThemeId })
+        .in("id", ids);
+      if (error) throw error;
+      // the moved descriptor becomes a top-level descriptor of the target theme
+      const { error: rootError } = await supabase
+        .from("theme_categories")
+        .update({ parent_id: null })
+        .eq("id", cat.id);
+      if (rootError) throw rootError;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} descritor(es) movido(s) de tema`);
+      setActiveCategoryId(null);
+      queryClient.invalidateQueries({ queryKey: ["gt-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["gt-diplomas"] });
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const renderNode = (cat: Category, level = 0) => {
     const kids = childrenOf.get(cat.id) || [];
     const isOpen = expanded.has(cat.id);
@@ -363,6 +402,18 @@ export default function GestaoTemas() {
               {count}
             </Badge>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
+            title="Mover descritor para outro tema"
+            onClick={() => {
+              setCategoryToMove(cat);
+              setMoveThemeId("");
+            }}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -642,6 +693,49 @@ export default function GestaoTemas() {
             </AlertDialogAction>
           </AlertDialogFooter>
 
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!categoryToMove} onOpenChange={(o) => !o && setCategoryToMove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover descritor para outro tema</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{categoryToMove?.name}" e os seus subdescritores passam para o tema escolhido,
+              mantendo os diplomas associados. Fica como descritor de topo no tema de destino.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label>Tema de destino</Label>
+            <Select value={moveThemeId} onValueChange={setMoveThemeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolher tema…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(themes || [])
+                  .filter((t) => t.id !== categoryToMove?.theme_id)
+                  .map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!moveThemeId || moveCategoryToTheme.isPending}
+              onClick={() => {
+                if (categoryToMove && moveThemeId) {
+                  moveCategoryToTheme.mutate({ cat: categoryToMove, targetThemeId: moveThemeId });
+                }
+                setCategoryToMove(null);
+              }}
+            >
+              Mover
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
