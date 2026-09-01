@@ -69,7 +69,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import emptySearchImage from "@/assets/empty-search.png";
 import treeCategoriesImage from "@/assets/tree-categories.png";
-import { BulkApplicabilityBar } from "@/components/admin/BulkApplicabilityBar";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -528,6 +528,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
   const [diplomaTypeFilter, setDiplomaTypeFilter] = useState<string | null>(null);
+  const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -641,10 +642,13 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       
       const matchesDiplomaType = !diplomaTypeFilter || 
         extractDiplomaType(leg.number || "") === diplomaTypeFilter;
-      
-      return matchesSearch && matchesSource && matchesDiplomaType;
+
+      const matchesApplicability = !unclassifiedOnly ||
+        (applicabilityMap ? !applicabilityMap[leg.id] : true);
+
+      return matchesSearch && matchesSource && matchesDiplomaType && matchesApplicability;
     });
-  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter]);
+  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter, unclassifiedOnly, applicabilityMap]);
 
   const legislationByCategory = useMemo(() => {
     const map = new Map<string, LegislationWithCategories[]>();
@@ -1045,7 +1049,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     );
   };
 
-  const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter;
+  const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter || unclassifiedOnly;
 
   // List mode - filter legislation based on selected theme/category/subcategory
 
@@ -1197,6 +1201,21 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 </SelectContent>
               </Select>
 
+              {applicabilityMap && (
+                <Button
+                  variant={unclassifiedOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setUnclassifiedOnly(!unclassifiedOnly);
+                    resetPage();
+                  }}
+                  title="Mostrar apenas diplomas sem aplicabilidade classificada"
+                >
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Por classificar
+                </Button>
+              )}
+
               {hasFilters && (
                 <Button
                   variant="ghost"
@@ -1205,6 +1224,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     setSearchTerm("");
                     setSourceFilter("all");
                     setDiplomaTypeFilter(null);
+                    setUnclassifiedOnly(false);
                   }}
                   className="text-muted-foreground"
                 >
@@ -1801,17 +1821,6 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             </CardDescription>
           </CardHeader>
           <CardContent className="p-2 flex flex-col">
-            {editableOrganizationId && displayedLegislation.length > 0 && (
-              <BulkApplicabilityBar
-                organizationId={editableOrganizationId}
-                legislationIds={displayedLegislation.map((l) => l.id)}
-                scopeLabel={
-                  (selectedCategoryId
-                    ? selectedTheme?.categories.find((c) => c.id === selectedCategoryId)?.name
-                    : selectedTheme?.name) || "Seleção"
-                }
-              />
-            )}
             {editableOrganizationId && selectedLegIds.size > 0 && (
               <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2">
                 <span className="flex items-center gap-1.5 text-xs font-medium">
