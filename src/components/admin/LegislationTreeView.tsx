@@ -51,6 +51,8 @@ import {
   LayoutGrid,
   List,
   ArrowLeftRight,
+  Pencil,
+  Trash2,
   type LucideIcon
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
