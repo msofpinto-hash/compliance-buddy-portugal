@@ -1100,6 +1100,11 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     return theme?.categories.filter(c => c.parent_id === listCategoryFilter).sort((a, b) => a.name.localeCompare(b.name, 'pt')) || [];
   }, [listCategoryFilter, listThemeFilter, themesWithCategories]);
 
+  if (isLoading) {
+    return <div className="text-center py-8 text-muted-foreground">A carregar temas...</div>;
+  }
+
+
   // Check if we should show list mode (user chose list view)
   const showListView = viewMode === "list";
 
