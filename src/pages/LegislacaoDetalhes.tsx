@@ -309,11 +309,12 @@ export default function LegislacaoDetalhes() {
   const { data: applicabilities } = useQuery({
     queryKey: ["requirement-applicabilities", id, activeOrganization?.id],
     queryFn: async () => {
-      if (!id || !activeOrganization?.id) return {};
+      if (!id || !activeOrganization?.id || !requirements?.length) return {};
       const { data, error } = await supabase
         .from("applicabilities")
         .select("requirement_id, applicability_type")
-        .eq("organization_id", activeOrganization.id);
+        .eq("organization_id", activeOrganization.id)
+        .in("requirement_id", requirements.map((requirement) => requirement.id));
       if (error) throw error;
       
       // Convert to map for easy lookup
@@ -323,7 +324,7 @@ export default function LegislacaoDetalhes() {
       });
       return map;
     },
-    enabled: !!id && !!activeOrganization?.id,
+    enabled: !!id && !!activeOrganization?.id && !!requirements?.length,
   });
 
   // Fetch legislation applicability for the user's organization
