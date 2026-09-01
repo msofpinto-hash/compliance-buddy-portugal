@@ -2111,6 +2111,8 @@ export default function Dashboard() {
                                     </div>
                                   )}
                                 </div>
+                                <AuditDocumentsList auditId={audit.id} />
+
                               </div>
                               {/* Action buttons */}
                               <div className="flex flex-col gap-2">
