@@ -81,3 +81,4 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 
 - [x] Ecrã de aprovações do cliente (/aprovacoes)
 - [x] Modais de submissão com fundo branco sólido
+- [ ] Menu Legislação do cliente: temas e descritores
