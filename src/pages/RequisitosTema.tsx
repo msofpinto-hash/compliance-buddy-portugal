@@ -76,7 +76,16 @@ export default function RequisitosTema() {
     queryFn: async () => {
       const { data, error } = await supabase.from("organizations").select("id, name").order("name");
       if (error) throw error;
-      return data as { id: string; name: string }[];
+      const { data: assigned } = await supabase
+        .from("organization_legislation")
+        .select("organization_id")
+        .range(0, 9999);
+      const counts: Record<string, number> = {};
+      for (const a of assigned || []) counts[a.organization_id] = (counts[a.organization_id] || 0) + 1;
+      // O cliente com mais legislação atribuída fica em primeiro (default útil)
+      return [...((data || []) as { id: string; name: string }[])].sort(
+        (a, b) => (counts[b.id] || 0) - (counts[a.id] || 0),
+      );
     },
   });
 
