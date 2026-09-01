@@ -42,3 +42,4 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [ ] Automatismo: diploma classificado como 'informativo' ou 'não aplicável' propaga a classificação a todos os seus requisitos legais
 - [ ] Correção contínua de requisitos e relações dos temas Ambiente e SST
 - [ ] Evidências: importar catálogo de evidências habituais por diploma (ficheiros Pedidos - A / Pedidos - S)
+- [ ] Auditorias: submenus Plano de auditorias / Histórico, distinguir Auditoria anual de conformidade legal vs Verificação mensal, resultados ligados automaticamente ao Plano de Ação
