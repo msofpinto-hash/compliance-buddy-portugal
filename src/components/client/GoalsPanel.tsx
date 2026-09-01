@@ -241,8 +241,9 @@ export function GoalsPanel({ organizationId }: { organizationId?: string | null 
 
   const progressOf = (g: Goal) =>
     g.target_value > 0
-      ? Math.min(100, Math.round((g.current_value / g.target_value) * 100))
+      ? Math.min(100, Math.round((valueOf(g) / g.target_value) * 100))
       : 0;
+
 
   const deadlineInfo = (g: Goal) => {
     if (!g.due_date) return null;
