@@ -695,6 +695,49 @@ export default function GestaoTemas() {
 
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!categoryToMove} onOpenChange={(o) => !o && setCategoryToMove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover descritor para outro tema</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{categoryToMove?.name}" e os seus subdescritores passam para o tema escolhido,
+              mantendo os diplomas associados. Fica como descritor de topo no tema de destino.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label>Tema de destino</Label>
+            <Select value={moveThemeId} onValueChange={setMoveThemeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolher tema…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(themes || [])
+                  .filter((t) => t.id !== categoryToMove?.theme_id)
+                  .map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!moveThemeId || moveCategoryToTheme.isPending}
+              onClick={() => {
+                if (categoryToMove && moveThemeId) {
+                  moveCategoryToTheme.mutate({ cat: categoryToMove, targetThemeId: moveThemeId });
+                }
+                setCategoryToMove(null);
+              }}
+            >
+              Mover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
