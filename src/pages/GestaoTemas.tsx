@@ -67,6 +67,9 @@ export default function GestaoTemas() {
   const [moveTargetId, setMoveTargetId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [categoryToMove, setCategoryToMove] = useState<Category | null>(null);
+  const [moveThemeId, setMoveThemeId] = useState<string>("");
+
 
   const { data: themes } = useQuery({
     queryKey: ["gt-themes"],
