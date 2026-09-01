@@ -26,3 +26,9 @@
 - [x] Biblioteca do cliente: mover diplomas selecionados entre descritores e associar novos descritores
 - [x] Biblioteca: painel de requisitos por descritor/tema (diploma, aplicabilidade AMCOR, estado da extração) com correção automática
 - [~] Concluir extração dos diplomas pendentes (65 restantes, quase todos EU/EUR-Lex) — cron a correr a cada 2 min
+
+## Em curso (2026-09-01)
+- [x] Automatismo: diploma informativo -> requisitos informativos (trigger + backfill)
+- [x] UI: refrescar requisitos após mudar aplicabilidade do diploma
+- [x] Extração de relações dos diplomas (função extract-relations-from-text)
+- [x] Eliminar diplomas duplicados (869 -> 839)

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -69,6 +69,11 @@ export function LegislationApplicabilitySelect({
   const [value, setValue] = useState(currentValue);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Keep in sync when the organization (or the fetched value) changes
+  useEffect(() => {
+    setValue(currentValue);
+  }, [currentValue, organizationId, legislationId]);
+
   const handleValueChange = async (newValue: string) => {
     if (!user || readOnly) return;
 
@@ -115,9 +120,14 @@ export function LegislationApplicabilitySelect({
         description: `Diploma classificado como "${getLegislationApplicabilityInfo(newValue).label}"`,
       });
 
-      // Invalidate relevant queries
+      // Invalidate relevant queries (the database propagates the classification
+      // to every legal requirement of this diploma)
       queryClient.invalidateQueries({ queryKey: ["legislation-applicability"] });
       queryClient.invalidateQueries({ queryKey: ["biblioteca-legislation"] });
+      queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities"] });
+      queryClient.invalidateQueries({ queryKey: ["applicabilities"] });
+      queryClient.invalidateQueries({ queryKey: ["requisitos-tema"] });
+      queryClient.invalidateQueries({ queryKey: ["conformidade"] });
 
       onUpdate?.(newValue);
     } catch (error) {
