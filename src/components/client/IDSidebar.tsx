@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import logoId from "@/assets/id-logo-2026.png.asset.json";
+import logoId from "@/assets/id-compliance-lex.png.asset.json";
 
 type ModuleType = 'legislacao' | 'planos_acao' | 'auditorias' | 'documentos' | 'indicadores';
 
