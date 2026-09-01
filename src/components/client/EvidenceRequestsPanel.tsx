@@ -207,7 +207,7 @@ export function EvidenceRequestsPanel({
   organizationId,
 }: EvidenceRequestsPanelProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
