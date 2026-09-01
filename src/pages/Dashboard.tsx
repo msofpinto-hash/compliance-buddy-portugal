@@ -62,6 +62,8 @@ import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
 import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDialog";
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
+import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
+
 import { WelcomeHero } from "@/components/client/WelcomeHero";
 import { ModuleCard } from "@/components/client/ModuleCard";
 import { TechWelcomeHero } from "@/components/client/TechWelcomeHero";
