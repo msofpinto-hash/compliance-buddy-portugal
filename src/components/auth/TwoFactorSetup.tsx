@@ -262,12 +262,12 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
             <Label className="font-medium">Autenticação de Dois Fatores</Label>
             {isEnabled ? (
               <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 gap-1">
-                <ShieldCheck className="h-3 w-3" />
+                <ShieldCheck className="h-3 w-3" aria-hidden="true" />
                 Ativado
               </Badge>
             ) : (
               <Badge variant="outline" className="text-muted-foreground gap-1">
-                <Shield className="h-3 w-3" />
+                <Shield className="h-3 w-3" aria-hidden="true" />
                 Desativado
               </Badge>
             )}
@@ -285,7 +285,7 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
             size="sm"
             onClick={() => setShowDisableConfirm(true)}
           >
-            <ShieldOff className="h-4 w-4 mr-1" />
+            <ShieldOff className="h-4 w-4 mr-1" aria-hidden="true" />
             Desativar
           </Button>
         ) : (
@@ -296,9 +296,9 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
             disabled={isEnrolling}
           >
             {isEnrolling ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
             ) : (
-              <QrCode className="h-4 w-4 mr-1" />
+              <QrCode className="h-4 w-4 mr-1" aria-hidden="true" />
             )}
             Configurar
           </Button>
@@ -307,7 +307,7 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
 
       {error && (
         <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
