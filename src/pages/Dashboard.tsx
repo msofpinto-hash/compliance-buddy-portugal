@@ -2464,7 +2464,9 @@ export default function Dashboard() {
         open={!!viewingAuditPlan}
         onOpenChange={(open) => !open && setViewingAuditPlan(null)}
         audit={viewingAuditPlan}
+        canEdit={isAdmin}
       />
+
     </div>
   );
 }
