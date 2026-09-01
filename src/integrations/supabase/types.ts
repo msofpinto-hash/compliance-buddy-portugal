@@ -258,6 +258,45 @@ export type Database = {
           },
         ]
       }
+      audit_documents: {
+        Row: {
+          audit_id: string
+          created_at: string
+          document_id: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          audit_id: string
+          created_at?: string
+          document_id: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          audit_id?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_documents_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_requirement_documents: {
         Row: {
           audit_requirement_id: string
