@@ -159,7 +159,7 @@ const Auth = () => {
     if (!email.trim()) { setError("Por favor, introduza o seu email"); setIsLoading(false); return; }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth` });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
       if (error) { setError(error.message); } else {
         setResetEmailSent(true);
         toast({ title: "Email enviado", description: "Verifique a sua caixa de correio." });
