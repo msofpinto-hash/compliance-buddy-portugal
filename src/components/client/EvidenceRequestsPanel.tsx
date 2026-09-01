@@ -866,6 +866,9 @@ export function EvidenceRequestsPanel({
         description={`Selecione as colunas para exportar ${filteredRequests?.length || 0} pedido(s).`}
       />
 
+      {/* Evidências por auditoria */}
+      <AuditEvidenceOverview organizationId={organizationId} />
+
       {/* Requests List */}
       {loadingRequests ? (
         <div className="space-y-4">
@@ -874,14 +877,24 @@ export function EvidenceRequestsPanel({
           ))}
         </div>
       ) : (
-        <ScrollArea className="h-[500px]">
-          <div className="space-y-2">
+        <ScrollArea className="h-[600px] pr-3">
+          <div className="space-y-3">
             {Object.entries(groupedRequests || {}).map(
               ([groupName, groupRequests]) => {
                 const isExpanded = expandedGroups.has(groupName);
                 const pendingCount = groupRequests.filter(
                   (r) => r.status === "pending",
                 ).length;
+                const doneCount = groupRequests.length - pendingCount;
+                const groupPct = Math.round(
+                  (doneCount / groupRequests.length) * 100,
+                );
+                const groupArea = VISIBLE_AREAS.find(
+                  (a) => groupRequests[0]?.evidence_templates[a] === true,
+                );
+                const GroupIcon = groupArea
+                  ? AREA_CONFIG[groupArea].icon
+                  : FolderOpen;
 
                 return (
                   <Collapsible
@@ -889,30 +902,42 @@ export function EvidenceRequestsPanel({
                     open={isExpanded}
                     onOpenChange={() => toggleGroup(groupName)}
                   >
-                    <Card>
-                      <CardHeader className="p-4">
+                    <Card className="overflow-hidden border-0 shadow-md">
+                      <CardHeader className="p-0">
                         <CollapsibleTrigger asChild>
-                          <button className="w-full flex items-center gap-2 text-left hover:bg-accent/50 -m-2 p-2 rounded-lg transition-colors">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <div className="flex-1">
-                              <h3 className="font-medium">{groupName}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {groupRequests.length} pedidos
+                          <button className="w-full flex items-center gap-3 text-left p-4 hover:bg-accent/40 transition-colors">
+                            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                              <GroupIcon className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold truncate">
+                                {groupName}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                {groupRequests.length} pedidos • {doneCount}{" "}
+                                tratados
                                 {pendingCount > 0 &&
                                   ` • ${pendingCount} pendentes`}
+                              </p>
+                            </div>
+                            <div className="hidden sm:block w-32">
+                              <Progress value={groupPct} className="h-2" />
+                              <p className="mt-1 text-right text-[11px] font-semibold text-primary">
+                                {groupPct}%
                               </p>
                             </div>
                             {pendingCount > 0 && (
                               <Badge
                                 variant="secondary"
-                                className="bg-orange-100 text-orange-800"
+                                className="shrink-0 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15"
                               >
                                 {pendingCount} por responder
                               </Badge>
+                            )}
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                             )}
                           </button>
                         </CollapsibleTrigger>
