@@ -123,7 +123,9 @@ interface UploadedDocument {
     id: string;
     name: string;
     file_url: string | null;
+    issue_date: string | null;
     validity_date: string | null;
+
     user_notes: string | null;
   };
 }
@@ -220,12 +222,17 @@ export function EvidenceRequestsPanel({
   const [notes, setNotes] = useState("");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
-  // Document upload form state
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [hasValidity, setHasValidity] = useState(false);
-  const [validityDate, setValidityDate] = useState<Date | undefined>(undefined);
-  const [documentNotes, setDocumentNotes] = useState("");
+  // Document upload form state (múltiplos ficheiros)
+  type PendingDoc = {
+    id: string;
+    file: File;
+    issueDate?: Date;
+    validityDate?: Date;
+    notes: string;
+  };
+  const [pendingDocs, setPendingDocs] = useState<PendingDoc[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // Export columns configuration
   const exportColumns: ExportColumn[] = [
@@ -273,7 +280,7 @@ export function EvidenceRequestsPanel({
         .select(
           `
  *,
- documents (id, name, file_url, validity_date, user_notes)
+ documents (id, name, file_url, issue_date, validity_date, user_notes)
  `,
         )
         .in("request_id", requestIds);
@@ -357,11 +364,13 @@ export function EvidenceRequestsPanel({
     mutationFn: async ({
       requestId,
       file,
+      issueDate,
       validityDate,
       userNotes,
     }: {
       requestId: string;
       file: File;
+      issueDate?: Date;
       validityDate?: Date;
       userNotes?: string;
     }) => {
@@ -382,6 +391,7 @@ export function EvidenceRequestsPanel({
           organization_id: organizationId,
           uploaded_by: user?.id,
           category: "evidence",
+          issue_date: issueDate ? format(issueDate, "yyyy-MM-dd") : null,
           validity_date: validityDate
             ? format(validityDate, "yyyy-MM-dd")
             : null,
@@ -405,30 +415,11 @@ export function EvidenceRequestsPanel({
 
       return doc;
     },
-    onSuccess: () => {
-      toast({
-        title: "Documento carregado",
-        description: "O documento foi adicionado com sucesso.",
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["evidence-request-documents", organizationId],
-      });
-      // Reset form
-      setPendingFile(null);
-      setHasValidity(false);
-      setValidityDate(undefined);
-      setDocumentNotes("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    },
     onError: (error) => {
       console.error("Error uploading document:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar o documento",
-        variant: "destructive",
-      });
     },
   });
+
 
   // Submit evidence mutation
   const submitMutation = useMutation({
@@ -461,6 +452,9 @@ export function EvidenceRequestsPanel({
       setUploadDialogOpen(false);
       setSelectedRequest(null);
       setNotes("");
+      setPendingDocs([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
     },
     onError: (error) => {
       console.error("Error submitting evidence:", error);
@@ -587,23 +581,61 @@ export function EvidenceRequestsPanel({
   };
 
   const handleUploadWithMetadata = async () => {
-    if (!selectedRequest || !pendingFile) return;
+    if (!selectedRequest || pendingDocs.length === 0) return;
     setUploadingFile(true);
+    let ok = 0;
     try {
-      await uploadMutation.mutateAsync({
-        requestId: selectedRequest.id,
-        file: pendingFile,
-        validityDate: hasValidity ? validityDate : undefined,
-        userNotes: documentNotes || undefined,
+      for (const doc of pendingDocs) {
+        await uploadMutation.mutateAsync({
+          requestId: selectedRequest.id,
+          file: doc.file,
+          issueDate: doc.issueDate,
+          validityDate: doc.validityDate,
+          userNotes: doc.notes || undefined,
+        });
+        ok += 1;
+      }
+      toast({
+        title: ok === 1 ? "Documento carregado" : `${ok} documentos carregados`,
+        description: "Os documentos foram anexados com sucesso.",
+      });
+      setPendingDocs([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (e) {
+      toast({
+        title: "Erro",
+        description: `Não foi possível carregar todos os documentos (${ok} carregados).`,
+        variant: "destructive",
       });
     } finally {
       setUploadingFile(false);
+      queryClient.invalidateQueries({
+        queryKey: ["evidence-request-documents", organizationId],
+      });
     }
   };
 
-  const handleFileChange = (file: File) => {
-    setPendingFile(file);
+  const handleFilesSelected = (files: FileList) => {
+    const next = Array.from(files).map((file) => ({
+      id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+      file,
+      issueDate: undefined as Date | undefined,
+      validityDate: undefined as Date | undefined,
+      notes: "",
+    }));
+    setPendingDocs((prev) => [...prev, ...next]);
   };
+
+  const updatePendingDoc = (id: string, patch: Partial<PendingDoc>) => {
+    setPendingDocs((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...patch } : d)),
+    );
+  };
+
+  const removePendingDoc = (id: string) => {
+    setPendingDocs((prev) => prev.filter((d) => d.id !== id));
+  };
+
 
   const getTemplateAreas = (
     template: EvidenceRequest["evidence_templates"],
@@ -1210,10 +1242,25 @@ export function EvidenceRequestsPanel({
                                                 </Button>
                                               </div>
                                               {(doc.documents.validity_date ||
+                                                doc.documents.issue_date ||
                                                 doc.documents.user_notes) && (
                                                 <div className="mt-1 pl-5 space-y-0.5">
+                                                  {doc.documents.issue_date && (
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                      <CalendarIcon className="h-3 w-3" />
+                                                      Emissão:{" "}
+                                                      {format(
+                                                        new Date(
+                                                          doc.documents.issue_date,
+                                                        ),
+                                                        "dd/MM/yyyy",
+                                                        { locale: pt },
+                                                      )}
+                                                    </p>
+                                                  )}
                                                   {doc.documents
                                                     .validity_date && (
+
                                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                                       <CalendarIcon className="h-3 w-3" />
                                                       Validade:{" "}
@@ -1288,7 +1335,7 @@ export function EvidenceRequestsPanel({
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Submeter Evidência</DialogTitle>
             <DialogDescription>
@@ -1333,114 +1380,135 @@ export function EvidenceRequestsPanel({
                 </div>
               )}
 
-            {/* File upload */}
+            {/* File upload (múltiplos) */}
             <div className="space-y-3">
-              <Label>Adicionar documento</Label>
+              <Label>Adicionar documentos</Label>
 
-              {/* File selector */}
-              {!pendingFile ? (
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
-                  <div className="flex flex-col items-center justify-center">
-                    <Upload className="h-6 w-6 text-muted-foreground mb-1" />
-                    <p className="text-sm text-muted-foreground">
-                      Clique para selecionar ficheiro
-                    </p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileChange(file);
-                    }}
-                  />
-                </label>
-              ) : (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                <div className="flex flex-col items-center justify-center">
+                  <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                  <p className="text-sm text-muted-foreground">
+                    Clique para selecionar um ou vários ficheiros
+                  </p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.length)
+                      handleFilesSelected(e.target.files);
+                  }}
+                />
+              </label>
+
+              {pendingDocs.length > 0 && (
                 <div className="space-y-3">
-                  {/* Selected file preview */}
-                  <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
-                    <File className="h-5 w-5 text-primary" />
-                    <span className="flex-1 truncate font-medium">
-                      {pendingFile.name}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPendingFile(null);
-                        setHasValidity(false);
-                        setValidityDate(undefined);
-                        setDocumentNotes("");
-                        if (fileInputRef.current)
-                          fileInputRef.current.value = "";
-                      }}
+                  {pendingDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="space-y-3 rounded-lg border bg-muted/30 p-3"
                     >
-                      Alterar
-                    </Button>
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <File className="h-5 w-5 text-primary shrink-0" />
+                        <span className="flex-1 truncate font-medium text-sm">
+                          {doc.file.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => removePendingDoc(doc.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
 
-                  {/* Validity date toggle and picker */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label
-                        htmlFor="has-validity"
-                        className="text-sm cursor-pointer"
-                      >
-                        Documento tem validade?
-                      </Label>
-                      <Switch
-                        id="has-validity"
-                        checked={hasValidity}
-                        onCheckedChange={setHasValidity}
-                      />
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Data de emissão</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !doc.issueDate && "text-muted-foreground",
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {doc.issueDate
+                                  ? format(doc.issueDate, "PPP", { locale: pt })
+                                  : "Opcional"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={doc.issueDate}
+                                onSelect={(d) =>
+                                  updatePendingDoc(doc.id, { issueDate: d })
+                                }
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Data de validade</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !doc.validityDate && "text-muted-foreground",
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {doc.validityDate
+                                  ? format(doc.validityDate, "PPP", {
+                                      locale: pt,
+                                    })
+                                  : "Se aplicável"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={doc.validityDate}
+                                onSelect={(d) =>
+                                  updatePendingDoc(doc.id, { validityDate: d })
+                                }
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          Comentário sobre este documento (opcional)
+                        </Label>
+                        <Textarea
+                          placeholder="Ex: Certificado renovado em 2026..."
+                          value={doc.notes}
+                          onChange={(e) =>
+                            updatePendingDoc(doc.id, { notes: e.target.value })
+                          }
+                          rows={2}
+                        />
+                      </div>
                     </div>
+                  ))}
 
-                    {hasValidity && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !validityDate && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {validityDate
-                              ? format(validityDate, "PPP", { locale: pt })
-                              : "Selecionar data de validade"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={validityDate}
-                            onSelect={setValidityDate}
-                            initialFocus
-                            className="p-3 pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </div>
-
-                  {/* Document notes */}
-                  <div>
-                    <Label htmlFor="doc-notes" className="text-sm">
-                      Comentário sobre o documento (opcional)
-                    </Label>
-                    <Textarea
-                      id="doc-notes"
-                      placeholder="Ex: Certificado renovado em 2024..."
-                      value={documentNotes}
-                      onChange={(e) => setDocumentNotes(e.target.value)}
-                      className="mt-1"
-                      rows={2}
-                    />
-                  </div>
-
-                  {/* Upload button */}
                   <Button
                     onClick={handleUploadWithMetadata}
                     disabled={uploadingFile}
@@ -1451,11 +1519,14 @@ export function EvidenceRequestsPanel({
                     ) : (
                       <Upload className="mr-2 h-4 w-4" />
                     )}
-                    Carregar Documento
+                    {pendingDocs.length > 1
+                      ? `Carregar ${pendingDocs.length} documentos`
+                      : "Carregar documento"}
                   </Button>
                 </div>
               )}
             </div>
+
 
             {/* Request-level Notes */}
             <div>
@@ -1478,10 +1549,9 @@ export function EvidenceRequestsPanel({
                 setUploadDialogOpen(false);
                 setSelectedRequest(null);
                 setNotes("");
-                setPendingFile(null);
-                setHasValidity(false);
-                setValidityDate(undefined);
-                setDocumentNotes("");
+                setPendingDocs([]);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+
               }}
             >
               Cancelar

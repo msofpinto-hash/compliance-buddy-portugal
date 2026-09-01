@@ -67,3 +67,6 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [ ] Admin escolhe que pedidos ficam visíveis ao cliente (auto por aplicabilidade direta/indireta)
 - [ ] Corrigir corte lateral dos cartões de grupo de evidências
 - [ ] Admin (mariana.pinto@incredibleanddynamic.com) atua como admin dentro da área de cada cliente; cliente só edita planos de ação e carrega evidências
+
+## Evidências
+- [x] Submissão com múltiplos ficheiros, comentários e datas de emissão/validade
