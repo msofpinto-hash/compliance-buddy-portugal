@@ -94,21 +94,18 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
     <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#1a1512]/95 backdrop-blur-md border-b border-stone-200/60 dark:border-amber-900/30">
       {/* Row 1: brand + org + actions */}
       <div className="flex items-center justify-between gap-4 px-4 lg:px-8 py-3">
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex flex-col min-w-0">
           <Link to="/dashboard" className="shrink-0">
             <img
               src={currentOrg?.logo_url || logoId.url}
               alt={currentOrg?.logo_url ? currentOrg.name : "I&D Compliance Lex"}
               onError={(e) => { (e.currentTarget as HTMLImageElement).src = logoId.url; }}
-              className="h-9 lg:h-10 w-auto max-w-[210px] object-contain object-left"
+              className="h-9 lg:h-10 w-auto max-w-[240px] object-contain object-left"
             />
           </Link>
           {currentOrg?.name && (
-            <div className="hidden md:block pl-4 border-l border-stone-200/70 dark:border-amber-900/40 min-w-0">
-              <p className="text-[11px] uppercase tracking-wider font-medium text-amber-700/70 dark:text-amber-300/60">
-                Organização
-              </p>
-              <p className="text-sm font-semibold text-stone-800 dark:text-white truncate max-w-[240px]">
+            <div className="mt-1 min-w-0 max-w-[280px]">
+              <p className="text-xs font-semibold text-stone-700 dark:text-amber-100/90 leading-tight break-words">
                 {currentOrg.name}
               </p>
             </div>
