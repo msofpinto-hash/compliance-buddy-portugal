@@ -1245,7 +1245,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         </div>
 
                         {/* Number and title */}
-                        <Link to={`/legislacao/${leg.id}`}>
+                        <Link to={editableOrganizationId ? `/legislacao/${leg.id}?org=${editableOrganizationId}` : `/legislacao/${leg.id}`}>
                           <h3 className="font-semibold text-sm text-primary hover:underline mb-1">
                             {leg.number}
                           </h3>
@@ -1303,7 +1303,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
 
                         {/* Actions */}
                         <div className="flex gap-2 mt-3 pt-3 border-t">
-                          <Link to={`/legislacao/${leg.id}`} state={{ from }} className="flex-1">
+                          <Link to={editableOrganizationId ? `/legislacao/${leg.id}?org=${editableOrganizationId}` : `/legislacao/${leg.id}`} state={{ from }} className="flex-1">
                             <Button variant="outline" size="sm" className="w-full h-8 text-xs">
                               <Eye className="h-3 w-3 mr-1" />
                               Ver detalhes
@@ -1673,7 +1673,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                           </div>
                           <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild title="Ver detalhes">
-                              <Link to={`/legislacao/${leg.id}`} state={{ from }}>
+                              <Link to={editableOrganizationId ? `/legislacao/${leg.id}?org=${editableOrganizationId}` : `/legislacao/${leg.id}`} state={{ from }}>
                                 <Eye className="h-4 w-4" />
                               </Link>
                             </Button>
@@ -1698,7 +1698,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         </div>
 
                         {/* Number + Title */}
-                        <Link to={`/legislacao/${leg.id}`} state={{ from }} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
+                        <Link to={editableOrganizationId ? `/legislacao/${leg.id}?org=${editableOrganizationId}` : `/legislacao/${leg.id}`} state={{ from }} className={`block group-hover:text-primary transition-colors ${isRevoked ? 'text-muted-foreground' : ''}`}>
                           {/* For EUR-Lex: show title bold (with fallback to number). For DRE: number IS the title, show bold */}
                           {leg.origin === 'EU' ? (
                             (() => {
