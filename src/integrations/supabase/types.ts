@@ -1266,6 +1266,8 @@ export type Database = {
           submitted_at: string | null
           template_id: string
           updated_at: string
+          visibility_mode: string
+          visible_to_client: boolean
         }
         Insert: {
           assigned_by?: string | null
@@ -1280,6 +1282,8 @@ export type Database = {
           submitted_at?: string | null
           template_id: string
           updated_at?: string
+          visibility_mode?: string
+          visible_to_client?: boolean
         }
         Update: {
           assigned_by?: string | null
@@ -1294,6 +1298,8 @@ export type Database = {
           submitted_at?: string | null
           template_id?: string
           updated_at?: string
+          visibility_mode?: string
+          visible_to_client?: boolean
         }
         Relationships: [
           {
@@ -1926,6 +1932,10 @@ export type Database = {
         Returns: number
       }
       count_short_summaries: { Args: never; Returns: number }
+      evidence_request_auto_visible: {
+        Args: { _org_id: string; _template_id: string }
+        Returns: boolean
+      }
       get_diplomas_progress_stats: { Args: never; Returns: Json }
       get_generic_title_ids: {
         Args: { p_limit?: number; p_offset?: number }
@@ -2005,6 +2015,10 @@ export type Database = {
         Returns: boolean
       }
       is_source_available: { Args: { p_source_name: string }; Returns: boolean }
+      recompute_evidence_visibility: {
+        Args: { _org_id?: string }
+        Returns: number
+      }
       record_login_attempt: {
         Args: { p_email: string; p_success: boolean }
         Returns: undefined
