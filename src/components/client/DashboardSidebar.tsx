@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { ClientAnimatedLogo } from "@/components/client/ClientBackgrounds";
+import logoIdCompliance from "@/assets/logo-id-compliance.png";
 import { 
   Settings, 
   HelpCircle, 
