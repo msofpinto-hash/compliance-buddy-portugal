@@ -196,6 +196,34 @@ export default function Conformidade() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
+  // Admin: edição direta do estado de conformidade e notas
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftNotes, setDraftNotes] = useState("");
+
+  const updateRow = useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: { compliance_status?: string; notes?: string | null };
+    }) => {
+      const { error } = await supabase
+        .from("applicabilities")
+        .update(patch)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Conformidade atualizada");
+      queryClient.invalidateQueries({ queryKey: ["conformidade-rows", orgId] });
+    },
+    onError: () => toast.error("Não foi possível guardar a alteração"),
+  });
+
+
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-6xl px-4 py-8">
