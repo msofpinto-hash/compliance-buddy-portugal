@@ -152,6 +152,9 @@ export default function Progresso() {
           <Button variant="outline" size="sm" asChild>
             <Link to="/diplomas">Ver diplomas</Link>
           </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/requisitos-tema">Requisitos por descritor</Link>
+          </Button>
         </div>
 
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">

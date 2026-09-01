@@ -28,6 +28,8 @@ import {
   AlertTriangle,
   RefreshCw,
   Search,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { RouteSeo } from "@/components/seo/RouteSeo";
 import { IDTopNav } from "@/components/client/IDTopNav";
@@ -74,7 +76,16 @@ export default function RequisitosTema() {
     queryFn: async () => {
       const { data, error } = await supabase.from("organizations").select("id, name").order("name");
       if (error) throw error;
-      return data as { id: string; name: string }[];
+      const { data: assigned } = await supabase
+        .from("organization_legislation")
+        .select("organization_id")
+        .range(0, 9999);
+      const counts: Record<string, number> = {};
+      for (const a of assigned || []) counts[a.organization_id] = (counts[a.organization_id] || 0) + 1;
+      // O cliente com mais legislação atribuída fica em primeiro (default útil)
+      return [...((data || []) as { id: string; name: string }[])].sort(
+        (a, b) => (counts[b.id] || 0) - (counts[a.id] || 0),
+      );
     },
   });
 
@@ -380,64 +391,18 @@ export default function RequisitosTema() {
                           )}
 
                           <div className="space-y-1">
-                            {diplomas.map((d) => {
-                              const count = data?.counts?.[d.id] || 0;
-                              const app = data?.applicability?.[d.id];
-                              return (
-                                <div
-                                  key={d.id}
-                                  className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-xs"
-                                >
-                                  <Badge variant="outline" className="shrink-0 text-[11px]">
-                                    {d.origin === "EU" || d.origin === "eurlex" ? "UE" : "PT"}
-                                  </Badge>
-                                  <span className="font-medium">{d.number}</span>
-                                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                                    {d.title}
-                                  </span>
-                                  {count > 0 ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="shrink-0 border-primary/30 bg-primary/10 text-primary"
-                                    >
-                                      <CheckCircle2 className="mr-1 h-3 w-3" />
-                                      {count} requisitos
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant="outline"
-                                      className="shrink-0 border-amber-300 bg-amber-500/10 text-amber-700"
-                                    >
-                                      <AlertTriangle className="mr-1 h-3 w-3" />
-                                      Sem requisitos
-                                    </Badge>
-                                  )}
-                                  {activeOrgId && (
-                                    <Select
-                                      value={app || undefined}
-                                      onValueChange={(value) =>
-                                        setApplicability.mutate({ legislationIds: [d.id], value })
-                                      }
-                                    >
-                                      <SelectTrigger
-                                        className={`h-7 w-[190px] text-xs ${
-                                          app ? APPLICABILITY_STYLES[app] || "" : "border-dashed"
-                                        }`}
-                                      >
-                                        <SelectValue placeholder="Sem aplicabilidade" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {APPLICABILITY_OPTIONS.map((o) => (
-                                          <SelectItem key={o.value} value={o.value} className="text-xs">
-                                            {o.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                </div>
-                              );
-                            })}
+                            {diplomas.map((d) => (
+                              <DiplomaRow
+                                key={d.id}
+                                diploma={d}
+                                count={data?.counts?.[d.id] || 0}
+                                applicability={data?.applicability?.[d.id]}
+                                orgId={activeOrgId}
+                                onApplicabilityChange={(value) =>
+                                  setApplicability.mutate({ legislationIds: [d.id], value })
+                                }
+                              />
+                            ))}
                             {diplomas.length === 0 && (
                               <p className="py-2 text-xs text-muted-foreground">Sem diplomas.</p>
                             )}
@@ -452,6 +417,158 @@ export default function RequisitosTema() {
           </CardContent>
         </Card>
       </main>
+    </div>
+  );
+}
+
+type DiplomaRowProps = {
+  diploma: Diploma;
+  count: number;
+  applicability?: string;
+  orgId: string | null;
+  onApplicabilityChange: (value: string) => void;
+};
+
+function DiplomaRow({
+  diploma,
+  count,
+  applicability,
+  orgId,
+  onApplicabilityChange,
+}: DiplomaRowProps) {
+  const [open, setOpen] = useState(false);
+
+  const { data: requisitos, isLoading } = useQuery({
+    queryKey: ["req-list", diploma.id, orgId],
+    enabled: open,
+    queryFn: async () => {
+      const { data: reqs, error } = await supabase
+        .from("legal_requirements")
+        .select("id, article, requirement_text, display_order")
+        .eq("legislation_id", diploma.id)
+        .order("display_order", { ascending: true, nullsFirst: false })
+        .limit(500);
+      if (error) throw error;
+
+      const status: Record<string, { applicability_type: string | null; compliance_status: string | null }> = {};
+      if (orgId && reqs && reqs.length > 0) {
+        const { data: apps, error: appError } = await supabase
+          .from("applicabilities")
+          .select("requirement_id, applicability_type, compliance_status")
+          .eq("organization_id", orgId)
+          .in("requirement_id", reqs.map((r) => r.id));
+        if (appError) throw appError;
+        for (const a of apps || []) {
+          status[a.requirement_id] = {
+            applicability_type: a.applicability_type,
+            compliance_status: a.compliance_status,
+          };
+        }
+      }
+      return { reqs: reqs || [], status };
+    },
+  });
+
+  return (
+    <div className="rounded-md border">
+      <div className="flex flex-wrap items-center gap-2 p-2 text-xs">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 w-6 shrink-0 p-0"
+          onClick={() => setOpen((v) => !v)}
+          disabled={count === 0}
+          aria-label={open ? "Fechar requisitos" : "Ver requisitos"}
+        >
+          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </Button>
+        <Badge variant="outline" className="shrink-0 text-[11px]">
+          {diploma.origin === "EU" || diploma.origin === "eurlex" ? "UE" : "PT"}
+        </Badge>
+        <span className="font-medium">{diploma.number}</span>
+        <span className="min-w-0 flex-1 truncate text-muted-foreground">{diploma.title}</span>
+        {count > 0 ? (
+          <Badge variant="outline" className="shrink-0 border-primary/30 bg-primary/10 text-primary">
+            <CheckCircle2 className="mr-1 h-3 w-3" />
+            {count} requisitos
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="shrink-0 border-amber-300 bg-amber-500/10 text-amber-700"
+          >
+            <AlertTriangle className="mr-1 h-3 w-3" />
+            Sem requisitos
+          </Badge>
+        )}
+        {orgId && (
+          <Select value={applicability || undefined} onValueChange={onApplicabilityChange}>
+            <SelectTrigger
+              className={`h-7 w-[190px] text-xs ${
+                applicability ? APPLICABILITY_STYLES[applicability] || "" : "border-dashed"
+              }`}
+            >
+              <SelectValue placeholder="Sem aplicabilidade" />
+            </SelectTrigger>
+            <SelectContent>
+              {APPLICABILITY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {open && (
+        <div className="space-y-1 border-t bg-muted/30 p-2">
+          {isLoading ? (
+            <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> A carregar requisitos…
+            </div>
+          ) : (
+            (requisitos?.reqs || []).map((r) => {
+              const st = requisitos?.status?.[r.id];
+              return (
+                <div key={r.id} className="rounded-md border bg-card p-2 text-xs">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="text-[11px]">
+                      {r.article || "Requisito"}
+                    </Badge>
+                    {st?.applicability_type && (
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] ${APPLICABILITY_STYLES[st.applicability_type] || ""}`}
+                      >
+                        {APPLICABILITY_OPTIONS.find((o) => o.value === st.applicability_type)?.label ||
+                          st.applicability_type}
+                      </Badge>
+                    )}
+                    {st?.compliance_status && (
+                      <Badge variant="outline" className="text-[11px]">
+                        {st.compliance_status.replace(/_/g, " ")}
+                      </Badge>
+                    )}
+                    {!st && (
+                      <Badge
+                        variant="outline"
+                        className="border-dashed text-[11px] text-muted-foreground"
+                      >
+                        Por avaliar
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="whitespace-pre-wrap text-muted-foreground">{r.requirement_text}</p>
+                </div>
+              );
+            })
+          )}
+          {!isLoading && (requisitos?.reqs || []).length === 0 && (
+            <p className="py-1 text-xs text-muted-foreground">Sem requisitos extraídos.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
