@@ -679,6 +679,7 @@ export function BibliotecaContent({ organizationId }: BibliotecaContentProps) {
             hideFilters
             externalThemeId={selectedThemeId}
             applicabilityMap={legislationApplicabilitiesMap}
+            editableOrganizationId={isAdmin && organizationId ? organizationId : undefined}
             externalSearchTerm={searchTerm}
           />
         </Card>
