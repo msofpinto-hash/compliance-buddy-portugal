@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { requireAdmin } from "../_shared/adminGuard.ts";
+import { fetchDrePdfText, sliceDiploma } from "../_shared/drePdfText.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
