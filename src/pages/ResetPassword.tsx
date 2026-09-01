@@ -49,9 +49,21 @@ export default function ResetPassword() {
     setIsLoading(false);
 
     if (updateError) {
-      setError(updateError.message);
+      const m = updateError.message || "";
+      if (m.includes("Current password") || m.includes("current_password")) {
+        setError("O link de recuperação expirou. Peça um novo email de recuperação e abra o link imediatamente.");
+      } else if (m.includes("should be different")) {
+        setError("A nova password tem de ser diferente da anterior.");
+      } else if (m.toLowerCase().includes("pwned") || m.toLowerCase().includes("compromised")) {
+        setError("Esta password foi encontrada em fugas de dados públicas. Escolha outra.");
+      } else if (m.includes("session") || m.includes("JWT") || m.includes("Auth session missing")) {
+        setError("Sessão de recuperação inválida. Peça um novo email de recuperação.");
+      } else {
+        setError(m);
+      }
       return;
     }
+
     toast({ title: "Password atualizada", description: "Já pode entrar com a nova password." });
     navigate("/auth");
   };
