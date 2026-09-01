@@ -981,18 +981,41 @@ export function EvidenceRequestsPanel({
                                           </Badge>
                                         )}
                                       </div>
-                                      <p className="font-medium">
+                                      <p className="font-medium whitespace-pre-line">
                                         {request.evidence_templates.title}
                                       </p>
                                       {request.evidence_templates
                                         .description && (
-                                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                        <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
                                           {
                                             request.evidence_templates
                                               .description
                                           }
                                         </p>
                                       )}
+                                      {request.evidence_templates
+                                        .legislation_references && (
+                                        <div className="mt-2 rounded-md border border-border/60 bg-muted/40 p-2">
+                                          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                            Diplomas associados
+                                          </p>
+                                          <ul className="space-y-0.5">
+                                            {request.evidence_templates.legislation_references
+                                              .split(/\r?\n/)
+                                              .map((d) => d.trim())
+                                              .filter(Boolean)
+                                              .map((d) => (
+                                                <li
+                                                  key={d}
+                                                  className="text-xs text-foreground/80"
+                                                >
+                                                  • {d}
+                                                </li>
+                                              ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
                                       <div className="flex flex-wrap gap-1 mt-2">
                                         {areas.map((area) => (
                                           <Badge

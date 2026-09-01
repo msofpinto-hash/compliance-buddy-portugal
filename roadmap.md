@@ -59,3 +59,8 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [x] Página de evidências: lista por auditoria com evidências já atribuídas e em falta
 - [x] Mostrar apenas temas Ambiente e SST na página de evidências
 - [x] Melhorar layout da página de evidências (chips de tema, grupos com progresso)
+
+## Evidências AMCOR (2026-09-01)
+- [x] Consolidar pedidos por linha do ficheiro (41 pedidos, não divididos)
+- [x] Associar diplomas (referências legais) a cada pedido
+- [x] Atribuir descritores (grupos BDLEG) a partir dos PDFs de Ambiente e SST
