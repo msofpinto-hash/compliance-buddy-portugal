@@ -109,16 +109,51 @@ export function ExportApplicableDialog({
           applicabilityMap.set(r.legislation_id, r.applicability_type);
       });
 
-      // Only applicable diplomas, grouped by selected theme
-      const byTheme = new Map<string, LegislationWithCategories[]>();
+      const applicableIds = (orgLeg || [])
+        .filter((r) => APPLICABLE_TYPES.includes(r.applicability_type || ""))
+        .map((r) => r.legislation_id);
+
+      // Fetch full diploma data + categories directly (independent of loaded list)
+      const chunkSize = 200;
+      const legById = new Map<string, any>();
+      for (let i = 0; i < applicableIds.length; i += chunkSize) {
+        const slice = applicableIds.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("legislation")
+          .select(
+            "id, number, title, origin, entity, publication_date, effective_date, document_url",
+          )
+          .in("id", slice);
+        if (error) throw error;
+        (data || []).forEach((l) => legById.set(l.id, { ...l, categories: [] }));
+
+        const { data: maps, error: mapError } = await supabase
+          .from("legislation_category_mapping")
+          .select(
+            "legislation_id, theme_categories(id, name, themes(name))",
+          )
+          .in("legislation_id", slice);
+        if (mapError) throw mapError;
+        (maps || []).forEach((m: any) => {
+          const target = legById.get(m.legislation_id);
+          const cat = m.theme_categories;
+          if (!target || !cat) return;
+          target.categories.push({
+            id: cat.id,
+            name: cat.name,
+            theme_name: cat.themes?.name || "",
+          });
+        });
+      }
+
+      // Group applicable diplomas by selected theme
+      const byTheme = new Map<string, any[]>();
       selectedThemes.forEach((t) => byTheme.set(t, []));
 
-      for (const leg of legislation) {
-        const type = applicabilityMap.get(leg.id);
-        if (!type || !APPLICABLE_TYPES.includes(type)) continue;
+      for (const leg of legById.values()) {
         const themeNames = Array.from(
-          new Set(leg.categories.map((c) => c.theme_name).filter(Boolean)),
-        );
+          new Set(leg.categories.map((c: any) => c.theme_name).filter(Boolean)),
+        ) as string[];
         for (const tn of themeNames) {
           if (byTheme.has(tn)) byTheme.get(tn)!.push(leg);
         }
@@ -131,6 +166,7 @@ export function ExportApplicableDialog({
             .map((l) => l.id),
         ),
       );
+
 
       if (allIds.length === 0) {
         toast({
