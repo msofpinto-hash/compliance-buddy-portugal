@@ -185,7 +185,7 @@ const applicabilityFilterOptions = [
 ];
 
 export default function Biblioteca() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
