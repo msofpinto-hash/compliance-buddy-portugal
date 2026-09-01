@@ -189,6 +189,8 @@ export function GoalsPanel({ organizationId }: { organizationId?: string | null 
         start_date: form.start_date || null,
         due_date: form.due_date || null,
         status: form.status,
+        auto_metric: form.auto_metric === "none" ? null : form.auto_metric,
+
       };
       if (editing) {
         const { error } = await supabase
