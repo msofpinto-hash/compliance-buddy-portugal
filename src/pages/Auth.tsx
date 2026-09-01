@@ -14,6 +14,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
 import { motion } from "framer-motion";
+import authVisual from "@/assets/sustain-hero.jpg";
+
 
 interface LoginCheckResult {
   allowed: boolean;
@@ -25,19 +27,27 @@ interface LoginCheckResult {
 }
 
 // Clean brand logo
-const BrandLogo = () => (
-  <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200">
-    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm">
-      <Scale className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
+const BrandLogo = ({ variant = "default" }: { variant?: "default" | "light" }) => (
+  <Link
+    to="/"
+    className={
+      variant === "light"
+        ? "inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-foreground/10 border border-primary-foreground/20 backdrop-blur-md transition-all duration-200 hover:bg-primary-foreground/15"
+        : "inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200"
+    }
+  >
+    <div className={variant === "light" ? "flex h-10 w-10 items-center justify-center rounded-lg bg-primary-foreground/20" : "flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm"}>
+      <Scale className={variant === "light" ? "h-5 w-5 text-primary-foreground" : "h-5 w-5 text-primary-foreground"} aria-hidden="true" />
     </div>
     <div className="flex flex-col items-start">
-      <span className="text-lg font-heading font-bold text-foreground tracking-tight">I&D</span>
-      <span className="text-xs font-heading font-semibold tracking-[0.15em] text-primary">
+      <span className={variant === "light" ? "text-lg font-heading font-bold tracking-tight text-primary-foreground" : "text-lg font-heading font-bold tracking-tight text-foreground"}>I&D</span>
+      <span className={variant === "light" ? "text-xs font-heading font-semibold tracking-[0.15em] text-primary-foreground/80" : "text-xs font-heading font-semibold tracking-[0.15em] text-primary"}>
         COMPLIANCE
       </span>
     </div>
   </Link>
 );
+
 
 const Auth = () => {
   const [email, setEmail] = useState("");
