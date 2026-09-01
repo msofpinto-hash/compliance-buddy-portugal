@@ -332,192 +332,202 @@ const Auth = () => {
   // --- Main auth form ---
   return (
     <PageShell>
-      <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-        
-        {/* Left column — value proposition */}
-        <motion.div 
-          className="flex-1 text-center lg:text-left hidden md:block"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="space-y-5">
-            <h2 className="text-3xl lg:text-4xl font-heading font-bold text-foreground leading-tight">
-              O seu{" "}
-              <span className="text-primary">assistente digital</span>
-              <br />de conformidade
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-md mx-auto lg:mx-0">
-              Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
-            </p>
-            
-            <div className="flex flex-wrap gap-3 justify-center lg:justify-start pt-3">
-              {[
-                { icon: CheckCircle2, text: "Monitorização 24/7" },
-                { icon: Scale, text: "Legislação atualizada" },
-                { icon: ShieldAlert, text: "Auditorias rigorosas" },
-              ].map((feature) => (
-                <div
-                  key={feature.text}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border text-sm text-foreground shadow-sm"
-                >
-                  <feature.icon className="h-4 w-4 text-primary" />
-                  {feature.text}
-                </div>
-              ))}
+      <div className="relative z-10 w-full max-w-6xl mx-auto">
+        <div className="text-center mb-6 lg:mb-8">
+          <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">
+            Aceder à Plataforma
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm md:text-base">
+            Gestão de conformidade legal para a sua organização
+          </p>
+        </div>
+        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
+          
+          {/* Left column — value proposition */}
+          <motion.div 
+            className="flex-1 text-center lg:text-left hidden md:block"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="space-y-5">
+              <h2 className="text-3xl lg:text-4xl font-heading font-bold text-foreground leading-tight">
+                O seu{" "}
+                <span className="text-primary">assistente digital</span>
+                <br />de conformidade
+              </h2>
+              <p className="text-muted-foreground text-lg max-w-md mx-auto lg:mx-0">
+                Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
+              </p>
+              
+              <div className="flex flex-wrap gap-3 justify-center lg:justify-start pt-3">
+                {[
+                  { icon: CheckCircle2, text: "Monitorização 24/7" },
+                  { icon: Scale, text: "Legislação atualizada" },
+                  { icon: ShieldAlert, text: "Auditorias rigorosas" },
+                ].map((feature) => (
+                  <div
+                    key={feature.text}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border text-sm text-foreground shadow-sm"
+                  >
+                    <feature.icon className="h-4 w-4 text-primary" aria-hidden="true" />
+                    {feature.text}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* Right column — form */}
-        <motion.div 
-          className="w-full max-w-md"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15 }}
-        >
-          <div className="flex justify-center mb-6"><BrandLogo /></div>
+          {/* Right column — form */}
+          <motion.div 
+            className="w-full max-w-md"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+          >
+            <div className="flex justify-center mb-6"><BrandLogo /></div>
 
-          <Card className="shadow-md">
-            <CardHeader className="text-center pb-2">
-              <CardTitle className="text-xl">Área de Cliente</CardTitle>
-              <CardDescription>Aceda à sua área de gestão de conformidade legal</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="login" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="login">Entrar</TabsTrigger>
-                  <TabsTrigger value="register">Registar</TabsTrigger>
-                </TabsList>
+            <Card className="shadow-md">
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-xl">Área de Cliente</CardTitle>
+                <CardDescription>Aceda à sua área de gestão de conformidade legal</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="login" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="login">Entrar</TabsTrigger>
+                    <TabsTrigger value="register">Registar</TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="login">
-                  <form onSubmit={handleSignIn} className="space-y-4 mt-4">
-                    {loginBlocked && (
-                      <Alert variant="destructive">
-                        <ShieldAlert className="h-4 w-4" />
-                        <AlertDescription>
-                          <div className="font-medium">Conta temporariamente bloqueada</div>
-                          <p className="text-xs mt-1">
-                            Demasiadas tentativas falhadas. Tente novamente {loginBlocked.lockout_until 
-                              ? `às ${format(new Date(loginBlocked.lockout_until), "HH:mm", { locale: pt })}`
-                              : `em ${loginBlocked.lockout_minutes} minutos`
-                            }.
-                          </p>
+                  <TabsContent value="login">
+                    <form onSubmit={handleSignIn} className="space-y-4 mt-4">
+                      {loginBlocked && (
+                        <Alert variant="destructive">
+                          <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+                          <AlertDescription>
+                            <div className="font-medium">Conta temporariamente bloqueada</div>
+                            <p className="text-xs mt-1">
+                              Demasiadas tentativas falhadas. Tente novamente {loginBlocked.lockout_until 
+                                ? `às ${format(new Date(loginBlocked.lockout_until), "HH:mm", { locale: pt })}`
+                                : `em ${loginBlocked.lockout_minutes} minutos`
+                              }.
+                            </p>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      {error && !loginBlocked && (
+                        <Alert variant="destructive"><AlertCircle className="h-4 w-4" aria-hidden="true" /><AlertDescription>{error}</AlertDescription></Alert>
+                      )}
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input id="email" type="email" placeholder="email@exemplo.pt" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="password">Password</Label>
+                          <Button type="button" variant="link" className="h-auto p-0 text-xs text-primary" onClick={() => setShowForgotPassword(true)}>
+                            Esqueceu a password?
+                          </Button>
+                        </div>
+                        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                      </div>
+
+                      <Button type="submit" className="w-full group" disabled={isLoading || !!loginBlocked}>
+                        {isLoading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            {loginBlocked ? "Conta Bloqueada" : "Entrar"}
+                            {!loginBlocked && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />}
+                          </span>
+                        )}
+                      </Button>
+                    </form>
+                  </TabsContent>
+
+                  <TabsContent value="register">
+                    <form onSubmit={handleSignUp} className="space-y-4 mt-4">
+                      {error && (
+                        <Alert variant="destructive"><AlertCircle className="h-4 w-4" aria-hidden="true" /><AlertDescription>{error}</AlertDescription></Alert>
+                      )}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="reg-name">Nome Completo</Label>
+                        <Input id="reg-name" type="text" placeholder="O seu nome" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="reg-email">Email</Label>
+                        <Input id="reg-email" type="email" placeholder="email@exemplo.pt" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="reg-password">Password</Label>
+                        <Input
+                          id="reg-password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          minLength={8}
+                          className={password.length > 0 ? (isPasswordValid ? "border-primary focus:border-primary" : "border-destructive focus:border-destructive") : ""}
+                        />
+                        {password.length > 0 && (
+                          <div className="mt-2 space-y-1 text-xs">
+                            {[
+                              { ok: passwordValidation.minLength, text: "Mínimo 8 caracteres" },
+                              { ok: passwordValidation.hasUppercase, text: "Uma letra maiúscula" },
+                              { ok: passwordValidation.hasLowercase, text: "Uma letra minúscula" },
+                              { ok: passwordValidation.hasNumber, text: "Um número" },
+                            ].map((v) => (
+                              <div key={v.text} className={`flex items-center gap-1.5 ${v.ok ? "text-primary" : "text-muted-foreground"}`}>
+                                {v.ok ? <Check className="h-3 w-3" aria-hidden="true" /> : <X className="h-3 w-3" aria-hidden="true" />}
+                                {v.text}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="reg-confirm-password">Confirmar Password</Label>
+                        <Input
+                          id="reg-confirm-password"
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          minLength={8}
+                          className={confirmPassword.length > 0 ? (password === confirmPassword ? "border-primary focus:border-primary" : "border-destructive focus:border-destructive") : ""}
+                        />
+                        {confirmPassword.length > 0 && password !== confirmPassword && (
+                          <div className="flex items-center gap-1.5 text-xs text-destructive mt-1"><X className="h-3 w-3" aria-hidden="true" /> As passwords não coincidem</div>
+                        )}
+                        {confirmPassword.length > 0 && password === confirmPassword && (
+                          <div className="flex items-center gap-1.5 text-xs text-primary mt-1"><Check className="h-3 w-3" aria-hidden="true" /> Passwords coincidem</div>
+                        )}
+                      </div>
+
+                      <Button type="submit" className="w-full" disabled={isLoading || !isPasswordValid || password !== confirmPassword}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                        Criar conta
+                      </Button>
+
+                      <Alert className="bg-secondary/30 border-secondary">
+                        <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                        <AlertDescription className="text-xs text-muted-foreground">
+                          Após criar conta, o seu acesso ficará pendente de aprovação por um administrador.
                         </AlertDescription>
                       </Alert>
-                    )}
-                    {error && !loginBlocked && (
-                      <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>
-                    )}
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="email@exemplo.pt" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
-                        <Button type="button" variant="link" className="h-auto p-0 text-xs text-primary" onClick={() => setShowForgotPassword(true)}>
-                          Esqueceu a password?
-                        </Button>
-                      </div>
-                      <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                    </div>
-
-                    <Button type="submit" className="w-full group" disabled={isLoading || !!loginBlocked}>
-                      {isLoading ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          {loginBlocked ? "Conta Bloqueada" : "Entrar"}
-                          {!loginBlocked && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
-                        </span>
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                <TabsContent value="register">
-                  <form onSubmit={handleSignUp} className="space-y-4 mt-4">
-                    {error && (
-                      <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-name">Nome Completo</Label>
-                      <Input id="reg-name" type="text" placeholder="O seu nome" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-email">Email</Label>
-                      <Input id="reg-email" type="email" placeholder="email@exemplo.pt" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-password">Password</Label>
-                      <Input
-                        id="reg-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={8}
-                        className={password.length > 0 ? (isPasswordValid ? "border-primary focus:border-primary" : "border-destructive focus:border-destructive") : ""}
-                      />
-                      {password.length > 0 && (
-                        <div className="mt-2 space-y-1 text-xs">
-                          {[
-                            { ok: passwordValidation.minLength, text: "Mínimo 8 caracteres" },
-                            { ok: passwordValidation.hasUppercase, text: "Uma letra maiúscula" },
-                            { ok: passwordValidation.hasLowercase, text: "Uma letra minúscula" },
-                            { ok: passwordValidation.hasNumber, text: "Um número" },
-                          ].map((v) => (
-                            <div key={v.text} className={`flex items-center gap-1.5 ${v.ok ? "text-primary" : "text-muted-foreground"}`}>
-                              {v.ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                              {v.text}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-confirm-password">Confirmar Password</Label>
-                      <Input
-                        id="reg-confirm-password"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                        minLength={8}
-                        className={confirmPassword.length > 0 ? (password === confirmPassword ? "border-primary focus:border-primary" : "border-destructive focus:border-destructive") : ""}
-                      />
-                      {confirmPassword.length > 0 && password !== confirmPassword && (
-                        <div className="flex items-center gap-1.5 text-xs text-destructive mt-1"><X className="h-3 w-3" /> As passwords não coincidem</div>
-                      )}
-                      {confirmPassword.length > 0 && password === confirmPassword && (
-                        <div className="flex items-center gap-1.5 text-xs text-primary mt-1"><Check className="h-3 w-3" /> Passwords coincidem</div>
-                      )}
-                    </div>
-
-                    <Button type="submit" className="w-full" disabled={isLoading || !isPasswordValid || password !== confirmPassword}>
-                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Criar conta
-                    </Button>
-
-                    <Alert className="bg-secondary/30 border-secondary">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <AlertDescription className="text-xs text-muted-foreground">
-                        Após criar conta, o seu acesso ficará pendente de aprovação por um administrador.
-                      </AlertDescription>
-                    </Alert>
-                  </form>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </motion.div>
+                    </form>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       </div>
     </PageShell>
   );
