@@ -414,14 +414,12 @@ const Auth = () => {
           </p>
         </div>
 
-        <div>
-          <div>
-            <Card className="border-border/70 shadow-xl shadow-primary/5 rounded-2xl">
+        <Card className="border-border/70 shadow-xl shadow-primary/5 rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Área de Cliente</CardTitle>
+            <CardDescription>Aceda à sua área de gestão de conformidade legal</CardDescription>
+          </CardHeader>
 
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">Área de Cliente</CardTitle>
-                <CardDescription>Aceda à sua área de gestão de conformidade legal</CardDescription>
-              </CardHeader>
               <CardContent>
                 <Tabs defaultValue="login" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
