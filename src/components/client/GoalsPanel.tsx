@@ -314,6 +314,26 @@ export function GoalsPanel({ organizationId }: { organizationId?: string | null 
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                   />
                 </div>
+                <div className="grid gap-1.5">
+                  <Label>Indicador automático</Label>
+                  <Select
+                    value={form.auto_metric}
+                    onValueChange={(v) => setForm({ ...form, auto_metric: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Manual (sem cálculo automático)</SelectItem>
+                      {Object.entries(AUTO_METRIC_LABELS).map(([k, label]) => (
+                        <SelectItem key={k} value={k}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <Label>Área</Label>
