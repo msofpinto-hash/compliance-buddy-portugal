@@ -85,6 +85,7 @@ import {
   ExportColumn,
 } from "@/components/ExportColumnsDialog";
 import { cn } from "@/lib/utils";
+import { AuditEvidenceOverview } from "@/components/client/AuditEvidenceOverview";
 
 interface EvidenceRequest {
   id: string;
