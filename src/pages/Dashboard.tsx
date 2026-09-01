@@ -124,6 +124,7 @@ import indicatorsHero from "@/assets/indicators-hero.png";
 import logoIdAsset from "@/assets/id-compliance-lex.png.asset.json";
 const logoIdCompliance = logoIdAsset.url;
 import heroVideo from "@/assets/hero-background.mp4";
+import { AuditCalendar } from "@/components/client/AuditCalendar";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
@@ -1531,7 +1532,7 @@ export default function Dashboard() {
                 ]}
               />
 
-              {/* Submenus: Plano de auditorias / Histórico */}
+              {/* Submenus: Calendário / Histórico */}
               <div className="flex flex-wrap items-center gap-2 border-b pb-3">
                 <Button
                   variant={auditSection === "plano" ? "default" : "ghost"}
@@ -1540,7 +1541,7 @@ export default function Dashboard() {
                   onClick={() => setAuditSection("plano")}
                 >
                   <Calendar className="h-4 w-4" />
-                  Plano de auditorias
+                  Calendário de auditorias
                 </Button>
                 <Button
                   variant={auditSection === "historico" ? "default" : "ghost"}
@@ -1575,20 +1576,23 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Audit Plan Section - Planned and In Progress */}
+              {/* Audit Calendar Section */}
               {(() => {
-                const plannedAudits =
+                const typedAudits =
                   audits?.filter(
                     (a) =>
-                      (a.status === "planned" || a.status === "in_progress") &&
-                      (auditTypeFilter === "all" ||
-                        (a.audit_type || "anual") === auditTypeFilter),
+                      auditTypeFilter === "all" ||
+                      (a.audit_type || "anual") === auditTypeFilter,
                   ) || [];
+                const plannedAudits = typedAudits.filter(
+                  (a) => a.status === "planned" || a.status === "in_progress",
+                );
 
                 return (
                   <div
                     className={`space-y-4 ${auditSection === "plano" ? "" : "hidden"}`}
                   >
+                    <AuditCalendar audits={typedAudits as any} />
 
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10">
@@ -1596,13 +1600,14 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <h2 className="text-xl font-bold">
-                          Plano de Auditoria
+                          Auditorias planeadas
                         </h2>
                         <p className="text-sm text-muted-foreground">
                           Auditorias planeadas e em curso
                         </p>
                       </div>
                     </div>
+
 
                     {loadingAudits ? (
                       <div className="grid gap-4 md:grid-cols-2">
