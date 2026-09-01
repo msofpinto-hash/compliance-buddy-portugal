@@ -1,16 +1,19 @@
 # Roadmap — Importação AMCOR FLEXIBLES PORTO
 
 Organização alvo: AMCOR FLEXIBLES PORTO (`92a5d692-18d4-401c-b7cd-9fd211cfbb6d`)
+Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 
 ## Tarefas
-- [ ] Extrair texto integral do PDF "Relatório Legislação" (538 pág.) — lista de diplomas + requisitos por descritor/tema
-- [ ] Extrair texto integral do PDF da última auditoria/ACL (314 pág., data 2026-02-13)
-- [ ] Parsear temas/descritores (ex.: Ambiente / Legislação Nacional / Geral / Diplomas Gerais)
-- [ ] Mapear diplomas do PDF contra a tabela `legislation` (matching por número/data)
-- [ ] Criar + enriquecer diplomas em falta (URL DRE/EUR-Lex, sumário, requisitos)
-- [ ] Importar requisitos legais (blocos `RL`) para `legal_requirements`
-- [ ] Associar diplomas à organização (`organization_legislation`) com aplicabilidade
-- [ ] Importar estados de conformidade ACL para `applicabilities`
-- [ ] Criar registo de auditoria (`audits` + `audit_requirements`) com a ACL de 2026-02-13
-- [ ] Importar planos de ação (quando fornecidos)
-- [ ] Relatório final: importados / criados / por resolver
+- [x] Extrair texto integral do PDF "Relatório Legislação" (538 pág.)
+- [x] Extrair texto integral do PDF da última auditoria/ACL (314 pág.)
+- [x] Parsear temas/descritores (716 diplomas, 2.051 requisitos)
+- [x] Mapear diplomas contra a tabela `legislation` (333 já existentes)
+- [x] Criar diplomas em falta (383 criados, `source='amcor-import'`)
+- [x] Importar requisitos legais (1.422 novos, 629 reutilizados)
+- [x] Associar diplomas à organização (713 em `organization_legislation`)
+- [x] Associar categorias/temas (459 mapeamentos, 3 temas)
+- [x] Importar estados de conformidade ACL (670 avaliações)
+- [x] Criar registo de auditoria ACL 2026-02-13 (`closed`)
+- [x] Criar planos de ação (3 alta / 7 média)
+- [ ] Enriquecimento automático dos 383 novos diplomas (URLs DRE/EUR-Lex + sumários) — a correr em background
+- [ ] Categorização IA dos diplomas sem categoria — bloqueada por créditos do AI Gateway
