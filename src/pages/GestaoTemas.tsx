@@ -405,6 +405,18 @@ export default function GestaoTemas() {
           <Button
             variant="ghost"
             size="sm"
+            className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
+            title="Mover descritor para outro tema"
+            onClick={() => {
+              setCategoryToMove(cat);
+              setMoveThemeId("");
+            }}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             className="h-7 w-7 shrink-0 p-0 text-destructive"
             title="Eliminar descritor"
             onClick={() => setCategoryToDelete(cat)}
