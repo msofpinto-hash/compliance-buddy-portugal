@@ -394,20 +394,15 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Attempt 3: Try PDF URL for DRE documents
+      // Attempt 3: DRE official PDF (retry if earlier attempts consumed the flow)
       if (!scrapeSuccess && dreMatch) {
-        const dreId = dreMatch[4];
-        const pdfUrl = `https://files.dre.pt/1s/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${dreId}.pdf`;
-        console.log('DRE content not available, suggesting PDF alternative');
-        
-        // We can't easily extract from PDFs, so provide a helpful error
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Este diploma recente ainda não está disponível para extração automática. Por favor, aceda ao documento em ${url}, copie o texto integral e cole-o na aba "Colar Texto".`
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        const pdfText = await fetchDrePdfText(dreMatch[4]);
+        if (pdfText && pdfText.length > 400) {
+          contentToProcess = pdfText;
+          scrapeSuccess = true;
+        }
+      }
+
       }
 
       // If all methods failed
