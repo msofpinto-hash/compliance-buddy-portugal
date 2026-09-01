@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { IDHeroSection, IDCard } from "@/components/client/IDBackground";
+import heroEvidence from "@/assets/module-documents-new.jpg";
 import {
   Search,
   Upload,
@@ -652,6 +653,8 @@ export function EvidenceRequestsPanel({
         subtitle="Submeta e acompanhe as evidências documentais solicitadas para a sua organização"
         badge="Evidências Documentais"
         icon={FolderOpen}
+        image={heroEvidence}
+        imageAlt="Documentos de evidência organizados"
         stats={[
           { label: "Total", value: stats.total },
           { label: "Pendentes", value: stats.pending },

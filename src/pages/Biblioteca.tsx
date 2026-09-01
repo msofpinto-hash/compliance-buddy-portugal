@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { cn } from "@/lib/utils";
 
 // Theme icons and colors mapping
+import heroBiblioteca from "@/assets/module-legislation-new.jpg";
 import themeAmbiente from "@/assets/theme-ambiente.png";
 import themeSst from "@/assets/theme-sst.png";
 import themeEnergia from "@/assets/theme-energia.png";
@@ -199,7 +200,7 @@ export default function Biblioteca() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   // Fetch themes with categories
-  const { data: themes } = useThemesWithCategories();
+  const { data: allThemes } = useThemesWithCategories();
 
   // Fetch legislation with categories for tree view
   const { data: legislationWithCategories, isLoading } =
@@ -238,6 +239,38 @@ export default function Biblioteca() {
   const currentOrg =
     organizations.find((o) => o.id === (selectedOrgId || organizationIds[0])) ||
     organizations[0];
+
+  // Themes assigned to the current organization
+  const { data: orgThemeIds } = useQuery({
+    queryKey: ["organization-themes", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [] as string[];
+      const { data, error } = await supabase
+        .from("organization_themes")
+        .select("theme_id")
+        .eq("organization_id", currentOrg.id);
+      if (error) throw error;
+      return (data || []).map((t) => t.theme_id as string);
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Only show themes assigned to the organization (all themes for admins/no org)
+  const themes = useMemo(() => {
+    if (!allThemes) return allThemes;
+    if (!currentOrg?.id || !orgThemeIds) return allThemes;
+    if (orgThemeIds.length === 0) return [];
+    return allThemes.filter((t) => orgThemeIds.includes(t.id));
+  }, [allThemes, orgThemeIds, currentOrg?.id]);
+
+  // Clear theme selection if it is no longer visible
+  useEffect(() => {
+    if (selectedThemeId && themes && !themes.some((t) => t.id === selectedThemeId)) {
+      setSelectedThemeId(null);
+      setSelectedCategoryId(null);
+    }
+  }, [themes, selectedThemeId]);
+
 
   // Fetch legislation applicabilities for user's organization
   const { data: legislationApplicabilitiesMap } = useQuery({
@@ -348,6 +381,8 @@ export default function Biblioteca() {
             subtitle="Consulta e acompanhamento de toda a legislação aplicável à sua organização"
             badge="Gestão Documental"
             icon={BookOpen}
+            image={heroBiblioteca}
+            imageAlt="Estantes de documentação legal"
             stats={[
               {
                 label: "Diplomas",

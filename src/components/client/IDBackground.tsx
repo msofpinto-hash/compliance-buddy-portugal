@@ -131,11 +131,16 @@ export const IDHeroSection = ({
   icon: Icon,
   stats,
   actions,
+  image,
+  imageAlt = "",
 }: {
   title: string;
   subtitle?: string;
   badge?: string;
   icon?: React.ElementType;
+  /** Optional background image for the hero (same treatment as the main panel) */
+  image?: string;
+  imageAlt?: string;
   /** Optional quick metrics rendered on the right side of the hero */
   stats?: { label: string; value: React.ReactNode }[];
   /** Optional controls rendered under the metrics */
@@ -145,8 +150,21 @@ export const IDHeroSection = ({
     initial={{ opacity: 0, y: -20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
-    className="relative overflow-hidden rounded-xl bg-gradient-to-r from-white via-primary/50 to-border dark:from-[#1a1512] dark:via-[#181410] dark:to-[#141210] border border-primary/50 p-6 lg:p-8 shadow-sm"
+    className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-primary/50 to-border dark:from-[#1a1512] dark:via-[#181410] dark:to-[#141210] border border-primary/50 p-6 lg:p-8 shadow-sm"
   >
+    {image && (
+      <>
+        <img
+          src={image}
+          alt={imageAlt}
+          aria-hidden={imageAlt ? undefined : true}
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/85 to-background/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
+      </>
+    )}
     {/* Decorative accent - warm gradient */}
     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-primary via-primary to-orange-500 dark:to-orange-400" />
 
