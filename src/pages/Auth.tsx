@@ -273,7 +273,7 @@ const Auth = () => {
 
   // Redirect
   if (user && isApproved) {
-    return <PageShell><Loader2 className="h-8 w-8 animate-spin text-primary" /></PageShell>;
+    return <PageShell><Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" /></PageShell>;
   }
 
   // Forgot password
