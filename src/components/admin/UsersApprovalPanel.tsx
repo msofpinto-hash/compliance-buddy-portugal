@@ -261,8 +261,12 @@ export function UsersApprovalPanel() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <CreateUserDialog />
+      </div>
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
+
         <Card className="bg-gradient-to-br from-amber-50/95 via-orange-50/80 to-yellow-50/70 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/25 border border-amber-200/60 dark:border-amber-800/40">
           <CardHeader className="pb-2">
             <CardDescription className="text-amber-700/70 dark:text-amber-400/70">Total de Utilizadores</CardDescription>
