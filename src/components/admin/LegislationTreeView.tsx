@@ -66,6 +66,20 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import emptySearchImage from "@/assets/empty-search.png";
 import treeCategoriesImage from "@/assets/tree-categories.png";
 import { BulkApplicabilityBar } from "@/components/admin/BulkApplicabilityBar";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+
 
 // Theme color configurations with warm corporate palette
 const themeColors: Record<string, { 
