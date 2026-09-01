@@ -200,7 +200,7 @@ export default function Biblioteca() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   // Fetch themes with categories
-  const { data: themes } = useThemesWithCategories();
+  const { data: allThemes } = useThemesWithCategories();
 
   // Fetch legislation with categories for tree view
   const { data: legislationWithCategories, isLoading } =
