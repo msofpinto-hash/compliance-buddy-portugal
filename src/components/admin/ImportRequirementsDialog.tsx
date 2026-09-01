@@ -94,6 +94,8 @@ export function ImportRequirementsDialog({
   // Pre-fill URL field with existing document URL - update when dialog opens
   const [url, setUrl] = useState(documentUrl || "");
   const [pastedText, setPastedText] = useState("");
+  const [pdfFallbackUrl, setPdfFallbackUrl] = useState<string | null>(null);
+
   const [extractedRequirements, setExtractedRequirements] = useState<ExtractedRequirement[]>([]);
   const [replaceExisting, setReplaceExisting] = useState(false);
   
