@@ -21,6 +21,8 @@ import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
 import Diplomas from "./pages/Diplomas";
 import Progresso from "./pages/Progresso";
+import FontesOficiais from "./pages/FontesOficiais";
+import Conformidade from "./pages/Conformidade";
 import PoliticaIA from "./pages/PoliticaIA";
 import NotFound from "./pages/NotFound";
 
