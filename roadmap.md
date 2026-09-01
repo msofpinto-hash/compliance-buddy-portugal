@@ -31,3 +31,4 @@
 - [x] Automatismo: diploma informativo -> requisitos informativos (trigger + backfill)
 - [x] UI: refrescar requisitos após mudar aplicabilidade do diploma
 - [ ] Extração de relações dos diplomas (nova função extract-relations-from-text)
+- [ ] Eliminar diplomas duplicados (manter 1, migrar dependências)
