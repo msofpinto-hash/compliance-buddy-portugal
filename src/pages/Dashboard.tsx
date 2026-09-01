@@ -309,7 +309,14 @@ export default function Dashboard() {
   );
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
+  const [auditSection, setAuditSection] = useState<"plano" | "historico">(
+    "plano",
+  );
+  const [auditTypeFilter, setAuditTypeFilter] = useState<
+    "all" | "anual" | "mensal"
+  >("all");
   const [auditSortBy, setAuditSortBy] = useState<
+
     "date_desc" | "date_asc" | "title" | "status"
   >("date_desc");
   const location = useLocation();
