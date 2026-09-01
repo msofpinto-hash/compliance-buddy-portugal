@@ -127,16 +127,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2) Pick the batch of sources still without relations
+    // 2) Pick the batch of sources still without relations.
+    // In reprocess mode we retry diplomas that were previously marked as
+    // "0 relations found", but only once per day so batches keep advancing.
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     const { data: processedRows } = await supabase
       .from("legislation_relations_processed")
-      .select("legislation_id, relations_found");
+      .select("legislation_id, relations_found, processed_at");
     const skip = new Set(
       (processedRows ?? [])
-        .filter((p) => (reprocess ? (p.relations_found ?? 0) > 0 : true))
+        .filter((p) =>
+          reprocess
+            ? (p.relations_found ?? 0) > 0 || new Date(p.processed_at).getTime() > cutoff
+            : true
+        )
         .map((p) => p.legislation_id),
     );
     const batch = all.filter((l) => !skip.has(l.id)).slice(0, limit);
+
 
     // 3) Existing relations (avoid duplicates)
     const existing = new Set<string>();
