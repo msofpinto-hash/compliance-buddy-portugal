@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.inherit_legislation_applicability_on_requirement() FROM PUBLIC, anon, authenticated;
