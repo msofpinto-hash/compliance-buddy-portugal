@@ -23,4 +23,4 @@
 - [~] Importar requisitos via URL (jobs em curso em segundo plano)
 - [ ] Gestão de temas: mover descritores/subdescritores entre temas (Ambiente <-> SST) quando o nome se repete
 - [x] Biblioteca do cliente: mover descritores entre temas, renomear e eliminar descritores
-- [ ] Biblioteca do cliente: mover diplomas selecionados entre descritores e associar novos descritores
+- [x] Biblioteca do cliente: mover diplomas selecionados entre descritores e associar novos descritores
