@@ -1531,7 +1531,7 @@ export default function Dashboard() {
                 ]}
               />
 
-              {/* Submenus: Plano de auditorias / Histórico */}
+              {/* Submenus: Calendário / Histórico */}
               <div className="flex flex-wrap items-center gap-2 border-b pb-3">
                 <Button
                   variant={auditSection === "plano" ? "default" : "ghost"}
@@ -1540,7 +1540,7 @@ export default function Dashboard() {
                   onClick={() => setAuditSection("plano")}
                 >
                   <Calendar className="h-4 w-4" />
-                  Plano de auditorias
+                  Calendário de auditorias
                 </Button>
                 <Button
                   variant={auditSection === "historico" ? "default" : "ghost"}
