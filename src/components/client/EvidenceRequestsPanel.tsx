@@ -496,12 +496,16 @@ export function EvidenceRequestsPanel({
     {} as Record<string, EvidenceRequest[]>,
   );
 
-  // Calculate stats
+  // Calculate stats (apenas temas visíveis: Ambiente e SST)
+  const themeRequests = requests?.filter((r) =>
+    VISIBLE_AREAS.some((area) => r.evidence_templates[area] === true),
+  );
   const stats = {
-    total: requests?.length || 0,
-    pending: requests?.filter((r) => r.status === "pending").length || 0,
-    submitted: requests?.filter((r) => r.status === "submitted").length || 0,
-    approved: requests?.filter((r) => r.status === "approved").length || 0,
+    total: themeRequests?.length || 0,
+    pending: themeRequests?.filter((r) => r.status === "pending").length || 0,
+    submitted:
+      themeRequests?.filter((r) => r.status === "submitted").length || 0,
+    approved: themeRequests?.filter((r) => r.status === "approved").length || 0,
   };
 
   const progressPercentage =
