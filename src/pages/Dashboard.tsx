@@ -724,8 +724,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-                </div>
-              </div>
+
 
               {/* Recent Legislation - I&D Style */}
               <IDCard className="overflow-hidden">
