@@ -32,3 +32,5 @@
 - [x] UI: refrescar requisitos após mudar aplicabilidade do diploma
 - [x] Extração de relações dos diplomas (função extract-relations-from-text)
 - [x] Eliminar diplomas duplicados (869 -> 839)
+- [x] Corrigir adicionar relação por URL (validações + botão sempre clicável)
+- [ ] Corrigir extração de requisitos por URL no diálogo do diploma (usar scraping real da URL)

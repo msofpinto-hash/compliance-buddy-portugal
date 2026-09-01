@@ -546,31 +546,53 @@ export function ManageRequirementsDialog({ legislation, open, onOpenChange }: Ma
         if (deleteError) throw deleteError;
       }
 
-      const { data, error } = await supabase.functions.invoke("extract-requirements", {
-        body: { 
+      if (!legislation.document_url) {
+        throw new Error("Este diploma não tem URL. Defina o link do DRE/EUR-Lex antes de extrair.");
+      }
+
+      // Usa a extração em segundo plano, que faz scraping real da URL (DRE/EUR-Lex)
+      const { data, error } = await supabase.functions.invoke("extract-requirements-background", {
+        body: {
           legislationIds: [legislation.id],
-          dryRun: false 
+          useUrl: true,
+          forceReplace: replaceExisting,
+          batchSize: 1,
+          maxBatches: 1,
         },
       });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro desconhecido");
 
-      if (data.success) {
-        const result = data.results?.[0];
-        if (result?.error) {
-          throw new Error(result.error);
+      toast({
+        title: "Extração iniciada",
+        description: "A ler o documento da URL... os requisitos aparecem aqui em breve.",
+      });
+
+      // Polling até aparecerem requisitos (máx. ~2 min)
+      const before = requirements?.length || 0;
+      for (let i = 0; i < 24; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const { count } = await supabase
+          .from("legal_requirements")
+          .select("id", { count: "exact", head: true })
+          .eq("legislation_id", legislation.id);
+        if ((count || 0) !== before) {
+          queryClient.invalidateQueries({ queryKey: ["legal-requirements", legislation.id] });
+          queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
+          toast({
+            title: "Extração concluída",
+            description: `${count} requisitos extraídos a partir da URL`,
+          });
+          return;
         }
-        
-        toast({
-          title: "Extração concluída",
-          description: `${result?.requirementsCount || 0} requisitos extraídos via IA`,
-        });
-        
-        queryClient.invalidateQueries({ queryKey: ["legal-requirements", legislation.id] });
-        queryClient.invalidateQueries({ queryKey: ["requirements-stats"] });
-      } else {
-        throw new Error(data.error || "Erro desconhecido");
       }
+
+      queryClient.invalidateQueries({ queryKey: ["legal-requirements", legislation.id] });
+      toast({
+        title: "Extração a decorrer",
+        description: "Ainda em processamento. Volte a abrir daqui a alguns minutos.",
+      });
     } catch (error) {
       console.error("AI extraction error:", error);
       toast({
