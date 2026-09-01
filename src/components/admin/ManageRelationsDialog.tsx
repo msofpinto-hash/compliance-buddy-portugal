@@ -690,7 +690,20 @@ export function ManageRelationsDialog({
 
   const handleAddRelation = async (targetId?: string) => {
     const finalTargetId = targetId || selectedTargetId;
-    if (!legislation || !selectedType || !finalTargetId) return;
+    if (!legislation) return;
+    if (!selectedType) {
+      toast.error("Escolha primeiro o tipo de relação (Revogado, Alteração, Transposição...)");
+      return;
+    }
+    if (!finalTargetId) {
+      toast.error("Selecione ou procure o diploma de destino");
+      return;
+    }
+    if (finalTargetId === legislation.id) {
+      toast.error("Não é possível relacionar o diploma consigo próprio");
+      return;
+    }
+
 
     setIsLoading(true);
     try {
