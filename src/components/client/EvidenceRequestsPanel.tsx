@@ -838,7 +838,7 @@ export function EvidenceRequestsPanel({
                   placeholder="Pesquisar pedidos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-accent/50 border-border/80 focus:border-primary focus:ring-primary/20 text-foreground dark:text-white placeholder:text-muted-foreground "
+                  className="pl-10 bg-accent/50 border-border/80 focus:border-primary focus:ring-primary/20 text-foreground placeholder:text-muted-foreground "
                 />
               </div>
             </div>
@@ -913,11 +913,11 @@ export function EvidenceRequestsPanel({
           <div className="flex items-center justify-between pt-2 border-t border-border/60 ">
             <p className="text-sm text-muted-foreground ">
               A mostrar{" "}
-              <span className="font-medium text-foreground dark:text-white">
+              <span className="font-medium text-foreground">
                 {filteredRequests?.length || 0}
               </span>{" "}
               de{" "}
-              <span className="font-medium text-foreground dark:text-white">
+              <span className="font-medium text-foreground">
                 {themeRequests?.length || 0}
               </span>{" "}
               pedido(s)
@@ -1384,7 +1384,7 @@ export function EvidenceRequestsPanel({
             <div className="space-y-3">
               <Label>Adicionar documentos</Label>
 
-              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border bg-background text-foreground rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
                 <div className="flex flex-col items-center justify-center">
                   <Upload className="h-6 w-6 text-muted-foreground mb-1" />
                   <p className="text-sm text-muted-foreground">
