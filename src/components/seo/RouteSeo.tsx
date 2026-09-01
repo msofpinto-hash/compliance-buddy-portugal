@@ -57,6 +57,16 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Painel de administração para gerir clientes, legislação, taxonomias e a qualidade dos dados da plataforma.",
   },
+  "/fontes-oficiais": {
+    title: "Fontes Oficiais de Legislação | ID Compliance",
+    description:
+      "Aprove ou rejeite fontes externas de legislação, com histórico completo de decisões e motivo de cada aprovação.",
+  },
+  "/conformidade": {
+    title: "Conformidade por Cliente | ID Compliance",
+    description:
+      "Estado de conformidade de cada requisito legal por organização, com evidências anexadas e notas de avaliação.",
+  },
   "/settings": {
     title: "Definições da Conta | ID Compliance",
     description:
