@@ -56,7 +56,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Link, useLocation } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
-import { getLegislationApplicabilityInfo } from "@/components/LegislationApplicabilitySelect";
+import { getLegislationApplicabilityInfo, LegislationApplicabilitySelect } from "@/components/LegislationApplicabilitySelect";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { exportSimpleExcel, ColumnConfig } from "@/lib/excelUtils";
@@ -326,6 +326,8 @@ interface LegislationTreeViewProps {
   hideFilters?: boolean;
   externalThemeId?: string | null;
   applicabilityMap?: Record<string, string>;
+  /** Quando definido, permite ao administrador editar a aplicabilidade nesta organização */
+  editableOrganizationId?: string;
   externalSearchTerm?: string;
 }
 
@@ -335,7 +337,7 @@ interface CategoryNode {
   legislation: LegislationWithCategories[];
 }
 
-export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, externalSearchTerm }: LegislationTreeViewProps) {
+export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, editableOrganizationId, externalSearchTerm }: LegislationTreeViewProps) {
   const location = useLocation();
   const from = location.pathname + location.search;
 
@@ -1252,6 +1254,17 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                           {leg.title}
                         </p>
 
+                        {editableOrganizationId && (
+                          <div className="mb-2" onClick={(e) => e.stopPropagation()}>
+                            <LegislationApplicabilitySelect
+                              legislationId={leg.id}
+                              organizationId={editableOrganizationId}
+                              currentValue={applicabilityType || "nao_avaliado"}
+                            />
+                          </div>
+                        )}
+
+
                         {/* Date and categories */}
                         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
@@ -1715,6 +1728,17 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                             </>
                           )}
                         </Link>
+
+                        {editableOrganizationId && (
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            <LegislationApplicabilitySelect
+                              legislationId={leg.id}
+                              organizationId={editableOrganizationId}
+                              currentValue={applicabilityType || "nao_avaliado"}
+                            />
+                          </div>
+                        )}
+
 
                         {/* Summary + Date + Categories */}
                         <div className="flex items-end justify-between mt-2 gap-2">

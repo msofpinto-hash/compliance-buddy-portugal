@@ -64,3 +64,6 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [x] Consolidar pedidos por linha do ficheiro (41 pedidos, não divididos)
 - [x] Associar diplomas (referências legais) a cada pedido
 - [x] Atribuir descritores (grupos BDLEG) a partir dos PDFs de Ambiente e SST
+- [ ] Admin escolhe que pedidos ficam visíveis ao cliente (auto por aplicabilidade direta/indireta)
+- [ ] Corrigir corte lateral dos cartões de grupo de evidências
+- [ ] Admin (mariana.pinto@incredibleanddynamic.com) atua como admin dentro da área de cada cliente; cliente só edita planos de ação e carrega evidências

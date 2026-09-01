@@ -207,7 +207,7 @@ export function EvidenceRequestsPanel({
   organizationId,
 }: EvidenceRequestsPanelProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -290,7 +290,69 @@ export function EvidenceRequestsPanel({
     enabled: !!requests?.length,
   });
 
-  // Upload document mutation
+  // Admin: alterar visibilidade do pedido para o cliente
+  const visibilityMutation = useMutation({
+    mutationFn: async ({
+      requestId,
+      visible,
+    }: {
+      requestId: string;
+      visible: boolean | null;
+    }) => {
+      const payload =
+        visible === null
+          ? { visibility_mode: "auto" }
+          : { visibility_mode: "manual", visible_to_client: visible };
+      const { error } = await supabase
+        .from("organization_evidence_requests")
+        .update(payload)
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evidence-requests"] });
+      toast({ title: "Visibilidade atualizada" });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Erro ao atualizar visibilidade",
+        description: e.message,
+        variant: "destructive",
+      }),
+  });
+
+  // Admin: validar / rejeitar evidências submetidas
+  const reviewMutation = useMutation({
+    mutationFn: async ({
+      requestId,
+      status,
+    }: {
+      requestId: string;
+      status: "approved" | "rejected" | "pending";
+    }) => {
+      const { error } = await supabase
+        .from("organization_evidence_requests")
+        .update({
+          status,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id ?? null,
+        })
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evidence-requests"] });
+      toast({ title: "Pedido atualizado" });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Erro ao atualizar pedido",
+        description: e.message,
+        variant: "destructive",
+      }),
+  });
+
+
   const uploadMutation = useMutation({
     mutationFn: async ({
       requestId,
@@ -904,12 +966,12 @@ export function EvidenceRequestsPanel({
                     <Card className="overflow-hidden border-0 shadow-md">
                       <CardHeader className="p-0">
                         <CollapsibleTrigger asChild>
-                          <button className="w-full flex items-center gap-3 text-left p-4 hover:bg-accent/40 transition-colors">
+                          <button className="w-full flex flex-wrap items-center gap-x-3 gap-y-2 text-left p-4 pr-5 hover:bg-accent/40 transition-colors">
                             <div className="rounded-lg bg-primary/10 p-2 shrink-0">
                               <GroupIcon className="h-5 w-5 text-primary" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate">
+                            <div className="flex-1 min-w-[160px]">
+                              <h3 className="font-semibold break-words">
                                 {groupName}
                               </h3>
                               <p className="text-xs text-muted-foreground">
@@ -919,7 +981,7 @@ export function EvidenceRequestsPanel({
                                   ` • ${pendingCount} pendentes`}
                               </p>
                             </div>
-                            <div className="hidden sm:block w-32">
+                            <div className="hidden sm:block w-28 shrink-0">
                               <Progress value={groupPct} className="h-2" />
                               <p className="mt-1 text-right text-[11px] font-semibold text-primary">
                                 {groupPct}%
@@ -928,7 +990,7 @@ export function EvidenceRequestsPanel({
                             {pendingCount > 0 && (
                               <Badge
                                 variant="secondary"
-                                className="shrink-0 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15"
+                                className="shrink-0 whitespace-nowrap bg-amber-500/15 text-amber-700 hover:bg-amber-500/15"
                               >
                                 {pendingCount} por responder
                               </Badge>
@@ -1028,6 +1090,95 @@ export function EvidenceRequestsPanel({
                                           </Badge>
                                         ))}
                                       </div>
+
+                                      {isAdmin && (
+                                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 p-2">
+                                          <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                                            Admin
+                                          </span>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            {(request as any)
+                                              .visible_to_client
+                                              ? "Visível ao cliente"
+                                              : "Oculto do cliente"}
+                                            {(request as any)
+                                              .visibility_mode === "auto"
+                                              ? " (auto)"
+                                              : " (manual)"}
+                                          </Badge>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-xs"
+                                            disabled={
+                                              visibilityMutation.isPending
+                                            }
+                                            onClick={() =>
+                                              visibilityMutation.mutate({
+                                                requestId: request.id,
+                                                visible: !(request as any)
+                                                  .visible_to_client,
+                                              })
+                                            }
+                                          >
+                                            {(request as any).visible_to_client
+                                              ? "Ocultar"
+                                              : "Mostrar"}
+                                          </Button>
+                                          {(request as any).visibility_mode ===
+                                            "manual" && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 text-xs"
+                                              disabled={
+                                                visibilityMutation.isPending
+                                              }
+                                              onClick={() =>
+                                                visibilityMutation.mutate({
+                                                  requestId: request.id,
+                                                  visible: null,
+                                                })
+                                              }
+                                            >
+                                              Voltar a automático
+                                            </Button>
+                                          )}
+                                          <span className="mx-1 h-4 w-px bg-border" />
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-xs"
+                                            disabled={reviewMutation.isPending}
+                                            onClick={() =>
+                                              reviewMutation.mutate({
+                                                requestId: request.id,
+                                                status: "approved",
+                                              })
+                                            }
+                                          >
+                                            Validar
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 text-xs text-destructive"
+                                            disabled={reviewMutation.isPending}
+                                            onClick={() =>
+                                              reviewMutation.mutate({
+                                                requestId: request.id,
+                                                status: "rejected",
+                                              })
+                                            }
+                                          >
+                                            Rejeitar
+                                          </Button>
+                                        </div>
+                                      )}
+
 
                                       {docs.length > 0 && (
                                         <div className="mt-3 space-y-2">

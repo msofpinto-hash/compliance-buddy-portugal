@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -140,6 +141,7 @@ interface BibliotecaContentProps {
 }
 
 export function BibliotecaContent({ organizationId }: BibliotecaContentProps) {
+  const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
@@ -677,6 +679,7 @@ export function BibliotecaContent({ organizationId }: BibliotecaContentProps) {
             hideFilters
             externalThemeId={selectedThemeId}
             applicabilityMap={legislationApplicabilitiesMap}
+            editableOrganizationId={isAdmin && organizationId ? organizationId : undefined}
             externalSearchTerm={searchTerm}
           />
         </Card>
