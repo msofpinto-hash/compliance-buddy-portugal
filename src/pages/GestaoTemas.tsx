@@ -643,7 +643,7 @@ export default function GestaoTemas() {
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
+
         </AlertDialogContent>
       </AlertDialog>
     </div>
