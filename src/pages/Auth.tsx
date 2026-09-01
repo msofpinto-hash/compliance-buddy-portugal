@@ -28,7 +28,7 @@ interface LoginCheckResult {
 const BrandLogo = () => (
   <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200">
     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm">
-      <Scale className="h-5 w-5 text-primary-foreground" />
+      <Scale className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
     </div>
     <div className="flex flex-col items-start">
       <span className="text-lg font-heading font-bold text-foreground tracking-tight">I&D</span>
