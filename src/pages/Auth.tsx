@@ -553,10 +553,9 @@ const Auth = () => {
                   </TabsContent>
                 </Tabs>
               </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
+        </Card>
+      </motion.div>
+
     </PageShell>
   );
 };
