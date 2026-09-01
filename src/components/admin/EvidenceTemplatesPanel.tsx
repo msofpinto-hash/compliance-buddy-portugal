@@ -341,12 +341,46 @@ export function EvidenceTemplatesPanel() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant={onlyHabitual ? "default" : "outline"}
+              onClick={() => setOnlyHabitual((v) => !v)}
+            >
+              Pedidos habituais
+            </Button>
             {selectedTemplates.length > 0 && (
               <Button variant="outline" onClick={() => setSelectedTemplates([])}>
                 Limpar seleção
               </Button>
             )}
           </div>
+          <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-amber-200/60 dark:border-amber-800/40 pt-4">
+            <div className="min-w-[240px]">
+              <Label className="text-xs text-muted-foreground">
+                Sugerir evidências habituais a partir dos diplomas do cliente
+              </Label>
+              <Select value={suggestOrgId} onValueChange={setSuggestOrgId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selecionar cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations?.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="secondary"
+              disabled={!suggestOrgId || suggesting}
+              onClick={() => suggestFromOrg(suggestOrgId)}
+            >
+              {suggesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sugerir pedidos habituais
+            </Button>
+          </div>
+
         </CardContent>
       </Card>
 
