@@ -20,7 +20,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, FolderTree, Loader2, MoveRight, Trash2, Check } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderTree,
+  Loader2,
+  MoveRight,
+  Trash2,
+  Check,
+  ArrowLeftRight,
+} from "lucide-react";
 import { RouteSeo } from "@/components/seo/RouteSeo";
 import { IDTopNav } from "@/components/client/IDTopNav";
 
