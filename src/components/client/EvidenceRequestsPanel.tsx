@@ -463,6 +463,11 @@ export function EvidenceRequestsPanel({
 
     const matchesStatus = !statusFilter || r.status === statusFilter;
 
+    // Só mostrar pedidos dos temas Ambiente e SST
+    const isVisibleTheme = VISIBLE_AREAS.some(
+      (area) => r.evidence_templates[area] === true,
+    );
+
     const matchesArea =
       areaFilters.length === 0 ||
       areaFilters.some(
@@ -471,7 +476,7 @@ export function EvidenceRequestsPanel({
           true,
       );
 
-    return matchesSearch && matchesStatus && matchesArea;
+    return matchesSearch && matchesStatus && matchesArea && isVisibleTheme;
   });
 
   const toggleAreaFilter = (area: string) => {
