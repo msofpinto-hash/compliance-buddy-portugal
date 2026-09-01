@@ -1240,10 +1240,25 @@ export function EvidenceRequestsPanel({
                                                 </Button>
                                               </div>
                                               {(doc.documents.validity_date ||
+                                                doc.documents.issue_date ||
                                                 doc.documents.user_notes) && (
                                                 <div className="mt-1 pl-5 space-y-0.5">
+                                                  {doc.documents.issue_date && (
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                      <CalendarIcon className="h-3 w-3" />
+                                                      Emissão:{" "}
+                                                      {format(
+                                                        new Date(
+                                                          doc.documents.issue_date,
+                                                        ),
+                                                        "dd/MM/yyyy",
+                                                        { locale: pt },
+                                                      )}
+                                                    </p>
+                                                  )}
                                                   {doc.documents
                                                     .validity_date && (
+
                                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                                       <CalendarIcon className="h-3 w-3" />
                                                       Validade:{" "}
