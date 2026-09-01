@@ -1752,6 +1752,53 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 }
               />
             )}
+            {editableOrganizationId && selectedLegIds.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2">
+                <span className="flex items-center gap-1.5 text-xs font-medium">
+                  <FolderTreeIcon className="h-4 w-4 text-primary" />
+                  {selectedLegIds.size} diploma(s) selecionado(s)
+                </span>
+                <Select value={targetCategoryId} onValueChange={setTargetCategoryId}>
+                  <SelectTrigger className="h-8 w-[260px] bg-background text-xs">
+                    <SelectValue placeholder="Descritor de destino…" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {(themesWithCategories || []).map((t) => (
+                      <SelectGroup key={t.id}>
+                        <SelectLabel className="text-xs">{t.name}</SelectLabel>
+                        {t.categories.map((c) => (
+                          <SelectItem key={c.id} value={c.id} className="text-xs">
+                            {c.parent_id ? "— " : ""}
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  className="h-8"
+                  disabled={!targetCategoryId || moveDiplomas.isPending}
+                  onClick={() => moveDiplomas.mutate({ targetCategoryId, mode: "move" })}
+                >
+                  Mover
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  disabled={!targetCategoryId || moveDiplomas.isPending}
+                  onClick={() => moveDiplomas.mutate({ targetCategoryId, mode: "add" })}
+                >
+                  Associar também
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => setSelectedLegIds(new Set())}>
+                  Limpar
+                </Button>
+              </div>
+            )}
+
             {displayedLegislation.length > 0 ? (
               <>
               <ScrollArea className="h-[calc(100vh-380px)]">
