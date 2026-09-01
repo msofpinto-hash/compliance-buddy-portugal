@@ -20,6 +20,17 @@ function bearer(req: Request): string | null {
   return token.trim();
 }
 
+
+function isServiceRoleToken(token: string): boolean {
+  if (token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) return true;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload?.role === "service_role";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Allows internal service-role calls (pg_cron / other edge functions) or an
  * authenticated user. Returns a Response when access must be denied, else null.
@@ -28,8 +39,7 @@ export async function requireUser(req: Request): Promise<Response | null> {
   const token = bearer(req);
   if (!token) return deny(401, "Autenticação necessária");
 
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (serviceKey && token === serviceKey) return null;
+  if (isServiceRoleToken(token)) return null;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -47,8 +57,7 @@ export async function requireAdmin(req: Request): Promise<Response | null> {
   const token = bearer(req);
   if (!token) return deny(401, "Autenticação necessária");
 
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (serviceKey && token === serviceKey) return null;
+  if (isServiceRoleToken(token)) return null;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
