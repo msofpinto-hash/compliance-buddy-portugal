@@ -64,6 +64,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import emptySearchImage from "@/assets/empty-search.png";
 import treeCategoriesImage from "@/assets/tree-categories.png";
+import { BulkApplicabilityBar } from "@/components/admin/BulkApplicabilityBar";
 
 // Theme color configurations with warm corporate palette
 const themeColors: Record<string, { 
@@ -1571,6 +1572,17 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             </CardDescription>
           </CardHeader>
           <CardContent className="p-2 flex flex-col">
+            {editableOrganizationId && displayedLegislation.length > 0 && (
+              <BulkApplicabilityBar
+                organizationId={editableOrganizationId}
+                legislationIds={displayedLegislation.map((l) => l.id)}
+                scopeLabel={
+                  (selectedCategoryId
+                    ? selectedTheme?.categories.find((c) => c.id === selectedCategoryId)?.name
+                    : selectedTheme?.name) || "Seleção"
+                }
+              />
+            )}
             {displayedLegislation.length > 0 ? (
               <>
               <ScrollArea className="h-[calc(100vh-380px)]">
