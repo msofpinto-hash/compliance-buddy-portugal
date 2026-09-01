@@ -399,62 +399,25 @@ const Auth = () => {
   // --- Main auth form ---
   return (
     <PageShell>
-      <div className="relative z-10 w-full max-w-6xl mx-auto">
-        <div className="text-center mb-6 lg:mb-8">
-          <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground">
+      <motion.div
+        className="w-full"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="mb-7">
+          <h1 className="text-3xl font-heading font-bold tracking-tight text-foreground">
             Aceder à Plataforma
           </h1>
-          <p className="text-muted-foreground mt-2 text-sm md:text-base">
+          <p className="text-muted-foreground mt-2">
             Gestão de conformidade legal para a sua organização
           </p>
         </div>
-        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-          
-          {/* Left column — value proposition */}
-          <motion.div 
-            className="flex-1 text-center lg:text-left hidden md:block"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="space-y-5">
-              <h2 className="text-3xl lg:text-4xl font-heading font-bold text-foreground leading-tight">
-                O seu{" "}
-                <span className="text-primary">assistente digital</span>
-                <br />de conformidade
-              </h2>
-              <p className="text-muted-foreground text-lg max-w-md mx-auto lg:mx-0">
-                Auditorias inteligentes, legislação atualizada e gestão de evidências — tudo num só lugar.
-              </p>
-              
-              <div className="flex flex-wrap gap-3 justify-center lg:justify-start pt-3">
-                {[
-                  { icon: CheckCircle2, text: "Monitorização 24/7" },
-                  { icon: Scale, text: "Legislação atualizada" },
-                  { icon: ShieldAlert, text: "Auditorias rigorosas" },
-                ].map((feature) => (
-                  <div
-                    key={feature.text}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border text-sm text-foreground shadow-sm"
-                  >
-                    <feature.icon className="h-4 w-4 text-primary" aria-hidden="true" />
-                    {feature.text}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
 
-          {/* Right column — form */}
-          <motion.div 
-            className="w-full max-w-md"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-          >
-            <div className="flex justify-center mb-6"><BrandLogo /></div>
+        <div>
+          <div>
+            <Card className="border-border/70 shadow-xl shadow-primary/5 rounded-2xl">
 
-            <Card className="shadow-md">
               <CardHeader className="text-center pb-2">
                 <CardTitle className="text-xl">Área de Cliente</CardTitle>
                 <CardDescription>Aceda à sua área de gestão de conformidade legal</CardDescription>
