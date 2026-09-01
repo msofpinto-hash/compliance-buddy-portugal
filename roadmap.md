@@ -44,3 +44,7 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 - [ ] Evidências: importar catálogo de evidências habituais por diploma (ficheiros Pedidos - A / Pedidos - S)
 - [x] Auditorias: submenus Plano de auditorias / Histórico, distinguir Auditoria anual de conformidade legal vs Verificação mensal, resultados ligados automaticamente ao Plano de Ação
 - [x] Metas e indicadores: objetivos reais da AMCOR com progresso automático a partir de auditorias e planos de ação
+
+## Anexos VCL mensal
+- [x] Anexar listas, Excel e atas (PDF/XLSX) às verificações mensais 2026 da AMCOR
+- [x] Excluir ficheiros Word dos anexos

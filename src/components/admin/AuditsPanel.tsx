@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { AddAuditRequirementsDialog } from "./AddAuditRequirementsDialog";
 import { AuditRequirementCard } from "./AuditRequirementCard";
 import { AuditFindingsEditor } from "./AuditFindingsEditor";
+import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
+
 import { 
   ClipboardCheck, 
   Plus, 
@@ -463,8 +465,10 @@ export function AuditsPanel() {
                     {auditDetails.description && (
                       <p className="text-sm text-muted-foreground mt-4">{auditDetails.description}</p>
                     )}
+                    <AuditDocumentsList auditId={auditDetails.id} />
                   </CardContent>
                 </Card>
+
 
                 {/* Findings and Recommendations */}
                 <AuditFindingsEditor
