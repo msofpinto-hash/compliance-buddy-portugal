@@ -768,37 +768,44 @@ export function EvidenceRequestsPanel({
             </Select>
           </div>
 
-          {/* Theme multi-select filters */}
+          {/* Theme multi-select filters (apenas Ambiente e SST) */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground ">
               Filtrar por temas:
             </Label>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(AREA_CONFIG).map(([key, config]) => {
+              {VISIBLE_AREAS.map((key) => {
+                const config = AREA_CONFIG[key];
                 const IconComponent = config.icon;
                 const isSelected = areaFilters.includes(key);
+                const count =
+                  themeRequests?.filter((r) => r.evidence_templates[key])
+                    .length || 0;
                 return (
-                  <Badge
+                  <button
                     key={key}
-                    variant={isSelected ? "default" : "outline"}
-                    className={cn(
-                      "cursor-pointer transition-colors",
-                      isSelected
-                        ? config.color
-                        : "hover:bg-accent border-border ",
-                    )}
+                    type="button"
                     onClick={() => toggleAreaFilter(key)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-all",
+                      isSelected
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border bg-background text-muted-foreground hover:bg-accent",
+                    )}
                   >
-                    <IconComponent className="h-3 w-3 mr-1" />
+                    <IconComponent className="h-3.5 w-3.5" />
                     {config.label}
-                  </Badge>
+                    <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold text-foreground/70">
+                      {count}
+                    </span>
+                  </button>
                 );
               })}
               {areaFilters.length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs text-primary hover:bg-accent "
+                  className="h-8 px-2 text-xs text-primary hover:bg-accent "
                   onClick={() => setAreaFilters([])}
                 >
                   Limpar filtros
@@ -816,7 +823,7 @@ export function EvidenceRequestsPanel({
               </span>{" "}
               de{" "}
               <span className="font-medium text-foreground dark:text-white">
-                {requests?.length || 0}
+                {themeRequests?.length || 0}
               </span>{" "}
               pedido(s)
             </p>
