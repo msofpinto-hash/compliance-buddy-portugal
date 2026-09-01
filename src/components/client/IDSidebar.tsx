@@ -11,13 +11,12 @@ import {
   ClipboardList, 
   ClipboardCheck, 
   FolderOpen, 
-  BarChart3,
-  Mountain
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import logoId from "@/assets/logo-id-compliance.png";
+import logoId from "@/assets/id-compliance-header.png.asset.json";
 
 type ModuleType = 'legislacao' | 'planos_acao' | 'auditorias' | 'documentos' | 'indicadores';
 
@@ -86,35 +85,21 @@ export function IDSidebar({ currentOrg, onCloseMobile }: IDSidebarProps) {
       <Link 
         to="/dashboard" 
         onClick={handleNavClick}
-        className="p-5 border-b border-stone-200/60 dark:border-amber-900/30 hover:bg-amber-50/50 dark:hover:bg-amber-900/15 transition-colors"
+        className="flex min-h-[105px] items-center px-5 py-4 border-b border-stone-200/60 dark:border-amber-900/30 hover:bg-amber-50/50 dark:hover:bg-amber-900/15 transition-colors"
       >
         {currentOrg?.logo_url ? (
           <img 
             src={currentOrg.logo_url} 
             alt={currentOrg.name} 
-            className="h-10 w-auto object-contain"
+            className="max-h-14 w-auto max-w-full object-contain"
           />
         ) : (
-          <div className="flex items-center gap-3">
+          <div className="flex w-full items-center">
             <img 
-              src={logoId} 
+              src={logoId.url} 
               alt="I&D Compliance" 
-              className="h-10 w-auto object-contain"
-              onError={(e) => {
-                // Fallback to icon if logo fails to load
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-              }}
+              className="h-auto w-full max-w-[230px] object-contain object-left"
             />
-            <div className="hidden items-center gap-2">
-              <div className="relative">
-                <Mountain className="h-8 w-8 text-emerald-700 dark:text-emerald-400" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-stone-800 dark:text-white text-lg leading-tight tracking-tight">I&D</span>
-                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold tracking-[0.2em] uppercase">Compliance</span>
-              </div>
-            </div>
           </div>
         )}
       </Link>
