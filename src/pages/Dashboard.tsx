@@ -604,64 +604,6 @@ export default function Dashboard() {
           }
         />
 
-                    <>
-                      <ClipboardCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Auditorias
-                    </>
-                  )}
-                  {activeTab === "documents" && (
-                    <>
-                      <FolderOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Evidências
-                    </>
-                  )}
-                  {activeTab === "indicators" && (
-                    <>
-                      <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      Indicadores
-                    </>
-                  )}
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {organizations.length > 1 && (
-                <OrganizationSelector
-                  organizations={organizations}
-                  selectedOrgId={selectedOrgId}
-                  onSelect={setSelectedOrgId}
-                />
-              )}
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <Input 
-                  placeholder="Pesquisa" 
-                  className="pl-9 w-64 bg-amber-50/50 dark:bg-amber-950/20 border-stone-200/80 dark:border-amber-800/40 text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-amber-300/40 focus:border-amber-500 focus:ring-amber-500/20"
-                />
-              </div>
-              <TooltipProvider>
-                <UITooltip>
-                  <TooltipTrigger asChild>
-                    <Link to="/legislacao-recente">
-                      <Button variant="ghost" size="icon" className="relative text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
-                        <FileText className="h-5 w-5" />
-                        {unreadLegislationCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-emerald-600 dark:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center shadow-md">
-                            {unreadLegislationCount > 99 ? "99+" : unreadLegislationCount}
-                          </span>
-                        )}
-                      </Button>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-stone-900 text-stone-100">
-                    <p>{unreadLegislationCount > 0 ? `${unreadLegislationCount} diplomas por ler` : "Legislação recente"}</p>
-                  </TooltipContent>
-                </UITooltip>
-              </TooltipProvider>
-              <ThemeToggle />
-            </div>
-          </div>
-        </header>
 
         {/* Page Content */}
         <main className="p-4 lg:p-8 space-y-5">
@@ -677,59 +619,6 @@ export default function Dashboard() {
                 compliancePercent={complianceRate}
               />
 
-              {/* Modules Bento Grid */}
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 rounded-lg bg-primary/10">
-                    <Leaf className="h-5 w-5 text-primary" aria-hidden="true" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground">Acesso Rápido</h2>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 [&>*:first-child]:lg:col-span-2 [&>*:first-child]:lg:row-span-1">
-                  <TechModuleCard
-                    title="Legislação"
-                    description="Consulte a biblioteca de diplomas legais aplicáveis"
-                    icon={Gavel}
-                    href="/biblioteca"
-                    image={sustainLeaves}
-                    glowColor="emerald"
-                    count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
-                    countLabel="novos"
-                    index={0}
-                  />
-                  <TechModuleCard
-                    title="Planos de Ação"
-                    description="Gerir ações de conformidade e prazos"
-                    icon={ClipboardList}
-                    href="/dashboard?tab=actions"
-                    image={sustainEnergy}
-                    glowColor="terracotta"
-                    count={actionPlanStats.pending + actionPlanStats.inProgress}
-                    countLabel="ativos"
-                    index={1}
-                  />
-                  <TechModuleCard
-                    title="Auditorias"
-                    description="Acompanhe o estado das auditorias"
-                    icon={ClipboardCheck}
-                    href="/dashboard?tab=audits"
-                    image={moduleAudits}
-                    glowColor="amber"
-                    count={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length}
-                    countLabel="ativas"
-                    index={2}
-                  />
-                  <TechModuleCard
-                    title="Evidências"
-                    description="Submeta documentos de conformidade"
-                    icon={FolderOpen}
-                    href="/dashboard?tab=documents"
-                    image={moduleDocuments}
-                    glowColor="rose"
-                    index={3}
-                  />
-                </div>
-              </div>
 
 
 
