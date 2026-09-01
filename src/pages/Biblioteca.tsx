@@ -31,6 +31,8 @@ import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useLegislationWithCategories } from "@/hooks/useLegislation";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
+import { ExportApplicableDialog } from "@/components/client/ExportApplicableDialog";
+
 import { IDTopNav } from "@/components/client/IDTopNav";
 import {
   IDBackground,
@@ -479,6 +481,14 @@ export default function Biblioteca() {
                     onClearAll={clearAllFilters}
                     hasActiveFilters={hasActiveFilters}
                   />
+
+                  <ExportApplicableDialog
+                    organizationId={currentOrg?.id}
+                    organizationName={currentOrg?.name}
+                    themes={(themes || []).map((t) => ({ id: t.id, name: t.name }))}
+                    legislation={legislationWithCategories || []}
+                  />
+
                 </div>
               </CardContent>
             </IDCard>
