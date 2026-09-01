@@ -10,6 +10,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
+import { requireAdmin } from "../_shared/adminGuard.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -84,6 +85,9 @@ async function firecrawlSearch(query: string, apiKey: string): Promise<string[]>
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const guardResponse = await requireAdmin(req);
+  if (guardResponse) return guardResponse;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
