@@ -25,3 +25,4 @@
 - [x] Biblioteca do cliente: mover descritores entre temas, renomear e eliminar descritores
 - [x] Biblioteca do cliente: mover diplomas selecionados entre descritores e associar novos descritores
 - [x] Biblioteca: painel de requisitos por descritor/tema (diploma, aplicabilidade AMCOR, estado da extração) com correção automática
+- [~] Concluir extração dos diplomas pendentes (65 restantes, quase todos EU/EUR-Lex) — cron a correr a cada 2 min
