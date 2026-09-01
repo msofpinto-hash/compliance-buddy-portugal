@@ -403,7 +403,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      }
+
 
       // If all methods failed
       if (!scrapeSuccess || contentToProcess.length < 50) {
