@@ -1363,114 +1363,135 @@ export function EvidenceRequestsPanel({
                 </div>
               )}
 
-            {/* File upload */}
+            {/* File upload (múltiplos) */}
             <div className="space-y-3">
-              <Label>Adicionar documento</Label>
+              <Label>Adicionar documentos</Label>
 
-              {/* File selector */}
-              {!pendingFile ? (
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
-                  <div className="flex flex-col items-center justify-center">
-                    <Upload className="h-6 w-6 text-muted-foreground mb-1" />
-                    <p className="text-sm text-muted-foreground">
-                      Clique para selecionar ficheiro
-                    </p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileChange(file);
-                    }}
-                  />
-                </label>
-              ) : (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                <div className="flex flex-col items-center justify-center">
+                  <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                  <p className="text-sm text-muted-foreground">
+                    Clique para selecionar um ou vários ficheiros
+                  </p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.length)
+                      handleFilesSelected(e.target.files);
+                  }}
+                />
+              </label>
+
+              {pendingDocs.length > 0 && (
                 <div className="space-y-3">
-                  {/* Selected file preview */}
-                  <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
-                    <File className="h-5 w-5 text-primary" />
-                    <span className="flex-1 truncate font-medium">
-                      {pendingFile.name}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPendingFile(null);
-                        setHasValidity(false);
-                        setValidityDate(undefined);
-                        setDocumentNotes("");
-                        if (fileInputRef.current)
-                          fileInputRef.current.value = "";
-                      }}
+                  {pendingDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="space-y-3 rounded-lg border bg-muted/30 p-3"
                     >
-                      Alterar
-                    </Button>
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <File className="h-5 w-5 text-primary shrink-0" />
+                        <span className="flex-1 truncate font-medium text-sm">
+                          {doc.file.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => removePendingDoc(doc.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
 
-                  {/* Validity date toggle and picker */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label
-                        htmlFor="has-validity"
-                        className="text-sm cursor-pointer"
-                      >
-                        Documento tem validade?
-                      </Label>
-                      <Switch
-                        id="has-validity"
-                        checked={hasValidity}
-                        onCheckedChange={setHasValidity}
-                      />
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Data de emissão</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !doc.issueDate && "text-muted-foreground",
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {doc.issueDate
+                                  ? format(doc.issueDate, "PPP", { locale: pt })
+                                  : "Opcional"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={doc.issueDate}
+                                onSelect={(d) =>
+                                  updatePendingDoc(doc.id, { issueDate: d })
+                                }
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Data de validade</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !doc.validityDate && "text-muted-foreground",
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {doc.validityDate
+                                  ? format(doc.validityDate, "PPP", {
+                                      locale: pt,
+                                    })
+                                  : "Se aplicável"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={doc.validityDate}
+                                onSelect={(d) =>
+                                  updatePendingDoc(doc.id, { validityDate: d })
+                                }
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          Comentário sobre este documento (opcional)
+                        </Label>
+                        <Textarea
+                          placeholder="Ex: Certificado renovado em 2026..."
+                          value={doc.notes}
+                          onChange={(e) =>
+                            updatePendingDoc(doc.id, { notes: e.target.value })
+                          }
+                          rows={2}
+                        />
+                      </div>
                     </div>
+                  ))}
 
-                    {hasValidity && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !validityDate && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {validityDate
-                              ? format(validityDate, "PPP", { locale: pt })
-                              : "Selecionar data de validade"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={validityDate}
-                            onSelect={setValidityDate}
-                            initialFocus
-                            className="p-3 pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </div>
-
-                  {/* Document notes */}
-                  <div>
-                    <Label htmlFor="doc-notes" className="text-sm">
-                      Comentário sobre o documento (opcional)
-                    </Label>
-                    <Textarea
-                      id="doc-notes"
-                      placeholder="Ex: Certificado renovado em 2024..."
-                      value={documentNotes}
-                      onChange={(e) => setDocumentNotes(e.target.value)}
-                      className="mt-1"
-                      rows={2}
-                    />
-                  </div>
-
-                  {/* Upload button */}
                   <Button
                     onClick={handleUploadWithMetadata}
                     disabled={uploadingFile}
@@ -1481,11 +1502,14 @@ export function EvidenceRequestsPanel({
                     ) : (
                       <Upload className="mr-2 h-4 w-4" />
                     )}
-                    Carregar Documento
+                    {pendingDocs.length > 1
+                      ? `Carregar ${pendingDocs.length} documentos`
+                      : "Carregar documento"}
                   </Button>
                 </div>
               )}
             </div>
+
 
             {/* Request-level Notes */}
             <div>
