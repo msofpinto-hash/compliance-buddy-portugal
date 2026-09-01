@@ -1053,34 +1053,18 @@ export default function Dashboard() {
           {activeTab === "audits" && (
             <div className="space-y-8">
               {/* Hero Header - I&D Warm Corporate Style */}
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="relative overflow-hidden rounded-xl bg-gradient-to-r from-white via-amber-50/50 to-stone-50 dark:from-[#1a1512] dark:via-[#181410] dark:to-[#141210] border border-amber-200/50 dark:border-amber-900/30 p-6 lg:p-8 shadow-sm"
-              >
-                {/* Decorative accent - warm gradient */}
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-600 via-amber-500 to-orange-500 dark:from-emerald-500 dark:via-amber-500 dark:to-orange-400" />
-                
-                {/* Warm corner accents */}
-                <div className="absolute -right-20 -top-20 w-48 h-48 bg-gradient-to-br from-amber-200/30 to-orange-200/20 dark:from-amber-700/15 dark:to-orange-700/10 rounded-full blur-3xl" />
-                <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-emerald-200/20 dark:bg-emerald-700/10 rounded-full blur-2xl" />
-                
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pl-4">
-                  <div className="space-y-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-amber-100/80 dark:from-emerald-800/50 dark:to-amber-800/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-700/40">
-                      <ClipboardCheck className="h-3.5 w-3.5" />
-                      Módulo de Auditorias
-                    </span>
-                    <h1 className="text-2xl lg:text-3xl font-semibold text-stone-800 dark:text-white tracking-tight">
-                      Auditorias
-                    </h1>
-                    <p className="text-stone-600 dark:text-amber-100/70 max-w-xl text-sm lg:text-base">
-                      Acompanhe as auditorias planeadas, em curso e o histórico completo de auditorias realizadas
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
+              <IDHeroSection
+                title="Auditorias"
+                subtitle="Acompanhe as auditorias planeadas, em curso e o histórico completo de auditorias realizadas"
+                badge="Módulo de Auditorias"
+                icon={ClipboardCheck}
+                stats={[
+                  { label: "Planeadas", value: audits?.filter((a) => a.status === "planned").length || 0 },
+                  { label: "Em curso", value: audits?.filter((a) => a.status === "in_progress").length || 0 },
+                  { label: "Encerradas", value: audits?.filter((a) => a.status === "closed").length || 0 },
+                ]}
+              />
+
 
               {/* Audit Plan Section - Planned and In Progress */}
               {(() => {
