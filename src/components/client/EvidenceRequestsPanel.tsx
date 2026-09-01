@@ -1091,6 +1091,95 @@ export function EvidenceRequestsPanel({
                                         ))}
                                       </div>
 
+                                      {isAdmin && (
+                                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 p-2">
+                                          <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                                            Admin
+                                          </span>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            {(request as any)
+                                              .visible_to_client
+                                              ? "Visível ao cliente"
+                                              : "Oculto do cliente"}
+                                            {(request as any)
+                                              .visibility_mode === "auto"
+                                              ? " (auto)"
+                                              : " (manual)"}
+                                          </Badge>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-xs"
+                                            disabled={
+                                              visibilityMutation.isPending
+                                            }
+                                            onClick={() =>
+                                              visibilityMutation.mutate({
+                                                requestId: request.id,
+                                                visible: !(request as any)
+                                                  .visible_to_client,
+                                              })
+                                            }
+                                          >
+                                            {(request as any).visible_to_client
+                                              ? "Ocultar"
+                                              : "Mostrar"}
+                                          </Button>
+                                          {(request as any).visibility_mode ===
+                                            "manual" && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 text-xs"
+                                              disabled={
+                                                visibilityMutation.isPending
+                                              }
+                                              onClick={() =>
+                                                visibilityMutation.mutate({
+                                                  requestId: request.id,
+                                                  visible: null,
+                                                })
+                                              }
+                                            >
+                                              Voltar a automático
+                                            </Button>
+                                          )}
+                                          <span className="mx-1 h-4 w-px bg-border" />
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-xs"
+                                            disabled={reviewMutation.isPending}
+                                            onClick={() =>
+                                              reviewMutation.mutate({
+                                                requestId: request.id,
+                                                status: "approved",
+                                              })
+                                            }
+                                          >
+                                            Validar
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 text-xs text-destructive"
+                                            disabled={reviewMutation.isPending}
+                                            onClick={() =>
+                                              reviewMutation.mutate({
+                                                requestId: request.id,
+                                                status: "rejected",
+                                              })
+                                            }
+                                          >
+                                            Rejeitar
+                                          </Button>
+                                        </div>
+                                      )}
+
+
                                       {docs.length > 0 && (
                                         <div className="mt-3 space-y-2">
                                           <p className="text-xs font-medium text-muted-foreground">
