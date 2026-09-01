@@ -149,8 +149,9 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
                 size="icon" 
                 className="h-8 w-8"
                 onClick={copySecret}
+                aria-label={copied ? "Código copiado" : "Copiar código"}
               >
-                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                {copied ? <Check className="h-4 w-4 text-green-500" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </div>
           </div>
@@ -176,7 +177,7 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
 
         {error && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -196,9 +197,9 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
             disabled={verificationCode.length !== 6 || isVerifying}
           >
             {isVerifying ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
             ) : (
-              <ShieldCheck className="h-4 w-4 mr-2" />
+              <ShieldCheck className="h-4 w-4 mr-2" aria-hidden="true" />
             )}
             Ativar 2FA
           </Button>
