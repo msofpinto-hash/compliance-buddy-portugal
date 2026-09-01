@@ -2071,6 +2071,12 @@ export default function Dashboard() {
                                             ? "Cancelada"
                                             : "Planeada"}
                                   </Badge>
+                                  <Badge variant="outline" className="gap-1">
+                                    {(audit.audit_type || "anual") === "mensal"
+                                      ? "Verificação mensal"
+                                      : "Auditoria anual"}
+                                  </Badge>
+
                                 </div>
                                 <h3 className="font-semibold">{audit.title}</h3>
                                 {audit.description && (
