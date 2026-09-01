@@ -303,7 +303,12 @@ export default function Biblioteca() {
             subtitle="Consulta e acompanhamento de toda a legislação aplicável à sua organização"
             badge="Gestão Documental"
             icon={BookOpen}
+            stats={[
+              { label: "Diplomas", value: legislationWithCategories?.length || 0 },
+              { label: "Filtrados", value: filteredCount },
+            ]}
           />
+
 
           {/* Search Bar - Clean institutional */}
           <motion.div

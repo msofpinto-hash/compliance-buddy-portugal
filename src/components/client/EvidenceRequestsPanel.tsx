@@ -473,7 +473,14 @@ export function EvidenceRequestsPanel({ organizationId }: EvidenceRequestsPanelP
         subtitle="Submeta e acompanhe as evidências documentais solicitadas para a sua organização"
         badge="Evidências Documentais"
         icon={FolderOpen}
+        stats={[
+          { label: "Total", value: stats.total },
+          { label: "Pendentes", value: stats.pending },
+          { label: "Submetidas", value: stats.submitted },
+          { label: "Aprovadas", value: stats.approved },
+        ]}
       />
+
 
       {/* Stats and Progress - I&D Style */}
       <IDCard>

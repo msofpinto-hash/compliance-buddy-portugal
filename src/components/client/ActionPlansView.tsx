@@ -1056,7 +1056,14 @@ export function ActionPlansView({ organizationIds, organizations }: ActionPlansV
         subtitle="Gestão de ações corretivas e preventivas para garantir a conformidade legal"
         badge="Ações Corretivas"
         icon={ClipboardList}
+        stats={[
+          { label: "Total", value: stats.total },
+          { label: "Pendentes", value: stats.pendente },
+          { label: "Em curso", value: stats.em_curso },
+          { label: "Concluídas", value: stats.concluido },
+        ]}
       />
+
       
       {/* Actions Bar */}
       <IDCard>

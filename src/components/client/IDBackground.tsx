@@ -125,12 +125,18 @@ export const IDHeroSection = ({
   title, 
   subtitle, 
   badge,
-  icon: Icon 
+  icon: Icon,
+  stats,
+  actions,
 }: { 
   title: string; 
   subtitle?: string; 
   badge?: string;
   icon?: React.ElementType;
+  /** Optional quick metrics rendered on the right side of the hero */
+  stats?: { label: string; value: React.ReactNode }[];
+  /** Optional controls rendered under the metrics */
+  actions?: React.ReactNode;
 }) => (
   <motion.div
     initial={{ opacity: 0, y: -20 }}
@@ -145,7 +151,7 @@ export const IDHeroSection = ({
     <div className="absolute -right-20 -top-20 w-48 h-48 bg-gradient-to-br from-amber-200/30 to-orange-200/20 dark:from-amber-700/15 dark:to-orange-700/10 rounded-full blur-3xl" />
     <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-emerald-200/20 dark:bg-emerald-700/10 rounded-full blur-2xl" />
     
-    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pl-4">
+    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pl-4">
       <div className="space-y-3">
         {badge && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-amber-100/80 dark:from-emerald-800/50 dark:to-amber-800/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-700/40">
@@ -162,9 +168,31 @@ export const IDHeroSection = ({
           </p>
         )}
       </div>
+
+      {(stats?.length || actions) && (
+        <div className="flex flex-col items-start lg:items-end gap-3 shrink-0">
+          {!!stats?.length && (
+            <div className="flex flex-wrap gap-2.5">
+              {stats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="min-w-[92px] rounded-lg border border-stone-200/70 dark:border-amber-900/30 bg-white/80 dark:bg-[#141210]/70 px-3.5 py-2.5 text-center shadow-sm backdrop-blur-sm"
+                >
+                  <p className="text-xl font-bold text-stone-800 dark:text-white leading-none">{stat.value}</p>
+                  <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-stone-500 dark:text-amber-200/60">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          {actions}
+        </div>
+      )}
     </div>
   </motion.div>
 );
+
 
 // Card component with I&D styling - warm accents
 export const IDCard = ({ 
