@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       launches.push(fetch(`${supabaseUrl}/functions/v1/extract-requirements-background`, {
         method: "POST",
         headers: { Authorization: `Bearer ${supabaseKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ origin: "EU", batchSize: 25, maxBatches: 40, useUrl: true, background: true }),
+        body: JSON.stringify({ origin: "EU", batchSize: 60, maxBatches: 40, useUrl: true, background: true }),
       }));
       launched.push("EU-requirements");
     }
