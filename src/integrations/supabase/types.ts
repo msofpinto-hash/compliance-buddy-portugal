@@ -1772,6 +1772,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tmp_pdf_import: {
+        Row: {
+          applic: string | null
+          descriptor: string | null
+          grp: string | null
+          id: number
+          num: string | null
+          origin: string | null
+          pubdate: string | null
+          theme: string | null
+          title: string | null
+        }
+        Insert: {
+          applic?: string | null
+          descriptor?: string | null
+          grp?: string | null
+          id?: number
+          num?: string | null
+          origin?: string | null
+          pubdate?: string | null
+          theme?: string | null
+          title?: string | null
+        }
+        Update: {
+          applic?: string | null
+          descriptor?: string | null
+          grp?: string | null
+          id?: number
+          num?: string | null
+          origin?: string | null
+          pubdate?: string | null
+          theme?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       url_validation_results: {
         Row: {
           checked_at: string

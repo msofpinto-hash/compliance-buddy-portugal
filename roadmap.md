@@ -12,3 +12,12 @@
 - [x] Biblioteca: aplicar aplicabilidade em massa aos diplomas do descritor/subdescritor selecionado
 - [x] Extração de requisitos DRE via PDF oficial (sem Firecrawl)
 - [x] Fusão de descritores Nacional/Comunitário num único descritor por nome
+
+## Em curso — Gestão de temas/descritores e importação restante
+- [x] Página /gestao-temas: escolher tema, confirmar descritores/subdescritores e associar automaticamente os diplomas ao cliente
+- [x] Mover vários diplomas de um descritor para outro (multi-seleção)
+- [x] Eliminar descritores/subdescritores (diplomas mantidos na biblioteca)
+- [x] Retirar diplomas do cliente e corrigir aplicabilidades em massa
+- [ ] Importar página a página o restante da lista exaustiva (PDF SIAWISE), corrigindo quebras de página falhadas pelo parser
+- [ ] Corrigir/validar URLs de todos os diplomas carregados
+- [ ] Importar requisitos via URL depois de os URLs estarem corrigidos

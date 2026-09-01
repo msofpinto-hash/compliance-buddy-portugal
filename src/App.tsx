@@ -20,6 +20,8 @@ import LegislacaoRecente from "./pages/LegislacaoRecente";
 import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
 import Diplomas from "./pages/Diplomas";
+import GestaoTemas from "./pages/GestaoTemas";
+
 import Progresso from "./pages/Progresso";
 import FontesOficiais from "./pages/FontesOficiais";
 import Conformidade from "./pages/Conformidade";
@@ -118,6 +120,15 @@ const App = () => (
                 </RequireAdmin>
               }
             />
+            <Route
+              path="/gestao-temas"
+              element={
+                <RequireAdmin>
+                  <GestaoTemas />
+                </RequireAdmin>
+              }
+            />
+
             <Route
               path="/fontes-oficiais"
               element={
