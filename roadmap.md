@@ -48,3 +48,6 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 ## Anexos VCL mensal
 - [x] Anexar listas, Excel e atas (PDF/XLSX) às verificações mensais 2026 da AMCOR
 - [x] Excluir ficheiros Word dos anexos
+
+## Auditorias
+- [ ] Substituir "Plano de auditorias" por calendário (semanal/mensal/anual) com datas planeadas vs executadas
