@@ -23,6 +23,7 @@ import Diplomas from "./pages/Diplomas";
 import Progresso from "./pages/Progresso";
 import FontesOficiais from "./pages/FontesOficiais";
 import Conformidade from "./pages/Conformidade";
+import Aprovacoes from "./pages/Aprovacoes";
 import PoliticaIA from "./pages/PoliticaIA";
 import NotFound from "./pages/NotFound";
 
