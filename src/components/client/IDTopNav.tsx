@@ -129,7 +129,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#1a1512]/95 backdrop-blur-md border-b border-border/60 ">
+    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-md border-b border-border/60 ">
       {/* Row 1: brand + org + actions */}
       <div className="flex items-center justify-between gap-4 px-4 lg:px-8 py-3">
         <div className="flex flex-col min-w-0">
@@ -201,7 +201,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
                     "relative flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors",
                     active
                       ? "text-primary "
-                      : "text-muted-foreground hover:text-foreground dark:hover:text-white",
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/40 rounded-t-md",
                   )}
                 >
                   <item.icon
@@ -212,7 +212,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
                   />
                   {item.label}
                   {count !== undefined && count > 0 && (
-                    <Badge className="ml-1 h-5 px-1.5 text-[11px] bg-accent text-primary border-0">
+                    <Badge className="ml-1 h-5 px-1.5 text-[11px] bg-terracotta/15 text-terracotta border-0">
                       {count > 99 ? "99+" : count}
                     </Badge>
                   )}
@@ -220,7 +220,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
                     className={cn(
                       "absolute left-3 right-3 -bottom-px h-[3px] rounded-full transition-all",
                       active
-                        ? "bg-gradient-to-r from-primary to-primary"
+                        ? "bg-gradient-to-r from-primary via-primary to-terracotta"
                         : "bg-transparent",
                     )}
                   />
