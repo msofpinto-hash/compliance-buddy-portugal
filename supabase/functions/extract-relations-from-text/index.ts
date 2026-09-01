@@ -141,7 +141,8 @@ Deno.serve(async (req) => {
       (processedRows ?? [])
         .filter((p) =>
           reprocess
-            ? (p.relations_found ?? 0) > 0 || new Date(p.processed_at).getTime() > cutoff
+            ? (p.relations_found ?? 0) > 0 ||
+              (!force && new Date(p.processed_at).getTime() > cutoff)
             : true
         )
         .map((p) => p.legislation_id),
