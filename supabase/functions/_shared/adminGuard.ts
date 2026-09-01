@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const guardCors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-token",
 };
 
 function deny(status: number, message: string): Response {
@@ -31,11 +31,34 @@ function isServiceRoleToken(token: string): boolean {
   }
 }
 
+
+/**
+ * Internal service token used by pg_cron jobs. The token lives in the private
+ * `internal.service_tokens` table and is only readable with the service role.
+ */
+async function hasValidInternalToken(req: Request): Promise<boolean> {
+  const provided = req.headers.get("x-internal-token");
+  if (!provided) return false;
+  try {
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    const { data, error } = await admin.schema("internal").from("service_tokens")
+      .select("token").eq("name", "cron").maybeSingle();
+    if (error || !data?.token) return false;
+    return data.token === provided;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Allows internal service-role calls (pg_cron / other edge functions) or an
  * authenticated user. Returns a Response when access must be denied, else null.
  */
 export async function requireUser(req: Request): Promise<Response | null> {
+  if (await hasValidInternalToken(req)) return null;
   const token = bearer(req);
   if (!token) return deny(401, "Autenticação necessária");
 
@@ -54,6 +77,7 @@ export async function requireUser(req: Request): Promise<Response | null> {
  * Allows internal service-role calls or authenticated users with the admin role.
  */
 export async function requireAdmin(req: Request): Promise<Response | null> {
+  if (await hasValidInternalToken(req)) return null;
   const token = bearer(req);
   if (!token) return deny(401, "Autenticação necessária");
 

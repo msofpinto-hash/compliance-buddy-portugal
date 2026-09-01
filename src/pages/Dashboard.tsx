@@ -112,6 +112,7 @@ import moduleLegislation from "@/assets/module-legislation-new.jpg";
 import sustainLeaves from "@/assets/sustain-leaves.jpg";
 import sustainEnergy from "@/assets/sustain-energy.jpg";
 import { SustainHero } from "@/components/client/SustainHero";
+import { GoalsPanel } from "@/components/client/GoalsPanel";
 import moduleActions from "@/assets/module-actions-new.jpg";
 import moduleAudits from "@/assets/module-audits-new.jpg";
 import moduleDocuments from "@/assets/module-documents-new.jpg";
@@ -1499,6 +1500,8 @@ export default function Dashboard() {
                 subtitle="Acompanhe as auditorias planeadas, em curso e o histórico completo de auditorias realizadas"
                 badge="Módulo de Auditorias"
                 icon={ClipboardCheck}
+                image={moduleAudits}
+                imageAlt="Auditoria em curso"
                 stats={[
                   {
                     label: "Planeadas",
@@ -2094,12 +2097,17 @@ export default function Dashboard() {
                 subtitle="Métricas calculadas com base nos dados reais da sua organização"
                 badge="Indicadores"
                 icon={BarChart3}
+                image={sustainEnergy}
+                imageAlt="Energia sustentável"
                 stats={[
                   { label: "Conformidade", value: `${complianceRate}%` },
                   { label: "Planos", value: actionPlans?.length || 0 },
                   { label: "Auditorias", value: audits?.length || 0 },
                 ]}
               />
+
+              {/* Metas e Objetivos */}
+              <GoalsPanel organizationId={currentOrg?.id} />
 
               {/* Real KPI Cards */}
               <div className="grid gap-4 md:grid-cols-3">

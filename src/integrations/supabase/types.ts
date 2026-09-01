@@ -1270,6 +1270,65 @@ export type Database = {
           },
         ]
       }
+      organization_goals: {
+        Row: {
+          area: string | null
+          created_at: string
+          created_by: string | null
+          current_value: number
+          description: string | null
+          due_date: string | null
+          id: string
+          organization_id: string
+          start_date: string | null
+          status: string
+          target_value: number
+          title: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          area?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_value?: number
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          organization_id: string
+          start_date?: string | null
+          status?: string
+          target_value?: number
+          title: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_value?: number
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          organization_id?: string
+          start_date?: string | null
+          status?: string
+          target_value?: number
+          title?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_goals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_legislation: {
         Row: {
           applicability_type: string | null
@@ -1930,6 +1989,7 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      verify_internal_token: { Args: { _token: string }; Returns: boolean }
     }
     Enums: {
       app_module:

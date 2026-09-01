@@ -30,3 +30,11 @@ Auditoria ACL importada: `a43f1798-6f58-41c6-ae25-c856629c7534` (2026-02-13)
 ## Novas páginas (2026-09-01)
 - [x] Página de fontes oficiais: aprovar/rejeitar fontes com histórico e motivo
 - [x] Página de conformidade por cliente: estado de cada requisito + evidências (admin e cliente)
+
+## Metas e Indicadores (2026-09-01)
+- [x] Imagens de fundo nos cabeçalhos dos módulos (igual ao Painel)
+- [ ] Metas e indicadores no separador Indicadores: objetivos, prazos e progresso
+
+## AMCOR — âmbito temático (2026-09-01)
+- [ ] Limitar visibilidade aos temas Ambiente e SST para a AMCOR
+- [ ] Corrigir dados (categorias, requisitos, relações) apenas nesses temas

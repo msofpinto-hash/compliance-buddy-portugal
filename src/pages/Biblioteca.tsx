@@ -43,6 +43,7 @@ import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { cn } from "@/lib/utils";
 
 // Theme icons and colors mapping
+import heroBiblioteca from "@/assets/module-legislation-new.jpg";
 import themeAmbiente from "@/assets/theme-ambiente.png";
 import themeSst from "@/assets/theme-sst.png";
 import themeEnergia from "@/assets/theme-energia.png";
@@ -348,6 +349,8 @@ export default function Biblioteca() {
             subtitle="Consulta e acompanhamento de toda a legislação aplicável à sua organização"
             badge="Gestão Documental"
             icon={BookOpen}
+            image={heroBiblioteca}
+            imageAlt="Estantes de documentação legal"
             stats={[
               {
                 label: "Diplomas",

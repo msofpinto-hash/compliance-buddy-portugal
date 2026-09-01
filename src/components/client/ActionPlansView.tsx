@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { IDHeroSection, IDCard } from "@/components/client/IDBackground";
+import heroActions from "@/assets/module-actions-new.jpg";
 import {
   Plus,
   Calendar,
@@ -1349,6 +1350,8 @@ export function ActionPlansView({
         subtitle="Gestão de ações corretivas e preventivas para garantir a conformidade legal"
         badge="Ações Corretivas"
         icon={ClipboardList}
+        image={heroActions}
+        imageAlt="Equipa a planear ações corretivas"
         stats={[
           { label: "Total", value: stats.total },
           { label: "Pendentes", value: stats.pendente },
