@@ -358,6 +358,46 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const from = location.pathname + location.search;
 
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
+  const queryClient = useQueryClient();
+
+  // Admin-only: move a descriptor (with its sub-descriptors) to another theme
+  const [categoryToMove, setCategoryToMove] = useState<ThemeCategory | null>(null);
+  const [moveThemeId, setMoveThemeId] = useState<string>("");
+
+  const moveCategoryToTheme = useMutation({
+    mutationFn: async ({ category, targetThemeId }: { category: ThemeCategory; targetThemeId: string }) => {
+      const all = themesWithCategories?.flatMap((t) => t.categories) || [];
+      const ids: string[] = [];
+      const collect = (parentId: string) => {
+        ids.push(parentId);
+        all.filter((c) => c.parent_id === parentId).forEach((c) => collect(c.id));
+      };
+      collect(category.id);
+
+      const { error } = await supabase
+        .from("theme_categories")
+        .update({ theme_id: targetThemeId })
+        .in("id", ids);
+      if (error) throw error;
+
+      const { error: rootError } = await supabase
+        .from("theme_categories")
+        .update({ parent_id: null })
+        .eq("id", category.id);
+      if (rootError) throw rootError;
+
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} descritor(es) movido(s) de tema`);
+      setSelectedCategoryId(null);
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
   const [internalSelectedThemeId, setInternalSelectedThemeId] = useState<string | null>(null);
