@@ -51,9 +51,13 @@ import {
   LayoutGrid,
   List,
   ArrowLeftRight,
+  Pencil,
+  Trash2,
   type LucideIcon
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FolderTree as FolderTreeIcon } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useThemesWithCategories, ThemeCategory, ThemeWithCategories } from "@/hooks/useThemes";
 import { type LegislationWithCategories } from "@/hooks/useLegislation";
@@ -396,6 +400,124 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Admin-only: rename a descriptor
+  const [categoryToRename, setCategoryToRename] = useState<ThemeCategory | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const renameCategory = useMutation({
+    mutationFn: async ({ category, name }: { category: ThemeCategory; name: string }) => {
+      const { error } = await supabase
+        .from("theme_categories")
+        .update({ name })
+        .eq("id", category.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Descritor renomeado");
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Admin-only: delete a descriptor (and its sub-descriptors); diplomas stay in the library
+  const [categoryToDelete, setCategoryToDelete] = useState<ThemeCategory | null>(null);
+
+  const deleteCategory = useMutation({
+    mutationFn: async (category: ThemeCategory) => {
+      const all = themesWithCategories?.flatMap((t) => t.categories) || [];
+      const ids: string[] = [];
+      const collect = (parentId: string) => {
+        ids.push(parentId);
+        all.filter((c) => c.parent_id === parentId).forEach((c) => collect(c.id));
+      };
+      collect(category.id);
+
+      const { error: mapError } = await supabase
+        .from("legislation_category_mapping")
+        .delete()
+        .in("category_id", ids);
+      if (mapError) throw mapError;
+
+      const { error: linkError } = await supabase
+        .from("category_theme_links")
+        .delete()
+        .in("category_id", ids);
+      if (linkError) throw linkError;
+
+      for (const id of [...ids].reverse()) {
+        const { error } = await supabase.from("theme_categories").delete().eq("id", id);
+        if (error) throw error;
+      }
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} descritor(es) eliminado(s)`);
+      setSelectedCategoryId(null);
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Admin-only: move/associate selected diplomas to another descriptor
+  const [selectedLegIds, setSelectedLegIds] = useState<Set<string>>(new Set());
+  const [targetCategoryId, setTargetCategoryId] = useState<string>("");
+
+  const toggleLegSelection = (id: string) => {
+    setSelectedLegIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const moveDiplomas = useMutation({
+    mutationFn: async ({ targetCategoryId, mode }: { targetCategoryId: string; mode: "move" | "add" }) => {
+      const ids = Array.from(selectedLegIds);
+      if (mode === "move" && selectedCategoryId) {
+        const { error: delError } = await supabase
+          .from("legislation_category_mapping")
+          .delete()
+          .eq("category_id", selectedCategoryId)
+          .in("legislation_id", ids);
+        if (delError) throw delError;
+      }
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("legislation_category_mapping")
+        .select("legislation_id")
+        .eq("category_id", targetCategoryId)
+        .in("legislation_id", ids);
+      if (fetchError) throw fetchError;
+
+      const already = new Set((existing || []).map((r) => r.legislation_id));
+      const toInsert = ids
+        .filter((id) => !already.has(id))
+        .map((id) => ({ legislation_id: id, category_id: targetCategoryId }));
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from("legislation_category_mapping").insert(toInsert);
+        if (error) throw error;
+      }
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} diploma(s) atualizado(s)`);
+      setSelectedLegIds(new Set());
+      setTargetCategoryId("");
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+      queryClient.invalidateQueries({ queryKey: ["biblioteca-legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
+
+
 
 
   
@@ -857,6 +979,38 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               <ArrowLeftRight className="h-3.5 w-3.5" />
             </button>
           )}
+
+          {editableOrganizationId && (
+            <button
+              className={`p-1 rounded shrink-0 transition-colors ${
+                isSelected ? 'hover:bg-white/30' : 'hover:bg-accent text-muted-foreground'
+              }`}
+              title="Renomear descritor"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryToRename(node.category);
+                setRenameValue(node.category.name);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {editableOrganizationId && (
+            <button
+              className={`p-1 rounded shrink-0 transition-colors text-destructive ${
+                isSelected ? 'hover:bg-white/30' : 'hover:bg-accent'
+              }`}
+              title="Eliminar descritor"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryToDelete(node.category);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+
         </div>
         
 
@@ -1656,6 +1810,53 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 }
               />
             )}
+            {editableOrganizationId && selectedLegIds.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2">
+                <span className="flex items-center gap-1.5 text-xs font-medium">
+                  <FolderTreeIcon className="h-4 w-4 text-primary" />
+                  {selectedLegIds.size} diploma(s) selecionado(s)
+                </span>
+                <Select value={targetCategoryId} onValueChange={setTargetCategoryId}>
+                  <SelectTrigger className="h-8 w-[260px] bg-background text-xs">
+                    <SelectValue placeholder="Descritor de destino…" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {(themesWithCategories || []).map((t) => (
+                      <SelectGroup key={t.id}>
+                        <SelectLabel className="text-xs">{t.name}</SelectLabel>
+                        {t.categories.map((c) => (
+                          <SelectItem key={c.id} value={c.id} className="text-xs">
+                            {c.parent_id ? "— " : ""}
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  className="h-8"
+                  disabled={!targetCategoryId || moveDiplomas.isPending}
+                  onClick={() => moveDiplomas.mutate({ targetCategoryId, mode: "move" })}
+                >
+                  Mover
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  disabled={!targetCategoryId || moveDiplomas.isPending}
+                  onClick={() => moveDiplomas.mutate({ targetCategoryId, mode: "add" })}
+                >
+                  Associar também
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => setSelectedLegIds(new Set())}>
+                  Limpar
+                </Button>
+              </div>
+            )}
+
             {displayedLegislation.length > 0 ? (
               <>
               <ScrollArea className="h-[calc(100vh-380px)]">
@@ -1685,6 +1886,15 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         {/* Header row */}
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            {editableOrganizationId && (
+                              <Checkbox
+                                checked={selectedLegIds.has(leg.id)}
+                                onCheckedChange={() => toggleLegSelection(leg.id)}
+                                aria-label="Selecionar diploma"
+                                className="mr-1"
+                              />
+                            )}
+
                             {/* Diploma Type Badge */}
                             <Badge
                               variant="outline"
@@ -2067,6 +2277,65 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               }}
             >
               Mover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!categoryToRename} onOpenChange={(o) => !o && setCategoryToRename(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Renomear descritor</AlertDialogTitle>
+            <AlertDialogDescription>
+              O novo nome passa a aparecer em todos os temas e listas onde este descritor é usado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rename-category">Nome</Label>
+            <Input
+              id="rename-category"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Nome do descritor"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!renameValue.trim() || renameCategory.isPending}
+              onClick={() => {
+                if (categoryToRename && renameValue.trim()) {
+                  renameCategory.mutate({ category: categoryToRename, name: renameValue.trim() });
+                }
+                setCategoryToRename(null);
+              }}
+            >
+              Guardar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!categoryToDelete} onOpenChange={(o) => !o && setCategoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar descritor</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{categoryToDelete?.name}" e os seus subdescritores serão eliminados. Os diplomas
+              mantêm-se na biblioteca, mas deixam de estar associados a este descritor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteCategory.isPending}
+              onClick={() => {
+                if (categoryToDelete) deleteCategory.mutate(categoryToDelete);
+                setCategoryToDelete(null);
+              }}
+            >
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
