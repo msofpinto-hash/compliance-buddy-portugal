@@ -261,13 +261,27 @@ Deno.serve(async (req) => {
         const docYear = dreMatch[3]; // e.g., "2007"
         const dreId = dreMatch[4]; // The numeric ID at the end
         console.log(`[v2] DRE document: type=${docType}, number=${docNumber}, year=${docYear}, id=${dreId}`);
-        
+
+        // Attempt 0: official DRE PDF (the only reliable full-text source)
+        try {
+          const pdfText = await fetchDrePdfText(dreId);
+          if (pdfText && pdfText.length > 400) {
+            const designation = `${docType.replace(/-/g, ' ')} n.º ${docNumber.toUpperCase()}/${docYear}`;
+            contentToProcess = sliceDiploma(pdfText, designation);
+            scrapeSuccess = contentToProcess.length > 400;
+            console.log('[v2] DRE PDF text length:', contentToProcess.length);
+          }
+        } catch (pdfError) {
+          console.log('[v2] DRE PDF error:', pdfError instanceof Error ? pdfError.message : 'unknown');
+        }
+
         // Try multiple API endpoints
-        const apiEndpoints = [
+        const apiEndpoints = scrapeSuccess ? [] : [
           `https://dre.pt/dr/api/diploma/${dreId}`,
           `https://dre.pt/opendata/document/${dreId}`,
           `https://dre.pt/dr/api/textoIntegral/${dreId}`,
         ];
+
         
         for (const endpoint of apiEndpoints) {
           if (scrapeSuccess) break;
