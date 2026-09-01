@@ -142,6 +142,51 @@ export default function LegislacaoDetalhes() {
     enabled: !!user,
   });
 
+  // Admin: escolher a organização em cujo contexto se está a editar
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orgParam = searchParams.get("org");
+  const [adminOrgId, setAdminOrgId] = useState<string | null>(
+    orgParam || sessionStorage.getItem("admin_org_context"),
+  );
+
+  const { data: allOrganizations } = useQuery({
+    queryKey: ["all-organizations-context"],
+    enabled: !!isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (!adminOrgId && allOrganizations?.length) {
+      setAdminOrgId(allOrganizations[0].id);
+    }
+  }, [isAdmin, adminOrgId, allOrganizations]);
+
+  useEffect(() => {
+    if (isAdmin && adminOrgId) {
+      sessionStorage.setItem("admin_org_context", adminOrgId);
+    }
+  }, [isAdmin, adminOrgId]);
+
+  const activeOrganization = useMemo(() => {
+    if (isAdmin) {
+      const found = allOrganizations?.find((o) => o.id === adminOrgId);
+      return found ? { id: found.id, name: found.name } : null;
+    }
+    return (userOrganization as { id: string; name: string } | null) || null;
+  }, [isAdmin, allOrganizations, adminOrgId, userOrganization]);
+
+  const canEditApplicability = !!isAdmin;
+
+
+
   // Fetch legislation details
   const { data: legislation, isLoading, error } = useQuery({
     queryKey: ["legislation-details", id],
