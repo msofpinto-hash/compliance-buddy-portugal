@@ -783,11 +783,14 @@ export type Database = {
       }
       external_source_status: {
         Row: {
+          base_url: string | null
           blocked_until: string | null
           created_at: string
+          display_name: string | null
           error_message: string | null
           failure_count: number
           id: string
+          is_official: boolean
           last_failure_at: string | null
           last_success_at: string | null
           source_name: string
@@ -795,11 +798,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          base_url?: string | null
           blocked_until?: string | null
           created_at?: string
+          display_name?: string | null
           error_message?: string | null
           failure_count?: number
           id?: string
+          is_official?: boolean
           last_failure_at?: string | null
           last_success_at?: string | null
           source_name: string
@@ -807,11 +813,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          base_url?: string | null
           blocked_until?: string | null
           created_at?: string
+          display_name?: string | null
           error_message?: string | null
           failure_count?: number
           id?: string
+          is_official?: boolean
           last_failure_at?: string | null
           last_success_at?: string | null
           source_name?: string

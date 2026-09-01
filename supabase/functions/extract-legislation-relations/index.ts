@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { requireAdmin } from "../_shared/adminGuard.ts";
 // Declare EdgeRuntime for Supabase Edge Functions
 declare const EdgeRuntime: {
   waitUntil(promise: Promise<any>): void;
@@ -1965,6 +1966,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const guardResponse = await requireAdmin(req);
+  if (guardResponse) return guardResponse;
 
   try {
     const { legislationIds, limit = 10, dryRun = false, origin, autoImport = true, background = false, force = false } = await req.json();

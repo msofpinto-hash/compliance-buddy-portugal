@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+import { requireAdmin } from "../_shared/adminGuard.ts";
 declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 
 const corsHeaders = {
@@ -2614,6 +2615,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const guardResponse = await requireAdmin(req);
+  if (guardResponse) return guardResponse;
 
   try {
     const { 
