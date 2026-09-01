@@ -528,6 +528,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
   const [diplomaTypeFilter, setDiplomaTypeFilter] = useState<string | null>(null);
+  const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -641,10 +642,13 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       
       const matchesDiplomaType = !diplomaTypeFilter || 
         extractDiplomaType(leg.number || "") === diplomaTypeFilter;
-      
-      return matchesSearch && matchesSource && matchesDiplomaType;
+
+      const matchesApplicability = !unclassifiedOnly ||
+        (applicabilityMap ? !applicabilityMap[leg.id] : true);
+
+      return matchesSearch && matchesSource && matchesDiplomaType && matchesApplicability;
     });
-  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter]);
+  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter, unclassifiedOnly, applicabilityMap]);
 
   const legislationByCategory = useMemo(() => {
     const map = new Map<string, LegislationWithCategories[]>();
