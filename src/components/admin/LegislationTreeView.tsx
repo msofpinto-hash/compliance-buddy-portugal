@@ -50,6 +50,7 @@ import {
   ChevronsRight,
   LayoutGrid,
   List,
+  ArrowLeftRight,
   type LucideIcon
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,6 +66,20 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import emptySearchImage from "@/assets/empty-search.png";
 import treeCategoriesImage from "@/assets/tree-categories.png";
 import { BulkApplicabilityBar } from "@/components/admin/BulkApplicabilityBar";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+
 
 // Theme color configurations with warm corporate palette
 const themeColors: Record<string, { 
@@ -343,6 +358,46 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const from = location.pathname + location.search;
 
   const { data: themesWithCategories, isLoading } = useThemesWithCategories();
+  const queryClient = useQueryClient();
+
+  // Admin-only: move a descriptor (with its sub-descriptors) to another theme
+  const [categoryToMove, setCategoryToMove] = useState<ThemeCategory | null>(null);
+  const [moveThemeId, setMoveThemeId] = useState<string>("");
+
+  const moveCategoryToTheme = useMutation({
+    mutationFn: async ({ category, targetThemeId }: { category: ThemeCategory; targetThemeId: string }) => {
+      const all = themesWithCategories?.flatMap((t) => t.categories) || [];
+      const ids: string[] = [];
+      const collect = (parentId: string) => {
+        ids.push(parentId);
+        all.filter((c) => c.parent_id === parentId).forEach((c) => collect(c.id));
+      };
+      collect(category.id);
+
+      const { error } = await supabase
+        .from("theme_categories")
+        .update({ theme_id: targetThemeId })
+        .in("id", ids);
+      if (error) throw error;
+
+      const { error: rootError } = await supabase
+        .from("theme_categories")
+        .update({ parent_id: null })
+        .eq("id", category.id);
+      if (rootError) throw rootError;
+
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} descritor(es) movido(s) de tema`);
+      setSelectedCategoryId(null);
+      queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["legislation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
   const [internalSelectedThemeId, setInternalSelectedThemeId] = useState<string | null>(null);
@@ -786,7 +841,25 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               {count}
             </Badge>
           )}
+
+          {editableOrganizationId && (
+            <button
+              className={`p-1 rounded shrink-0 transition-colors ${
+                isSelected ? 'hover:bg-white/30' : 'hover:bg-accent text-muted-foreground'
+              }`}
+              title="Mover descritor para outro tema"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryToMove(node.category);
+                setMoveThemeId("");
+              }}
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+        
+
         
         {hasChildren && isExpanded && (
           <div className="relative ml-4">
@@ -1955,6 +2028,50 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         </Card>
       </div>
       )}
+
+      <AlertDialog open={!!categoryToMove} onOpenChange={(o) => !o && setCategoryToMove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover descritor para outro tema</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{categoryToMove?.name}" e os seus subdescritores passam para o tema escolhido,
+              mantendo os diplomas e as classificações já feitas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label>Tema de destino</Label>
+            <Select value={moveThemeId} onValueChange={setMoveThemeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolher tema…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(themesWithCategories || [])
+                  .filter((t) => t.id !== categoryToMove?.theme_id)
+                  .map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!moveThemeId || moveCategoryToTheme.isPending}
+              onClick={() => {
+                if (categoryToMove && moveThemeId) {
+                  moveCategoryToTheme.mutate({ category: categoryToMove, targetThemeId: moveThemeId });
+                }
+                setCategoryToMove(null);
+              }}
+            >
+              Mover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }
