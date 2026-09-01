@@ -579,23 +579,61 @@ export function EvidenceRequestsPanel({
   };
 
   const handleUploadWithMetadata = async () => {
-    if (!selectedRequest || !pendingFile) return;
+    if (!selectedRequest || pendingDocs.length === 0) return;
     setUploadingFile(true);
+    let ok = 0;
     try {
-      await uploadMutation.mutateAsync({
-        requestId: selectedRequest.id,
-        file: pendingFile,
-        validityDate: hasValidity ? validityDate : undefined,
-        userNotes: documentNotes || undefined,
+      for (const doc of pendingDocs) {
+        await uploadMutation.mutateAsync({
+          requestId: selectedRequest.id,
+          file: doc.file,
+          issueDate: doc.issueDate,
+          validityDate: doc.validityDate,
+          userNotes: doc.notes || undefined,
+        });
+        ok += 1;
+      }
+      toast({
+        title: ok === 1 ? "Documento carregado" : `${ok} documentos carregados`,
+        description: "Os documentos foram anexados com sucesso.",
+      });
+      setPendingDocs([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (e) {
+      toast({
+        title: "Erro",
+        description: `Não foi possível carregar todos os documentos (${ok} carregados).`,
+        variant: "destructive",
       });
     } finally {
       setUploadingFile(false);
+      queryClient.invalidateQueries({
+        queryKey: ["evidence-request-documents", organizationId],
+      });
     }
   };
 
-  const handleFileChange = (file: File) => {
-    setPendingFile(file);
+  const handleFilesSelected = (files: FileList) => {
+    const next = Array.from(files).map((file) => ({
+      id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+      file,
+      issueDate: undefined as Date | undefined,
+      validityDate: undefined as Date | undefined,
+      notes: "",
+    }));
+    setPendingDocs((prev) => [...prev, ...next]);
   };
+
+  const updatePendingDoc = (id: string, patch: Partial<PendingDoc>) => {
+    setPendingDocs((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...patch } : d)),
+    );
+  };
+
+  const removePendingDoc = (id: string) => {
+    setPendingDocs((prev) => prev.filter((d) => d.id !== id));
+  };
+
 
   const getTemplateAreas = (
     template: EvidenceRequest["evidence_templates"],
