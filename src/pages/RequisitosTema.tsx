@@ -380,64 +380,18 @@ export default function RequisitosTema() {
                           )}
 
                           <div className="space-y-1">
-                            {diplomas.map((d) => {
-                              const count = data?.counts?.[d.id] || 0;
-                              const app = data?.applicability?.[d.id];
-                              return (
-                                <div
-                                  key={d.id}
-                                  className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-xs"
-                                >
-                                  <Badge variant="outline" className="shrink-0 text-[11px]">
-                                    {d.origin === "EU" || d.origin === "eurlex" ? "UE" : "PT"}
-                                  </Badge>
-                                  <span className="font-medium">{d.number}</span>
-                                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                                    {d.title}
-                                  </span>
-                                  {count > 0 ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="shrink-0 border-primary/30 bg-primary/10 text-primary"
-                                    >
-                                      <CheckCircle2 className="mr-1 h-3 w-3" />
-                                      {count} requisitos
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant="outline"
-                                      className="shrink-0 border-amber-300 bg-amber-500/10 text-amber-700"
-                                    >
-                                      <AlertTriangle className="mr-1 h-3 w-3" />
-                                      Sem requisitos
-                                    </Badge>
-                                  )}
-                                  {activeOrgId && (
-                                    <Select
-                                      value={app || undefined}
-                                      onValueChange={(value) =>
-                                        setApplicability.mutate({ legislationIds: [d.id], value })
-                                      }
-                                    >
-                                      <SelectTrigger
-                                        className={`h-7 w-[190px] text-xs ${
-                                          app ? APPLICABILITY_STYLES[app] || "" : "border-dashed"
-                                        }`}
-                                      >
-                                        <SelectValue placeholder="Sem aplicabilidade" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {APPLICABILITY_OPTIONS.map((o) => (
-                                          <SelectItem key={o.value} value={o.value} className="text-xs">
-                                            {o.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                </div>
-                              );
-                            })}
+                            {diplomas.map((d) => (
+                              <DiplomaRow
+                                key={d.id}
+                                diploma={d}
+                                count={data?.counts?.[d.id] || 0}
+                                applicability={data?.applicability?.[d.id]}
+                                orgId={activeOrgId}
+                                onApplicabilityChange={(value) =>
+                                  setApplicability.mutate({ legislationIds: [d.id], value })
+                                }
+                              />
+                            ))}
                             {diplomas.length === 0 && (
                               <p className="py-2 text-xs text-muted-foreground">Sem diplomas.</p>
                             )}
