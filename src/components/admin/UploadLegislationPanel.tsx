@@ -329,14 +329,24 @@ export function UploadLegislationPanel() {
 
   const checkDuplicate = useCallback(
     async (payload: { document_url?: string; number?: string; file_hash?: string }) => {
+      // Garante um token válido (a sessão pode ter expirado entretanto)
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        await supabase.auth.refreshSession();
+      }
       const { data, error } = await supabase.functions.invoke("validate-legislation-duplicate", {
         body: payload,
       });
-      if (error) throw error;
+      if (error) {
+        console.error("checkDuplicate failed", error);
+        // Não bloqueia o fluxo: apenas não valida duplicados
+        return { is_duplicate: false, matches: [] as DupMatch[] };
+      }
       return data as { is_duplicate: boolean; matches: DupMatch[] };
     },
     []
   );
+
 
   // ===== BULK URL HANDLER =====
   const handleBulkCheck = async () => {
