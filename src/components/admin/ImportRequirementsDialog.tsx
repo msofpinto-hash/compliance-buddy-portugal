@@ -116,12 +116,29 @@ export function ImportRequirementsDialog({
         },
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || "Erro na extração");
+      if (error) {
+        // Surface the real message returned in the function's error body
+        let message = error.message;
+        try {
+          const ctx = (error as unknown as { context?: Response }).context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (body?.error) message = body.error;
+          }
+        } catch {
+          // keep the generic message
+        }
+        throw new Error(message);
+      }
+      if (!data?.success) {
+        if (data?.pdfUrl) setPdfFallbackUrl(data.pdfUrl as string);
+        throw new Error(data?.error || "Erro na extração");
+      }
 
       return data.requirements as Array<{ article: string; requirement_text: string }>;
     },
     onSuccess: (requirements) => {
+      setPdfFallbackUrl(null);
       setExtractedRequirements(requirements.map((r) => ({ ...r, selected: true })));
       toast({
         title: "Requisitos extraídos",
@@ -137,6 +154,7 @@ export function ImportRequirementsDialog({
       });
     },
   });
+
 
   // Extract requirements from pasted text
   const extractFromTextMutation = useMutation({
