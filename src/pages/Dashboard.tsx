@@ -88,6 +88,9 @@ import { DateRangeFilter } from "@/components/ui/date-range-filter";
 
 // Module images
 import moduleLegislation from "@/assets/module-legislation-new.jpg";
+import sustainLeaves from "@/assets/sustain-leaves.jpg";
+import sustainEnergy from "@/assets/sustain-energy.jpg";
+import { SustainHero } from "@/components/client/SustainHero";
 import moduleActions from "@/assets/module-actions-new.jpg";
 import moduleAudits from "@/assets/module-audits-new.jpg";
 import moduleDocuments from "@/assets/module-documents-new.jpg";
@@ -658,30 +661,30 @@ export default function Dashboard() {
           {/* Overview Tab Content */}
           {activeTab === "overview" && (
             <>
-              {/* Welcome Hero Section - Tech Style */}
-              <TechWelcomeHero
+              {/* Welcome Hero - Sustainability */}
+              <SustainHero
                 userName={userProfile?.full_name || user?.email}
                 organizationName={currentOrg?.name}
-                alertsCount={0}
                 upcomingAudits={audits?.filter(a => a.status === "in_progress" || a.status === "planned").length || 0}
                 pendingActions={actionPlanStats.pending + actionPlanStats.inProgress}
+                compliancePercent={complianceRate}
               />
 
-              {/* Modules Grid - I&D Style */}
+              {/* Modules Bento Grid */}
               <div>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-500 dark:to-emerald-600 shadow-md">
-                    <Sparkles className="h-5 w-5 text-white" />
+                  <div className="p-2.5 rounded-lg bg-primary/10">
+                    <Leaf className="h-5 w-5 text-primary" aria-hidden="true" />
                   </div>
-                  <h2 className="text-2xl font-bold text-stone-800 dark:text-white">Acesso Rápido</h2>
+                  <h2 className="text-2xl font-bold text-foreground">Acesso Rápido</h2>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 [&>*:first-child]:lg:col-span-2 [&>*:first-child]:lg:row-span-1">
                   <TechModuleCard
                     title="Legislação"
                     description="Consulte a biblioteca de diplomas legais aplicáveis"
                     icon={Gavel}
                     href="/biblioteca"
-                    image={moduleLegislation}
+                    image={sustainLeaves}
                     glowColor="emerald"
                     count={unreadLegislationCount > 0 ? unreadLegislationCount : undefined}
                     countLabel="novos"
@@ -692,7 +695,7 @@ export default function Dashboard() {
                     description="Gerir ações de conformidade e prazos"
                     icon={ClipboardList}
                     href="/dashboard?tab=actions"
-                    image={moduleActions}
+                    image={sustainEnergy}
                     glowColor="terracotta"
                     count={actionPlanStats.pending + actionPlanStats.inProgress}
                     countLabel="ativos"
@@ -720,6 +723,8 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
+
+
 
               {/* Recent Legislation - I&D Style */}
               <IDCard className="overflow-hidden">
