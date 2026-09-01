@@ -143,7 +143,7 @@ export function UnifiedDataQualityPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("external_source_status")
-        .select("source_name, status, blocked_until, error_message, last_failure_at");
+        .select("source_name, status, blocked_until, error_message, last_failure_at, display_name, is_official, base_url");
       if (error) throw error;
       return data || [];
     },
@@ -720,12 +720,18 @@ export function UnifiedDataQualityPanel() {
                         ) : (
                           <AlertCircle className="h-3 w-3 mr-1" />
                         )}
-                        {source.source_name.replace("_", " ").replace("dre opendata", "DRE").replace("dre website", "DRE Web").replace("eurlex", "EUR-Lex").replace("firecrawl", "Firecrawl")}
+                        {(source as { display_name?: string }).display_name ?? source.source_name}
+                        {(source as { is_official?: boolean }).is_official && (
+                          <span className="ml-1 rounded bg-primary/10 px-1 text-[9px] font-semibold uppercase text-primary">
+                            Oficial
+                          </span>
+                        )}
                       </Badge>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       <p className="font-medium">
-                        {source.source_name.replace("_", " ").toUpperCase()} - {source.status.toUpperCase()}
+                        {((source as { display_name?: string }).display_name ?? source.source_name)} - {source.status.toUpperCase()}
+                        {(source as { is_official?: boolean }).is_official ? " (fonte oficial)" : ""}
                       </p>
                       {source.error_message && (
                         <p className="text-xs text-muted-foreground mt-1">{source.error_message}</p>

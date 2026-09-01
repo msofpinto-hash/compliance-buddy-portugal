@@ -16,9 +16,9 @@ type SourceRow = {
 
 const SOURCE_LABELS: Record<string, string> = {
   dre_opendata: "DRE OpenData",
-  dre_website: "DRE Web",
+  dre_website: "Diário da República (oficial)",
   firecrawl: "Firecrawl",
-  eurlex: "EUR-Lex",
+  eurlex: "EUR-Lex (oficial)",
 };
 
 function formatRelativeTime(iso: string | null): string {
