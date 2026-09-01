@@ -1675,6 +1675,13 @@ export default function Dashboard() {
                                               ? "Em Curso"
                                               : "Planeada"}
                                           </Badge>
+                                          <Badge variant="outline" className="gap-1">
+                                            {(audit.audit_type || "anual") ===
+                                            "mensal"
+                                              ? "Verificação mensal"
+                                              : "Auditoria anual"}
+                                          </Badge>
+
                                           {audit.plan_approved_at && (
                                             <Badge
                                               variant="outline"
