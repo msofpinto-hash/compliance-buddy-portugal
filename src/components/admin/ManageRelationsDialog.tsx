@@ -845,8 +845,8 @@ export function ManageRelationsDialog({
           
           {/* Relation Type Selector - Always visible */}
           <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Tipo de relação" />
+            <SelectTrigger className={!selectedType ? "border-amber-400 ring-1 ring-amber-300" : undefined}>
+              <SelectValue placeholder="1º Escolha o tipo de relação" />
             </SelectTrigger>
             <SelectContent>
               {RELATION_TYPES.map((type) => (
@@ -892,7 +892,7 @@ export function ManageRelationsDialog({
                 </Select>
                 <Button
                   onClick={() => handleAddRelation()}
-                  disabled={isLoading || !selectedType || !selectedTargetId}
+                  disabled={isLoading}
                   className="gap-2"
                 >
                   {isLoading ? (
@@ -938,8 +938,8 @@ export function ManageRelationsDialog({
               {/* Found legislation display */}
               {foundLegislation && (
                 <div className="p-3 border rounded-lg bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <Badge 
                         variant="outline"
                         className={
@@ -967,7 +967,7 @@ export function ManageRelationsDialog({
                     </div>
                     <Button
                       onClick={() => handleAddRelation(foundLegislation.id)}
-                      disabled={isLoading || !selectedType}
+                      disabled={isLoading}
                       size="sm"
                       className="gap-2 shrink-0"
                     >
