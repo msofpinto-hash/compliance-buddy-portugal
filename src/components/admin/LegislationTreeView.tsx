@@ -1045,13 +1045,10 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     );
   };
 
-  if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">A carregar temas...</div>;
-  }
-
   const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter;
 
   // List mode - filter legislation based on selected theme/category/subcategory
+
   const listFilteredLegislation = useMemo(() => {
     let result = filteredLegislation;
     
@@ -1102,6 +1099,11 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     const theme = themesWithCategories.find(t => t.id === listThemeFilter);
     return theme?.categories.filter(c => c.parent_id === listCategoryFilter).sort((a, b) => a.name.localeCompare(b.name, 'pt')) || [];
   }, [listCategoryFilter, listThemeFilter, themesWithCategories]);
+
+  if (isLoading) {
+    return <div className="text-center py-8 text-muted-foreground">A carregar temas...</div>;
+  }
+
 
   // Check if we should show list mode (user chose list view)
   const showListView = viewMode === "list";
