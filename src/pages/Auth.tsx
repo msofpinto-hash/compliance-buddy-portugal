@@ -198,7 +198,7 @@ const Auth = () => {
           alt="Floresta iluminada pelo sol"
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-primary/60 to-foreground/70" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/65 to-terracotta/70" />
 
         <div className="relative z-10">
           <BrandLogo variant="light" />
@@ -239,9 +239,9 @@ const Auth = () => {
       </aside>
 
       {/* Form panel */}
-      <main className="relative flex flex-col items-center justify-center overflow-hidden p-6 sm:p-10">
-        <div className="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-accent/20 blur-[110px]" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-secondary/40 blur-[100px]" />
+      <main className="relative flex flex-col items-center justify-center overflow-hidden bg-cream p-6 sm:p-10">
+        <div className="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-terracotta/15 blur-[110px]" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-primary/15 blur-[100px]" />
         <div className="relative z-10 w-full max-w-md flex flex-col items-center">
           <div className="lg:hidden mb-8"><BrandLogo /></div>
           {children}
