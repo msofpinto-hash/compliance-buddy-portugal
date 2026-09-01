@@ -206,11 +206,22 @@ export default function Biblioteca() {
   const { data: legislationWithCategories, isLoading } =
     useLegislationWithCategories();
 
-  // Fetch user's organizations
+  // Fetch user's organizations (admins see every organization)
   const { data: userRoles } = useQuery({
-    queryKey: ["user-roles", user?.id],
+    queryKey: ["user-roles", user?.id, isAdmin],
     queryFn: async () => {
       if (!user?.id) return [];
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from("organizations")
+          .select("id, name, logo_url")
+          .order("name");
+        if (error) throw error;
+        return (data || []).map((o) => ({
+          organization_id: o.id,
+          organizations: o,
+        }));
+      }
       const { data, error } = await supabase
         .from("user_roles")
         .select("*, organizations(*)")
