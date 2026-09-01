@@ -463,8 +463,10 @@ export function AuditsPanel() {
                     {auditDetails.description && (
                       <p className="text-sm text-muted-foreground mt-4">{auditDetails.description}</p>
                     )}
+                    <AuditDocumentsList auditId={auditDetails.id} />
                   </CardContent>
                 </Card>
+
 
                 {/* Findings and Recommendations */}
                 <AuditFindingsEditor
