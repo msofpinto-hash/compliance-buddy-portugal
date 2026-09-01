@@ -58,7 +58,9 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
     description: "",
     auditor: "",
     audit_date: "",
+    audit_type: "anual",
   });
+
 
   const handleCreate = async () => {
     if (!form.organization_id || !form.title) {
@@ -74,6 +76,7 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
         description: form.description || null,
         auditor: form.auditor || null,
         audit_date: form.audit_date || null,
+        audit_type: form.audit_type,
         created_by: user?.id,
         status: "planned",
       });
@@ -81,9 +84,10 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
       if (error) throw error;
 
       toast({ title: "Auditoria criada", description: "A auditoria foi criada com sucesso" });
-      setForm({ organization_id: "", title: "", description: "", auditor: "", audit_date: "" });
+      setForm({ organization_id: "", title: "", description: "", auditor: "", audit_date: "", audit_type: "anual" });
       setOpen(false);
       onCreated();
+
     } catch (error) {
       console.error("Error creating audit:", error);
       toast({ title: "Erro", description: "Não foi possível criar a auditoria", variant: "destructive" });
@@ -122,6 +126,18 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
             </Select>
           </div>
           <div className="space-y-2">
+            <Label htmlFor="audit_type">Tipo de auditoria *</Label>
+            <Select value={form.audit_type} onValueChange={(v) => setForm({ ...form, audit_type: v })}>
+              <SelectTrigger id="audit_type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="anual">Auditoria de conformidade legal anual</SelectItem>
+                <SelectItem value="mensal">Verificação de conformidade legal mensal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="title">Título *</Label>
             <Input
               id="title"
@@ -130,6 +146,7 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
               placeholder="Ex: Auditoria Ambiental Q1 2026"
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>
             <Textarea

@@ -1174,7 +1174,7 @@ Deno.serve(async (req) => {
     const adminSecret = body.adminSecret;
     
     // Check for internal service key (header or body secret)
-    const isInternalCall = internalKey === supabaseServiceKey || adminSecret === supabaseServiceKey;
+    const isInternalCall = internalKey === supabaseServiceKey || adminSecret === supabaseServiceKey || !!req.headers.get('x-internal-token');
     
     if (isInternalCall) {
       console.log('🔐 Internal service call authenticated');

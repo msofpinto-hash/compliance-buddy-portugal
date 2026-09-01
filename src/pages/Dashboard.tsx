@@ -309,7 +309,14 @@ export default function Dashboard() {
   );
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
+  const [auditSection, setAuditSection] = useState<"plano" | "historico">(
+    "plano",
+  );
+  const [auditTypeFilter, setAuditTypeFilter] = useState<
+    "all" | "anual" | "mensal"
+  >("all");
   const [auditSortBy, setAuditSortBy] = useState<
+
     "date_desc" | "date_asc" | "title" | "status"
   >("date_desc");
   const location = useLocation();
@@ -1522,15 +1529,65 @@ export default function Dashboard() {
                 ]}
               />
 
+              {/* Submenus: Plano de auditorias / Histórico */}
+              <div className="flex flex-wrap items-center gap-2 border-b pb-3">
+                <Button
+                  variant={auditSection === "plano" ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAuditSection("plano")}
+                >
+                  <Calendar className="h-4 w-4" />
+                  Plano de auditorias
+                </Button>
+                <Button
+                  variant={auditSection === "historico" ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAuditSection("historico")}
+                >
+                  <ClipboardCheck className="h-4 w-4" />
+                  Histórico de auditorias
+                </Button>
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                    Tipo
+                  </span>
+                  <Select
+                    value={auditTypeFilter}
+                    onValueChange={(v) => setAuditTypeFilter(v as any)}
+                  >
+                    <SelectTrigger className="w-[280px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os tipos</SelectItem>
+                      <SelectItem value="anual">
+                        Auditoria de conformidade legal anual
+                      </SelectItem>
+                      <SelectItem value="mensal">
+                        Verificação de conformidade legal mensal
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               {/* Audit Plan Section - Planned and In Progress */}
               {(() => {
                 const plannedAudits =
                   audits?.filter(
-                    (a) => a.status === "planned" || a.status === "in_progress",
+                    (a) =>
+                      (a.status === "planned" || a.status === "in_progress") &&
+                      (auditTypeFilter === "all" ||
+                        (a.audit_type || "anual") === auditTypeFilter),
                   ) || [];
 
                 return (
-                  <div className="space-y-4">
+                  <div
+                    className={`space-y-4 ${auditSection === "plano" ? "" : "hidden"}`}
+                  >
+
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10">
                         <Calendar className="h-5 w-5 text-primary " />
@@ -1618,6 +1675,13 @@ export default function Dashboard() {
                                               ? "Em Curso"
                                               : "Planeada"}
                                           </Badge>
+                                          <Badge variant="outline" className="gap-1">
+                                            {(audit.audit_type || "anual") ===
+                                            "mensal"
+                                              ? "Verificação mensal"
+                                              : "Auditoria anual"}
+                                          </Badge>
+
                                           {audit.plan_approved_at && (
                                             <Badge
                                               variant="outline"
@@ -1776,7 +1840,10 @@ export default function Dashboard() {
               })()}
 
               {/* Audit History Section */}
-              <div className="space-y-4">
+              <div
+                className={`space-y-4 ${auditSection === "historico" ? "" : "hidden"}`}
+              >
+
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/10">
@@ -1863,6 +1930,14 @@ export default function Dashboard() {
                         ) {
                           return false;
                         }
+                        // Type filter (anual / mensal)
+                        if (
+                          auditTypeFilter !== "all" &&
+                          (audit.audit_type || "anual") !== auditTypeFilter
+                        ) {
+                          return false;
+                        }
+
                         // Status filter
                         if (
                           auditStatusFilter &&
@@ -2003,6 +2078,12 @@ export default function Dashboard() {
                                             ? "Cancelada"
                                             : "Planeada"}
                                   </Badge>
+                                  <Badge variant="outline" className="gap-1">
+                                    {(audit.audit_type || "anual") === "mensal"
+                                      ? "Verificação mensal"
+                                      : "Auditoria anual"}
+                                  </Badge>
+
                                 </div>
                                 <h3 className="font-semibold">{audit.title}</h3>
                                 {audit.description && (
