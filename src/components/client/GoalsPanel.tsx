@@ -475,7 +475,13 @@ export function GoalsPanel({ organizationId }: { organizationId?: string | null 
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">
-                    {goal.current_value} / {goal.target_value} {goal.unit || ""}
+                    {valueOf(goal)} / {goal.target_value} {goal.unit || ""}
+                    {goal.auto_metric && (
+                      <span className="ml-2 text-primary">
+                        · {AUTO_METRIC_LABELS[goal.auto_metric] || "Automático"}
+                      </span>
+                    )}
+
                   </span>
                   <span className="font-semibold text-foreground">{pct}%</span>
                 </div>
