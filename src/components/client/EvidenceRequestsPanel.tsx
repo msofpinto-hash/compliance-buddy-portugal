@@ -904,12 +904,12 @@ export function EvidenceRequestsPanel({
                     <Card className="overflow-hidden border-0 shadow-md">
                       <CardHeader className="p-0">
                         <CollapsibleTrigger asChild>
-                          <button className="w-full flex items-center gap-3 text-left p-4 hover:bg-accent/40 transition-colors">
+                          <button className="w-full flex flex-wrap items-center gap-x-3 gap-y-2 text-left p-4 pr-5 hover:bg-accent/40 transition-colors">
                             <div className="rounded-lg bg-primary/10 p-2 shrink-0">
                               <GroupIcon className="h-5 w-5 text-primary" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate">
+                            <div className="flex-1 min-w-[160px]">
+                              <h3 className="font-semibold break-words">
                                 {groupName}
                               </h3>
                               <p className="text-xs text-muted-foreground">
@@ -919,7 +919,7 @@ export function EvidenceRequestsPanel({
                                   ` • ${pendingCount} pendentes`}
                               </p>
                             </div>
-                            <div className="hidden sm:block w-32">
+                            <div className="hidden sm:block w-28 shrink-0">
                               <Progress value={groupPct} className="h-2" />
                               <p className="mt-1 text-right text-[11px] font-semibold text-primary">
                                 {groupPct}%
@@ -928,7 +928,7 @@ export function EvidenceRequestsPanel({
                             {pendingCount > 0 && (
                               <Badge
                                 variant="secondary"
-                                className="shrink-0 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15"
+                                className="shrink-0 whitespace-nowrap bg-amber-500/15 text-amber-700 hover:bg-amber-500/15"
                               >
                                 {pendingCount} por responder
                               </Badge>
