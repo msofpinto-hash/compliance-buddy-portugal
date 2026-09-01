@@ -140,6 +140,7 @@ interface BibliotecaContentProps {
 }
 
 export function BibliotecaContent({ organizationId }: BibliotecaContentProps) {
+  const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
