@@ -124,6 +124,7 @@ import indicatorsHero from "@/assets/indicators-hero.png";
 import logoIdAsset from "@/assets/id-compliance-lex.png.asset.json";
 const logoIdCompliance = logoIdAsset.url;
 import heroVideo from "@/assets/hero-background.mp4";
+import { AuditCalendar } from "@/components/client/AuditCalendar";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
