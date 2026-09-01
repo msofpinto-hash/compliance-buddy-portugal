@@ -129,6 +129,14 @@ const App = () => (
                 </RequireAdmin>
               }
             />
+            <Route
+              path="/requisitos-tema"
+              element={
+                <RequireAdmin>
+                  <RequisitosTema />
+                </RequireAdmin>
+              }
+            />
 
             <Route
               path="/fontes-oficiais"
