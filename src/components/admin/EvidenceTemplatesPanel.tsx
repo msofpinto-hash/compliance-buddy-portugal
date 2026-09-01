@@ -143,6 +143,43 @@ export function EvidenceTemplatesPanel() {
     },
   });
 
+  // Suggest habitual evidence requests based on the diplomas assigned to a client
+  const suggestFromOrg = async (orgId: string) => {
+    setSuggesting(true);
+    try {
+      const { data: orgLeg, error: e1 } = await supabase
+        .from("organization_legislation")
+        .select("legislation_id")
+        .eq("organization_id", orgId);
+      if (e1) throw e1;
+      const legIds = (orgLeg || []).map((l) => l.legislation_id);
+      if (legIds.length === 0) {
+        toast({ title: "Sem diplomas", description: "Este cliente ainda não tem diplomas atribuídos." });
+        return;
+      }
+      const { data: links, error: e2 } = await supabase
+        .from("evidence_template_legislation")
+        .select("template_id")
+        .in("legislation_id", legIds);
+      if (e2) throw e2;
+      const ids = [...new Set((links || []).map((l) => l.template_id))];
+      setSelectedTemplates(ids);
+      setSelectedOrgId(orgId);
+      setOnlyHabitual(true);
+      toast({
+        title: ids.length ? "Pedidos habituais sugeridos" : "Nada a sugerir",
+        description: ids.length
+          ? `${ids.length} evidências habitualmente pedidas para os diplomas deste cliente foram selecionadas.`
+          : "Não há evidências habituais associadas aos diplomas deste cliente.",
+      });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro", description: "Não foi possível sugerir os pedidos habituais", variant: "destructive" });
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   // Filter templates
   const filteredTemplates = templates?.filter(t => {
     const matchesSearch = !searchTerm || 
@@ -150,9 +187,12 @@ export function EvidenceTemplatesPanel() {
       t.group_name.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesArea = !selectedArea || t[selectedArea as keyof EvidenceTemplate] === true;
-    
-    return matchesSearch && matchesArea;
+
+    const matchesHabitual = !onlyHabitual || t.group_name.startsWith("Pedidos habituais");
+
+    return matchesSearch && matchesArea && matchesHabitual;
   });
+
 
   // Group templates by group_name
   const groupedTemplates = filteredTemplates?.reduce((acc, template) => {
