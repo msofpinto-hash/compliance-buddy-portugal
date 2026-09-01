@@ -436,6 +436,12 @@ export function GoalsPanel({ organizationId }: { organizationId?: string | null 
                       </Badge>
                     )}
                     <Badge variant="secondary">{STATUS_LABELS[goal.status] || goal.status}</Badge>
+                    {goal.auto_metric && (
+                      <Badge variant="outline" className="border-primary/40 text-primary">
+                        Progresso automático
+                      </Badge>
+                    )}
+
                   </div>
                   {goal.description && (
                     <p className="mt-1 text-sm text-muted-foreground">{goal.description}</p>
