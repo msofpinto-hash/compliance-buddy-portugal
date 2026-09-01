@@ -84,12 +84,16 @@ export async function requireAdmin(req: Request): Promise<Response | null> {
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "",
     { global: { headers: { Authorization: `Bearer ${token}` } } },
   );
 
   const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) return deny(401, "Sessão inválida");
+  if (userError || !userData.user) {
+    console.error("[adminGuard] getUser failed:", userError?.message);
+    return deny(401, "Sessão inválida ou expirada. Volte a iniciar sessão.");
+  }
+
 
   const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
     _user_id: userData.user.id,
