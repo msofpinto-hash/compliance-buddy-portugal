@@ -31,6 +31,8 @@ import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useLegislationWithCategories } from "@/hooks/useLegislation";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
+import { ExportApplicableDialog } from "@/components/client/ExportApplicableDialog";
+
 import { IDTopNav } from "@/components/client/IDTopNav";
 import {
   IDBackground,
