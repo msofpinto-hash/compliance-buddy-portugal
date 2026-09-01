@@ -123,7 +123,9 @@ interface UploadedDocument {
     id: string;
     name: string;
     file_url: string | null;
+    issue_date: string | null;
     validity_date: string | null;
+
     user_notes: string | null;
   };
 }
