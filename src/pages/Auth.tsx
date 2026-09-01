@@ -200,6 +200,7 @@ const Auth = () => {
   if (mfaChallenge) {
     return (
       <PageShell>
+        <h1 className="sr-only">Aceder à Plataforma</h1>
         <div className="relative z-10">
           <TwoFactorVerify
             factorId={mfaChallenge.factorId}
