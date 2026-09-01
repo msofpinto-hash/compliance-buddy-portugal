@@ -220,12 +220,17 @@ export function EvidenceRequestsPanel({
   const [notes, setNotes] = useState("");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
-  // Document upload form state
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [hasValidity, setHasValidity] = useState(false);
-  const [validityDate, setValidityDate] = useState<Date | undefined>(undefined);
-  const [documentNotes, setDocumentNotes] = useState("");
+  // Document upload form state (múltiplos ficheiros)
+  type PendingDoc = {
+    id: string;
+    file: File;
+    issueDate?: Date;
+    validityDate?: Date;
+    notes: string;
+  };
+  const [pendingDocs, setPendingDocs] = useState<PendingDoc[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // Export columns configuration
   const exportColumns: ExportColumn[] = [
