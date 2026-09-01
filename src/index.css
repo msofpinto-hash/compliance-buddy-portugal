@@ -135,7 +135,10 @@
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.2), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
     --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.25), 0 8px 10px -6px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.35);
-  }
+      --terracotta: 24 50% 58%;
+    --terracotta-foreground: 210 30% 10%;
+    --cream: 33 20% 92%;
+}
 }
 
 @layer base {
