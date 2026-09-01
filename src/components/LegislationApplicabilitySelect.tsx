@@ -69,6 +69,11 @@ export function LegislationApplicabilitySelect({
   const [value, setValue] = useState(currentValue);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Keep in sync when the organization (or the fetched value) changes
+  useEffect(() => {
+    setValue(currentValue);
+  }, [currentValue, organizationId, legislationId]);
+
   const handleValueChange = async (newValue: string) => {
     if (!user || readOnly) return;
 
