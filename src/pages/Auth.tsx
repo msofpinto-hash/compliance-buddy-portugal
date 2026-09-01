@@ -216,19 +216,20 @@ const Auth = () => {
   if (isPendingApproval) {
     return (
       <PageShell>
+        <h1 className="sr-only">Aceder à Plataforma</h1>
         <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary border border-border">
-                <Clock className="h-7 w-7 text-foreground" />
+                <Clock className="h-7 w-7 text-foreground" aria-hidden="true" />
               </div>
               <CardTitle className="text-xl">Aguarda Aprovação</CardTitle>
               <CardDescription>A sua conta foi criada com sucesso e está a aguardar aprovação por um administrador.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Alert className="bg-accent/20 border-accent">
-                <Clock className="h-4 w-4 text-primary" />
+                <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
                 <AlertDescription>Será notificado por email quando a sua conta for aprovada.</AlertDescription>
               </Alert>
               <div className="text-center text-sm text-muted-foreground">
