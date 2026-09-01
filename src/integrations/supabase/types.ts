@@ -783,6 +783,10 @@ export type Database = {
       }
       external_source_status: {
         Row: {
+          approval_reason: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           base_url: string | null
           blocked_until: string | null
           created_at: string
@@ -798,6 +802,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approval_reason?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           base_url?: string | null
           blocked_until?: string | null
           created_at?: string
@@ -813,6 +821,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approval_reason?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           base_url?: string | null
           blocked_until?: string | null
           created_at?: string
@@ -1497,6 +1509,44 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
+      }
+      source_approval_history: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          performed_by: string | null
+          reason: string | null
+          source_id: string
+          source_name: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          performed_by?: string | null
+          reason?: string | null
+          source_id: string
+          source_name: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          performed_by?: string | null
+          reason?: string | null
+          source_id?: string
+          source_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_approval_history_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "external_source_status"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sync_logs: {
         Row: {
