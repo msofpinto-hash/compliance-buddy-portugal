@@ -44,10 +44,9 @@ async function hasValidInternalToken(req: Request): Promise<boolean> {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
-    const { data, error } = await admin.schema("internal").from("service_tokens")
-      .select("token").eq("name", "cron").maybeSingle();
-    if (error || !data?.token) return false;
-    return data.token === provided;
+    const { data, error } = await admin.rpc("verify_internal_token", { _token: provided });
+    if (error) return false;
+    return data === true;
   } catch {
     return false;
   }
