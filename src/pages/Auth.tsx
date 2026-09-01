@@ -284,7 +284,6 @@ const Auth = () => {
     return (
       <PageShell>
         <h1 className="sr-only">Aceder à Plataforma</h1>
-        <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
@@ -315,7 +314,6 @@ const Auth = () => {
     return (
       <PageShell>
         <h1 className="sr-only">Aceder à Plataforma</h1>
-        <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
@@ -348,7 +346,6 @@ const Auth = () => {
     return (
       <PageShell>
         <h1 className="sr-only">Aceder à Plataforma</h1>
-        <div className="mb-8 relative z-10"><BrandLogo /></div>
         <div className="relative z-10">
           <Card className="w-full max-w-md shadow-md">
             <CardHeader className="text-center">
