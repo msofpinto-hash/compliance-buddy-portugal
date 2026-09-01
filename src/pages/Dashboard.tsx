@@ -1923,6 +1923,14 @@ export default function Dashboard() {
                         ) {
                           return false;
                         }
+                        // Type filter (anual / mensal)
+                        if (
+                          auditTypeFilter !== "all" &&
+                          (audit.audit_type || "anual") !== auditTypeFilter
+                        ) {
+                          return false;
+                        }
+
                         // Status filter
                         if (
                           auditStatusFilter &&
