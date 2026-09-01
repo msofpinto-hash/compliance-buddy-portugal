@@ -58,7 +58,9 @@ function CreateAuditDialog({ organizations, onCreated }: CreateAuditDialogProps)
     description: "",
     auditor: "",
     audit_date: "",
+    audit_type: "anual",
   });
+
 
   const handleCreate = async () => {
     if (!form.organization_id || !form.title) {
