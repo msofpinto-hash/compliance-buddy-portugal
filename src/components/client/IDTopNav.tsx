@@ -12,6 +12,7 @@ import {
   FolderOpen,
   BarChart3,
   LayoutDashboard,
+  BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -66,6 +67,13 @@ const ALL_MODULES: NavItem[] = [
     label: "Evidências",
     icon: FolderOpen,
     href: "/dashboard?tab=documents",
+  },
+  {
+    id: "aprovacoes",
+    moduleKey: "auditorias",
+    label: "Aprovações",
+    icon: BadgeCheck,
+    href: "/aprovacoes",
   },
   {
     id: "indicadores",
