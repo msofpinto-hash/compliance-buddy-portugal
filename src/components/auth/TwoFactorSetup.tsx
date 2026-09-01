@@ -213,7 +213,7 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
     return (
       <div className="space-y-4">
         <Alert className="border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden="true" />
           <AlertDescription className="text-amber-800">
             <strong>Atenção:</strong> Desativar a autenticação de dois fatores reduz a segurança da sua conta.
           </AlertDescription>
@@ -221,7 +221,7 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
 
         {error && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -242,9 +242,9 @@ export function TwoFactorSetup({ isEnabled, onStatusChange }: TwoFactorSetupProp
             disabled={isDisabling}
           >
             {isDisabling ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
             ) : (
-              <ShieldOff className="h-4 w-4 mr-2" />
+              <ShieldOff className="h-4 w-4 mr-2" aria-hidden="true" />
             )}
             Confirmar Desativação
           </Button>
