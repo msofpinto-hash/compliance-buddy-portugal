@@ -73,6 +73,8 @@ const emptyForm = {
   start_date: "",
   due_date: "",
   status: "em_curso",
+  auto_metric: "none",
+
 };
 
 export function GoalsPanel({ organizationId }: { organizationId?: string | null }) {
