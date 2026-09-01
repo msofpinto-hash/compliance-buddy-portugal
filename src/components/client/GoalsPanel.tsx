@@ -41,7 +41,18 @@ export interface Goal {
   start_date: string | null;
   due_date: string | null;
   status: string;
+  auto_metric?: string | null;
 }
+
+const AUTO_METRIC_LABELS: Record<string, string> = {
+  conformidade_requisitos: "Conformidade dos requisitos",
+  requisitos_avaliados: "Requisitos avaliados",
+  acoes_concluidas: "Planos de ação concluídos",
+  acoes_no_prazo: "Ações dentro do prazo",
+  verificacoes_mensais: "Verificações mensais encerradas",
+  evidencias_respondidas: "Pedidos de evidência respondidos",
+};
+
 
 const STATUS_LABELS: Record<string, string> = {
   em_curso: "Em curso",
