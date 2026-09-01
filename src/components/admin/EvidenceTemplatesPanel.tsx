@@ -71,6 +71,10 @@ export function EvidenceTemplatesPanel() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [onlyHabitual, setOnlyHabitual] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestOrgId, setSuggestOrgId] = useState<string>("");
+
 
   // Fetch evidence templates
   const { data: templates, isLoading: loadingTemplates } = useQuery({
@@ -143,6 +147,43 @@ export function EvidenceTemplatesPanel() {
     },
   });
 
+  // Suggest habitual evidence requests based on the diplomas assigned to a client
+  const suggestFromOrg = async (orgId: string) => {
+    setSuggesting(true);
+    try {
+      const { data: orgLeg, error: e1 } = await supabase
+        .from("organization_legislation")
+        .select("legislation_id")
+        .eq("organization_id", orgId);
+      if (e1) throw e1;
+      const legIds = (orgLeg || []).map((l) => l.legislation_id);
+      if (legIds.length === 0) {
+        toast({ title: "Sem diplomas", description: "Este cliente ainda não tem diplomas atribuídos." });
+        return;
+      }
+      const { data: links, error: e2 } = await supabase
+        .from("evidence_template_legislation")
+        .select("template_id")
+        .in("legislation_id", legIds);
+      if (e2) throw e2;
+      const ids = [...new Set((links || []).map((l) => l.template_id))];
+      setSelectedTemplates(ids);
+      setSelectedOrgId(orgId);
+      setOnlyHabitual(true);
+      toast({
+        title: ids.length ? "Pedidos habituais sugeridos" : "Nada a sugerir",
+        description: ids.length
+          ? `${ids.length} evidências habitualmente pedidas para os diplomas deste cliente foram selecionadas.`
+          : "Não há evidências habituais associadas aos diplomas deste cliente.",
+      });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro", description: "Não foi possível sugerir os pedidos habituais", variant: "destructive" });
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   // Filter templates
   const filteredTemplates = templates?.filter(t => {
     const matchesSearch = !searchTerm || 
@@ -150,9 +191,12 @@ export function EvidenceTemplatesPanel() {
       t.group_name.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesArea = !selectedArea || t[selectedArea as keyof EvidenceTemplate] === true;
-    
-    return matchesSearch && matchesArea;
+
+    const matchesHabitual = !onlyHabitual || t.group_name.startsWith("Pedidos habituais");
+
+    return matchesSearch && matchesArea && matchesHabitual;
   });
+
 
   // Group templates by group_name
   const groupedTemplates = filteredTemplates?.reduce((acc, template) => {
@@ -297,12 +341,46 @@ export function EvidenceTemplatesPanel() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant={onlyHabitual ? "default" : "outline"}
+              onClick={() => setOnlyHabitual((v) => !v)}
+            >
+              Pedidos habituais
+            </Button>
             {selectedTemplates.length > 0 && (
               <Button variant="outline" onClick={() => setSelectedTemplates([])}>
                 Limpar seleção
               </Button>
             )}
           </div>
+          <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-amber-200/60 dark:border-amber-800/40 pt-4">
+            <div className="min-w-[240px]">
+              <Label className="text-xs text-muted-foreground">
+                Sugerir evidências habituais a partir dos diplomas do cliente
+              </Label>
+              <Select value={suggestOrgId} onValueChange={setSuggestOrgId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selecionar cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations?.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="secondary"
+              disabled={!suggestOrgId || suggesting}
+              onClick={() => suggestFromOrg(suggestOrgId)}
+            >
+              {suggesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sugerir pedidos habituais
+            </Button>
+          </div>
+
         </CardContent>
       </Card>
 
