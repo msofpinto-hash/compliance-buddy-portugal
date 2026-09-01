@@ -1781,6 +1781,15 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                         {/* Header row */}
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            {editableOrganizationId && (
+                              <Checkbox
+                                checked={selectedLegIds.has(leg.id)}
+                                onCheckedChange={() => toggleLegSelection(leg.id)}
+                                aria-label="Selecionar diploma"
+                                className="mr-1"
+                              />
+                            )}
+
                             {/* Diploma Type Badge */}
                             <Badge
                               variant="outline"
