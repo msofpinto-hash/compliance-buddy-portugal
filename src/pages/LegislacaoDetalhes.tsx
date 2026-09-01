@@ -726,7 +726,7 @@ export default function LegislacaoDetalhes() {
                   <Separator className="my-4" />
                 )}
                 {activeOrganization && (
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-muted/50 border">
                     <div className="flex items-center gap-3">
                       <Building className="h-5 w-5 text-muted-foreground" />
                       <div>
@@ -736,13 +736,39 @@ export default function LegislacaoDetalhes() {
                         </p>
                       </div>
                     </div>
-                    <LegislationApplicabilitySelect
-                      legislationId={id!}
-                      organizationId={activeOrganization.id}
-                      currentValue={legislationApplicability?.applicability_type || "nao_avaliado"}
-                    />
+                    <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <Select
+                          value={adminOrgId ?? undefined}
+                          onValueChange={(v) => {
+                            setAdminOrgId(v);
+                            const next = new URLSearchParams(searchParams);
+                            next.set("org", v);
+                            setSearchParams(next, { replace: true });
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[220px] text-xs" aria-label="Organização em edição">
+                            <SelectValue placeholder="Selecionar cliente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allOrganizations?.map((o) => (
+                              <SelectItem key={o.id} value={o.id}>
+                                {o.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <LegislationApplicabilitySelect
+                        legislationId={id!}
+                        organizationId={activeOrganization.id}
+                        currentValue={legislationApplicability?.applicability_type || "nao_avaliado"}
+                        readOnly={!canEditApplicability}
+                      />
+                    </div>
                   </div>
                 )}
+
               </CardContent>
             </Card>
 
