@@ -346,6 +346,8 @@ interface LegislationTreeViewProps {
   hideFilters?: boolean;
   externalThemeId?: string | null;
   applicabilityMap?: Record<string, string>;
+  /** Número de requisitos por avaliar em cada diploma (para filtro e badge) */
+  pendingRequirementsMap?: Record<string, number>;
   /** Quando definido, permite ao administrador editar a aplicabilidade nesta organização */
   editableOrganizationId?: string;
   externalSearchTerm?: string;
