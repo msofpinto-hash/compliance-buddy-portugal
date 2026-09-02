@@ -12,7 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { RequirementApplicabilitySelect, ApplicabilityBadge } from "@/components/RequirementApplicabilitySelect";
-import { RequirementComplianceSelect } from "@/components/RequirementComplianceSelect";
 
 import { LegislationApplicabilitySelect, LegislationApplicabilityBadge } from "@/components/LegislationApplicabilitySelect";
 import { EditLegislationDialog } from "@/components/admin/EditLegislationDialog";
@@ -332,14 +331,13 @@ export default function LegislacaoDetalhes() {
     enabled: !!id && !!activeOrganization?.id && !!requirements?.length,
   });
 
-  // Requisitos aplicáveis ainda sem estado de conformidade
-  const pendingComplianceCount = useMemo(() => {
+  // Requisitos cuja aplicabilidade ainda não foi definida
+  const pendingApplicabilityCount = useMemo(() => {
     if (!activeOrganization?.id) return 0;
     return (requirements || []).filter((r: any) => {
       const a = applicabilities?.[r.id];
       const type = a?.type || "nao_avaliado";
-      if (type === "informativo" || type === "nao_aplicavel") return false;
-      return !a || a.compliance === "pendente";
+      return type === "nao_avaliado";
     }).length;
   }, [requirements, applicabilities, activeOrganization?.id]);
 
@@ -806,9 +804,9 @@ export default function LegislacaoDetalhes() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
-                    {activeOrganization && pendingComplianceCount > 0 && (
+                    {activeOrganization && pendingApplicabilityCount > 0 && (
                       <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-800">
-                        {pendingComplianceCount} por avaliar
+                        {pendingApplicabilityCount} por avaliar
                       </Badge>
                     )}
                   </div>
@@ -850,12 +848,6 @@ export default function LegislacaoDetalhes() {
                                       requirementId={req.id}
                                       organizationId={activeOrganization.id}
                                       currentValue={applicabilities?.[req.id]?.type || "nao_avaliado"}
-                                      readOnly={!canEditApplicability}
-                                    />
-                                    <RequirementComplianceSelect
-                                      requirementId={req.id}
-                                      organizationId={activeOrganization.id}
-                                      currentValue={applicabilities?.[req.id]?.compliance || "pendente"}
                                       readOnly={!canEditApplicability}
                                       onUpdate={() => {
                                         queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities", id, activeOrganization.id] });
