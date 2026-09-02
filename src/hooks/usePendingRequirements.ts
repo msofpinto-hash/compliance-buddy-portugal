@@ -54,19 +54,19 @@ export function usePendingRequirements(organizationId?: string) {
         }
       }
 
-      // 3) Estado por requisito na organização
+      // 3) Estado de aplicabilidade por requisito na organização
       const resolved = new Set<string>();
       for (let from = 0; ; from += 1000) {
         const { data, error } = await supabase
           .from("applicabilities")
-          .select("requirement_id, compliance_status, applicability_type")
+          .select("requirement_id, applicability_type")
           .eq("organization_id", organizationId)
           .range(from, from + 999);
         if (error) throw error;
         if (!data?.length) break;
         for (const row of data as any[]) {
-          // Já avaliado, ou dispensado de avaliação (informativo / não aplicável)
-          if (row.compliance_status || EXCLUDED_TYPES.has(row.applicability_type)) {
+          // Já avaliado quando a aplicabilidade foi definida (não "não avaliado")
+          if (row.applicability_type && row.applicability_type !== "nao_avaliado") {
             resolved.add(row.requirement_id);
           }
         }
