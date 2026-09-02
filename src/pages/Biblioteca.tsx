@@ -728,6 +728,7 @@ export default function Biblioteca() {
                   hideFilters
                   externalThemeId={selectedThemeId}
                   applicabilityMap={legislationApplicabilitiesMap}
+                  pendingRequirementsMap={pendingRequirementsMap}
                   editableOrganizationId={isAdmin && currentOrg?.id ? currentOrg.id : undefined}
                   externalSearchTerm={searchTerm}
                 />
