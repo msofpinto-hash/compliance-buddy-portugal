@@ -114,6 +114,14 @@ const App = () => (
               }
             />
             <Route
+              path="/progresso-cliente"
+              element={
+                <RequireAuth>
+                  <ProgressoCliente />
+                </RequireAuth>
+              }
+            />
+            <Route
               path="/diplomas"
               element={
                 <RequireAdmin>
