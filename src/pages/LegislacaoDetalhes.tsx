@@ -331,14 +331,13 @@ export default function LegislacaoDetalhes() {
     enabled: !!id && !!activeOrganization?.id && !!requirements?.length,
   });
 
-  // Requisitos aplicáveis ainda sem estado de conformidade
-  const pendingComplianceCount = useMemo(() => {
+  // Requisitos cuja aplicabilidade ainda não foi definida
+  const pendingApplicabilityCount = useMemo(() => {
     if (!activeOrganization?.id) return 0;
     return (requirements || []).filter((r: any) => {
       const a = applicabilities?.[r.id];
       const type = a?.type || "nao_avaliado";
-      if (type === "informativo" || type === "nao_aplicavel") return false;
-      return !a || a.compliance === "pendente";
+      return type === "nao_avaliado";
     }).length;
   }, [requirements, applicabilities, activeOrganization?.id]);
 
