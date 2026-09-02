@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { RequirementApplicabilitySelect, ApplicabilityBadge } from "@/components/RequirementApplicabilitySelect";
+import { RequirementComplianceSelect } from "@/components/RequirementComplianceSelect";
+
 import { LegislationApplicabilitySelect, LegislationApplicabilityBadge } from "@/components/LegislationApplicabilitySelect";
 import { EditLegislationDialog } from "@/components/admin/EditLegislationDialog";
 import { EditLegislationDatesDialog } from "@/components/admin/EditLegislationDatesDialog";
@@ -312,20 +314,36 @@ export default function LegislacaoDetalhes() {
       if (!id || !activeOrganization?.id || !requirements?.length) return {};
       const { data, error } = await supabase
         .from("applicabilities")
-        .select("requirement_id, applicability_type")
+        .select("requirement_id, applicability_type, compliance_status")
         .eq("organization_id", activeOrganization.id)
         .in("requirement_id", requirements.map((requirement) => requirement.id));
       if (error) throw error;
-      
+
       // Convert to map for easy lookup
-      const map: Record<string, string> = {};
+      const map: Record<string, { type: string; compliance: string }> = {};
       data?.forEach((a) => {
-        map[a.requirement_id] = a.applicability_type || "nao_avaliado";
+        map[a.requirement_id] = {
+          type: a.applicability_type || "nao_avaliado",
+          compliance: a.compliance_status || "pendente",
+        };
       });
       return map;
     },
     enabled: !!id && !!activeOrganization?.id && !!requirements?.length,
   });
+
+  // Requisitos aplicáveis ainda sem estado de conformidade
+  const pendingComplianceCount = useMemo(() => {
+    if (!activeOrganization?.id) return 0;
+    return (requirements || []).filter((r: any) => {
+      const a = applicabilities?.[r.id];
+      const type = a?.type || "nao_avaliado";
+      if (type === "informativo" || type === "nao_aplicavel") return false;
+      return !a || a.compliance === "pendente";
+    }).length;
+  }, [requirements, applicabilities, activeOrganization?.id]);
+
+
 
   // Fetch legislation applicability for the user's organization
   const { data: legislationApplicability } = useQuery({
@@ -786,7 +804,15 @@ export default function LegislacaoDetalhes() {
                       Obrigações e requisitos extraídos deste diploma
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
+                    {activeOrganization && pendingComplianceCount > 0 && (
+                      <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-800">
+                        {pendingComplianceCount} por avaliar
+                      </Badge>
+                    )}
+                  </div>
+
                 </div>
                 {activeOrganization && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-2">
@@ -819,16 +845,28 @@ export default function LegislacaoDetalhes() {
                                   )}
                                 </div>
                                 {activeOrganization ? (
-                                  <RequirementApplicabilitySelect
-                                    requirementId={req.id}
-                                    organizationId={activeOrganization.id}
-                                    currentValue={applicabilities?.[req.id] || "nao_avaliado"}
-                                    readOnly={!canEditApplicability}
-                                  />
-
+                                  <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <RequirementApplicabilitySelect
+                                      requirementId={req.id}
+                                      organizationId={activeOrganization.id}
+                                      currentValue={applicabilities?.[req.id]?.type || "nao_avaliado"}
+                                      readOnly={!canEditApplicability}
+                                    />
+                                    <RequirementComplianceSelect
+                                      requirementId={req.id}
+                                      organizationId={activeOrganization.id}
+                                      currentValue={applicabilities?.[req.id]?.compliance || "pendente"}
+                                      readOnly={!canEditApplicability}
+                                      onUpdate={() => {
+                                        queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities", id, activeOrganization.id] });
+                                        queryClient.invalidateQueries({ queryKey: ["pending-requirements-by-legislation"] });
+                                      }}
+                                    />
+                                  </div>
                                 ) : (
                                   <ApplicabilityBadge value="nao_avaliado" />
                                 )}
+
                               </div>
                               <div className="text-sm whitespace-pre-line text-justify">{formatRequirementText(req.requirement_text)}</div>
                               {req.notes && (
