@@ -275,12 +275,14 @@ export default function ProgressoCliente() {
   });
 
   return (
-    <IDBackground variant="indicadores">
+    <div className="min-h-screen relative overflow-hidden">
+      <IDBackground />
+      <div className="relative z-10">
       <RouteSeo
         title="Progresso de conformidade | I&D Compliance Lex"
         description="Acompanhe o progresso do cliente: diplomas por extrair, requisitos por classificar, pedidos de evidência e auditorias."
       />
-      <IDTopNav />
+      <IDTopNav currentOrg={currentOrg} />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <IDHeroSection
           title="Progresso de conformidade"
@@ -351,7 +353,7 @@ export default function ProgressoCliente() {
                 caption={`${stats.evidence.visible} visíveis ao cliente`}
                 done={stats.evidence.byStatus["approved"] ?? 0}
                 total={stats.evidence.total}
-                to="/evidencias"
+                to="/dashboard?tab=documents"
               />
               <StatCard
                 title="Auditorias"
@@ -360,7 +362,7 @@ export default function ProgressoCliente() {
                 caption={`${stats.audits.annual} anuais · ${stats.audits.monthly} mensais`}
                 done={stats.audits.byStatus["closed"] ?? 0}
                 total={stats.audits.total}
-                to="/auditorias"
+                to="/dashboard?tab=audits"
               />
             </div>
 
@@ -425,6 +427,7 @@ export default function ProgressoCliente() {
           </>
         )}
       </main>
-    </IDBackground>
+      </div>
+    </div>
   );
 }
