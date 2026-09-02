@@ -359,7 +359,7 @@ interface CategoryNode {
   legislation: LegislationWithCategories[];
 }
 
-export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, editableOrganizationId, externalSearchTerm }: LegislationTreeViewProps) {
+export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, pendingRequirementsMap, editableOrganizationId, externalSearchTerm }: LegislationTreeViewProps) {
   const location = useLocation();
   const from = location.pathname + location.search;
 
