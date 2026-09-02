@@ -278,10 +278,7 @@ export default function ProgressoCliente() {
     <div className="min-h-screen relative overflow-hidden">
       <IDBackground />
       <div className="relative z-10">
-      <RouteSeo
-        title="Progresso de conformidade | I&D Compliance Lex"
-        description="Acompanhe o progresso do cliente: diplomas por extrair, requisitos por classificar, pedidos de evidência e auditorias."
-      />
+      <RouteSeo />
       <IDTopNav currentOrg={currentOrg} />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <IDHeroSection
