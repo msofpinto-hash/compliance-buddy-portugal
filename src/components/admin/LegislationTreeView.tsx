@@ -649,9 +649,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       const matchesApplicability = !unclassifiedOnly ||
         (applicabilityMap ? !applicabilityMap[leg.id] : true);
 
-      return matchesSearch && matchesSource && matchesDiplomaType && matchesApplicability;
+      const matchesPendingRequirements = !pendingRequirementsOnly ||
+        (pendingRequirementsMap ? (pendingRequirementsMap[leg.id] || 0) > 0 : true);
+
+      return matchesSearch && matchesSource && matchesDiplomaType && matchesApplicability && matchesPendingRequirements;
     });
-  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter, unclassifiedOnly, applicabilityMap]);
+  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter, unclassifiedOnly, applicabilityMap, pendingRequirementsOnly, pendingRequirementsMap]);
 
   const legislationByCategory = useMemo(() => {
     const map = new Map<string, LegislationWithCategories[]>();
