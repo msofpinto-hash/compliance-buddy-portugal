@@ -531,6 +531,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
   const [diplomaTypeFilter, setDiplomaTypeFilter] = useState<string | null>(null);
   const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
+  const [pendingRequirementsOnly, setPendingRequirementsOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
