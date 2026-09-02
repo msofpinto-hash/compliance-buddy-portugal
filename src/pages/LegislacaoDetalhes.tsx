@@ -823,16 +823,28 @@ export default function LegislacaoDetalhes() {
                                   )}
                                 </div>
                                 {activeOrganization ? (
-                                  <RequirementApplicabilitySelect
-                                    requirementId={req.id}
-                                    organizationId={activeOrganization.id}
-                                    currentValue={applicabilities?.[req.id] || "nao_avaliado"}
-                                    readOnly={!canEditApplicability}
-                                  />
-
+                                  <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <RequirementApplicabilitySelect
+                                      requirementId={req.id}
+                                      organizationId={activeOrganization.id}
+                                      currentValue={applicabilities?.[req.id]?.type || "nao_avaliado"}
+                                      readOnly={!canEditApplicability}
+                                    />
+                                    <RequirementComplianceSelect
+                                      requirementId={req.id}
+                                      organizationId={activeOrganization.id}
+                                      currentValue={applicabilities?.[req.id]?.compliance || "pendente"}
+                                      readOnly={!canEditApplicability}
+                                      onUpdate={() => {
+                                        queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities", id, activeOrganization.id] });
+                                        queryClient.invalidateQueries({ queryKey: ["pending-requirements-by-legislation"] });
+                                      }}
+                                    />
+                                  </div>
                                 ) : (
                                   <ApplicabilityBadge value="nao_avaliado" />
                                 )}
+
                               </div>
                               <div className="text-sm whitespace-pre-line text-justify">{formatRequirementText(req.requirement_text)}</div>
                               {req.notes && (
