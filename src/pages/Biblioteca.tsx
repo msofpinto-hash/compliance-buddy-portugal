@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useLegislationWithCategories } from "@/hooks/useLegislation";
+import { usePendingRequirements } from "@/hooks/usePendingRequirements";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
 import { ExportApplicableDialog } from "@/components/client/ExportApplicableDialog";
