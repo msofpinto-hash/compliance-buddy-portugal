@@ -312,20 +312,24 @@ export default function LegislacaoDetalhes() {
       if (!id || !activeOrganization?.id || !requirements?.length) return {};
       const { data, error } = await supabase
         .from("applicabilities")
-        .select("requirement_id, applicability_type")
+        .select("requirement_id, applicability_type, compliance_status")
         .eq("organization_id", activeOrganization.id)
         .in("requirement_id", requirements.map((requirement) => requirement.id));
       if (error) throw error;
-      
+
       // Convert to map for easy lookup
-      const map: Record<string, string> = {};
+      const map: Record<string, { type: string; compliance: string }> = {};
       data?.forEach((a) => {
-        map[a.requirement_id] = a.applicability_type || "nao_avaliado";
+        map[a.requirement_id] = {
+          type: a.applicability_type || "nao_avaliado",
+          compliance: a.compliance_status || "pendente",
+        };
       });
       return map;
     },
     enabled: !!id && !!activeOrganization?.id && !!requirements?.length,
   });
+
 
   // Fetch legislation applicability for the user's organization
   const { data: legislationApplicability } = useQuery({
