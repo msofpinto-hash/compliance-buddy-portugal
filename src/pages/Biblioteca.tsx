@@ -254,6 +254,11 @@ export default function Biblioteca() {
     organizations.find((o) => o.id === (selectedOrgId || organizationIds[0])) ||
     organizations[0];
 
+  // Requisitos por avaliar por diploma (organização atual)
+  const { data: pendingRequirementsMap } = usePendingRequirements(currentOrg?.id);
+
+
+
   // Themes assigned to the current organization
   const { data: orgThemeIds } = useQuery({
     queryKey: ["organization-themes", currentOrg?.id],
