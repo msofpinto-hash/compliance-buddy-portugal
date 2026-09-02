@@ -37,6 +37,11 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Gráficos em tempo real do progresso da base legal: diplomas por origem, categorias atribuídas, ligações europeias e relações mapeadas.",
   },
+  "/progresso-cliente": {
+    title: "Progresso de Conformidade | ID Compliance",
+    description:
+      "Estado do trabalho de conformidade por cliente: diplomas por extrair, requisitos por classificar, pedidos de evidência e auditorias.",
+  },
   "/diplomas": {
     title: "Diplomas e Dados em Falta | ID Compliance",
     description:
