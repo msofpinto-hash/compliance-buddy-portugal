@@ -332,6 +332,18 @@ export default function LegislacaoDetalhes() {
     enabled: !!id && !!activeOrganization?.id && !!requirements?.length,
   });
 
+  // Requisitos aplicáveis ainda sem estado de conformidade
+  const pendingComplianceCount = useMemo(() => {
+    if (!activeOrganization?.id) return 0;
+    return (requirements || []).filter((r: any) => {
+      const a = applicabilities?.[r.id];
+      const type = a?.type || "nao_avaliado";
+      if (type === "informativo" || type === "nao_aplicavel") return false;
+      return !a || a.compliance === "pendente";
+    }).length;
+  }, [requirements, applicabilities, activeOrganization?.id]);
+
+
 
   // Fetch legislation applicability for the user's organization
   const { data: legislationApplicability } = useQuery({
