@@ -24,6 +24,7 @@ import GestaoTemas from "./pages/GestaoTemas";
 import RequisitosTema from "./pages/RequisitosTema";
 
 import Progresso from "./pages/Progresso";
+import ProgressoCliente from "./pages/ProgressoCliente";
 import FontesOficiais from "./pages/FontesOficiais";
 import Conformidade from "./pages/Conformidade";
 import Aprovacoes from "./pages/Aprovacoes";
@@ -111,6 +112,14 @@ const App = () => (
                 <RequireAdmin>
                   <Progresso />
                 </RequireAdmin>
+              }
+            />
+            <Route
+              path="/progresso-cliente"
+              element={
+                <RequireAuth>
+                  <ProgressoCliente />
+                </RequireAuth>
               }
             />
             <Route
