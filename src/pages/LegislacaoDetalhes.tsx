@@ -792,7 +792,15 @@ export default function LegislacaoDetalhes() {
                       Obrigações e requisitos extraídos deste diploma
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
+                    {activeOrganization && pendingComplianceCount > 0 && (
+                      <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-800">
+                        {pendingComplianceCount} por avaliar
+                      </Badge>
+                    )}
+                  </div>
+
                 </div>
                 {activeOrganization && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-2">
