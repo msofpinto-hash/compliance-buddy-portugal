@@ -346,6 +346,8 @@ interface LegislationTreeViewProps {
   hideFilters?: boolean;
   externalThemeId?: string | null;
   applicabilityMap?: Record<string, string>;
+  /** Número de requisitos por avaliar em cada diploma (para filtro e badge) */
+  pendingRequirementsMap?: Record<string, number>;
   /** Quando definido, permite ao administrador editar a aplicabilidade nesta organização */
   editableOrganizationId?: string;
   externalSearchTerm?: string;
@@ -357,7 +359,7 @@ interface CategoryNode {
   legislation: LegislationWithCategories[];
 }
 
-export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, editableOrganizationId, externalSearchTerm }: LegislationTreeViewProps) {
+export function LegislationTreeView({ legislation, onSelectLegislation, hideFilters = false, externalThemeId, applicabilityMap, pendingRequirementsMap, editableOrganizationId, externalSearchTerm }: LegislationTreeViewProps) {
   const location = useLocation();
   const from = location.pathname + location.search;
 
@@ -529,6 +531,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [sourceFilter, setSourceFilter] = useState<"all" | "dre" | "eurlex">("all");
   const [diplomaTypeFilter, setDiplomaTypeFilter] = useState<string | null>(null);
   const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
+  const [pendingRequirementsOnly, setPendingRequirementsOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -646,9 +649,12 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
       const matchesApplicability = !unclassifiedOnly ||
         (applicabilityMap ? !applicabilityMap[leg.id] : true);
 
-      return matchesSearch && matchesSource && matchesDiplomaType && matchesApplicability;
+      const matchesPendingRequirements = !pendingRequirementsOnly ||
+        (pendingRequirementsMap ? (pendingRequirementsMap[leg.id] || 0) > 0 : true);
+
+      return matchesSearch && matchesSource && matchesDiplomaType && matchesApplicability && matchesPendingRequirements;
     });
-  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter, unclassifiedOnly, applicabilityMap]);
+  }, [legislation, searchTerm, sourceFilter, diplomaTypeFilter, unclassifiedOnly, applicabilityMap, pendingRequirementsOnly, pendingRequirementsMap]);
 
   const legislationByCategory = useMemo(() => {
     const map = new Map<string, LegislationWithCategories[]>();
@@ -1049,7 +1055,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     );
   };
 
-  const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter || unclassifiedOnly;
+  const hasFilters = searchTerm || sourceFilter !== "all" || diplomaTypeFilter || unclassifiedOnly || pendingRequirementsOnly;
 
   // List mode - filter legislation based on selected theme/category/subcategory
 
@@ -1137,6 +1143,28 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           </Button>
         </div>
       </div>
+
+      {/* Filtro rápido: diplomas com requisitos por avaliar */}
+      {pendingRequirementsMap && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={pendingRequirementsOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setPendingRequirementsOnly(!pendingRequirementsOnly);
+              resetPage();
+            }}
+            title="Mostrar apenas diplomas com requisitos legais ainda por avaliar"
+          >
+            <ListChecks className="h-3 w-3 mr-1" />
+            Requisitos por avaliar
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {Object.values(pendingRequirementsMap).reduce((a, b) => a + b, 0)} requisitos por avaliar em{" "}
+            {legislation.filter((l) => (pendingRequirementsMap[l.id] || 0) > 0).length} diplomas
+          </span>
+        </div>
+      )}
 
       {/* Search and Filters */}
       {!hideFilters && (
@@ -1904,6 +1932,17 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                                 aria-label="Selecionar diploma"
                                 className="mr-1"
                               />
+                            )}
+
+                            {(pendingRequirementsMap?.[leg.id] || 0) > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 text-xs px-2 py-0.5 bg-amber-100 text-amber-800 border-amber-300"
+                                title="Requisitos legais por avaliar"
+                              >
+                                <ListChecks className="h-3 w-3 mr-1" />
+                                {pendingRequirementsMap![leg.id]} por avaliar
+                              </Badge>
                             )}
 
                             {/* Diploma Type Badge */}

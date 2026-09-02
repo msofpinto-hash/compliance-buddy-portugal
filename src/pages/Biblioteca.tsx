@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useLegislationWithCategories } from "@/hooks/useLegislation";
+import { usePendingRequirements } from "@/hooks/usePendingRequirements";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
 import { ExportApplicableDialog } from "@/components/client/ExportApplicableDialog";
@@ -252,6 +253,11 @@ export default function Biblioteca() {
   const currentOrg =
     organizations.find((o) => o.id === (selectedOrgId || organizationIds[0])) ||
     organizations[0];
+
+  // Requisitos por avaliar por diploma (organização atual)
+  const { data: pendingRequirementsMap } = usePendingRequirements(currentOrg?.id);
+
+
 
   // Themes assigned to the current organization
   const { data: orgThemeIds } = useQuery({
@@ -722,6 +728,7 @@ export default function Biblioteca() {
                   hideFilters
                   externalThemeId={selectedThemeId}
                   applicabilityMap={legislationApplicabilitiesMap}
+                  pendingRequirementsMap={pendingRequirementsMap}
                   editableOrganizationId={isAdmin && currentOrg?.id ? currentOrg.id : undefined}
                   externalSearchTerm={searchTerm}
                 />
