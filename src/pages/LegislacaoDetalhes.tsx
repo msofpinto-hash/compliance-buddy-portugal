@@ -804,9 +804,9 @@ export default function LegislacaoDetalhes() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">{sortedRequirements.length} requisitos</Badge>
-                    {activeOrganization && pendingComplianceCount > 0 && (
+                    {activeOrganization && pendingApplicabilityCount > 0 && (
                       <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-800">
-                        {pendingComplianceCount} por avaliar
+                        {pendingApplicabilityCount} por avaliar
                       </Badge>
                     )}
                   </div>
