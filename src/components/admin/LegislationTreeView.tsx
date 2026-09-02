@@ -1144,6 +1144,28 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
         </div>
       </div>
 
+      {/* Filtro rápido: diplomas com requisitos por avaliar */}
+      {pendingRequirementsMap && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={pendingRequirementsOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setPendingRequirementsOnly(!pendingRequirementsOnly);
+              resetPage();
+            }}
+            title="Mostrar apenas diplomas com requisitos legais ainda por avaliar"
+          >
+            <ListChecks className="h-3 w-3 mr-1" />
+            Requisitos por avaliar
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {Object.values(pendingRequirementsMap).reduce((a, b) => a + b, 0)} requisitos por avaliar em{" "}
+            {legislation.filter((l) => (pendingRequirementsMap[l.id] || 0) > 0).length} diplomas
+          </span>
+        </div>
+      )}
+
       {/* Search and Filters */}
       {!hideFilters && (
         <Card>
