@@ -1934,6 +1934,17 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                               />
                             )}
 
+                            {(pendingRequirementsMap?.[leg.id] || 0) > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 text-xs px-2 py-0.5 bg-amber-100 text-amber-800 border-amber-300"
+                                title="Requisitos legais por avaliar"
+                              >
+                                <ListChecks className="h-3 w-3 mr-1" />
+                                {pendingRequirementsMap![leg.id]} por avaliar
+                              </Badge>
+                            )}
+
                             {/* Diploma Type Badge */}
                             <Badge
                               variant="outline"
