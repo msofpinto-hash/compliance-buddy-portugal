@@ -849,12 +849,6 @@ export default function LegislacaoDetalhes() {
                                       organizationId={activeOrganization.id}
                                       currentValue={applicabilities?.[req.id]?.type || "nao_avaliado"}
                                       readOnly={!canEditApplicability}
-                                    />
-                                    <RequirementComplianceSelect
-                                      requirementId={req.id}
-                                      organizationId={activeOrganization.id}
-                                      currentValue={applicabilities?.[req.id]?.compliance || "pendente"}
-                                      readOnly={!canEditApplicability}
                                       onUpdate={() => {
                                         queryClient.invalidateQueries({ queryKey: ["requirement-applicabilities", id, activeOrganization.id] });
                                         queryClient.invalidateQueries({ queryKey: ["pending-requirements-by-legislation"] });
