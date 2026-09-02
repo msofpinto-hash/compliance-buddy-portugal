@@ -34,3 +34,8 @@
 - [x] Eliminar diplomas duplicados (869 -> 839)
 - [x] Corrigir adicionar relação por URL (validações + botão sempre clicável)
 - [ ] Corrigir extração de requisitos por URL no diálogo do diploma (usar scraping real da URL)
+
+## 2026-09-02
+- [x] Resolver manualmente os URLs dos 5 diplomas sem link (DRE) e reextrair requisitos (275 novos)
+- [x] Extração de relações forçada para esses diplomas (sem referências a diplomas existentes na base)
+- [x] Biblioteca: filtro e badge "Requisitos por avaliar" por diploma
