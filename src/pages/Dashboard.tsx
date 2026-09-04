@@ -128,6 +128,7 @@ import indicatorsHero from "@/assets/indicators-hero.png";
 import logoIdAsset from "@/assets/id-compliance-lex.png.asset.json";
 const logoIdCompliance = logoIdAsset.url;
 import heroVideo from "@/assets/hero-background.mp4";
+import { ListChecks } from "lucide-react";
 import { AuditCalendar } from "@/components/client/AuditCalendar";
 import { AuditTrackingPanel } from "@/components/client/AuditTrackingPanel";
 
