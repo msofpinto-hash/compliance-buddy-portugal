@@ -129,6 +129,15 @@ function formatDate(value: string | null): string {
   return value.length <= 4 ? y : `${d}/${m}/${y}`;
 }
 
+function Field({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="text-sm text-foreground">{value && value.trim() ? value : "—"}</p>
+    </div>
+  );
+}
+
 export default function Normas() {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -137,6 +146,7 @@ export default function Normas() {
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState("all");
   const [sortDesc, setSortDesc] = useState(true);
+  const [detailRow, setDetailRow] = useState<StandardRow | null>(null);
   const [linkRow, setLinkRow] = useState<StandardRow | null>(null);
   const [linkValue, setLinkValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -370,7 +380,11 @@ export default function Normas() {
                 {filtered.map((r) => {
                   const ap = applicabilityLabel(r);
                   return (
-                    <Card key={r.id} className="hover:shadow-md transition-shadow">
+                    <Card
+                      key={r.id}
+                      onClick={() => setDetailRow(r)}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                    >
                       <CardContent className="p-4 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className="bg-primary/10 text-primary border-0">
@@ -401,13 +415,14 @@ export default function Normas() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() =>
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 window.open(
                                   r.document_url as string,
                                   "_blank",
                                   "noopener,noreferrer",
-                                )
-                              }
+                                );
+                              }}
                             >
                               <ExternalLink className="h-4 w-4 mr-2" /> Abrir documento
                             </Button>
@@ -420,7 +435,8 @@ export default function Normas() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setLinkRow(r);
                                 setLinkValue(r.document_url || "");
                               }}
@@ -439,6 +455,89 @@ export default function Normas() {
           </section>
         </div>
       </main>
+
+      <Dialog open={!!detailRow} onOpenChange={(o) => !o && setDetailRow(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {detailRow?.document_ref || "Documento"}
+            </DialogTitle>
+          </DialogHeader>
+          {detailRow && (
+            <div className="space-y-4 text-sm">
+              <p className="font-medium">{detailRow.document_name || "—"}</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Tipo" value={detailRow.document_type} />
+                <Field label="Emissor" value={detailRow.issuer} />
+                <Field label="Período de referência" value={detailRow.reference_period} />
+                <Field label="Publicação" value={formatDate(detailRow.publication_date)} />
+                <Field label="Modificação" value={formatDate(detailRow.modification_date)} />
+                <Field
+                  label="Impacto nas normas"
+                  value={
+                    [
+                      detailRow.impact_iso_14001 ? "ISO 14001" : null,
+                      detailRow.impact_iso_45001 ? "ISO 45001" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "Sem impacto assinalado"
+                  }
+                />
+                <Field label="Aplicabilidade" value={applicabilityLabel(detailRow).label} />
+                <Field label="Responsável" value={detailRow.responsible} />
+                <Field label="Prazo de implementação" value={detailRow.implementation_deadline} />
+                <Field label="Estado" value={detailRow.implementation_status} />
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Descritivo</p>
+                <p className="whitespace-pre-wrap rounded-md border border-border p-3 bg-muted/30">
+                  {detailRow.descriptive || "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">
+                  Ações / comentários
+                </p>
+                <p className="whitespace-pre-wrap rounded-md border border-border p-3 bg-muted/30">
+                  {detailRow.actions || "—"}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                {detailRow.document_url && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      window.open(
+                        detailRow.document_url as string,
+                        "_blank",
+                        "noopener,noreferrer",
+                      )
+                    }
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" /> Abrir documento
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setLinkValue(detailRow.document_url || "");
+                      setLinkRow(detailRow);
+                    }}
+                  >
+                    <Link2 className="h-4 w-4 mr-2" />
+                    {detailRow.document_url ? "Editar ligação" : "Adicionar ligação"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!linkRow} onOpenChange={(o) => !o && setLinkRow(null)}>
         <DialogContent>
