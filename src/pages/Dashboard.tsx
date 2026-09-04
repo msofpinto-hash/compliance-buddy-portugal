@@ -1875,8 +1875,10 @@ export default function Dashboard() {
                                       )}
                                     </div>
 
-                                    {/* Plan actions - only for planned audits not yet approved */}
-                                    {audit.status === "planned" &&
+                                    {/* Plan actions - only for annual audits (monthly VCL has no plan) */}
+                                    {(audit.audit_type || "anual") !==
+                                      "mensal" &&
+                                      audit.status === "planned" &&
                                       !audit.plan_approved_at && (
                                         <div className="flex flex-wrap gap-3 pt-4 border-t">
                                           <Button
