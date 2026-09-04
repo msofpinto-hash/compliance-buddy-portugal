@@ -42,6 +42,8 @@ import {
   PlayCircle,
   ListChecks,
   Paperclip,
+  RotateCcw,
+
 } from "lucide-react";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
 
@@ -194,6 +196,23 @@ export function AuditTrackingPanel({
     toast({ title: "Auditoria marcada como executada" });
     refresh();
   };
+
+  const reopen = async (a: AuditRow) => {
+    const { error } = await supabase
+      .from("audits")
+      .update({ status: "in_progress", approved_at: null })
+      .eq("id", a.id);
+    if (error) {
+      toast({ title: "Não foi possível reabrir", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Verificação reaberta",
+      description: "Já pode anexar atas e editar as conclusões.",
+    });
+    refresh();
+  };
+
 
   const openConclusion = (a: AuditRow) => {
     setConclusionFor(a);
@@ -451,6 +470,17 @@ export function AuditTrackingPanel({
                                 <ListChecks className="h-3 w-3" />
                                 Conclusões
                               </Button>
+                              {stage === "concluida" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-[11px] gap-1"
+                                  onClick={() => reopen(a)}
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                  Reabrir
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         )}
