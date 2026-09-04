@@ -108,15 +108,18 @@ function parsePdfContent(content: string): ParsedLegislation[] {
     }
   }
   
-  // PT Diploma types
+  // PT Diploma types (includes ambiguous types that may also appear in EU form)
   const ptTypes = [
     'Portaria', 'Lei', 'Decreto-Lei', 'Decreto', 'Despacho', 
     'Resolução', 'Declaração', 'Aviso', 'Acórdão', 'Deliberação',
-    'Declaração de Retificação'
+    'Declaração de Retificação',
+    'Diretiva', 'Decisão', 'Recomendação', 'Regulamento'
   ];
   
-  // EU Diploma types  
+  // EU Diploma types - only explicit European instruments
   const euTypes = [
+    'Comunicação',
+    'Comunicação \\(UE\\)',
     'Regulamento Delegado \\(UE\\)',
     'Regulamento de Execução \\(UE\\)',
     'Regulamento \\(UE\\)',
@@ -124,10 +127,12 @@ function parsePdfContent(content: string): ParsedLegislation[] {
     'Retificação do Regulamento \\(UE\\)',
     'Retificação do Regulamento \\(CE\\)',
     'Diretiva \\(UE\\)',
-    'Diretiva',
+    'Diretiva Delegada \\(UE\\)',
     'Decisão \\(UE\\)',
     'Decisão de Execução \\(UE\\)',
-    'Recomendação \\(UE\\)'
+    'Decisão Delegada \\(UE\\)',
+    'Recomendação \\(UE\\)',
+    'Recomendação da Comissão \\(UE\\)'
   ];
   
   // Combined regex to find all diplomas
@@ -164,8 +169,16 @@ function parsePdfContent(content: string): ParsedLegislation[] {
     }
     seenNumbers.add(normalizedNum);
     
-    // Determine origin
-    const isEU = /regulamento|diretiva|decisão|recomendação/i.test(type) && /\(ue\)|\(ce\)/i.test(type);
+    // Determine origin: explicit EU markers or known EU-only instruments
+    const hasEUMarker = /\(ue\)|\(ce\)|\(cee\)|\(euratom\)/i.test(type);
+    const isKnownEUType = /comunicação|regulamento de execução|regulamento delegado|decisão de execução|decisão delegada|diretiva delegada/i.test(type);
+    // Ambiguous PT/EU types without markers: assume EU when the number uses the EU format
+    // (sequence/year, e.g. "1020/2026") and no Portuguese entity is mentioned.
+    const isAmbiguousEU = /regulamento|diretiva|decisão|recomendação/i.test(type) &&
+      !hasEUMarker &&
+      /^\d{1,4}\/\d{4}$/.test(number) &&
+      !/portugal|município|câmara|assembleia|presidência|republica|dre/i.test(diplomaStr);
+    const isEU = hasEUMarker || isKnownEUType || isAmbiguousEU;
     
     // Try to extract summary (text after the diploma until next diploma or end)
     const afterMatch = cleanedContent.substring(match.index + match[0].length);

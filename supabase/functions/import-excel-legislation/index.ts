@@ -444,12 +444,15 @@ serve(async (req) => {
         } else {
           const publicationDate = parseDateFromDiploma(row.diploma);
           
-          let origin = 'PT';
-          if (row.diploma.toLowerCase().includes('regulamento (ue)') || 
-              row.diploma.toLowerCase().includes('diretiva') ||
-              row.diploma.toLowerCase().includes('decisão (ue)')) {
-            origin = 'EU';
-          }
+          const diplomaLower = row.diploma.toLowerCase();
+          const hasEUMarker = /\(ue\)|\(ce\)|\(cee\)|\(euratom\)/.test(diplomaLower);
+          const isKnownEUType = /comunicação|regulamento de execução|regulamento delegado|decisão de execução|decisão delegada|diretiva delegada/.test(diplomaLower);
+          const isAmbiguousEU = /regulamento|diretiva|decisão|recomendação/.test(diplomaLower) &&
+            !hasEUMarker &&
+            /\d{1,4}\/\d{4}/.test(row.diploma) &&
+            !/portugal|município|câmara|assembleia|presidência|republica|dre/.test(diplomaLower);
+          
+          const origin = hasEUMarker || isKnownEUType || isAmbiguousEU ? 'EU' : 'PT';
 
           const { data: newLeg, error: legError } = await supabase
             .from('legislation')
