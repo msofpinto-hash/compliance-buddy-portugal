@@ -56,7 +56,7 @@ import {
   HardHat,
   type LucideIcon,
 } from "lucide-react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
@@ -326,7 +326,7 @@ export default function Dashboard() {
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const [auditSection, setAuditSection] = useState<
-    "plano" | "evidencias" | "relatorios" | "atas" | "normas"
+    "plano" | "evidencias" | "relatorios" | "atas" | "normas" | "acompanhamento"
   >("plano");
   const [auditTypeFilter, setAuditTypeFilter] = useState<
     "all" | "anual" | "mensal"
@@ -336,6 +336,7 @@ export default function Dashboard() {
     "date_desc" | "date_asc" | "title" | "status"
   >("date_desc");
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Get active tab from URL params
@@ -356,13 +357,21 @@ export default function Dashboard() {
       secParam === "evidencias" ||
       secParam === "relatorios" ||
       secParam === "atas" ||
-      secParam === "normas"
+      secParam === "normas" ||
+      secParam === "acompanhamento"
     ) {
       setAuditSection(secParam);
       if (secParam === "relatorios") setAuditTypeFilter("anual");
       if (secParam === "atas") setAuditTypeFilter("mensal");
     }
   }, [secParam]);
+
+  // Redirect legacy monthly tab into the unified audits menu
+  useEffect(() => {
+    if (tabParam === "monthly") {
+      navigate("/dashboard?tab=audits&sec=acompanhamento", { replace: true });
+    }
+  }, [tabParam, navigate]);
 
 
   // Fetch user profile
@@ -1615,6 +1624,17 @@ export default function Dashboard() {
                   <BookMarked className="h-4 w-4" />
                   Controlo de normas, despachos e notas técnicas
                 </Button>
+                <Button
+                  variant={
+                    auditSection === "acompanhamento" ? "default" : "ghost"
+                  }
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAuditSection("acompanhamento")}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Acompanhamento mensal
+                </Button>
 
 
                 <div className="ml-auto flex items-center gap-2">
@@ -2267,16 +2287,18 @@ export default function Dashboard() {
                   );
                 })()}
               </div>
-            </div>
-          )}
 
-          {/* Acompanhamentos mensais */}
-          {activeTab === "monthly" && (
-            <AuditTrackingPanel
-              organizationIds={organizationIds}
-              organizations={organizations as any}
-              typeFilter="mensal"
-            />
+              {/* Acompanhamento mensal (unificado em Auditorias) */}
+              <div
+                className={auditSection === "acompanhamento" ? "" : "hidden"}
+              >
+                <AuditTrackingPanel
+                  organizationIds={organizationIds}
+                  organizations={organizations as any}
+                  typeFilter="mensal"
+                />
+              </div>
+            </div>
           )}
 
           {/* Documents Tab */}

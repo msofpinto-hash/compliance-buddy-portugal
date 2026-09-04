@@ -55,13 +55,6 @@ const ALL_MODULES: NavItem[] = [
     href: "/dashboard?tab=audits&sec=plano",
   },
   {
-    id: "mensais",
-    moduleKey: "auditorias",
-    label: "Acompanhamentos mensais",
-    icon: FolderOpen,
-    href: "/dashboard?tab=monthly",
-  },
-  {
     id: "planos_acao",
     moduleKey: "planos_acao",
     label: "Planos de Ação",
@@ -133,7 +126,6 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
     const map: Record<string, string> = {
       planos_acao: "actions",
       auditorias: "audits",
-      mensais: "monthly",
       documentos: "documents",
       indicadores: "indicators",
     };
