@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, Download, Loader2, Eye, Trash2, RefreshCw } from "lucide-react";
+import { FileText, Download, Loader2, Eye, Trash2, RefreshCw, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,12 +26,21 @@ interface Props {
   auditId: string;
   /** Render as an embedded block inside a dialog (no outer card styling) */
   variant?: "card" | "plain";
+  /** Allow admins to attach new files (e.g. atas mensais) */
+  allowUpload?: boolean;
+  /** Label used in the upload button */
+  uploadLabel?: string;
 }
 
 type Doc = { id: string; name: string; file_url: string };
 
 /** Documents attached to an audit / monthly legal compliance verification. */
-export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
+export function AuditDocumentsList({
+  auditId,
+  variant = "card",
+  allowUpload = false,
+  uploadLabel = "Anexar documentos",
+}: Props) {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -39,6 +48,8 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Doc | null>(null);
   const replaceInput = useRef<HTMLInputElement | null>(null);
+  const uploadInput = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [replacing, setReplacing] = useState<Doc | null>(null);
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(
     null,
@@ -57,6 +68,87 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
         .filter(Boolean) as Doc[];
     },
   });
+
+  const handleUpload = async (files: FileList) => {
+    setUploading(true);
+    try {
+      const { data: audit, error: aErr } = await supabase
+        .from("audits")
+        .select("organization_id")
+        .eq("id", auditId)
+        .maybeSingle();
+      if (aErr) throw aErr;
+      if (!audit?.organization_id) throw new Error("Auditoria sem organização");
+
+      for (const file of Array.from(files)) {
+        const path = `audits/${auditId}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+        const { error: upErr } = await supabase.storage
+          .from("requirement-documents")
+          .upload(path, file, { upsert: true });
+        if (upErr) throw upErr;
+        const { data: docRow, error: docErr } = await supabase
+          .from("documents")
+          .insert({
+            organization_id: audit.organization_id,
+            name: file.name,
+            file_url: path,
+            category: "auditoria",
+          })
+          .select("id")
+          .single();
+        if (docErr) throw docErr;
+        const { error: linkErr } = await supabase
+          .from("audit_documents")
+          .insert({ audit_id: auditId, document_id: docRow.id });
+        if (linkErr) throw linkErr;
+      }
+      toast({
+        title: "Documentos anexados",
+        description: `${files.length} ficheiro(s) associados à verificação`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["audit-documents", auditId] });
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Erro",
+        description: err?.message || "Não foi possível anexar os documentos",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const canUpload = allowUpload && isAdmin;
+
+  const uploadBar = canUpload ? (
+    <div className="flex items-center gap-2">
+      <input
+        ref={uploadInput}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = e.target.files;
+          e.target.value = "";
+          if (files && files.length) handleUpload(files);
+        }}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={uploading}
+        onClick={() => uploadInput.current?.click()}
+      >
+        {uploading ? (
+          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Upload className="mr-1 h-3.5 w-3.5" />
+        )}
+        {uploadLabel}
+      </Button>
+    </div>
+  ) : null;
 
   const signedUrl = async (doc: Doc) => {
     const path = doc.file_url.replace(/^.*requirement-documents\//, "");
@@ -139,11 +231,14 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
   if (isLoading) return null;
 
   if (!docs || docs.length === 0) {
-    if (variant === "plain") {
+    if (variant === "plain" || canUpload) {
       return (
-        <p className="text-sm text-muted-foreground">
-          Sem documentação associada a esta auditoria.
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Sem documentação associada a esta verificação.
+          </p>
+          {uploadBar}
+        </div>
       );
     }
     return null;
@@ -151,6 +246,7 @@ export function AuditDocumentsList({ auditId, variant = "card" }: Props) {
 
   const body = (
     <div className="space-y-2">
+      {uploadBar}
       {docs.map((doc) => (
         <div
           key={doc.id}
