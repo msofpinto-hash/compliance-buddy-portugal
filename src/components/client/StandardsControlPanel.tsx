@@ -162,6 +162,11 @@ export function StandardsControlPanel({
     }
   });
   const showCol = (k: ColumnKey) => !hiddenCols.includes(k);
+  const tableMinWidth =
+    COLUMNS.filter((c) => !hiddenCols.includes(c.key)).reduce(
+      (sum, c) => sum + c.width,
+      0,
+    ) + 110;
   const toggleCol = (k: ColumnKey) =>
     setHiddenCols((prev) => {
       const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k];
@@ -708,26 +713,31 @@ export function StandardsControlPanel({
             </p>
           ) : (
             <div className="overflow-x-auto scrollbar-thin">
-              <Table className="min-w-[2200px] w-full table-fixed">
+              <Table
+                className="w-full table-fixed"
+                style={{ minWidth: `${tableMinWidth}px` }}
+              >
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[180px]">Tipo</TableHead>
-                    <TableHead className="w-[140px]">Refª</TableHead>
-                    <TableHead className="w-[280px]">Documento</TableHead>
-                    <TableHead className="w-[110px]">Publicação</TableHead>
-                    <TableHead className="w-[110px]">Modificação</TableHead>
-                    <TableHead className="w-[150px]">Emissor</TableHead>
-                    <TableHead className="w-[80px] text-center">14001</TableHead>
-                    <TableHead className="w-[80px] text-center">45001</TableHead>
-                    <TableHead className="w-[140px]">Aplicabilidade</TableHead>
-                    <TableHead className="w-[260px]">Descritivo</TableHead>
-                    <TableHead className="w-[260px]">Ações</TableHead>
-                    <TableHead className="w-[140px]">Responsável</TableHead>
-                    <TableHead className="w-[120px]">Prazo</TableHead>
-                    <TableHead className="w-[130px]">Estado</TableHead>
-                    <TableHead className="w-[200px]">
-                      Auditorias afetadas
-                    </TableHead>
+                    {showCol("type") && <TableHead className="w-[180px]">Tipo</TableHead>}
+                    {showCol("ref") && <TableHead className="w-[140px]">Refª</TableHead>}
+                    {showCol("name") && <TableHead className="w-[280px]">Documento</TableHead>}
+                    {showCol("publication") && <TableHead className="w-[110px]">Publicação</TableHead>}
+                    {showCol("modification") && <TableHead className="w-[110px]">Modificação</TableHead>}
+                    {showCol("issuer") && <TableHead className="w-[150px]">Emissor</TableHead>}
+                    {showCol("iso14001") && <TableHead className="w-[80px] text-center">14001</TableHead>}
+                    {showCol("iso45001") && <TableHead className="w-[80px] text-center">45001</TableHead>}
+                    {showCol("applicability") && <TableHead className="w-[140px]">Aplicabilidade</TableHead>}
+                    {showCol("descriptive") && <TableHead className="w-[260px]">Descritivo</TableHead>}
+                    {showCol("actions") && <TableHead className="w-[260px]">Ações</TableHead>}
+                    {showCol("responsible") && <TableHead className="w-[140px]">Responsável</TableHead>}
+                    {showCol("deadline") && <TableHead className="w-[120px]">Prazo</TableHead>}
+                    {showCol("status") && <TableHead className="w-[130px]">Estado</TableHead>}
+                    {showCol("audits") && (
+                      <TableHead className="w-[200px]">
+                        Auditorias afetadas
+                      </TableHead>
+                    )}
                     <TableHead className="w-[110px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
