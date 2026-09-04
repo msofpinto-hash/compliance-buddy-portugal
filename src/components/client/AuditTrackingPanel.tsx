@@ -359,17 +359,16 @@ export function AuditTrackingPanel({
             </p>
           ) : (
             <div className="max-h-[70vh] overflow-auto scrollbar-thin">
-              <Table className="min-w-[1100px]">
+              <Table className="min-w-[900px]">
                 <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
                   <TableRow className="bg-background">
-                    <TableHead className="w-[300px]">Auditoria</TableHead>
-                    <TableHead className="w-[140px]">Tipo</TableHead>
-                    <TableHead className="w-[110px]">Agendada</TableHead>
-                    <TableHead className="w-[110px]">Executada</TableHead>
-                    <TableHead className="w-[130px]">Concluída</TableHead>
-                    <TableHead className="w-[200px]">Conclusão</TableHead>
-                    <TableHead className="w-[210px]">Atas / relatório</TableHead>
-                    {isAdmin && <TableHead className="w-[200px]" />}
+                    <TableHead className="w-[280px]">Auditoria</TableHead>
+                    <TableHead className="w-[130px]">Tipo</TableHead>
+                    <TableHead className="w-[100px]">Agendada</TableHead>
+                    <TableHead className="w-[100px]">Executada</TableHead>
+                    <TableHead className="w-[120px]">Concluída</TableHead>
+                    <TableHead className="w-[150px]">Documentos</TableHead>
+                    {isAdmin && <TableHead className="w-[190px]" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -386,6 +385,17 @@ export function AuditTrackingPanel({
                             <p className="text-[11px] text-muted-foreground">
                               {orgName(a.organization_id)}
                             </p>
+                          )}
+                          {(a.audit_type || "anual") === "mensal" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-[11px] gap-1 px-1 mt-1 text-primary"
+                              onClick={() => setVclFor(a)}
+                            >
+                              <FileText className="h-3 w-3" />
+                              Relatório
+                            </Button>
                           )}
                         </TableCell>
                         <TableCell className="text-xs">
