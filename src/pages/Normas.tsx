@@ -132,13 +132,21 @@ function groupOf(row: StandardRow): GroupKey {
   const hay = `${row.document_type || ""} ${row.document_ref || ""} ${
     row.document_name || ""
   }`.toLowerCase();
+  const issuer = (row.issuer || "").toLowerCase();
+  // Entidade emissora tem prioridade
+  if (issuer.includes("anepc") || issuer.includes("proteção civil") || issuer.includes("prociv"))
+    return "anepc";
+  if (/\bdgs\b/.test(issuer) || issuer.includes("direção-geral da saúde")) return "dgs";
+  if (issuer.includes("dgeg")) return "dgeg";
+  if (issuer.includes("apa")) return "circulares";
   // Regras por designação oficial do documento
-  // Notas Técnicas de SCIE são emitidas pela ANEPC
+  // Notas Técnicas (SCIE) são emitidas pela ANEPC
   if (/nota\s+t[ée]cnica\s+n\.?\s*[.ºo]/i.test(hay) || /^nt\s*n?\.?\s*[.ºo]?\s*\d/i.test(ref))
     return "anepc";
   // Circulares Informativas e Recomendações são emitidas pela DGS
   if (/circular\s+informativa\s+n\.?\s*[.ºo]/i.test(hay) || /recomenda[çc][ãa]o\s+n\.?\s*[.ºo]/i.test(hay))
     return "dgs";
+
   // Entidades com pasta própria
   if (hay.includes("circular")) return "circulares";
   if (hay.includes("dgeg")) return "dgeg";
