@@ -123,8 +123,10 @@ export function buildVclPdf(
   });
   y = (doc as any).lastAutoTable.finalY + 20;
 
-  const section = (title: string, text: string) => {
-    if (!text?.trim()) return;
+  const section = (title: string, text: string, always = false) => {
+    if (!text?.trim() && !always) return;
+    text = text?.trim() ? text : "-";
+
     if (y > doc.internal.pageSize.getHeight() - 120) {
       doc.addPage();
       y = margin;
