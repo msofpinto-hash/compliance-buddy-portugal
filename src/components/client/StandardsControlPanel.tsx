@@ -526,53 +526,61 @@ export function StandardsControlPanel({
               Sem registos para os filtros selecionados.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="overflow-x-auto scrollbar-thin">
+              <Table className="min-w-[2200px] w-full table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[170px]">Tipo</TableHead>
-                    <TableHead className="min-w-[150px]">Refª</TableHead>
-                    <TableHead className="min-w-[260px]">Documento</TableHead>
-                    <TableHead>Publicação</TableHead>
-                    <TableHead>Modificação</TableHead>
-                    <TableHead>Emissor</TableHead>
-                    <TableHead className="text-center">14001</TableHead>
-                    <TableHead className="text-center">45001</TableHead>
-                    <TableHead className="min-w-[130px]">Aplicabilidade</TableHead>
-                    <TableHead className="min-w-[220px]">Descritivo</TableHead>
-                    <TableHead className="min-w-[220px]">Ações</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Prazo</TableHead>
-                    <TableHead className="min-w-[120px]">Estado</TableHead>
-                    <TableHead className="min-w-[180px]">
+                    <TableHead className="w-[180px]">Tipo</TableHead>
+                    <TableHead className="w-[140px]">Refª</TableHead>
+                    <TableHead className="w-[280px]">Documento</TableHead>
+                    <TableHead className="w-[110px]">Publicação</TableHead>
+                    <TableHead className="w-[110px]">Modificação</TableHead>
+                    <TableHead className="w-[150px]">Emissor</TableHead>
+                    <TableHead className="w-[80px] text-center">14001</TableHead>
+                    <TableHead className="w-[80px] text-center">45001</TableHead>
+                    <TableHead className="w-[140px]">Aplicabilidade</TableHead>
+                    <TableHead className="w-[260px]">Descritivo</TableHead>
+                    <TableHead className="w-[260px]">Ações</TableHead>
+                    <TableHead className="w-[140px]">Responsável</TableHead>
+                    <TableHead className="w-[120px]">Prazo</TableHead>
+                    <TableHead className="w-[130px]">Estado</TableHead>
+                    <TableHead className="w-[200px]">
                       Auditorias afetadas
                     </TableHead>
-                    <TableHead />
-
+                    <TableHead className="w-[110px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((r) => (
                     <TableRow key={r.id} className="align-top">
-                      <TableCell className="text-xs">{r.document_type}</TableCell>
-                      <TableCell className="text-xs font-medium">
+                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                        {r.document_type}
+                      </TableCell>
+                      <TableCell className="text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
                         {r.document_ref}
                       </TableCell>
-                      <TableCell className="text-xs">{r.document_name}</TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell
+                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={r.document_name || ""}
+                      >
+                        {r.document_name}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
                         {r.publication_date}
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="text-xs whitespace-nowrap">
                         {r.modification_date}
                       </TableCell>
-                      <TableCell className="text-xs">{r.issuer}</TableCell>
-                      <TableCell className="text-center text-xs">
+                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                        {r.issuer}
+                      </TableCell>
+                      <TableCell className="text-center text-xs whitespace-nowrap">
                         {r.impact_iso_14001 ? "x" : ""}
                       </TableCell>
-                      <TableCell className="text-center text-xs">
+                      <TableCell className="text-center text-xs whitespace-nowrap">
                         {r.impact_iso_45001 ? "x" : ""}
                       </TableCell>
-                      <TableCell className="space-y-1">
+                      <TableCell className="space-y-1 whitespace-nowrap">
                         {r.applicability_direct && (
                           <Badge variant="outline" className="text-[10px]">
                             Direta
@@ -589,24 +597,32 @@ export function StandardsControlPanel({
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs whitespace-pre-wrap">
+                      <TableCell
+                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={r.descriptive || ""}
+                      >
                         {r.descriptive}
                       </TableCell>
-                      <TableCell className="text-xs whitespace-pre-wrap">
+                      <TableCell
+                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={r.actions || ""}
+                      >
                         {r.actions}
                       </TableCell>
-                      <TableCell className="text-xs">{r.responsible}</TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                        {r.responsible}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
                         {r.implementation_deadline}
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="text-xs whitespace-nowrap">
                         {r.implementation_status && (
                           <Badge className="bg-green-500 text-white border-0 text-[10px]">
                             {r.implementation_status}
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="space-y-1">
+                      <TableCell className="space-y-1 whitespace-nowrap">
                         {auditsForRow(r).length === 0 ? (
                           <span className="text-[11px] text-muted-foreground">
                             —
@@ -636,7 +652,7 @@ export function StandardsControlPanel({
                           </Button>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         <div className="flex gap-1">
                           <Button
                             size="icon"
@@ -671,7 +687,6 @@ export function StandardsControlPanel({
                           )}
                         </div>
                       </TableCell>
-
                     </TableRow>
                   ))}
                 </TableBody>
