@@ -423,6 +423,7 @@ export type Database = {
           strengths: string | null
           title: string
           updated_at: string
+          vcl_report: Json | null
           weaknesses: string | null
         }
         Insert: {
@@ -453,6 +454,7 @@ export type Database = {
           strengths?: string | null
           title: string
           updated_at?: string
+          vcl_report?: Json | null
           weaknesses?: string | null
         }
         Update: {
@@ -483,6 +485,7 @@ export type Database = {
           strengths?: string | null
           title?: string
           updated_at?: string
+          vcl_report?: Json | null
           weaknesses?: string | null
         }
         Relationships: [

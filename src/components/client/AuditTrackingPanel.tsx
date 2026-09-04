@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
+import { attachVclReportIfMonthly } from "@/lib/vclReport";
+import { VclReportDialog } from "@/components/client/VclReportDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +45,7 @@ import {
   ListChecks,
   Paperclip,
   RotateCcw,
+  FileText,
 
 } from "lucide-react";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
@@ -58,6 +61,7 @@ type AuditRow = {
   findings: string | null;
   recommendations: string | null;
   conclusion_note: string | null;
+  vcl_report: unknown | null;
   no_action_required: boolean | null;
   organization_id: string;
 };
@@ -105,7 +109,7 @@ export function AuditTrackingPanel({
       const { data, error } = await supabase
         .from("audits")
         .select(
-          "id, title, audit_type, audit_date, executed_at, status, approved_at, findings, recommendations, conclusion_note, no_action_required, organization_id",
+          "id, title, audit_type, audit_date, executed_at, status, approved_at, findings, recommendations, conclusion_note, no_action_required, organization_id, vcl_report",
         )
         .in("organization_id", organizationIds)
         .order("audit_date", { ascending: false });
@@ -254,6 +258,7 @@ export function AuditTrackingPanel({
         if (planError) throw planError;
       }
 
+      await attachVclReportIfMonthly(conclusionFor.id);
       const snap = await attachStandardsSnapshotIfMonthly(conclusionFor.id);
       if (snap) {
         toast({
@@ -278,6 +283,7 @@ export function AuditTrackingPanel({
   };
 
   const [docsFor, setDocsFor] = useState<AuditRow | null>(null);
+  const [vclFor, setVclFor] = useState<AuditRow | null>(null);
 
   const orgName = (id: string) =>
     organizations.find((o) => o.id === id)?.name || "";
@@ -356,7 +362,7 @@ export function AuditTrackingPanel({
                     </TableHead>
                     <TableHead className="w-[150px]">Planos de ação</TableHead>
                     <TableHead className="w-[200px]">Conclusão</TableHead>
-                    <TableHead className="w-[130px]">Atas / anexos</TableHead>
+                    <TableHead className="w-[210px]">Atas / relatório</TableHead>
                     {isAdmin && <TableHead className="w-[200px]" />}
                   </TableRow>
                 </TableHeader>
@@ -446,6 +452,17 @@ export function AuditTrackingPanel({
                             <Paperclip className="h-3 w-3" />
                             Atas
                           </Button>
+                          {(a.audit_type || "anual") === "mensal" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px] gap-1 ml-1"
+                              onClick={() => setVclFor(a)}
+                            >
+                              <FileText className="h-3 w-3" />
+                              Relatório
+                            </Button>
+                          )}
                         </TableCell>
                         {isAdmin && (
                           <TableCell>
@@ -556,6 +573,14 @@ export function AuditTrackingPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VclReportDialog
+        audit={vclFor as any}
+        open={!!vclFor}
+        onOpenChange={(o) => !o && setVclFor(null)}
+        canEdit={isAdmin}
+        onSaved={refresh}
+      />
 
       <Dialog open={!!docsFor} onOpenChange={(o) => !o && setDocsFor(null)}>
         <DialogContent className="max-w-3xl">
