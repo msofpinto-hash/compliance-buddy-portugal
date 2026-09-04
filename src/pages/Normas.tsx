@@ -102,7 +102,9 @@ function groupOf(row: StandardRow): GroupKey {
   const hay = `${row.document_type || ""} ${row.document_ref || ""} ${
     row.document_name || ""
   }`.toLowerCase();
-  // Despachos, circulares e orientações de entidades
+  // Circulares APA têm pasta própria
+  if (hay.includes("circular")) return "circulares";
+  // Despachos e orientações de entidades
   if (
     hay.includes("despacho") ||
     hay.includes("circular") ||
