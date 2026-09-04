@@ -14,7 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, FileDown } from "lucide-react";
+import { Loader2, Plus, Trash2, FileDown, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   VclReport,
   emptyVclReport,
@@ -22,6 +24,7 @@ import {
   buildVclPdf,
   generateAndAttachVclPdf,
   vclPeriodLabel,
+  VclDiploma,
 } from "@/lib/vclReport";
 
 type Audit = {
@@ -51,6 +54,10 @@ export function VclReportDialog({
   const { toast } = useToast();
   const [report, setReport] = useState<VclReport>(emptyVclReport());
   const [saving, setSaving] = useState(false);
+  const [pool, setPool] = useState<VclDiploma[]>([]);
+  const [poolLoading, setPoolLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [onlyPeriod, setOnlyPeriod] = useState(true);
 
   useEffect(() => {
     if (!audit) return;
@@ -104,7 +111,85 @@ export function VclReportDialog({
     })();
   }, [audit]);
 
+  useEffect(() => {
+    if (!audit || !open) return;
+    let cancelled = false;
+    (async () => {
+      setPoolLoading(true);
+      const ref = new Date(audit.executed_at || audit.audit_date || Date.now());
+      // período analisado = mês anterior ao da verificação
+      const start = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+      const end = new Date(ref.getFullYear(), ref.getMonth(), 0);
+      const { data } = await supabase
+        .from("organization_legislation")
+        .select(
+          "applicability_type, legislation:legislation(id, number, title, publication_date)",
+        )
+        .eq("organization_id", audit.organization_id)
+        .in("applicability_type", ["aplicavel_direto", "aplicavel_indireto"]);
+      if (cancelled) return;
+      const rows: VclDiploma[] = (data || [])
+        .filter((r: any) => r.legislation)
+        .map((r: any) => ({
+          id: r.legislation.id,
+          number: r.legislation.number,
+          title: r.legislation.title,
+          applicability: r.applicability_type,
+          publication_date: r.legislation.publication_date,
+        }));
+      rows.sort((a, b) =>
+        (b.publication_date || "").localeCompare(a.publication_date || ""),
+      );
+      setPool(rows);
+      (rows as any).periodStart = start;
+      setPoolLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [audit, open]);
+
   if (!audit) return null;
+
+  const ref = new Date(audit.executed_at || audit.audit_date || Date.now());
+  const periodStart = new Date(ref.getFullYear(), ref.getMonth() - 1, 1)
+    .toISOString()
+    .slice(0, 10);
+  const periodEnd = new Date(ref.getFullYear(), ref.getMonth(), 0)
+    .toISOString()
+    .slice(0, 10);
+  const periodName = new Date(periodStart).toLocaleDateString("pt-PT", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const filteredPool = pool.filter((d) => {
+    if (
+      onlyPeriod &&
+      !(
+        d.publication_date &&
+        d.publication_date >= periodStart &&
+        d.publication_date <= periodEnd
+      )
+    )
+      return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (d.number || "").toLowerCase().includes(q) ||
+      (d.title || "").toLowerCase().includes(q)
+    );
+  });
+
+  const toggleDiploma = (d: VclDiploma, checked: boolean) =>
+    setReport((r) => ({
+      ...r,
+      diplomas: checked
+        ? [...r.diplomas.filter((x) => x.id !== d.id), d]
+        : r.diplomas.filter((x) => x.id !== d.id),
+    }));
+
+  const ro = !canEdit;
 
   const set = (patch: Partial<VclReport>) =>
     setReport((r) => ({ ...r, ...patch }));
@@ -145,8 +230,6 @@ export function VclReportDialog({
     const blob = buildVclPdf(audit, report);
     window.open(URL.createObjectURL(blob), "_blank", "noopener,noreferrer");
   };
-
-  const ro = !canEdit;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -282,6 +365,69 @@ export function VclReportDialog({
                 </div>
               </Card>
             ))}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label>
+                Diplomas analisados{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({report.diplomas.length} selecionados)
+                </span>
+              </Label>
+              <Button
+                size="sm"
+                variant={onlyPeriod ? "default" : "outline"}
+                className="h-7 text-[11px]"
+                onClick={() => setOnlyPeriod((v) => !v)}
+              >
+                {onlyPeriod ? `Só ${periodName}` : "Todos os aplicáveis"}
+              </Button>
+            </div>
+            <div className="relative">
+              <Search className="h-3.5 w-3.5 absolute left-2.5 top-3 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Procurar diploma por número ou título"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="border rounded-md max-h-64 overflow-y-auto divide-y">
+              {poolLoading && (
+                <p className="text-xs text-muted-foreground p-3">A carregar…</p>
+              )}
+              {!poolLoading && filteredPool.length === 0 && (
+                <p className="text-xs text-muted-foreground p-3">
+                  Sem diplomas aplicáveis publicados em {periodName}. Desligue o
+                  filtro para ver todos.
+                </p>
+              )}
+              {filteredPool.slice(0, 200).map((d) => {
+                const checked = report.diplomas.some((x) => x.id === d.id);
+                return (
+                  <label
+                    key={d.id}
+                    className="flex items-start gap-2 p-2.5 text-xs cursor-pointer hover:bg-muted/50"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={ro}
+                      onCheckedChange={(v) => toggleDiploma(d, !!v)}
+                    />
+                    <span className="flex-1">
+                      <span className="font-medium">{d.number}</span>{" "}
+                      <span className="text-muted-foreground">{d.title}</span>
+                    </span>
+                    <Badge variant="outline" className="text-[10px] shrink-0">
+                      {d.applicability === "aplicavel_direto"
+                        ? "Direto"
+                        : "Indireto"}
+                    </Badge>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           <div className="space-y-1.5">
