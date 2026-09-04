@@ -238,12 +238,31 @@ export function parseAtaText(
 
   if (sections.description) patch.description = sections.description;
   if (sections.conclusions) patch.conclusions = sections.conclusions;
-  if (sections.special_notes) patch.special_notes = sections.special_notes;
+  if (sections.special_notes) {
+    const notes = sections.special_notes
+      .split("\n")
+      .filter(
+        (l) =>
+          !/^\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s*$/.test(l) &&
+          !/^\s*\d{1,2}\s*[hH:]\s*\d{2}\s*[–-]?\s*(\d{1,2}\s*[hH:]\s*\d{2})?\s*$/.test(l),
+      )
+      .join("\n")
+      .trim();
+    if (notes) patch.special_notes = notes;
+  }
 
   const actions = parseActions(sections.actions || "");
   if (actions.length) patch.actions = actions;
 
-  const tail = text.split("\n").slice(-6).join("\n");
+  const lines = text.split("\n");
+  const dateLineIdx = [...lines]
+    .map((l, i) => ({ l, i }))
+    .reverse()
+    .find(({ l }) => /^\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s*$/.test(l))?.i;
+  const tail =
+    dateLineIdx !== undefined
+      ? lines.slice(dateLineIdx, dateLineIdx + 3).join("\n")
+      : "";
   const next = sections.next_meeting || tail;
   const dateMatch = next.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
   if (dateMatch) {
@@ -251,7 +270,7 @@ export function parseAtaText(
     const year = y.length === 2 ? `20${y}` : y;
     patch.next_meeting_date = `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  const timeMatch = next.match(/(\d{1,2})[:h](\d{2})/);
+  const timeMatch = next.match(/(?:^|\s)(\d{1,2})\s*[:hH]\s*(\d{2})\b/);
   if (timeMatch) patch.next_meeting_time = `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}`;
 
   const matchedDiplomas = matchDiplomas(text, pool);
