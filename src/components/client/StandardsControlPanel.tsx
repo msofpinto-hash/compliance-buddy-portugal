@@ -94,10 +94,21 @@ const emptyRow = (
   implementation_status: "",
 });
 
+type AuditLite = {
+  id: string;
+  title: string;
+  audit_date: string | null;
+  audit_type: string | null;
+  status: string;
+};
+
+type AuditLink = { id: string; standard_id: string; audit_id: string };
+
 interface Props {
   organizationId?: string;
   canEdit?: boolean;
 }
+
 
 export function StandardsControlPanel({
   organizationId,
@@ -110,6 +121,10 @@ export function StandardsControlPanel({
   const [applicabilityFilter, setApplicabilityFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [editing, setEditing] = useState<Partial<StandardRow> | null>(null);
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [linkingRow, setLinkingRow] = useState<StandardRow | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["standards-control", organizationId],
@@ -125,6 +140,88 @@ export function StandardsControlPanel({
     },
     enabled: !!organizationId,
   });
+
+  const { data: orgAudits } = useQuery({
+    queryKey: ["standards-org-audits", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [] as AuditLite[];
+      const { data, error } = await supabase
+        .from("audits")
+        .select("id, title, audit_date, audit_type, status")
+        .eq("organization_id", organizationId)
+        .order("audit_date", { ascending: false });
+      if (error) throw error;
+      return (data || []) as AuditLite[];
+    },
+    enabled: !!organizationId,
+  });
+
+  const standardIds = useMemo(() => (rows || []).map((r) => r.id), [rows]);
+
+  const { data: manualLinks } = useQuery({
+    queryKey: ["standards-audit-links", organizationId, standardIds.length],
+    queryFn: async () => {
+      if (!standardIds.length) return [] as AuditLink[];
+      const out: AuditLink[] = [];
+      for (let i = 0; i < standardIds.length; i += 200) {
+        const { data, error } = await supabase
+          .from("standards_control_audits")
+          .select("id, standard_id, audit_id")
+          .in("standard_id", standardIds.slice(i, i + 200));
+        if (error) throw error;
+        out.push(...((data || []) as AuditLink[]));
+      }
+      return out;
+    },
+    enabled: standardIds.length > 0,
+  });
+
+  const auditsForRow = (r: StandardRow): AuditLite[] => {
+    const list = orgAudits || [];
+    const manual = (manualLinks || [])
+      .filter((l) => l.standard_id === r.id)
+      .map((l) => list.find((a) => a.id === l.audit_id))
+      .filter(Boolean) as AuditLite[];
+    const auto = list.filter((a) => {
+      if (manual.some((m) => m.id === a.id)) return false;
+      if (!a.audit_date) return false;
+      const title = (a.title || "").toLowerCase();
+      if (title.includes(r.reference_period.toLowerCase())) return true;
+      if (!r.period_date) return false;
+      return a.audit_date.slice(0, 7) === r.period_date.slice(0, 7);
+    });
+    return [...manual, ...auto];
+  };
+
+  const toggleLink = useMutation({
+    mutationFn: async ({
+      standardId,
+      auditId,
+      linked,
+    }: {
+      standardId: string;
+      auditId: string;
+      linked: boolean;
+    }) => {
+      if (linked) {
+        const { error } = await supabase
+          .from("standards_control_audits")
+          .delete()
+          .eq("standard_id", standardId)
+          .eq("audit_id", auditId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("standards_control_audits")
+          .insert({ standard_id: standardId, audit_id: auditId });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["standards-audit-links"] }),
+    onError: () => toast.error("Não foi possível atualizar a ligação"),
+  });
+
 
   const periods = useMemo(
     () => Array.from(new Set((rows || []).map((r) => r.reference_period))),
