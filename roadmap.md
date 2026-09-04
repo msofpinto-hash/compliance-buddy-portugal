@@ -40,3 +40,5 @@
 - [x] Extração de relações forçada para esses diplomas (sem referências a diplomas existentes na base)
 - [x] Biblioteca: filtro e badge "Requisitos por avaliar" por diploma
 - [ ] VCL mensal sem plano de auditoria (só atas): remover UI/fluxo de plano em AuditPlanDetailsDialog e afins
+- [ ] VCL: remover botões "Aprovar Plano"/"Solicitar Alterações" das verificações mensais (só atas)
+- [ ] Relatório VCL: incluir lista de diplomas já classificados no mês com a classificação escolhida
