@@ -31,6 +31,8 @@ import {
   Menu,
   Gavel,
   ClipboardCheck,
+  BookMarked,
+
   FolderOpen,
   BarChart3,
   User,
@@ -61,6 +63,8 @@ import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
 import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDialog";
+import { StandardsControlPanel } from "@/components/client/StandardsControlPanel";
+
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
 
@@ -312,7 +316,10 @@ export default function Dashboard() {
   );
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
-  const [auditSection, setAuditSection] = useState<"plano" | "historico">(
+  const [auditSection, setAuditSection] = useState<
+    "plano" | "historico" | "normas"
+  >(
+
     "plano",
   );
   const [auditTypeFilter, setAuditTypeFilter] = useState<
@@ -1552,6 +1559,16 @@ export default function Dashboard() {
                   <ClipboardCheck className="h-4 w-4" />
                   Histórico de auditorias
                 </Button>
+                <Button
+                  variant={auditSection === "normas" ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAuditSection("normas")}
+                >
+                  <BookMarked className="h-4 w-4" />
+                  Controlo de normas
+                </Button>
+
                 <div className="ml-auto flex items-center gap-2">
                   <span className="text-xs text-muted-foreground hidden sm:inline">
                     Tipo
@@ -1853,7 +1870,18 @@ export default function Dashboard() {
                 );
               })()}
 
+              {/* Standards Control Section */}
+              <div
+                className={auditSection === "normas" ? "" : "hidden"}
+              >
+                <StandardsControlPanel
+                  organizationId={selectedOrgId || organizationIds[0]}
+                  canEdit={isAdmin}
+                />
+              </div>
+
               {/* Audit History Section */}
+
               <div
                 className={`space-y-4 ${auditSection === "historico" ? "" : "hidden"}`}
               >
