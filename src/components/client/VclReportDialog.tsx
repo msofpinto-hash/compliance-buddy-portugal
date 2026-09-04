@@ -26,6 +26,7 @@ import {
   vclPeriodLabel,
   VclDiploma,
 } from "@/lib/vclReport";
+import { buildVclAutofill, syncVclActionsToPlans } from "@/lib/vclAutomation";
 
 type Audit = {
   id: string;
@@ -69,53 +70,49 @@ export function VclReportDialog({
     if (!audit) return;
     const parsed = parseVclReport(audit.vcl_report);
     setReport(parsed);
-    // Prefill from the audit plan whenever the report is still empty
+    // Preenchimento automático com base nas atas reais anteriores
     (async () => {
-      const isEmpty =
-        !parsed.participants &&
-        !parsed.description &&
-        !parsed.conclusions &&
-        parsed.actions.length === 0;
-      if (!isEmpty) return;
       const { data } = await supabase
         .from("audits")
         .select(
-          "interlocutors, methodology, scope, objectives, description, findings, conclusion_note, executive_summary, audit_date, executed_at",
+          "interlocutors, methodology, scope, objectives, description, findings, conclusion_note, executive_summary",
         )
         .eq("id", audit.id)
         .maybeSingle();
-      if (!data) return;
-      const { data: plans } = await supabase
-        .from("action_plans")
-        .select("title, description, responsible, due_date")
-        .eq("organization_id", audit.organization_id)
-        .ilike("title", `%${audit.title}%`);
-      setReport((r) => ({
-        ...r,
-        participants: r.participants || data.interlocutors || "",
-        description:
-          r.description ||
-          [data.description, data.objectives, data.methodology, data.scope]
+
+      const planPatch: Partial<VclReport> = {};
+      if (data) {
+        if (!parsed.participants && data.interlocutors)
+          planPatch.participants = data.interlocutors;
+        if (!parsed.description) {
+          const desc = [
+            data.description,
+            data.objectives,
+            data.methodology,
+            data.scope,
+          ]
             .filter(Boolean)
-            .join("\n\n"),
-        conclusions:
-          r.conclusions ||
-          data.conclusion_note ||
-          data.executive_summary ||
-          data.findings ||
-          "",
-        actions: r.actions.length
-          ? r.actions
-          : (plans || []).map((p: any) => ({
-              description: p.description || p.title || "",
-              responsible: p.responsible || "",
-              deadline: p.due_date
-                ? new Date(p.due_date).toLocaleDateString("pt-PT")
-                : "",
-            })),
-      }));
+            .join("\n\n");
+          if (desc) planPatch.description = desc;
+        }
+        if (!parsed.conclusions) {
+          const c =
+            data.conclusion_note ||
+            data.executive_summary ||
+            data.findings ||
+            "";
+          if (c) planPatch.conclusions = c;
+        }
+      }
+
+      const auto = await buildVclAutofill(audit, {
+        ...parsed,
+        ...planPatch,
+      } as VclReport);
+      setReport((r) => ({ ...r, ...planPatch, ...auto }));
     })();
   }, [audit]);
+
 
   useEffect(() => {
     if (!audit || !open) return;
@@ -238,6 +235,22 @@ export function VclReportDialog({
       });
       return;
     }
+    try {
+      const sync = await syncVclActionsToPlans(audit, report);
+      if (sync.created || sync.updated) {
+        toast({
+          title: "Ações enviadas para o Plano de Ações",
+          description: `${sync.created} nova(s), ${sync.updated} atualizada(s) — com a origem identificada.`,
+        });
+      }
+    } catch (e: any) {
+      toast({
+        title: "Ações não foram sincronizadas",
+        description: e?.message || String(e),
+        variant: "destructive",
+      });
+    }
+
     if (alsoPdf) {
       try {
         const name = await generateAndAttachVclPdf(audit, report);

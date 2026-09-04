@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
-import { attachVclReportIfMonthly } from "@/lib/vclReport";
+import { attachVclReportIfMonthly, parseVclReport } from "@/lib/vclReport";
+import { syncVclActionsToPlans } from "@/lib/vclAutomation";
 import { VclReportDialog } from "@/components/client/VclReportDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +47,8 @@ import {
   Paperclip,
   RotateCcw,
   FileText,
+  ChevronDown,
+  ChevronUp,
 
 } from "lucide-react";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
@@ -258,6 +261,13 @@ export function AuditTrackingPanel({
         if (planError) throw planError;
       }
 
+      if ((conclusionFor.audit_type || "anual") === "mensal" && conclusionFor.vcl_report) {
+        await syncVclActionsToPlans(
+          conclusionFor as any,
+          parseVclReport(conclusionFor.vcl_report),
+          user?.id,
+        );
+      }
       await attachVclReportIfMonthly(conclusionFor.id);
       const snap = await attachStandardsSnapshotIfMonthly(conclusionFor.id);
       if (snap) {
@@ -282,7 +292,7 @@ export function AuditTrackingPanel({
     }
   };
 
-  const [docsFor, setDocsFor] = useState<AuditRow | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [vclFor, setVclFor] = useState<AuditRow | null>(null);
 
   const orgName = (id: string) =>
@@ -372,7 +382,8 @@ export function AuditTrackingPanel({
                     const nc = linkage?.ncByAudit?.[a.id]?.length || 0;
                     const plans = linkage?.plansByAudit?.[a.id] || 0;
                     return (
-                      <TableRow key={a.id} className="align-top">
+                      <Fragment key={a.id}>
+                        <TableRow className="align-top">
                         <TableCell className="text-sm font-medium">
                           {a.title}
                           {organizations.length > 1 && (
@@ -445,12 +456,19 @@ export function AuditTrackingPanel({
                         <TableCell>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant={expanded === a.id ? "secondary" : "outline"}
                             className="h-7 text-[11px] gap-1"
-                            onClick={() => setDocsFor(a)}
+                            onClick={() =>
+                              setExpanded(expanded === a.id ? null : a.id)
+                            }
                           >
                             <Paperclip className="h-3 w-3" />
-                            Atas
+                            Documentos
+                            {expanded === a.id ? (
+                              <ChevronUp className="h-3 w-3" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3" />
+                            )}
                           </Button>
                           {(a.audit_type || "anual") === "mensal" && (
                             <Button
@@ -464,6 +482,7 @@ export function AuditTrackingPanel({
                             </Button>
                           )}
                         </TableCell>
+
                         {isAdmin && (
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
@@ -501,8 +520,22 @@ export function AuditTrackingPanel({
                             </div>
                           </TableCell>
                         )}
-                      </TableRow>
+                        </TableRow>
+                        {expanded === a.id && (
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell colSpan={isAdmin ? 10 : 9} className="p-4">
+                              <AuditDocumentsList
+                                auditId={a.id}
+                                variant="plain"
+                                allowUpload={isAdmin}
+                                uploadLabel="Anexar ata / documentos"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
                     );
+
                   })}
                 </TableBody>
               </Table>
@@ -582,27 +615,6 @@ export function AuditTrackingPanel({
         onSaved={refresh}
       />
 
-      <Dialog open={!!docsFor} onOpenChange={(o) => !o && setDocsFor(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-base">
-              Atas e anexos — {docsFor?.title}
-            </DialogTitle>
-            <DialogDescription>
-              Documentação associada a esta verificação (atas mensais,
-              relatórios e evidências).
-            </DialogDescription>
-          </DialogHeader>
-          {docsFor && (
-            <AuditDocumentsList
-              auditId={docsFor.id}
-              variant="plain"
-              allowUpload
-              uploadLabel="Anexar ata / documentos"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
