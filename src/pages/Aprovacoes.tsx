@@ -119,10 +119,13 @@ export default function Aprovacoes() {
     },
   });
 
-  const pendingPlans = (audits ?? []).filter(
+  // As VCL mensais não têm plano de auditoria — só atas. Por isso não entram
+  // no circuito de aprovação de planos.
+  const planCandidates = (audits ?? []).filter((a) => a.audit_type !== "mensal");
+  const pendingPlans = planCandidates.filter(
     (a) => a.status === "planned" && !a.plan_approved_at,
   );
-  const approvedPlans = (audits ?? []).filter(
+  const approvedPlans = planCandidates.filter(
     (a) => a.status === "planned" && !!a.plan_approved_at,
   );
   const pendingReports = (audits ?? []).filter((a) => a.status === "pending_approval");
