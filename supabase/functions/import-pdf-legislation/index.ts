@@ -115,8 +115,10 @@ function parsePdfContent(content: string): ParsedLegislation[] {
     'Declaração de Retificação'
   ];
   
-  // EU Diploma types  
+  // EU Diploma types - only explicit European instruments
   const euTypes = [
+    'Comunicação',
+    'Comunicação \\(UE\\)',
     'Regulamento Delegado \\(UE\\)',
     'Regulamento de Execução \\(UE\\)',
     'Regulamento \\(UE\\)',
@@ -124,10 +126,12 @@ function parsePdfContent(content: string): ParsedLegislation[] {
     'Retificação do Regulamento \\(UE\\)',
     'Retificação do Regulamento \\(CE\\)',
     'Diretiva \\(UE\\)',
-    'Diretiva',
+    'Diretiva Delegada \\(UE\\)',
     'Decisão \\(UE\\)',
     'Decisão de Execução \\(UE\\)',
-    'Recomendação \\(UE\\)'
+    'Decisão Delegada \\(UE\\)',
+    'Recomendação \\(UE\\)',
+    'Recomendação da Comissão \\(UE\\)'
   ];
   
   // Combined regex to find all diplomas
