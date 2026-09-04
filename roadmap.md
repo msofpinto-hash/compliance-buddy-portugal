@@ -58,4 +58,4 @@
 - [ ] Novo menu de topo "Normas, Despachos e Notas Técnicas" ao lado de Legislação (estrutura semelhante à Biblioteca), retirando-o de dentro das Auditorias
 - [ ] Verificar PDF VCL de julho com os dois logótipos (AMCOR + I&D) após correção do asset
 
-- [ ] Calendário de auditorias: remover listagem duplicada abaixo do calendário; clique no evento vai para o tipo respetivo
+- [x] Calendário de auditorias: remover listagem duplicada abaixo do calendário; clique no evento vai para o tipo respetivo
