@@ -39,3 +39,4 @@
 - [x] Resolver manualmente os URLs dos 5 diplomas sem link (DRE) e reextrair requisitos (275 novos)
 - [x] Extração de relações forçada para esses diplomas (sem referências a diplomas existentes na base)
 - [x] Biblioteca: filtro e badge "Requisitos por avaliar" por diploma
+- [ ] VCL mensal sem plano de auditoria (só atas): remover UI/fluxo de plano em AuditPlanDetailsDialog e afins
