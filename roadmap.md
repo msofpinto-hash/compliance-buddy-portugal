@@ -51,3 +51,4 @@
 - [x] Remover o submenu "Atas mensais"; documentos passam a estar em cada linha do Acompanhamento mensal
 - [x] Preenchimento automático dos relatórios VCL a partir das atas PDF
 - [x] Anexar documentos por mês (exceto relatórios VCL mensais)
+- [ ] Reabrir VCL de julho 2026 para edição
