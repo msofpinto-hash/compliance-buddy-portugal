@@ -314,15 +314,28 @@ export function buildVclPdf(
     }
   }
 
-  // ---- Page numbers -------------------------------------------------------
+  // ---- Footer -------------------------------------------------------------
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
+    doc.setDrawColor(200, 208, 220);
+    doc.setLineWidth(0.6);
+    doc.line(margin, height - 42, width - margin, height - 42);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...TEXT);
-    doc.text(String(p), margin, height - 28);
+    doc.setFontSize(8);
+    doc.setTextColor(120, 128, 140);
+    doc.text(
+      [orgName, `Verificação de Conformidade Legal Mensal — ${vclShortPeriod(audit)}`]
+        .filter(Boolean)
+        .join("  |  "),
+      margin,
+      height - 28,
+    );
+    doc.text(`${p} / ${pages}`, width - margin, height - 28, {
+      align: "right",
+    });
   }
+
 
   return doc.output("blob");
 }
