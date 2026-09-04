@@ -1918,17 +1918,13 @@ export default function Dashboard() {
                 );
               })()}
 
-              {/* Standards Control Section */}
+              {/* Evidências de conformidade */}
               <div
-                className={
-                  auditSection === "acompanhamento" ? "" : "hidden"
-                }
+                className={auditSection === "evidencias" ? "" : "hidden"}
               >
-                <AuditTrackingPanel
-                  organizationIds={organizationIds}
-                  organizations={organizations as any}
-                  typeFilter={auditTypeFilter}
-                />
+                {currentOrg?.id && (
+                  <EvidenceRequestsPanel organizationId={currentOrg.id} />
+                )}
               </div>
 
               <div
@@ -1940,11 +1936,12 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* Audit History Section */}
+              {/* Relatórios anuais / Atas mensais */}
 
               <div
-                className={`space-y-4 ${auditSection === "historico" ? "" : "hidden"}`}
+                className={`space-y-4 ${auditSection === "relatorios" || auditSection === "atas" ? "" : "hidden"}`}
               >
+
 
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-center gap-3">
