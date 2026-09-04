@@ -225,10 +225,6 @@ export function AuditTrackingPanel({
                 </TableHeader>
                 <TableBody>
                   {rows.map((a) => {
-                    const stage = stageOf(a);
-                    const nc = linkage?.ncByAudit?.[a.id]?.length || 0;
-                    const plans = linkage?.plansByAudit?.[a.id] || 0;
-                    return (
                       <Fragment key={a.id}>
                         <TableRow className="align-top">
                         <TableCell className="text-sm font-medium">
@@ -324,71 +320,6 @@ export function AuditTrackingPanel({
           )}
         </CardContent>
       </Card>
-
-      <Dialog
-        open={!!conclusionFor}
-        onOpenChange={(o) => !o && setConclusionFor(null)}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5" />
-              Conclusões da auditoria
-            </DialogTitle>
-            <DialogDescription>
-              Registe as conclusões e indique se dão origem a plano de ação.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Conclusões / constatações</Label>
-              <Textarea
-                rows={4}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Conclusões da ata da verificação de conformidade legal..."
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <Checkbox
-                checked={noAction}
-                onCheckedChange={(v) => setNoAction(!!v)}
-              />
-              A ata não indica ações — concluir sem plano de ação
-            </label>
-            {!noAction && (
-              <div className="space-y-3 rounded-lg border p-3">
-                <div>
-                  <Label>Título do plano de ação</Label>
-                  <Input
-                    value={planTitle}
-                    onChange={(e) => setPlanTitle(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Prazo (opcional)</Label>
-                  <Input
-                    type="date"
-                    value={planDue}
-                    onChange={(e) => setPlanDue(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConclusionFor(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={saveConclusion} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Concluir auditoria
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <VclReportDialog
         audit={vclFor as any}
         open={!!vclFor}
         onOpenChange={(o) => !o && setVclFor(null)}
