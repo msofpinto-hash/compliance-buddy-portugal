@@ -509,8 +509,22 @@ export function AuditTrackingPanel({
                             </div>
                           </TableCell>
                         )}
-                      </TableRow>
+                        </TableRow>
+                        {expanded === a.id && (
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell colSpan={isAdmin ? 10 : 9} className="p-4">
+                              <AuditDocumentsList
+                                auditId={a.id}
+                                variant="plain"
+                                allowUpload={isAdmin}
+                                uploadLabel="Anexar ata / documentos"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
                     );
+
                   })}
                 </TableBody>
               </Table>
