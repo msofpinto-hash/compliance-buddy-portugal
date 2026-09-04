@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -182,6 +182,17 @@ export function StandardsControlPanel({
   const [newPeriodDate, setNewPeriodDate] = useState("");
   const [copyPrevious, setCopyPrevious] = useState(true);
   const [linkingRow, setLinkingRow] = useState<StandardRow | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const hScrollRef = useRef<HTMLDivElement>(null);
+
+  const syncHorizontalScroll = (source: HTMLDivElement | null) => {
+    if (!source) return;
+    const target =
+      source === tableScrollRef.current ? hScrollRef.current : tableScrollRef.current;
+    if (target && target.scrollLeft !== source.scrollLeft) {
+      target.scrollLeft = source.scrollLeft;
+    }
+  };
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["standards-control", organizationId],
@@ -712,7 +723,11 @@ export function StandardsControlPanel({
               Sem registos para os filtros selecionados.
             </p>
           ) : (
-            <div className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain">
+            <div
+              ref={tableScrollRef}
+              className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain relative"
+              onScroll={() => syncHorizontalScroll(tableScrollRef.current)}
+            >
               <Table
                 className="w-full table-fixed"
                 style={{ minWidth: `${tableMinWidth}px` }}
@@ -912,6 +927,14 @@ export function StandardsControlPanel({
                   ))}
                 </TableBody>
               </Table>
+              <div
+                ref={hScrollRef}
+                className="sticky bottom-0 left-0 right-0 h-5 overflow-x-auto overflow-y-hidden bg-muted/80 border-t z-30"
+                onScroll={() => syncHorizontalScroll(hScrollRef.current)}
+                aria-label="Scroll horizontal fixo"
+              >
+                <div style={{ width: `${tableMinWidth}px`, height: "1px" }} />
+              </div>
             </div>
           )}
         </CardContent>
