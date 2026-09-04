@@ -532,7 +532,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [diplomaTypeFilter, setDiplomaTypeFilter] = useState<string | null>(null);
   const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
   const [pendingRequirementsOnly, setPendingRequirementsOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
+  const [sortBy, setSortBy] = useState<"date" | "title" | "number" | "pending">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<50 | 100>(50);
@@ -797,6 +797,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               ? partsA.year - partsB.year 
               : partsA.num - partsB.num;
             break;
+          case "pending":
+            comparison = (pendingRequirementsMap?.[a.id] || 0) - (pendingRequirementsMap?.[b.id] || 0);
+            break;
         }
         
         return sortOrder === "asc" ? comparison : -comparison;
@@ -804,7 +807,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     }
     
     return result;
-  }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation, sortBy, sortOrder]);
+  }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation, sortBy, sortOrder, pendingRequirementsMap]);
 
   // Pagination
   const totalPages = Math.ceil(displayedLegislation.length / pageSize);
@@ -1343,7 +1346,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 )}
 
                 {/* Sort controls */}
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number")}>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number" | "pending")}>
                   <SelectTrigger className="h-8 text-xs w-[130px]">
                     <ArrowUpDown className="h-3 w-3 mr-1" />
                     <SelectValue />
@@ -1352,6 +1355,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     <SelectItem value="date">Data publicação</SelectItem>
                     <SelectItem value="title">Título</SelectItem>
                     <SelectItem value="number">Número</SelectItem>
+                    {pendingRequirementsMap && (
+                      <SelectItem value="pending">Requisitos por avaliar</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
 
@@ -1769,7 +1775,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               {/* Sort and Export controls */}
               {displayedLegislation.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number")}>
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number" | "pending")}>
                     <SelectTrigger className="h-7 text-xs w-[130px]">
                       <ArrowUpDown className="h-3 w-3 mr-1" />
                       <SelectValue />
@@ -1778,6 +1784,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                       <SelectItem value="date">Data publicação</SelectItem>
                       <SelectItem value="title">Título</SelectItem>
                       <SelectItem value="number">Número</SelectItem>
+                      {pendingRequirementsMap && (
+                        <SelectItem value="pending">Requisitos por avaliar</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <Button
