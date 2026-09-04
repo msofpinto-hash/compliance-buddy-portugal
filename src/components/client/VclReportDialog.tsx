@@ -58,6 +58,12 @@ export function VclReportDialog({
   const [poolLoading, setPoolLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [onlyPeriod, setOnlyPeriod] = useState(true);
+  const [classFilter, setClassFilter] = useState<string[]>([
+    "aplicavel_direto",
+    "aplicavel_indireto",
+    "informativo",
+    "nao_aplicavel",
+  ]);
 
   useEffect(() => {
     if (!audit) return;
