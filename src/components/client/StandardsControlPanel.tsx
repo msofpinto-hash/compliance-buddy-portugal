@@ -737,8 +737,8 @@ export function StandardsControlPanel({
               className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain relative"
               onScroll={() => syncHorizontalScroll(tableScrollRef.current)}
             >
-              <Table
-                className="w-full table-fixed"
+              <table
+                className="w-full table-fixed caption-bottom text-sm"
                 style={{ minWidth: `${tableMinWidth}px` }}
               >
                 <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
@@ -935,7 +935,7 @@ export function StandardsControlPanel({
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </table>
             </div>
             </>
           )}
