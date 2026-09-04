@@ -712,7 +712,7 @@ export function StandardsControlPanel({
               Sem registos para os filtros selecionados.
             </p>
           ) : (
-            <div className="max-h-[70vh] overflow-auto scrollbar-thin">
+            <div className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain">
               <Table
                 className="w-full table-fixed"
                 style={{ minWidth: `${tableMinWidth}px` }}

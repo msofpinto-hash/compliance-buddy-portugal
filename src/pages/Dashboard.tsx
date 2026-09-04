@@ -1897,7 +1897,7 @@ export default function Dashboard() {
               </div>
 
               <div
-                className={`overflow-x-auto ${auditSection === "normas" ? "" : "hidden"}`}
+                className={auditSection === "normas" ? "" : "hidden"}
               >
                 <StandardsControlPanel
                   organizationId={selectedOrgId || organizationIds[0]}
