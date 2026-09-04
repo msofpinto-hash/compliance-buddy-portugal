@@ -59,3 +59,8 @@
 - [ ] Verificar PDF VCL de julho com os dois logótipos (AMCOR + I&D) após correção do asset
 
 - [x] Calendário de auditorias: remover listagem duplicada abaixo do calendário; clique no evento vai para o tipo respetivo
+
+## 2026-09-04
+- [x] Menu Normas, Despachos e Notas Técnicas (página /normas ordenada por data, com ligações)
+- [ ] Normas: ao clicar num documento, mostrar todos os campos do Excel (descritivo, ações, responsável, prazo, estado, ISO, aplicabilidade, auditorias)
+- [~] Correção global da legislação (URLs, categorias, requisitos, metadados) a correr em segundo plano
