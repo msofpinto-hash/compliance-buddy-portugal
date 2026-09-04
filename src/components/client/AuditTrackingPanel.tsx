@@ -2,7 +2,8 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
-import { attachVclReportIfMonthly } from "@/lib/vclReport";
+import { attachVclReportIfMonthly, parseVclReport } from "@/lib/vclReport";
+import { syncVclActionsToPlans } from "@/lib/vclAutomation";
 import { VclReportDialog } from "@/components/client/VclReportDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -260,6 +261,13 @@ export function AuditTrackingPanel({
         if (planError) throw planError;
       }
 
+      if ((conclusionFor.audit_type || "anual") === "mensal" && conclusionFor.vcl_report) {
+        await syncVclActionsToPlans(
+          conclusionFor as any,
+          parseVclReport(conclusionFor.vcl_report),
+          user?.id,
+        );
+      }
       await attachVclReportIfMonthly(conclusionFor.id);
       const snap = await attachStandardsSnapshotIfMonthly(conclusionFor.id);
       if (snap) {
