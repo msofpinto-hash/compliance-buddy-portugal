@@ -62,7 +62,7 @@ type StandardRow = {
 };
 
 
-type GroupKey = "normas" | "despachos" | "notas" | "outros";
+type GroupKey = "normas" | "despachos" | "circulares" | "notas" | "outros";
 
 const GROUPS: {
   key: GroupKey;
@@ -80,7 +80,13 @@ const GROUPS: {
     key: "despachos",
     label: "Despachos",
     icon: ScrollText,
-    hint: "Despachos, circulares e orientações de entidades",
+    hint: "Despachos e orientações de entidades",
+  },
+  {
+    key: "circulares",
+    label: "Circulares APA",
+    icon: Mail,
+    hint: "Circulares informativas da APA",
   },
   {
     key: "notas",
