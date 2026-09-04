@@ -123,9 +123,9 @@ export function VclReportDialog({
     (async () => {
       setPoolLoading(true);
       const ref = new Date(audit.executed_at || audit.audit_date || Date.now());
-      // período analisado = mês anterior ao da verificação
-      const start = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
-      const end = new Date(ref.getFullYear(), ref.getMonth(), 0);
+      // período analisado = o próprio mês da verificação (VCL de julho = julho)
+      const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
       const { data } = await supabase
         .from("organization_legislation")
         .select(
