@@ -723,6 +723,15 @@ export function StandardsControlPanel({
               Sem registos para os filtros selecionados.
             </p>
           ) : (
+            <>
+            <div
+              ref={hScrollRef}
+              className="h-4 overflow-x-auto overflow-y-hidden bg-muted/60 border rounded-t"
+              onScroll={() => syncHorizontalScroll(hScrollRef.current)}
+              aria-label="Scroll horizontal da tabela"
+            >
+              <div style={{ width: `${tableMinWidth}px`, height: "1px" }} />
+            </div>
             <div
               ref={tableScrollRef}
               className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain relative"
@@ -927,15 +936,8 @@ export function StandardsControlPanel({
                   ))}
                 </TableBody>
               </Table>
-              <div
-                ref={hScrollRef}
-                className="sticky bottom-0 left-0 right-0 h-5 overflow-x-auto overflow-y-hidden bg-muted/80 border-t z-30"
-                onScroll={() => syncHorizontalScroll(hScrollRef.current)}
-                aria-label="Scroll horizontal fixo"
-              >
-                <div style={{ width: `${tableMinWidth}px`, height: "1px" }} />
-              </div>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
