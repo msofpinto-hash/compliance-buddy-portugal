@@ -144,8 +144,7 @@ export default function Normas() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [group, setGroup] = useState<GroupKey | "todos">("todos");
   const [search, setSearch] = useState("");
-  
-  const [sortDesc, setSortDesc] = useState(true);
+  const [sortMode, setSortMode] = useState<"pub-desc" | "pub-asc" | "name-asc">("pub-desc");
   const [detailRow, setDetailRow] = useState<StandardRow | null>(null);
   const [linkRow, setLinkRow] = useState<StandardRow | null>(null);
   const [linkValue, setLinkValue] = useState("");
