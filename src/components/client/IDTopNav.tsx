@@ -55,13 +55,6 @@ const ALL_MODULES: NavItem[] = [
     href: "/dashboard?tab=audits&sec=plano",
   },
   {
-    id: "mensais",
-    moduleKey: "auditorias",
-    label: "Acompanhamentos mensais",
-    icon: FolderOpen,
-    href: "/dashboard?tab=monthly",
-  },
-  {
     id: "planos_acao",
     moduleKey: "planos_acao",
     label: "Planos de Ação",
