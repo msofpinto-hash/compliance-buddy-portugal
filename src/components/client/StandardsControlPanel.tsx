@@ -763,7 +763,7 @@ export function StandardsControlPanel({
                         Auditorias afetadas
                       </TableHead>
                     )}
-                    <TableHead className="w-[110px]">Ações</TableHead>
+                    <TableHead className="w-[110px] sticky right-0 z-30 bg-background shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
