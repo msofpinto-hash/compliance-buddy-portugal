@@ -108,11 +108,12 @@ function parsePdfContent(content: string): ParsedLegislation[] {
     }
   }
   
-  // PT Diploma types
+  // PT Diploma types (includes ambiguous types that may also appear in EU form)
   const ptTypes = [
     'Portaria', 'Lei', 'Decreto-Lei', 'Decreto', 'Despacho', 
     'Resolução', 'Declaração', 'Aviso', 'Acórdão', 'Deliberação',
-    'Declaração de Retificação'
+    'Declaração de Retificação',
+    'Diretiva', 'Decisão', 'Recomendação', 'Regulamento'
   ];
   
   // EU Diploma types - only explicit European instruments
