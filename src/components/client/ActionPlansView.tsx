@@ -1896,6 +1896,14 @@ export function ActionPlansView({
                         >
                           {typeInfo.icon} {typeInfo.label}
                         </Badge>
+                        {plan.audit_requirements?.audits?.title && (
+                          <div
+                            className="text-[11px] text-muted-foreground mt-1 max-w-[220px] truncate"
+                            title={plan.audit_requirements.audits.title}
+                          >
+                            Origem: {plan.audit_requirements.audits.title}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
