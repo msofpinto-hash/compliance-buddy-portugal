@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
@@ -46,6 +46,8 @@ import {
   Paperclip,
   RotateCcw,
   FileText,
+  ChevronDown,
+  ChevronUp,
 
 } from "lucide-react";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
@@ -282,7 +284,7 @@ export function AuditTrackingPanel({
     }
   };
 
-  const [docsFor, setDocsFor] = useState<AuditRow | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [vclFor, setVclFor] = useState<AuditRow | null>(null);
 
   const orgName = (id: string) =>
@@ -372,7 +374,8 @@ export function AuditTrackingPanel({
                     const nc = linkage?.ncByAudit?.[a.id]?.length || 0;
                     const plans = linkage?.plansByAudit?.[a.id] || 0;
                     return (
-                      <TableRow key={a.id} className="align-top">
+                      <Fragment key={a.id}>
+                        <TableRow className="align-top">
                         <TableCell className="text-sm font-medium">
                           {a.title}
                           {organizations.length > 1 && (
@@ -604,27 +607,6 @@ export function AuditTrackingPanel({
         onSaved={refresh}
       />
 
-      <Dialog open={!!docsFor} onOpenChange={(o) => !o && setDocsFor(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-base">
-              Atas e anexos — {docsFor?.title}
-            </DialogTitle>
-            <DialogDescription>
-              Documentação associada a esta verificação (atas mensais,
-              relatórios e evidências).
-            </DialogDescription>
-          </DialogHeader>
-          {docsFor && (
-            <AuditDocumentsList
-              auditId={docsFor.id}
-              variant="plain"
-              allowUpload
-              uploadLabel="Anexar ata / documentos"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
