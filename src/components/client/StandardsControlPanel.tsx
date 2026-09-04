@@ -824,14 +824,21 @@ export function StandardsControlPanel({
                       )}
                       {showCol("iso14001") && (
                         <TableCell className="text-center text-xs whitespace-nowrap">
-                          {r.impact_iso_14001 ? "x" : ""}
+                          <span aria-hidden="true">{r.impact_iso_14001 ? "x" : ""}</span>
+                          <span className="sr-only">
+                            {r.impact_iso_14001 ? "Impacta a ISO 14001" : "Sem impacto na ISO 14001"}
+                          </span>
                         </TableCell>
                       )}
                       {showCol("iso45001") && (
                         <TableCell className="text-center text-xs whitespace-nowrap">
-                          {r.impact_iso_45001 ? "x" : ""}
+                          <span aria-hidden="true">{r.impact_iso_45001 ? "x" : ""}</span>
+                          <span className="sr-only">
+                            {r.impact_iso_45001 ? "Impacta a ISO 45001" : "Sem impacto na ISO 45001"}
+                          </span>
                         </TableCell>
                       )}
+
                       {showCol("applicability") && (
                         <TableCell className="space-y-1 whitespace-nowrap">
                           {r.applicability_direct && (
