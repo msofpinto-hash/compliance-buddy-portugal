@@ -152,7 +152,7 @@ export async function buildVclPdf(
   };
   const [orgLogo, idLogo] = await Promise.all([
     orgLogoUrl ? toDataUrl(orgLogoUrl) : Promise.resolve(null),
-    toDataUrl(idLogoAsset.url),
+    toDataUrl(idLogoUrl),
   ]);
   drawLogo(orgLogo, margin);
   drawLogo(idLogo, width - margin, true);
