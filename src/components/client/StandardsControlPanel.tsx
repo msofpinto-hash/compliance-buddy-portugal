@@ -912,8 +912,9 @@ export function StandardsControlPanel({
                               variant="ghost"
                               className="h-6 px-1 text-[11px] gap-1"
                               onClick={() => setLinkingRow(r)}
+                              aria-label={`Ligar auditorias ao registo ${r.document_ref || r.document_name || ""}`}
                             >
-                              <Link2 className="h-3 w-3" />
+                              <Link2 className="h-3 w-3" aria-hidden="true" />
                               Ligar
                             </Button>
                           )}
@@ -926,12 +927,13 @@ export function StandardsControlPanel({
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7"
+                            aria-label={`Ver histórico de alterações de ${r.document_ref || r.document_name || "registo"}`}
                             onClick={() => {
                               setHistoryFor(r.id);
                               setHistoryOpen(true);
                             }}
                           >
-                            <History className="h-3.5 w-3.5" />
+                            <History className="h-3.5 w-3.5" aria-hidden="true" />
                           </Button>
                           {canEdit && (
                             <>
@@ -939,22 +941,25 @@ export function StandardsControlPanel({
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7"
+                                aria-label={`Editar ${r.document_ref || r.document_name || "registo"}`}
                                 onClick={() => setEditing(r)}
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7 text-destructive"
+                                aria-label={`Eliminar ${r.document_ref || r.document_name || "registo"}`}
                                 onClick={() => deleteRow.mutate(r.id)}
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                               </Button>
                             </>
                           )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
