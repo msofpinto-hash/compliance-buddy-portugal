@@ -291,7 +291,13 @@ export function VclReportDialog({
           .eq("id", audit.id);
       }
 
-      const blob = buildVclPdf(audit, report);
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("name, logo_url")
+        .eq("id", audit.organization_id)
+        .maybeSingle();
+
+      const blob = await buildVclPdf(audit, report, org?.name, org?.logo_url);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

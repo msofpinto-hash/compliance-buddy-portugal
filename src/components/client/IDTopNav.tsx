@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import logoId from "@/assets/id-compliance-lex.png.asset.json";
+import logoIdUrl from "@/assets/logo-id-compliance.jpg";
 
 type ModuleType =
   "legislacao" | "planos_acao" | "auditorias" | "documentos" | "indicadores";
@@ -141,12 +141,12 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
         <div className="flex flex-col min-w-0">
           <Link to="/dashboard" className="shrink-0">
             <img
-              src={currentOrg?.logo_url || logoId.url}
+              src={currentOrg?.logo_url || logoIdUrl}
               alt={
                 currentOrg?.logo_url ? currentOrg.name : "I&D Compliance Lex"
               }
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = logoId.url;
+                (e.currentTarget as HTMLImageElement).src = logoIdUrl;
               }}
               className="h-9 lg:h-10 w-auto max-w-[240px] object-contain object-left"
             />

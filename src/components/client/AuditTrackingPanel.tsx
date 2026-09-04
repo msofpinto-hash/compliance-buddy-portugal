@@ -1,9 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
-import { attachVclReportIfMonthly, parseVclReport } from "@/lib/vclReport";
-import { syncVclActionsToPlans } from "@/lib/vclAutomation";
 import { VclReportDialog } from "@/components/client/VclReportDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -12,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -22,14 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -40,12 +27,9 @@ import {
 import {
   CalendarCheck,
   CheckCircle2,
-  ClipboardList,
   Loader2,
   PlayCircle,
-  ListChecks,
   Paperclip,
-  RotateCcw,
   FileText,
   ChevronDown,
   ChevronUp,
@@ -95,16 +79,10 @@ export function AuditTrackingPanel({
   organizations = [],
   typeFilter = "all",
 }: Props) {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [stageFilter, setStageFilter] = useState<"all" | StageKey>("all");
-  const [conclusionFor, setConclusionFor] = useState<AuditRow | null>(null);
-  const [note, setNote] = useState("");
-  const [noAction, setNoAction] = useState(false);
-  const [planTitle, setPlanTitle] = useState("");
-  const [planDue, setPlanDue] = useState("");
-  const [saving, setSaving] = useState(false);
 
   const { data: audits, isLoading } = useQuery({
     queryKey: ["audit-tracking", organizationIds],
@@ -120,43 +98,6 @@ export function AuditTrackingPanel({
       return (data || []) as AuditRow[];
     },
     enabled: organizationIds.length > 0,
-  });
-
-  // Non-conformities and linked action plans per audit
-  const { data: linkage } = useQuery({
-    queryKey: ["audit-tracking-linkage", organizationIds],
-    queryFn: async () => {
-      const ids = (audits || []).map((a) => a.id);
-      if (ids.length === 0) return { ncByAudit: {}, plansByAudit: {} } as any;
-      const { data: reqs } = await supabase
-        .from("audit_requirements")
-        .select("id, audit_id, compliance_status")
-        .in("audit_id", ids);
-      const ncByAudit: Record<string, string[]> = {};
-      const auditByReq: Record<string, string> = {};
-      (reqs || []).forEach((r: any) => {
-        auditByReq[r.id] = r.audit_id;
-        if (["non_compliant", "partial"].includes(r.compliance_status || "")) {
-          (ncByAudit[r.audit_id] ||= []).push(r.id);
-        }
-      });
-      const reqIds = Object.keys(auditByReq);
-      const plansByAudit: Record<string, number> = {};
-      if (reqIds.length > 0) {
-        for (let i = 0; i < reqIds.length; i += 200) {
-          const { data: plans } = await supabase
-            .from("action_plans")
-            .select("id, audit_requirement_id")
-            .in("audit_requirement_id", reqIds.slice(i, i + 200));
-          (plans || []).forEach((p: any) => {
-            const aid = auditByReq[p.audit_requirement_id];
-            if (aid) plansByAudit[aid] = (plansByAudit[aid] || 0) + 1;
-          });
-        }
-      }
-      return { ncByAudit, plansByAudit };
-    },
-    enabled: !!audits && audits.length > 0,
   });
 
   const rows = useMemo(() => {
@@ -186,110 +127,6 @@ export function AuditTrackingPanel({
     queryClient.invalidateQueries({ queryKey: ["audits-all"] });
     queryClient.invalidateQueries({ queryKey: ["audits"] });
     queryClient.invalidateQueries({ queryKey: ["action-plans"] });
-  };
-
-  const markExecuted = async (a: AuditRow) => {
-    const { error } = await supabase
-      .from("audits")
-      .update({
-        status: "in_progress",
-        executed_at: a.executed_at || new Date().toISOString().slice(0, 10),
-      })
-      .eq("id", a.id);
-    if (error) {
-      toast({ title: "Não foi possível registar", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Auditoria marcada como executada" });
-    refresh();
-  };
-
-  const reopen = async (a: AuditRow) => {
-    const { error } = await supabase
-      .from("audits")
-      .update({ status: "in_progress", approved_at: null })
-      .eq("id", a.id);
-    if (error) {
-      toast({ title: "Não foi possível reabrir", variant: "destructive" });
-      return;
-    }
-    toast({
-      title: "Verificação reaberta",
-      description: "Já pode anexar atas e editar as conclusões.",
-    });
-    refresh();
-  };
-
-
-  const openConclusion = (a: AuditRow) => {
-    setConclusionFor(a);
-    setNote(a.conclusion_note || a.findings || "");
-    setNoAction(!!a.no_action_required);
-    setPlanTitle(`Ação decorrente de: ${a.title}`);
-    setPlanDue("");
-  };
-
-  const saveConclusion = async () => {
-    if (!conclusionFor) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("audits")
-        .update({
-          conclusion_note: note || null,
-          no_action_required: noAction,
-          status: "closed",
-          executed_at:
-            conclusionFor.executed_at ||
-            conclusionFor.audit_date ||
-            new Date().toISOString().slice(0, 10),
-        })
-        .eq("id", conclusionFor.id);
-      if (error) throw error;
-
-      if (!noAction) {
-        const { error: planError } = await supabase
-          .from("action_plans")
-          .insert({
-            organization_id: conclusionFor.organization_id,
-            title: planTitle || `Ação decorrente de: ${conclusionFor.title}`,
-            description: note || conclusionFor.findings || "",
-            due_date: planDue || null,
-            status: "pendente",
-            created_by: user?.id,
-          });
-        if (planError) throw planError;
-      }
-
-      if ((conclusionFor.audit_type || "anual") === "mensal" && conclusionFor.vcl_report) {
-        await syncVclActionsToPlans(
-          conclusionFor as any,
-          parseVclReport(conclusionFor.vcl_report),
-          user?.id,
-        );
-      }
-      await attachVclReportIfMonthly(conclusionFor.id);
-      const snap = await attachStandardsSnapshotIfMonthly(conclusionFor.id);
-      if (snap) {
-        toast({
-          title: "Controlo de normas anexado",
-          description: `${snap.fileName} (${snap.rows} registos)`,
-        });
-      }
-
-      toast({
-        title: noAction
-          ? "Auditoria concluída sem ações"
-          : "Auditoria concluída e plano de ação criado",
-      });
-      setConclusionFor(null);
-      refresh();
-    } catch (e) {
-      console.error(e);
-      toast({ title: "Erro ao guardar conclusão", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
   };
 
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -368,14 +205,11 @@ export function AuditTrackingPanel({
                     <TableHead className="w-[100px]">Executada</TableHead>
                     <TableHead className="w-[120px]">Concluída</TableHead>
                     <TableHead className="w-[150px]">Documentos</TableHead>
-                    {isAdmin && <TableHead className="w-[190px]" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map((a) => {
                     const stage = stageOf(a);
-                    const nc = linkage?.ncByAudit?.[a.id]?.length || 0;
-                    const plans = linkage?.plansByAudit?.[a.id] || 0;
                     return (
                       <Fragment key={a.id}>
                         <TableRow className="align-top">
@@ -449,48 +283,10 @@ export function AuditTrackingPanel({
                             )}
                           </Button>
                         </TableCell>
-
-                        {isAdmin && (
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {stage === "agendada" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-[11px] gap-1"
-                                  onClick={() => markExecuted(a)}
-                                >
-                                  <PlayCircle className="h-3 w-3" />
-                                  Executada
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-[11px] gap-1"
-                                onClick={() => openConclusion(a)}
-                              >
-                                <ListChecks className="h-3 w-3" />
-                                Conclusões
-                              </Button>
-                              {stage === "concluida" && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 text-[11px] gap-1"
-                                  onClick={() => reopen(a)}
-                                >
-                                  <RotateCcw className="h-3 w-3" />
-                                  Reabrir
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
                         </TableRow>
                         {expanded === a.id && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={isAdmin ? 8 : 7} className="p-4">
+                            <TableCell colSpan={6} className="p-4">
                               <AuditDocumentsList
                                 auditId={a.id}
                                 variant="plain"
@@ -510,69 +306,6 @@ export function AuditTrackingPanel({
           )}
         </CardContent>
       </Card>
-
-      <Dialog
-        open={!!conclusionFor}
-        onOpenChange={(o) => !o && setConclusionFor(null)}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5" />
-              Conclusões da auditoria
-            </DialogTitle>
-            <DialogDescription>
-              Registe as conclusões e indique se dão origem a plano de ação.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Conclusões / constatações</Label>
-              <Textarea
-                rows={4}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Conclusões da ata da verificação de conformidade legal..."
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <Checkbox
-                checked={noAction}
-                onCheckedChange={(v) => setNoAction(!!v)}
-              />
-              A ata não indica ações — concluir sem plano de ação
-            </label>
-            {!noAction && (
-              <div className="space-y-3 rounded-lg border p-3">
-                <div>
-                  <Label>Título do plano de ação</Label>
-                  <Input
-                    value={planTitle}
-                    onChange={(e) => setPlanTitle(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Prazo (opcional)</Label>
-                  <Input
-                    type="date"
-                    value={planDue}
-                    onChange={(e) => setPlanDue(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConclusionFor(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={saveConclusion} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Concluir auditoria
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <VclReportDialog
         audit={vclFor as any}
