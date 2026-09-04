@@ -49,12 +49,18 @@ type StandardRow = {
   modification_date: string | null;
   issuer: string | null;
   descriptive: string | null;
+  actions: string | null;
+  responsible: string | null;
+  implementation_deadline: string | null;
   implementation_status: string | null;
+  impact_iso_14001: boolean;
+  impact_iso_45001: boolean;
   applicability_direct: boolean;
   applicability_indirect: boolean;
   applicability_informative: boolean;
   document_url: string | null;
 };
+
 
 type GroupKey = "normas" | "despachos" | "notas" | "outros";
 
