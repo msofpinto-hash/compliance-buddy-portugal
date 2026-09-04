@@ -1692,14 +1692,8 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div
-                className={auditSection === "normas" ? "" : "hidden"}
-              >
-                <StandardsControlPanel
-                  organizationId={selectedOrgId || organizationIds[0]}
-                  canEdit={isAdmin}
-                />
-              </div>
+
+
 
               {/* Relatórios anuais / Atas mensais */}
 
