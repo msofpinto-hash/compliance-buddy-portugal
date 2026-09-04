@@ -103,8 +103,9 @@ export default function LegislacaoRecente() {
       
       const [totalResult, ptResult, euResult, last30Result, last7Result] = await Promise.all([
         supabase.from("legislation").select("*", { count: "exact", head: true }),
-        supabase.from("legislation").select("*", { count: "exact", head: true }).eq("source", "dre"),
-        supabase.from("legislation").select("*", { count: "exact", head: true }).eq("source", "eurlex"),
+        supabase.from("legislation").select("*", { count: "exact", head: true }).in("origin", ["PT", "dre"]),
+        supabase.from("legislation").select("*", { count: "exact", head: true }).in("origin", ["EU", "eurlex"]),
+
         supabase.from("legislation").select("*", { count: "exact", head: true }).gte("publication_date", last30Days),
         supabase.from("legislation").select("*", { count: "exact", head: true }).gte("publication_date", last7Days),
       ]);
