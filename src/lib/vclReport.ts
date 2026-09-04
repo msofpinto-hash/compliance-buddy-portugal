@@ -425,9 +425,19 @@ export async function generateAndAttachVclPdf(
   audit: Audit,
   report: VclReport,
   orgName?: string,
+  orgLogoUrl?: string | null,
 ) {
+  if (orgName === undefined || orgLogoUrl === undefined) {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("name, logo_url")
+      .eq("id", audit.organization_id)
+      .maybeSingle();
+    orgName = orgName ?? org?.name;
+    orgLogoUrl = orgLogoUrl ?? org?.logo_url;
+  }
   await removeVclReportDocs(audit.id);
-  const blob = buildVclPdf(audit, report, orgName);
+  const blob = await buildVclPdf(audit, report, orgName, orgLogoUrl);
 
   const period = vclPeriodLabel(audit);
   const safe = period.replace(/[^\w]+/g, "_");
@@ -468,7 +478,7 @@ export async function attachVclReportIfMonthly(auditId: string) {
     const { data: audit } = await supabase
       .from("audits")
       .select(
-        "id, title, audit_type, audit_date, executed_at, organization_id, vcl_report, organizations(name)",
+        "id, title, audit_type, audit_date, executed_at, organization_id, vcl_report, organizations(name, logo_url)",
       )
       .eq("id", auditId)
       .maybeSingle();
@@ -476,10 +486,10 @@ export async function attachVclReportIfMonthly(auditId: string) {
     if ((audit.audit_type || "anual") !== "mensal") return null;
     if (!(audit as any).vcl_report) return null;
     return await generateAndAttachVclPdf(
-
       audit as any,
       parseVclReport((audit as any).vcl_report),
       (audit as any).organizations?.name,
+      (audit as any).organizations?.logo_url,
     );
   } catch (err) {
     console.error("vcl report pdf failed", err);
