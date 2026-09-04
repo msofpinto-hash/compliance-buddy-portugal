@@ -726,46 +726,66 @@ export function StandardsControlPanel({
             <>
             <div
               ref={hScrollRef}
-              className="h-2.5 overflow-x-auto overflow-y-hidden scrollbar-thin border-b bg-background rounded-t"
+              className="h-2.5 overflow-x-auto overflow-y-hidden scrollbar-thin border-b bg-background rounded-t focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onScroll={() => syncHorizontalScroll(hScrollRef.current)}
-              aria-label="Scroll horizontal da tabela"
+              role="scrollbar"
+              tabIndex={0}
+              aria-controls="standards-control-table"
+              aria-orientation="horizontal"
+              aria-label="Deslocar a tabela na horizontal (use as setas esquerda e direita)"
+              onKeyDown={(e) => {
+                const el = hScrollRef.current;
+                if (!el) return;
+                if (e.key === "ArrowRight") { e.preventDefault(); el.scrollLeft += 120; syncHorizontalScroll(el); }
+                if (e.key === "ArrowLeft") { e.preventDefault(); el.scrollLeft -= 120; syncHorizontalScroll(el); }
+                if (e.key === "Home") { e.preventDefault(); el.scrollLeft = 0; syncHorizontalScroll(el); }
+                if (e.key === "End") { e.preventDefault(); el.scrollLeft = el.scrollWidth; syncHorizontalScroll(el); }
+              }}
             >
               <div style={{ width: `${tableMinWidth}px`, height: "1px" }} />
             </div>
 
             <div
               ref={tableScrollRef}
-              className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain relative"
+              className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onScroll={() => syncHorizontalScroll(tableScrollRef.current)}
+              tabIndex={0}
+              role="region"
+              aria-label="Tabela de controlo de normas, despachos e notas técnicas (deslocável com as setas do teclado)"
             >
               <table
+                id="standards-control-table"
                 className="w-full table-fixed caption-bottom text-sm"
                 style={{ minWidth: `${tableMinWidth}px` }}
               >
+                <caption className="sr-only">
+                  Controlo de normas, despachos e notas técnicas — {filtered.length} registos apresentados.
+                </caption>
                 <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
                   <TableRow className="bg-background">
-                    {showCol("type") && <TableHead className="w-[180px]">Tipo</TableHead>}
-                    {showCol("ref") && <TableHead className="w-[140px]">Refª</TableHead>}
-                    {showCol("name") && <TableHead className="w-[280px]">Documento</TableHead>}
-                    {showCol("publication") && <TableHead className="w-[110px]">Publicação</TableHead>}
-                    {showCol("modification") && <TableHead className="w-[110px]">Modificação</TableHead>}
-                    {showCol("issuer") && <TableHead className="w-[150px]">Emissor</TableHead>}
-                    {showCol("iso14001") && <TableHead className="w-[80px] text-center">14001</TableHead>}
-                    {showCol("iso45001") && <TableHead className="w-[80px] text-center">45001</TableHead>}
-                    {showCol("applicability") && <TableHead className="w-[140px]">Aplicabilidade</TableHead>}
-                    {showCol("descriptive") && <TableHead className="w-[260px]">Descritivo</TableHead>}
-                    {showCol("actions") && <TableHead className="w-[260px]">Ações</TableHead>}
-                    {showCol("responsible") && <TableHead className="w-[140px]">Responsável</TableHead>}
-                    {showCol("deadline") && <TableHead className="w-[120px]">Prazo</TableHead>}
-                    {showCol("status") && <TableHead className="w-[130px]">Estado</TableHead>}
+                    {showCol("type") && <TableHead scope="col" className="w-[180px]">Tipo</TableHead>}
+                    {showCol("ref") && <TableHead scope="col" className="w-[140px]">Refª</TableHead>}
+                    {showCol("name") && <TableHead scope="col" className="w-[280px]">Documento</TableHead>}
+                    {showCol("publication") && <TableHead scope="col" className="w-[110px]">Publicação</TableHead>}
+                    {showCol("modification") && <TableHead scope="col" className="w-[110px]">Modificação</TableHead>}
+                    {showCol("issuer") && <TableHead scope="col" className="w-[150px]">Emissor</TableHead>}
+                    {showCol("iso14001") && <TableHead scope="col" className="w-[80px] text-center"><abbr title="Impacto na norma ISO 14001">14001</abbr></TableHead>}
+                    {showCol("iso45001") && <TableHead scope="col" className="w-[80px] text-center"><abbr title="Impacto na norma ISO 45001">45001</abbr></TableHead>}
+                    {showCol("applicability") && <TableHead scope="col" className="w-[140px]">Aplicabilidade</TableHead>}
+                    {showCol("descriptive") && <TableHead scope="col" className="w-[260px]">Descritivo</TableHead>}
+                    {showCol("actions") && <TableHead scope="col" className="w-[260px]">Ações</TableHead>}
+                    {showCol("responsible") && <TableHead scope="col" className="w-[140px]">Responsável</TableHead>}
+                    {showCol("deadline") && <TableHead scope="col" className="w-[120px]">Prazo</TableHead>}
+                    {showCol("status") && <TableHead scope="col" className="w-[130px]">Estado</TableHead>}
                     {showCol("audits") && (
-                      <TableHead className="w-[200px]">
+                      <TableHead scope="col" className="w-[200px]">
                         Auditorias afetadas
                       </TableHead>
                     )}
-                    <TableHead className="w-[110px] sticky right-0 z-30 bg-background shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)]">Ações</TableHead>
+                    <TableHead scope="col" className="w-[110px] sticky right-0 z-30 bg-background shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {filtered.map((r) => (
                     <TableRow key={r.id} className="align-top">
@@ -804,14 +824,21 @@ export function StandardsControlPanel({
                       )}
                       {showCol("iso14001") && (
                         <TableCell className="text-center text-xs whitespace-nowrap">
-                          {r.impact_iso_14001 ? "x" : ""}
+                          <span aria-hidden="true">{r.impact_iso_14001 ? "x" : ""}</span>
+                          <span className="sr-only">
+                            {r.impact_iso_14001 ? "Impacta a ISO 14001" : "Sem impacto na ISO 14001"}
+                          </span>
                         </TableCell>
                       )}
                       {showCol("iso45001") && (
                         <TableCell className="text-center text-xs whitespace-nowrap">
-                          {r.impact_iso_45001 ? "x" : ""}
+                          <span aria-hidden="true">{r.impact_iso_45001 ? "x" : ""}</span>
+                          <span className="sr-only">
+                            {r.impact_iso_45001 ? "Impacta a ISO 45001" : "Sem impacto na ISO 45001"}
+                          </span>
                         </TableCell>
                       )}
+
                       {showCol("applicability") && (
                         <TableCell className="space-y-1 whitespace-nowrap">
                           {r.applicability_direct && (
@@ -892,8 +919,9 @@ export function StandardsControlPanel({
                               variant="ghost"
                               className="h-6 px-1 text-[11px] gap-1"
                               onClick={() => setLinkingRow(r)}
+                              aria-label={`Ligar auditorias ao registo ${r.document_ref || r.document_name || ""}`}
                             >
-                              <Link2 className="h-3 w-3" />
+                              <Link2 className="h-3 w-3" aria-hidden="true" />
                               Ligar
                             </Button>
                           )}
@@ -906,12 +934,13 @@ export function StandardsControlPanel({
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7"
+                            aria-label={`Ver histórico de alterações de ${r.document_ref || r.document_name || "registo"}`}
                             onClick={() => {
                               setHistoryFor(r.id);
                               setHistoryOpen(true);
                             }}
                           >
-                            <History className="h-3.5 w-3.5" />
+                            <History className="h-3.5 w-3.5" aria-hidden="true" />
                           </Button>
                           {canEdit && (
                             <>
@@ -919,22 +948,25 @@ export function StandardsControlPanel({
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7"
+                                aria-label={`Editar ${r.document_ref || r.document_name || "registo"}`}
                                 onClick={() => setEditing(r)}
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7 text-destructive"
+                                aria-label={`Eliminar ${r.document_ref || r.document_name || "registo"}`}
                                 onClick={() => deleteRow.mutate(r.id)}
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                               </Button>
                             </>
                           )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
