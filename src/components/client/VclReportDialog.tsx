@@ -35,6 +35,7 @@ import {
 } from "@/lib/vclReport";
 import { buildVclAutofill, syncVclActionsToPlans } from "@/lib/vclAutomation";
 import { parseAtaPdf } from "@/lib/vclAtaParser";
+import { VclStandardsPicker } from "@/components/client/VclStandardsPicker";
 
 type Audit = {
   id: string;
@@ -562,6 +563,13 @@ export function VclReportDialog({
               </Card>
             ))}
           </div>
+
+          <VclStandardsPicker
+            auditId={audit.id}
+            organizationId={audit.organization_id}
+            referenceDate={audit.executed_at || audit.audit_date || new Date().toISOString()}
+            canEdit={canEdit}
+          />
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2 flex-wrap">
