@@ -379,10 +379,20 @@ export default function Normas() {
                 Última versão{latestPeriod ? ` · ${latestPeriod}` : ""}
               </Badge>
 
-              <Button variant="outline" onClick={() => setSortDesc((v) => !v)}>
-                <ArrowUpDown className="h-4 w-4 mr-2" />
-                {sortDesc ? "Mais recentes" : "Mais antigos"}
-              </Button>
+              <Select
+                value={sortMode}
+                onValueChange={(v) => setSortMode(v as typeof sortMode)}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Ordenar por…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pub-desc">Data: mais recentes</SelectItem>
+                  <SelectItem value="pub-asc">Data: mais antigos</SelectItem>
+                  <SelectItem value="name-asc">Título: A–Z</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {isLoading ? (
