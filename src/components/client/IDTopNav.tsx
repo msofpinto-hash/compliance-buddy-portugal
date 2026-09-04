@@ -48,25 +48,25 @@ const ALL_MODULES: NavItem[] = [
     alwaysShow: true,
   },
   {
+    id: "auditorias",
+    moduleKey: "auditorias",
+    label: "Auditorias",
+    icon: ClipboardCheck,
+    href: "/dashboard?tab=audits&sec=plano",
+  },
+  {
+    id: "mensais",
+    moduleKey: "auditorias",
+    label: "Acompanhamentos mensais",
+    icon: FolderOpen,
+    href: "/dashboard?tab=monthly",
+  },
+  {
     id: "planos_acao",
     moduleKey: "planos_acao",
     label: "Planos de Ação",
     icon: ClipboardList,
     href: "/dashboard?tab=actions",
-  },
-  {
-    id: "auditorias",
-    moduleKey: "auditorias",
-    label: "Auditorias",
-    icon: ClipboardCheck,
-    href: "/dashboard?tab=audits",
-  },
-  {
-    id: "documentos",
-    moduleKey: "documentos",
-    label: "Evidências",
-    icon: FolderOpen,
-    href: "/dashboard?tab=documents",
   },
   {
     id: "aprovacoes",
@@ -75,6 +75,7 @@ const ALL_MODULES: NavItem[] = [
     icon: BadgeCheck,
     href: "/aprovacoes",
   },
+
   {
     id: "indicadores",
     moduleKey: "indicadores",
