@@ -195,6 +195,23 @@ export function AuditTrackingPanel({
     refresh();
   };
 
+  const reopen = async (a: AuditRow) => {
+    const { error } = await supabase
+      .from("audits")
+      .update({ status: "in_progress", approved_at: null })
+      .eq("id", a.id);
+    if (error) {
+      toast({ title: "Não foi possível reabrir", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Verificação reaberta",
+      description: "Já pode anexar atas e editar as conclusões.",
+    });
+    refresh();
+  };
+
+
   const openConclusion = (a: AuditRow) => {
     setConclusionFor(a);
     setNote(a.conclusion_note || a.findings || "");
