@@ -42,3 +42,4 @@
 - [ ] VCL mensal sem plano de auditoria (só atas): remover UI/fluxo de plano em AuditPlanDetailsDialog e afins
 - [ ] VCL: remover botões "Aprovar Plano"/"Solicitar Alterações" das verificações mensais (só atas)
 - [ ] Relatório VCL: incluir lista de diplomas já classificados no mês com a classificação escolhida
+- [ ] VCL avalia o próprio mês (VCL de julho = julho todo)

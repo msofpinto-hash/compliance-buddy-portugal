@@ -123,9 +123,9 @@ export function VclReportDialog({
     (async () => {
       setPoolLoading(true);
       const ref = new Date(audit.executed_at || audit.audit_date || Date.now());
-      // período analisado = mês anterior ao da verificação
-      const start = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
-      const end = new Date(ref.getFullYear(), ref.getMonth(), 0);
+      // período analisado = o próprio mês da verificação (VCL de julho = julho)
+      const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
       const { data } = await supabase
         .from("organization_legislation")
         .select(
@@ -159,18 +159,25 @@ export function VclReportDialog({
   if (!audit) return null;
 
   const ref = new Date(audit.executed_at || audit.audit_date || Date.now());
-  const periodStart = new Date(ref.getFullYear(), ref.getMonth() - 1, 1)
-    .toISOString()
-    .slice(0, 10);
-  const periodEnd = new Date(ref.getFullYear(), ref.getMonth(), 0)
-    .toISOString()
-    .slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const periodStart = `${ref.getFullYear()}-${pad(ref.getMonth() + 1)}-01`;
+  const periodEnd = `${ref.getFullYear()}-${pad(ref.getMonth() + 1)}-${pad(
+    new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate(),
+  )}`;
   const periodName = new Date(periodStart).toLocaleDateString("pt-PT", {
     month: "long",
     year: "numeric",
   });
 
+  const CLASS_LABELS: Record<string, string> = {
+    aplicavel_direto: "Aplicável direto",
+    aplicavel_indireto: "Aplicável indireto",
+    informativo: "Informativo",
+    nao_aplicavel: "Não aplicável",
+  };
+
   const filteredPool = pool.filter((d) => {
+    if (!classFilter.includes(d.applicability)) return false;
     if (
       onlyPeriod &&
       !(
@@ -195,6 +202,15 @@ export function VclReportDialog({
         ? [...r.diplomas.filter((x) => x.id !== d.id), d]
         : r.diplomas.filter((x) => x.id !== d.id),
     }));
+
+  const addAllFiltered = () =>
+    setReport((r) => {
+      const ids = new Set(r.diplomas.map((x) => x.id));
+      return {
+        ...r,
+        diplomas: [...r.diplomas, ...filteredPool.filter((d) => !ids.has(d.id))],
+      };
+    });
 
   const ro = !canEdit;
 
@@ -412,19 +428,51 @@ export function VclReportDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <Label>
-                Diplomas analisados{" "}
+                Diplomas já classificados no mês em análise{" "}
                 <span className="text-xs font-normal text-muted-foreground">
                   ({report.diplomas.length} selecionados)
                 </span>
               </Label>
-              <Button
-                size="sm"
-                variant={onlyPeriod ? "default" : "outline"}
-                className="h-7 text-[11px]"
-                onClick={() => setOnlyPeriod((v) => !v)}
-              >
-                {onlyPeriod ? `Só ${periodName}` : "Todos os aplicáveis"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={onlyPeriod ? "default" : "outline"}
+                  className="h-7 text-[11px]"
+                  onClick={() => setOnlyPeriod((v) => !v)}
+                >
+                  {onlyPeriod ? `Só ${periodName}` : "Todos os classificados"}
+                </Button>
+                {!ro && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    onClick={addAllFiltered}
+                  >
+                    Adicionar todos
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(CLASS_LABELS).map(([value, label]) => {
+                const active = classFilter.includes(value);
+                return (
+                  <Button
+                    key={value}
+                    size="sm"
+                    variant={active ? "secondary" : "outline"}
+                    className="h-7 text-[11px]"
+                    onClick={() =>
+                      setClassFilter((f) =>
+                        active ? f.filter((x) => x !== value) : [...f, value],
+                      )
+                    }
+                  >
+                    {label}
+                  </Button>
+                );
+              })}
             </div>
             <div className="relative">
               <Search className="h-3.5 w-3.5 absolute left-2.5 top-3 text-muted-foreground" />
@@ -441,8 +489,8 @@ export function VclReportDialog({
               )}
               {!poolLoading && filteredPool.length === 0 && (
                 <p className="text-xs text-muted-foreground p-3">
-                  Sem diplomas aplicáveis publicados em {periodName}. Desligue o
-                  filtro para ver todos.
+                  Sem diplomas classificados publicados em {periodName}.
+                  Desligue o filtro do mês ou escolha outras classificações.
                 </p>
               )}
               {filteredPool.slice(0, 200).map((d) => {
@@ -462,15 +510,14 @@ export function VclReportDialog({
                       <span className="text-muted-foreground">{d.title}</span>
                     </span>
                     <Badge variant="outline" className="text-[10px] shrink-0">
-                      {d.applicability === "aplicavel_direto"
-                        ? "Direto"
-                        : "Indireto"}
+                      {CLASS_LABELS[d.applicability] || d.applicability}
                     </Badge>
                   </label>
                 );
               })}
             </div>
           </div>
+
 
           <div className="space-y-1.5">
             <Label>Notas especiais</Label>
