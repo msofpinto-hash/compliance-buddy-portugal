@@ -58,6 +58,12 @@ export function VclReportDialog({
   const [poolLoading, setPoolLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [onlyPeriod, setOnlyPeriod] = useState(true);
+  const [classFilter, setClassFilter] = useState<string[]>([
+    "aplicavel_direto",
+    "aplicavel_indireto",
+    "informativo",
+    "nao_aplicavel",
+  ]);
 
   useEffect(() => {
     if (!audit) return;
@@ -126,7 +132,8 @@ export function VclReportDialog({
           "applicability_type, legislation:legislation(id, number, title, publication_date)",
         )
         .eq("organization_id", audit.organization_id)
-        .in("applicability_type", ["aplicavel_direto", "aplicavel_indireto"]);
+        .not("applicability_type", "is", null)
+        .neq("applicability_type", "nao_avaliado");
       if (cancelled) return;
       const rows: VclDiploma[] = (data || [])
         .filter((r: any) => r.legislation)
