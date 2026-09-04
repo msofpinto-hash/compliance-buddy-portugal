@@ -13,6 +13,7 @@ import {
   BarChart3,
   LayoutDashboard,
   BadgeCheck,
+  BookMarked,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -129,6 +130,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
 
   const isItemActive = (item: NavItem) => {
     if (item.id === "legislacao") return location.pathname === "/biblioteca";
+    if (item.id === "normas") return location.pathname === "/normas";
     if (item.id === "aprovacoes") return location.pathname === "/aprovacoes";
 
     if (location.pathname !== "/dashboard") return false;

@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Biblioteca from "./pages/Biblioteca";
+import Normas from "./pages/Normas";
 import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
 import LegislacaoRecente from "./pages/LegislacaoRecente";
 import ClientPortal from "./pages/ClientPortal";
@@ -54,6 +55,14 @@ const App = () => (
               element={
                 <RequireAuth>
                   <Biblioteca />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/normas"
+              element={
+                <RequireAuth>
+                  <Normas />
                 </RequireAuth>
               }
             />
