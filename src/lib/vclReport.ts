@@ -8,6 +8,8 @@ export type VclAction = {
   description: string;
   responsible: string;
   deadline: string;
+  legislation_id?: string | null;
+  legislation_label?: string | null;
 };
 
 export type VclDiploma = {
@@ -290,7 +292,8 @@ export function buildVclPdf(
     body: report.actions.length
       ? report.actions.map((a, i) => [
           String(i + 1),
-          a.description || "",
+          (a.legislation_label ? a.legislation_label + " — " : "") +
+            (a.description || ""),
           a.responsible || "",
           a.deadline || "",
         ])
