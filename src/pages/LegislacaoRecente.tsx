@@ -150,8 +150,9 @@ export default function LegislacaoRecente() {
       }
       
       const { data, error } = await query
-        .order(orderColumn, { ascending: sortOrder === "asc" })
+        .order(orderColumn, { ascending: sortOrder === "asc", nullsFirst: false })
         .range(from, to);
+
       if (error) throw error;
       return data;
     },
