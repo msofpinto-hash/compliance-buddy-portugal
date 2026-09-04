@@ -319,11 +319,8 @@ export default function Dashboard() {
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const [auditSection, setAuditSection] = useState<
-    "plano" | "historico" | "normas" | "acompanhamento"
-  >(
-
-    "plano",
-  );
+    "plano" | "evidencias" | "relatorios" | "atas" | "normas"
+  >("plano");
   const [auditTypeFilter, setAuditTypeFilter] = useState<
     "all" | "anual" | "mensal"
   >("all");
@@ -339,10 +336,27 @@ export default function Dashboard() {
   const activeTab: TabType =
     tabParam === "actions" ||
     tabParam === "audits" ||
+    tabParam === "monthly" ||
     tabParam === "documents" ||
     tabParam === "indicators"
       ? tabParam
       : "overview";
+
+  const secParam = searchParams.get("sec");
+  useEffect(() => {
+    if (
+      secParam === "plano" ||
+      secParam === "evidencias" ||
+      secParam === "relatorios" ||
+      secParam === "atas" ||
+      secParam === "normas"
+    ) {
+      setAuditSection(secParam);
+      if (secParam === "relatorios") setAuditTypeFilter("anual");
+      if (secParam === "atas") setAuditTypeFilter("mensal");
+    }
+  }, [secParam]);
+
 
   // Fetch user profile
   const { data: userProfile } = useQuery({
