@@ -785,6 +785,78 @@ export function StandardsControlPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StandardsHistoryDialog
+        open={historyOpen}
+        onOpenChange={(o) => {
+          setHistoryOpen(o);
+          if (!o) setHistoryFor(null);
+        }}
+        organizationId={organizationId}
+        standardId={historyFor}
+      />
+
+      <StandardsImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        organizationId={organizationId}
+        defaultPeriod={activePeriod}
+      />
+
+      <Dialog open={!!linkingRow} onOpenChange={(o) => !o && setLinkingRow(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Auditorias afetadas</DialogTitle>
+          </DialogHeader>
+          {linkingRow && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {linkingRow.document_ref} — as auditorias do mesmo período são
+                associadas automaticamente. Pode acrescentar outras.
+              </p>
+              {(orgAudits || []).map((a) => {
+                const linked = (manualLinks || []).some(
+                  (l) => l.standard_id === linkingRow.id && l.audit_id === a.id,
+                );
+                const auto =
+                  !linked &&
+                  auditsForRow(linkingRow).some((x) => x.id === a.id);
+                return (
+                  <label
+                    key={a.id}
+                    className="flex items-start gap-2 text-sm border rounded-md p-2"
+                  >
+                    <Checkbox
+                      checked={linked || auto}
+                      disabled={auto}
+                      onCheckedChange={() =>
+                        toggleLink.mutate({
+                          standardId: linkingRow.id,
+                          auditId: a.id,
+                          linked,
+                        })
+                      }
+                    />
+                    <span>
+                      {a.title}
+                      <span className="block text-xs text-muted-foreground">
+                        {a.audit_date || "sem data"}
+                        {auto ? " · associação automática" : ""}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLinkingRow(null)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
