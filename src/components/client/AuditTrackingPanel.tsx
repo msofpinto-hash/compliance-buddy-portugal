@@ -42,6 +42,8 @@ import {
   PlayCircle,
   ListChecks,
   Paperclip,
+  RotateCcw,
+
 } from "lucide-react";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
 
@@ -468,6 +470,17 @@ export function AuditTrackingPanel({
                                 <ListChecks className="h-3 w-3" />
                                 Conclusões
                               </Button>
+                              {stage === "concluida" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-[11px] gap-1"
+                                  onClick={() => reopen(a)}
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                  Reabrir
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         )}
