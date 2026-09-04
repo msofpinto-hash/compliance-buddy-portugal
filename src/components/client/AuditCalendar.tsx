@@ -106,17 +106,21 @@ export function AuditCalendar({ audits: allAudits, onSelectAudit }: Props) {
     <button
       key={a.id}
       onClick={() => onSelectAudit?.(a.id)}
-      title={a.title}
-      className={`w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium ${
+      title={`${isMonthly(a) ? "VCL mensal" : "Auditoria anual"} · ${a.title}`}
+      className={`w-full truncate rounded border-l-2 px-1.5 py-0.5 text-left text-[10px] font-medium ${
+        isMonthly(a) ? "border-sky-500" : "border-emerald-600"
+      } ${
         isExecuted(a)
           ? "bg-primary/15 text-primary"
           : "bg-amber-500/15 text-amber-700"
       }`}
     >
       {isExecuted(a) ? "✓ " : "• "}
+      {isMonthly(a) ? "VCL " : ""}
       {a.title}
     </button>
   );
+
 
   return (
     <Card className="border-0 shadow-lg">
