@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -41,6 +42,7 @@ import {
   Upload,
   History,
   Link2,
+  CalendarPlus,
 } from "lucide-react";
 import { StandardsHistoryDialog } from "./StandardsHistoryDialog";
 import { StandardsImportDialog } from "./StandardsImportDialog";
@@ -124,6 +126,10 @@ export function StandardsControlPanel({
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [newPeriodOpen, setNewPeriodOpen] = useState(false);
+  const [newPeriodName, setNewPeriodName] = useState("");
+  const [newPeriodDate, setNewPeriodDate] = useState("");
+  const [copyPrevious, setCopyPrevious] = useState(true);
   const [linkingRow, setLinkingRow] = useState<StandardRow | null>(null);
 
   const { data: rows, isLoading } = useQuery({
@@ -222,6 +228,63 @@ export function StandardsControlPanel({
     onError: () => toast.error("Não foi possível atualizar a ligação"),
   });
 
+
+  const createPeriod = useMutation({
+    mutationFn: async () => {
+      const name = newPeriodName.trim();
+      if (!organizationId || !name) throw new Error("Indique o nome do período.");
+      const source = (rows || []).filter(
+        (r) => r.reference_period === activePeriod,
+      );
+      if (!copyPrevious || !source.length) return { name, count: 0 };
+      const payload = source.map((r, i) => ({
+        organization_id: organizationId,
+        reference_period: name,
+        period_date: newPeriodDate || null,
+        document_type: r.document_type,
+        document_ref: r.document_ref,
+        document_name: r.document_name,
+        publication_date: r.publication_date,
+        modification_date: r.modification_date,
+        issuer: r.issuer,
+        impact_iso_14001: r.impact_iso_14001,
+        impact_iso_45001: r.impact_iso_45001,
+        applicability_informative: r.applicability_informative,
+        applicability_direct: r.applicability_direct,
+        applicability_indirect: r.applicability_indirect,
+        descriptive: r.descriptive,
+        actions: r.actions,
+        responsible: r.responsible,
+        implementation_deadline: r.implementation_deadline,
+        implementation_status: r.implementation_status,
+        display_order: r.display_order ?? i + 1,
+      }));
+      for (let i = 0; i < payload.length; i += 200) {
+        const { error } = await supabase
+          .from("standards_control")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert(payload.slice(i, i + 200) as any);
+        if (error) throw error;
+      }
+      return { name, count: payload.length };
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["standards-control"] });
+      setPeriod(res.name);
+      setNewPeriodOpen(false);
+      setNewPeriodName("");
+      setNewPeriodDate("");
+      toast.success(
+        res.count
+          ? `Período "${res.name}" criado com ${res.count} registos do mês anterior`
+          : `Período "${res.name}" criado`,
+      );
+    },
+    onError: (e) =>
+      toast.error(
+        e instanceof Error ? e.message : "Não foi possível criar o período",
+      ),
+  });
 
   const periods = useMemo(
     () => Array.from(new Set((rows || []).map((r) => r.reference_period))),
@@ -432,6 +495,15 @@ export function StandardsControlPanel({
           </Button>
           {canEdit && organizationId && (
             <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setNewPeriodOpen(true)}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Novo período
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -796,6 +868,53 @@ export function StandardsControlPanel({
               disabled={saveRow.isPending}
             >
               Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newPeriodOpen} onOpenChange={setNewPeriodOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo período de controlo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome do período</Label>
+              <Input
+                value={newPeriodName}
+                onChange={(e) => setNewPeriodName(e.target.value)}
+                placeholder="Julho 2026"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Data de referência (opcional)</Label>
+              <Input
+                type="date"
+                value={newPeriodDate}
+                onChange={(e) => setNewPeriodDate(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={copyPrevious}
+                onCheckedChange={(v) => setCopyPrevious(!!v)}
+              />
+              Começar com os registos de {activePeriod || "período atual"}
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNewPeriodOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => createPeriod.mutate()}
+              disabled={createPeriod.isPending || !newPeriodName.trim()}
+            >
+              {createPeriod.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
+              Criar
             </Button>
           </DialogFooter>
         </DialogContent>
