@@ -254,7 +254,9 @@ export async function generateAndAttachVclPdf(
   report: VclReport,
   orgName?: string,
 ) {
+  await removeVclReportDocs(audit.id);
   const blob = buildVclPdf(audit, report, orgName);
+
   const period = vclPeriodLabel(audit);
   const safe = period.replace(/[^\w]+/g, "_");
   const fileName = `${VCL_REPORT_PREFIX} - ${period}.pdf`;
