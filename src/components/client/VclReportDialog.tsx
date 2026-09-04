@@ -359,7 +359,45 @@ export function VclReportDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {canEdit && (
+          <Card className="p-3 flex flex-wrap items-center justify-between gap-2 bg-muted/40">
+            <div className="text-xs text-muted-foreground max-w-md">
+              Carregue a ata do mês em PDF para preencher automaticamente
+              participantes, descrição, conclusões, ações e diplomas referidos.
+            </div>
+            <div>
+              <input
+                id="vcl-ata-input"
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  importAta(e.target.files?.[0] || null);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={importing || poolLoading}
+                onClick={() =>
+                  document.getElementById("vcl-ata-input")?.click()
+                }
+              >
+                {importing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5" />
+                )}
+                Preencher a partir da ata (PDF)
+              </Button>
+            </div>
+          </Card>
+        )}
+
         <div className="space-y-4">
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Participantes</Label>
