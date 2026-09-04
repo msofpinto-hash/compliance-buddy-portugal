@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.log_standards_control_change() FROM PUBLIC, anon, authenticated;
