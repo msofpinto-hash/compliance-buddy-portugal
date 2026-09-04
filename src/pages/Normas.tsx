@@ -246,6 +246,15 @@ export default function Normas() {
     return { label: "Por classificar", cls: "bg-red-100 text-red-700" };
   };
 
+  const implementationStatusBadge = (r: StandardRow) => {
+    const s = (r.implementation_status || "").trim().toLowerCase();
+    if (s.includes("implementad"))
+      return { label: "Implementado", cls: "bg-green-100 text-green-800 border-0" };
+    if (s.includes("em curso") || s.includes("curso"))
+      return { label: "Em curso", cls: "bg-amber-100 text-amber-800 border-0" };
+    return { label: "Por analisar", cls: "bg-red-100 text-red-700 border-0" };
+  };
+
   const saveLink = async () => {
     if (!linkRow) return;
     setSaving(true);
@@ -379,6 +388,7 @@ export default function Normas() {
               <div className="space-y-3">
                 {filtered.map((r) => {
                   const ap = applicabilityLabel(r);
+                  const st = implementationStatusBadge(r);
                   return (
                     <Card
                       key={r.id}
@@ -392,6 +402,7 @@ export default function Normas() {
                           </Badge>
                           <Badge variant="outline">{r.reference_period}</Badge>
                           <Badge className={cn("border-0", ap.cls)}>{ap.label}</Badge>
+                          <Badge className={cn("border-0", st.cls)}>{st.label}</Badge>
                           <span className="ml-auto text-xs text-muted-foreground">
                             Publicação: {formatDate(r.publication_date)}
                             {r.modification_date
@@ -487,7 +498,15 @@ export default function Normas() {
                 <Field label="Aplicabilidade" value={applicabilityLabel(detailRow).label} />
                 <Field label="Responsável" value={detailRow.responsible} />
                 <Field label="Prazo de implementação" value={detailRow.implementation_deadline} />
-                <Field label="Estado" value={detailRow.implementation_status} />
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground">Estado</p>
+                  {(() => {
+                    const st = implementationStatusBadge(detailRow);
+                    return (
+                      <Badge className={cn("mt-1 border-0", st.cls)}>{st.label}</Badge>
+                    );
+                  })()}
+                </div>
               </div>
 
               <div>
