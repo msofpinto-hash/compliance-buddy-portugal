@@ -30,6 +30,10 @@ import {
   Link2,
   FileText,
   ScrollText,
+  Mail,
+  Zap,
+  HeartPulse,
+  Flame,
   StickyNote,
   Folder,
   ArrowUpDown,
@@ -62,7 +66,15 @@ type StandardRow = {
 };
 
 
-type GroupKey = "normas" | "despachos" | "notas" | "outros";
+type GroupKey =
+  | "normas"
+  | "despachos"
+  | "circulares"
+  | "dgeg"
+  | "dgs"
+  | "anepc"
+  | "notas"
+  | "outros";
 
 const GROUPS: {
   key: GroupKey;
@@ -80,7 +92,31 @@ const GROUPS: {
     key: "despachos",
     label: "Despachos",
     icon: ScrollText,
-    hint: "Despachos, circulares e orientações de entidades",
+    hint: "Despachos e orientações de entidades",
+  },
+  {
+    key: "circulares",
+    label: "Circulares APA",
+    icon: Mail,
+    hint: "Circulares informativas da APA",
+  },
+  {
+    key: "dgeg",
+    label: "DGEG",
+    icon: Zap,
+    hint: "Despachos e orientações da DGEG (energia)",
+  },
+  {
+    key: "dgs",
+    label: "DGS",
+    icon: HeartPulse,
+    hint: "Orientações e normas da DGS (saúde)",
+  },
+  {
+    key: "anepc",
+    label: "ANEPC",
+    icon: Flame,
+    hint: "Documentos da ANEPC (proteção civil)",
   },
   {
     key: "notas",
@@ -96,15 +132,17 @@ function groupOf(row: StandardRow): GroupKey {
   const hay = `${row.document_type || ""} ${row.document_ref || ""} ${
     row.document_name || ""
   }`.toLowerCase();
-  // Despachos, circulares e orientações de entidades
+  // Entidades com pasta própria
+  if (hay.includes("circular")) return "circulares";
+  if (hay.includes("dgeg")) return "dgeg";
+  if (/\bdgs\b/.test(hay)) return "dgs";
+  if (hay.includes("anepc") || hay.includes("proteção civil")) return "anepc";
+  // Despachos e orientações de entidades
   if (
     hay.includes("despacho") ||
-    hay.includes("circular") ||
     hay.includes("orienta") ||
     hay.includes("faq") ||
     hay.includes("requisitos de qualificação") ||
-    hay.includes("dgeg") ||
-    hay.includes("dgs") ||
     hay.includes("isenção")
   )
     return "despachos";
