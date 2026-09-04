@@ -170,7 +170,15 @@ export function VclReportDialog({
     year: "numeric",
   });
 
+  const CLASS_LABELS: Record<string, string> = {
+    aplicavel_direto: "Aplicável direto",
+    aplicavel_indireto: "Aplicável indireto",
+    informativo: "Informativo",
+    nao_aplicavel: "Não aplicável",
+  };
+
   const filteredPool = pool.filter((d) => {
+    if (!classFilter.includes(d.applicability)) return false;
     if (
       onlyPeriod &&
       !(
@@ -195,6 +203,15 @@ export function VclReportDialog({
         ? [...r.diplomas.filter((x) => x.id !== d.id), d]
         : r.diplomas.filter((x) => x.id !== d.id),
     }));
+
+  const addAllFiltered = () =>
+    setReport((r) => {
+      const ids = new Set(r.diplomas.map((x) => x.id));
+      return {
+        ...r,
+        diplomas: [...r.diplomas, ...filteredPool.filter((d) => !ids.has(d.id))],
+      };
+    });
 
   const ro = !canEdit;
 
