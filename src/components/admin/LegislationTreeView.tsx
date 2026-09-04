@@ -1346,7 +1346,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                 )}
 
                 {/* Sort controls */}
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number")}>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as "date" | "title" | "number" | "pending")}>
                   <SelectTrigger className="h-8 text-xs w-[130px]">
                     <ArrowUpDown className="h-3 w-3 mr-1" />
                     <SelectValue />
@@ -1355,6 +1355,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
                     <SelectItem value="date">Data publicação</SelectItem>
                     <SelectItem value="title">Título</SelectItem>
                     <SelectItem value="number">Número</SelectItem>
+                    {pendingRequirementsMap && (
+                      <SelectItem value="pending">Requisitos por avaliar</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
 
