@@ -1661,6 +1661,95 @@ export type Database = {
           },
         ]
       }
+      standards_control: {
+        Row: {
+          actions: string | null
+          applicability_direct: boolean
+          applicability_indirect: boolean
+          applicability_informative: boolean
+          created_at: string
+          created_by: string | null
+          descriptive: string | null
+          display_order: number | null
+          document_name: string | null
+          document_ref: string | null
+          document_type: string | null
+          id: string
+          impact_iso_14001: boolean
+          impact_iso_45001: boolean
+          implementation_deadline: string | null
+          implementation_status: string | null
+          issuer: string | null
+          modification_date: string | null
+          organization_id: string
+          period_date: string | null
+          publication_date: string | null
+          reference_period: string
+          responsible: string | null
+          updated_at: string
+        }
+        Insert: {
+          actions?: string | null
+          applicability_direct?: boolean
+          applicability_indirect?: boolean
+          applicability_informative?: boolean
+          created_at?: string
+          created_by?: string | null
+          descriptive?: string | null
+          display_order?: number | null
+          document_name?: string | null
+          document_ref?: string | null
+          document_type?: string | null
+          id?: string
+          impact_iso_14001?: boolean
+          impact_iso_45001?: boolean
+          implementation_deadline?: string | null
+          implementation_status?: string | null
+          issuer?: string | null
+          modification_date?: string | null
+          organization_id: string
+          period_date?: string | null
+          publication_date?: string | null
+          reference_period: string
+          responsible?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actions?: string | null
+          applicability_direct?: boolean
+          applicability_indirect?: boolean
+          applicability_informative?: boolean
+          created_at?: string
+          created_by?: string | null
+          descriptive?: string | null
+          display_order?: number | null
+          document_name?: string | null
+          document_ref?: string | null
+          document_type?: string | null
+          id?: string
+          impact_iso_14001?: boolean
+          impact_iso_45001?: boolean
+          implementation_deadline?: string | null
+          implementation_status?: string | null
+          issuer?: string | null
+          modification_date?: string | null
+          organization_id?: string
+          period_date?: string | null
+          publication_date?: string | null
+          reference_period?: string
+          responsible?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standards_control_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_logs: {
         Row: {
           completed_at: string | null
