@@ -227,15 +227,26 @@ export function buildVclPdf(
   return doc.output("blob");
 }
 
-async function hasVclReportDoc(auditId: string) {
+/** Removes previously attached VCL report PDFs so the newest version replaces them. */
+async function removeVclReportDocs(auditId: string) {
   const { data } = await supabase
     .from("audit_documents")
-    .select("id, documents(name)")
+    .select("id, document_id, documents(name)")
     .eq("audit_id", auditId);
-  return (data || []).some((row: any) =>
+  const stale = (data || []).filter((row: any) =>
     (row.documents?.name || "").startsWith(VCL_REPORT_PREFIX),
   );
+  if (!stale.length) return;
+  await supabase
+    .from("audit_documents")
+    .delete()
+    .in("id", stale.map((r: any) => r.id));
+  await supabase
+    .from("documents")
+    .delete()
+    .in("id", stale.map((r: any) => r.document_id));
 }
+
 
 /** Generates the monthly VCL report PDF and attaches it to the audit. */
 export async function generateAndAttachVclPdf(
