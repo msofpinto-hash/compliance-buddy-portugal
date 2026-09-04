@@ -239,13 +239,11 @@ export function UnifiedDataQualityPanel() {
 
       const [datesFalseResult, datesNullResult, genericTitlesResult, shortSummariesResult, eligibleSummaryResult, totalMissingCategoriesResult] = await Promise.all([
         supabase.from("legislation").select("id", { count: "exact", head: true })
-          .not("document_url", "is", null)
           .eq("no_digital_version", false)
-          .or("publication_date.is.null,effective_date.is.null"),
+          .is("publication_date", null),
         supabase.from("legislation").select("id", { count: "exact", head: true })
-          .not("document_url", "is", null)
           .is("no_digital_version", null)
-          .or("publication_date.is.null,effective_date.is.null"),
+          .is("publication_date", null),
         supabase.rpc("count_generic_titles"),
         supabase.rpc("count_short_summaries"),
         supabase.from("legislation").select("id", { count: "exact", head: true })

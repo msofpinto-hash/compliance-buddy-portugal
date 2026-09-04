@@ -249,7 +249,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     // Filter by missing URL
     if (filterMissingUrl) {
       result = result.filter(leg =>
-        !(leg as any).no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
+        !leg.no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
       );
     }
 
@@ -399,7 +399,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const missingUrlCount = useMemo(() => {
     if (!legislation) return 0;
     return legislation.filter(leg =>
-      !(leg as any).no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
+      !leg.no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
     ).length;
   }, [legislation]);
 
@@ -486,7 +486,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     // Filter by missing URL
     if (filterMissingUrl) {
       result = result.filter(leg =>
-        !(leg as any).no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
+        !leg.no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
       );
     }
 
