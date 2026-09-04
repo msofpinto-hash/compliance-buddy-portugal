@@ -18,8 +18,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -81,7 +79,7 @@ export function AuditTrackingPanel({
   organizations = [],
   typeFilter = "all",
 }: Props) {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [stageFilter, setStageFilter] = useState<"all" | StageKey>("all");
