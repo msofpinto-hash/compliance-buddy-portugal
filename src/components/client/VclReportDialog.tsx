@@ -371,7 +371,13 @@ export function VclReportDialog({
                     set({
                       actions: [
                         ...report.actions,
-                        { description: "", responsible: "", deadline: "" },
+                        {
+                          description: "",
+                          responsible: "",
+                          deadline: "",
+                          legislation_id: null,
+                          legislation_label: null,
+                        },
                       ],
                     })
                   }
@@ -417,6 +423,36 @@ export function VclReportDialog({
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
+                </div>
+                <div className="pl-7">
+                  <Select
+                    disabled={ro}
+                    value={a.legislation_id || "none"}
+                    onValueChange={(v) =>
+                      setAction(i, {
+                        legislation_id: v === "none" ? null : v,
+                        legislation_label:
+                          v === "none"
+                            ? null
+                            : report.diplomas.find((d) => d.id === v)?.number ||
+                              null,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Diploma associado" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      <SelectItem value="none">
+                        Sem diploma associado
+                      </SelectItem>
+                      {report.diplomas.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.number} — {d.title.slice(0, 70)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 pl-7">
                   <Input
