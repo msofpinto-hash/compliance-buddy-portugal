@@ -41,7 +41,9 @@ import {
   Loader2,
   PlayCircle,
   ListChecks,
+  Paperclip,
 } from "lucide-react";
+import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
 
 type AuditRow = {
   id: string;
@@ -256,6 +258,8 @@ export function AuditTrackingPanel({
     }
   };
 
+  const [docsFor, setDocsFor] = useState<AuditRow | null>(null);
+
   const orgName = (id: string) =>
     organizations.find((o) => o.id === id)?.name || "";
 
@@ -333,6 +337,7 @@ export function AuditTrackingPanel({
                     </TableHead>
                     <TableHead className="w-[150px]">Planos de ação</TableHead>
                     <TableHead className="w-[200px]">Conclusão</TableHead>
+                    <TableHead className="w-[130px]">Atas / anexos</TableHead>
                     {isAdmin && <TableHead className="w-[200px]" />}
                   </TableRow>
                 </TableHeader>
@@ -411,6 +416,17 @@ export function AuditTrackingPanel({
                           title={a.conclusion_note || a.findings || ""}
                         >
                           {a.conclusion_note || a.findings || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px] gap-1"
+                            onClick={() => setDocsFor(a)}
+                          >
+                            <Paperclip className="h-3 w-3" />
+                            Atas
+                          </Button>
                         </TableCell>
                         {isAdmin && (
                           <TableCell>
@@ -508,6 +524,28 @@ export function AuditTrackingPanel({
               Concluir auditoria
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!docsFor} onOpenChange={(o) => !o && setDocsFor(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Atas e anexos — {docsFor?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Documentação associada a esta verificação (atas mensais,
+              relatórios e evidências).
+            </DialogDescription>
+          </DialogHeader>
+          {docsFor && (
+            <AuditDocumentsList
+              auditId={docsFor.id}
+              variant="plain"
+              allowUpload
+              uploadLabel="Anexar ata / documentos"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
