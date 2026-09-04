@@ -353,17 +353,21 @@ export default function Dashboard() {
 
   const secParam = searchParams.get("sec");
   useEffect(() => {
+    if (secParam === "normas") {
+      setAuditSection("acompanhamento");
+      return;
+    }
     if (
       secParam === "plano" ||
       secParam === "evidencias" ||
       secParam === "relatorios" ||
-      secParam === "normas" ||
       secParam === "acompanhamento"
     ) {
       setAuditSection(secParam as any);
       if (secParam === "relatorios") setAuditTypeFilter("anual");
     }
   }, [secParam]);
+
 
   // Redirect legacy monthly tab into the unified audits menu
   useEffect(() => {
