@@ -98,10 +98,8 @@ function splitSections(text: string): Record<string, string> {
     if (match) {
       flush();
       current = match.key;
-      const rest = bare.replace(/^[^:]{0,60}:\s*/, (m) =>
-        /:/.test(m) ? "" : m,
-      );
-      buffer.push(rest === bare ? "" : rest);
+      const rest = bare.replace(/^[^:]{0,60}:\s*/, "");
+      if (rest && rest !== bare) buffer.push(rest);
       continue;
     }
     buffer.push(line);
@@ -208,15 +206,27 @@ export async function parseAtaPdf(
   file: File,
   pool: VclDiploma[] = [],
 ): Promise<AtaParseResult> {
-  const text = clean(await extractPdfText(file));
+  return parseAtaText(await extractPdfText(file), pool);
+}
+
+/** Igual a parseAtaPdf, mas a partir do texto já extraído (testável). */
+export function parseAtaText(
+  rawText: string,
+  pool: VclDiploma[] = [],
+): AtaParseResult {
+  const text = clean(rawText);
   const sections = splitSections(text);
   const patch: Partial<VclReport> = {};
 
-  const participants = parseParticipants(sections.participants || "");
+  const inlineType = text.match(/tipo de reuni[ãa]o\s*:\s*([^\n]+)/i);
+  const participants = parseParticipants(
+    (sections.participants || "").replace(/tipo de reuni[ãa]o\s*:\s*[^\n]*/gi, ""),
+  );
   if (participants) patch.participants = participants;
 
-  if (sections.meeting_type) {
-    const t = sections.meeting_type.toLowerCase();
+  const typeSource = sections.meeting_type || inlineType?.[1] || "";
+  if (typeSource) {
+    const t = typeSource.toLowerCase();
     patch.meeting_type = /presenc/.test(t)
       ? "Presencial"
       : /mista|h[íi]brid/.test(t)
@@ -233,7 +243,8 @@ export async function parseAtaPdf(
   const actions = parseActions(sections.actions || "");
   if (actions.length) patch.actions = actions;
 
-  const next = sections.next_meeting || "";
+  const tail = text.split("\n").slice(-6).join("\n");
+  const next = sections.next_meeting || tail;
   const dateMatch = next.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
   if (dateMatch) {
     const [, d, m, y] = dateMatch;
