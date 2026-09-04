@@ -15,6 +15,7 @@ export interface Legislation {
   document_url: string | null;
   source: string | null;
   external_id: string | null;
+  no_digital_version: boolean | null;
   created_at: string;
   updated_at: string;
 }

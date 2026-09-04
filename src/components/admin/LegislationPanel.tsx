@@ -175,11 +175,11 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       problems.push("missing_origin");
     }
 
-    if (!leg.publication_date || !leg.effective_date) {
+    if (!leg.publication_date) {
       problems.push("missing_dates");
     }
 
-    if (isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date)) {
+    if (isInvalidPublicationDate(leg.publication_date)) {
       problems.push("invalid_dates");
     }
 
@@ -248,17 +248,21 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
 
     // Filter by missing URL
     if (filterMissingUrl) {
-      result = result.filter(leg => !leg.document_url || leg.document_url.trim() === '');
+      result = result.filter(leg =>
+        !leg.no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
+      );
     }
 
-    // Filter by missing dates
+    // Publication date is the date used to organize the legislation library.
+    // Effective date is optional and must not inflate this quality indicator.
     if (filterMissingDates) {
-      result = result.filter(leg => !leg.publication_date || !leg.effective_date);
+      result = result.filter(leg => !leg.publication_date);
     }
 
-    // Filter by invalid dates
+    // Only objectively impossible publication dates are invalid. Historical
+    // legislation before 1900 is valid and must remain visible.
     if (filterInvalidDates) {
-      result = result.filter(leg => isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date));
+      result = result.filter(leg => isInvalidPublicationDate(leg.publication_date));
     }
 
     // Filter by short summary (PT only)
@@ -346,16 +350,14 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       .sort((a, b) => a.path.localeCompare(b.path, 'pt'));
   }, [legislation, filterTheme]);
 
-  // Helper to check if a date is invalid (future year > current + 1)
-  function isInvalidDate(dateStr: string | null | undefined): boolean {
+  // Publication dates cannot be in the future; old historical dates are valid.
+  function isInvalidPublicationDate(dateStr: string | null | undefined): boolean {
     if (!dateStr) return false;
-    try {
-      const year = new Date(dateStr).getFullYear();
-      const currentYear = new Date().getFullYear();
-      return year > currentYear + 1 || year < 1900;
-    } catch {
-      return false;
-    }
+    const date = new Date(`${dateStr}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return true;
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return date > today;
   }
 
   // Count items with problems
@@ -396,19 +398,21 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   // Count items missing URL
   const missingUrlCount = useMemo(() => {
     if (!legislation) return 0;
-    return legislation.filter(leg => !leg.document_url || leg.document_url.trim() === '').length;
+    return legislation.filter(leg =>
+      !leg.no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
+    ).length;
   }, [legislation]);
 
-  // Count items missing dates
+  // Count only missing publication dates; effective date is optional.
   const missingDatesCount = useMemo(() => {
     if (!legislation) return 0;
-    return legislation.filter(leg => !leg.publication_date || !leg.effective_date).length;
+    return legislation.filter(leg => !leg.publication_date).length;
   }, [legislation]);
 
-  // Count items with invalid dates
+  // Count objectively invalid publication dates only.
   const invalidDatesCount = useMemo(() => {
     if (!legislation) return 0;
-    return legislation.filter(leg => isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date)).length;
+    return legislation.filter(leg => isInvalidPublicationDate(leg.publication_date)).length;
   }, [legislation]);
 
   // Filter and sort legislation
@@ -481,17 +485,19 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
 
     // Filter by missing URL
     if (filterMissingUrl) {
-      result = result.filter(leg => !leg.document_url || leg.document_url.trim() === '');
+      result = result.filter(leg =>
+        !leg.no_digital_version && (!leg.document_url || leg.document_url.trim() === '')
+      );
     }
 
-    // Filter by missing dates
+    // Filter by missing publication date.
     if (filterMissingDates) {
-      result = result.filter(leg => !leg.publication_date || !leg.effective_date);
+      result = result.filter(leg => !leg.publication_date);
     }
 
-    // Filter by invalid dates
+    // Filter by objectively invalid publication date.
     if (filterInvalidDates) {
-      result = result.filter(leg => isInvalidDate(leg.publication_date) || isInvalidDate(leg.effective_date));
+      result = result.filter(leg => isInvalidPublicationDate(leg.publication_date));
     }
 
     // Then filter by theme (only if not filtering by special filters)
@@ -538,7 +544,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     });
 
     return result;
-  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterGenericTitle, filterRevoked, filterOrigin, filterDiplomaType, filterStartDate, filterEndDate, sortField, sortOrder]);
+  }, [legislation, searchTerm, filterTheme, filterCategory, filterNoCategory, filterProblems, filterGenericTitle, filterRevoked, filterOrigin, filterDiplomaType, filterStartDate, filterEndDate, filterMissingUrl, filterMissingDates, filterInvalidDates, filterShortSummary, sortField, sortOrder]);
 
   // Count items without category
   const noCategoryCount = useMemo(() => {
