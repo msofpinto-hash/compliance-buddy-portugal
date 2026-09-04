@@ -123,8 +123,10 @@ export function buildVclPdf(
   });
   y = (doc as any).lastAutoTable.finalY + 20;
 
-  const section = (title: string, text: string) => {
-    if (!text?.trim()) return;
+  const section = (title: string, text: string, always = false) => {
+    if (!text?.trim() && !always) return;
+    text = text?.trim() ? text : "-";
+
     if (y > doc.internal.pageSize.getHeight() - 120) {
       doc.addPage();
       y = margin;
@@ -147,8 +149,9 @@ export function buildVclPdf(
     y += 12;
   };
 
-  section("Descrição da reunião:", report.description);
-  section("Conclusões:", report.conclusions);
+  section("Descrição da reunião:", report.description, true);
+  section("Conclusões:", report.conclusions, true);
+
 
   if (report.diplomas.length) {
     if (y > doc.internal.pageSize.getHeight() - 140) {
@@ -224,15 +227,26 @@ export function buildVclPdf(
   return doc.output("blob");
 }
 
-async function hasVclReportDoc(auditId: string) {
+/** Removes previously attached VCL report PDFs so the newest version replaces them. */
+async function removeVclReportDocs(auditId: string) {
   const { data } = await supabase
     .from("audit_documents")
-    .select("id, documents(name)")
+    .select("id, document_id, documents(name)")
     .eq("audit_id", auditId);
-  return (data || []).some((row: any) =>
+  const stale = (data || []).filter((row: any) =>
     (row.documents?.name || "").startsWith(VCL_REPORT_PREFIX),
   );
+  if (!stale.length) return;
+  await supabase
+    .from("audit_documents")
+    .delete()
+    .in("id", stale.map((r: any) => r.id));
+  await supabase
+    .from("documents")
+    .delete()
+    .in("id", stale.map((r: any) => r.document_id));
 }
+
 
 /** Generates the monthly VCL report PDF and attaches it to the audit. */
 export async function generateAndAttachVclPdf(
@@ -240,7 +254,9 @@ export async function generateAndAttachVclPdf(
   report: VclReport,
   orgName?: string,
 ) {
+  await removeVclReportDocs(audit.id);
   const blob = buildVclPdf(audit, report, orgName);
+
   const period = vclPeriodLabel(audit);
   const safe = period.replace(/[^\w]+/g, "_");
   const fileName = `${VCL_REPORT_PREFIX} - ${period}.pdf`;
@@ -287,8 +303,8 @@ export async function attachVclReportIfMonthly(auditId: string) {
     if (!audit) return null;
     if ((audit.audit_type || "anual") !== "mensal") return null;
     if (!(audit as any).vcl_report) return null;
-    if (await hasVclReportDoc(auditId)) return null;
     return await generateAndAttachVclPdf(
+
       audit as any,
       parseVclReport((audit as any).vcl_report),
       (audit as any).organizations?.name,
