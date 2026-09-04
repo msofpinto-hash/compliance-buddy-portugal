@@ -357,13 +357,21 @@ export default function Dashboard() {
       secParam === "evidencias" ||
       secParam === "relatorios" ||
       secParam === "atas" ||
-      secParam === "normas"
+      secParam === "normas" ||
+      secParam === "acompanhamento"
     ) {
       setAuditSection(secParam);
       if (secParam === "relatorios") setAuditTypeFilter("anual");
       if (secParam === "atas") setAuditTypeFilter("mensal");
     }
   }, [secParam]);
+
+  // Redirect legacy monthly tab into the unified audits menu
+  useEffect(() => {
+    if (tabParam === "monthly") {
+      navigate("/dashboard?tab=audits&sec=acompanhamento", { replace: true });
+    }
+  }, [tabParam, navigate]);
 
 
   // Fetch user profile
