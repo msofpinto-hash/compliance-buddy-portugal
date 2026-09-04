@@ -414,22 +414,46 @@ export function StandardsControlPanel({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              setHistoryFor(null);
+              setHistoryOpen(true);
+            }}
+          >
+            <History className="h-4 w-4" />
+            Histórico
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv}>
             <Download className="h-4 w-4" />
             Exportar
           </Button>
           {canEdit && organizationId && (
-            <Button
-              size="sm"
-              className="gap-2"
-              onClick={() =>
-                setEditing(emptyRow(organizationId, activePeriod || "Junho 2026"))
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Novo registo
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setImportOpen(true)}
+              >
+                <Upload className="h-4 w-4" />
+                Carregar Excel
+              </Button>
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={() =>
+                  setEditing(emptyRow(organizationId, activePeriod || "Junho 2026"))
+                }
+              >
+                <Plus className="h-4 w-4" />
+                Novo registo
+              </Button>
+            </>
           )}
+
         </div>
       </div>
 
