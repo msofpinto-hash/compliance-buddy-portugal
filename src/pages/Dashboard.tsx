@@ -1950,11 +1950,16 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        Histórico de Auditorias
+                        {auditSection === "atas"
+                          ? "Atas mensais"
+                          : "Relatórios anuais"}
                       </h2>
                       <p className="text-sm text-muted-foreground">
-                        Auditorias realizadas e encerradas
+                        {auditSection === "atas"
+                          ? "Verificações de conformidade legal mensais realizadas"
+                          : "Auditorias de conformidade legal anuais realizadas"}
                       </p>
+
                     </div>
                   </div>
 
