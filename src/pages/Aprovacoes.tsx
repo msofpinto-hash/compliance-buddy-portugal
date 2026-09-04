@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -177,6 +178,8 @@ export default function Aprovacoes() {
           .in("audit_requirement_id", ids)
           .in("status", ["rascunho", "aguarda_aprovacao"]);
       }
+
+      await attachStandardsSnapshotIfMonthly(audit.id);
     },
     onSuccess: () => {
       toast.success("Auditoria aprovada e encerrada. Plano de ação ativado.");
