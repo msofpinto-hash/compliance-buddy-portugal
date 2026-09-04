@@ -140,6 +140,27 @@ export function AuditCalendar({ audits: allAudits, onSelectAudit }: Props) {
 
           <div className="ml-auto flex items-center gap-2">
             <div className="flex rounded-md border p-0.5">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className="flex rounded-md border p-0.5">
+              {(
+                [
+                  ["all", "Todas"],
+                  ["anual", "Auditorias anuais"],
+                  ["mensal", "VCL mensais"],
+                ] as [TypeFilter, string][]
+              ).map(([v, lbl]) => (
+                <Button
+                  key={v}
+                  size="sm"
+                  variant={typeFilter === v ? "default" : "ghost"}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setTypeFilter(v)}
+                >
+                  {lbl}
+                </Button>
+              ))}
+            </div>
+            <div className="flex rounded-md border p-0.5">
               {(["semanal", "mensal", "anual"] as ViewMode[]).map((v) => (
                 <Button
                   key={v}
@@ -171,9 +192,17 @@ export function AuditCalendar({ audits: allAudits, onSelectAudit }: Props) {
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Executada
           </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-0.5 rounded bg-emerald-600" /> Auditoria
+            anual
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-0.5 rounded bg-sky-500" /> VCL mensal
+          </span>
         </div>
 
         {view === "anual" ? (
+
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 12 }, (_, m) =>
               addMonths(startOfYear(cursor), m),
