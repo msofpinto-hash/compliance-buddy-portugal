@@ -118,17 +118,18 @@ const BAR: [number, number, number] = [217, 226, 243];
 const TEXT: [number, number, number] = [33, 37, 41];
 
 /** Builds the monthly VCL report PDF replicating the original Word template layout. */
-export function buildVclPdf(
+export async function buildVclPdf(
   audit: Audit,
   report: VclReport,
   orgName?: string,
-): Blob {
+  orgLogoUrl?: string | null,
+): Promise<Blob> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const margin = 56;
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
   const contentW = width - margin * 2;
-  let y = margin + 10;
+  let y = margin;
 
   const pageBreak = (needed = 60) => {
     if (y > height - needed) {
@@ -136,6 +137,26 @@ export function buildVclPdf(
       y = margin;
     }
   };
+
+  // ---- Header logos (cliente à esquerda, I&D Compliance à direita) --------
+  const logoH = 34;
+  const drawLogo = (dataUrl: string | null, x: number, alignRight = false) => {
+    if (!dataUrl) return;
+    try {
+      const props = doc.getImageProperties(dataUrl);
+      const w = (props.width / props.height) * logoH;
+      doc.addImage(dataUrl, alignRight ? x - w : x, y - 6, w, logoH);
+    } catch {
+      /* logotipo inválido — segue sem ele */
+    }
+  };
+  const [orgLogo, idLogo] = await Promise.all([
+    orgLogoUrl ? toDataUrl(orgLogoUrl) : Promise.resolve(null),
+    toDataUrl(idLogoAsset.url),
+  ]);
+  drawLogo(orgLogo, margin);
+  drawLogo(idLogo, width - margin, true);
+  y += logoH + 10;
 
   // ---- Title -------------------------------------------------------------
   doc.setTextColor(...NAVY);
@@ -146,13 +167,24 @@ export function buildVclPdf(
   doc.text(`LEGAL MENSAL_${vclShortPeriod(audit)}`, margin, y);
   y += 12;
 
-  if (orgName) {
-    doc.setFontSize(9.5);
-    doc.setTextColor(...TEXT);
-    doc.text(orgName.toUpperCase(), width - margin, y - 20, {
-      align: "right",
-    });
-  }
+  const meetingDate =
+    report.meeting_date ||
+    (() => {
+      const ref = audit.executed_at || audit.audit_date;
+      if (!ref) return "";
+      const d = new Date(ref);
+      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    })();
+
+  doc.setFontSize(9.5);
+  doc.setTextColor(...TEXT);
+  const rightBits = [
+    orgName ? orgName.toUpperCase() : "",
+    meetingDate ? `Data da reunião: ${meetingDate}` : "",
+  ].filter(Boolean);
+  rightBits.forEach((bit, i) => {
+    doc.text(bit, width - margin, y - 20 + i * 12, { align: "right" });
+  });
 
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(1.4);
