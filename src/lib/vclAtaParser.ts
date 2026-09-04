@@ -133,7 +133,7 @@ function buildAction(text: string): VclAction | null {
   let deadline = "";
   const m = description.match(RESP_DEADLINE_RE);
   if (m) {
-    responsible = m[1].trim();
+    responsible = m[1].replace(/^(para|pela|pelo|a|o|e)\s+/i, "").trim();
     deadline = m[2].trim();
     description = description.replace(m[0], " ").replace(/\s+/g, " ").trim();
   } else {
