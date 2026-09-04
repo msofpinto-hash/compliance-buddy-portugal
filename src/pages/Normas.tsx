@@ -144,8 +144,7 @@ export default function Normas() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [group, setGroup] = useState<GroupKey | "todos">("todos");
   const [search, setSearch] = useState("");
-  
-  const [sortDesc, setSortDesc] = useState(true);
+  const [sortMode, setSortMode] = useState<"pub-desc" | "pub-asc" | "name-asc">("pub-desc");
   const [detailRow, setDetailRow] = useState<StandardRow | null>(null);
   const [linkRow, setLinkRow] = useState<StandardRow | null>(null);
   const [linkValue, setLinkValue] = useState("");
@@ -244,12 +243,17 @@ export default function Normas() {
               .includes(term),
       )
       .sort((a, b) => {
+        if (sortMode === "name-asc") {
+          const na = (a.document_name || a.document_ref || "").toLowerCase();
+          const nb = (b.document_name || b.document_ref || "").toLowerCase();
+          if (na !== nb) return na.localeCompare(nb);
+        }
         const ka = dateSortKey(a.publication_date || a.period_date);
         const kb = dateSortKey(b.publication_date || b.period_date);
-        if (ka === kb) return (a.document_ref || "").localeCompare(b.document_ref || "");
-        return sortDesc ? kb.localeCompare(ka) : ka.localeCompare(kb);
+        if (ka !== kb) return sortMode === "pub-asc" ? ka.localeCompare(kb) : kb.localeCompare(ka);
+        return (a.document_ref || "").localeCompare(b.document_ref || "");
       });
-  }, [latestRows, group, search, sortDesc]);
+  }, [latestRows, group, search, sortMode]);
 
 
   const applicabilityLabel = (r: StandardRow) => {
@@ -375,10 +379,20 @@ export default function Normas() {
                 Última versão{latestPeriod ? ` · ${latestPeriod}` : ""}
               </Badge>
 
-              <Button variant="outline" onClick={() => setSortDesc((v) => !v)}>
-                <ArrowUpDown className="h-4 w-4 mr-2" />
-                {sortDesc ? "Mais recentes" : "Mais antigos"}
-              </Button>
+              <Select
+                value={sortMode}
+                onValueChange={(v) => setSortMode(v as typeof sortMode)}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Ordenar por…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pub-desc">Data: mais recentes</SelectItem>
+                  <SelectItem value="pub-asc">Data: mais antigos</SelectItem>
+                  <SelectItem value="name-asc">Título: A–Z</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {isLoading ? (
