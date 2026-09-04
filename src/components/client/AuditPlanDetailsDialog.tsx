@@ -243,9 +243,9 @@ export function AuditPlanDetailsDialog({
                   />
                 ) : (
                   <span className="font-medium">
-                    {audit.audit_date
+                    {currentValue("audit_date")
                       ? format(
-                          new Date(audit.audit_date),
+                          new Date(currentValue("audit_date")),
                           "d 'de' MMMM 'de' yyyy",
                           { locale: pt },
                         )
@@ -263,7 +263,9 @@ export function AuditPlanDetailsDialog({
                     onChange={(e) => set("auditor", e.target.value)}
                   />
                 ) : (
-                  <span className="font-medium">{audit.auditor || "—"}</span>
+                  <span className="font-medium">
+                    {currentValue("auditor") || "—"}
+                  </span>
                 )}
               </div>
             </div>
@@ -282,7 +284,7 @@ export function AuditPlanDetailsDialog({
                 />
               ) : (
                 <p className="text-sm whitespace-pre-wrap">
-                  {audit.description || "—"}
+                  {currentValue("description") || "—"}
                 </p>
               )}
             </div>
@@ -296,7 +298,8 @@ export function AuditPlanDetailsDialog({
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 {EDITABLE_FIELDS.map((field) => {
-                  const value = (audit[field.key] as string | null) ?? "";
+                  const value = currentValue(field.key as string);
+
                   if (!canEdit && !value && !field.required) return null;
                   return (
                     <div
