@@ -43,3 +43,9 @@
 - [ ] VCL: remover botões "Aprovar Plano"/"Solicitar Alterações" das verificações mensais (só atas)
 - [ ] Relatório VCL: incluir lista de diplomas já classificados no mês com a classificação escolhida
 - [ ] VCL avalia o próprio mês (VCL de julho = julho todo)
+
+## VCL mensal — automatização
+- [x] Anexar os relatórios PDF reais (01-05 e 07/2026) a cada linha do Acompanhamento mensal
+- [x] Preenchimento automático das VCL futuras (participantes, descrição, diplomas do mês, ações)
+- [x] Ações da VCL enviadas para o Plano de Ações com identificação da origem
+- [x] Remover o submenu "Atas mensais"; documentos passam a estar em cada linha do Acompanhamento mensal
