@@ -157,7 +157,7 @@ function groupOf(row: StandardRow): GroupKey {
     return "notas";
   // Normas: referências que começam por NP, EN, ISO, CEN, DNP, CT
   if (
-    /^(np|en|iso|cen|dnp|ct)\b/.test(ref) ||
+    /^(pr)?(np|en|iso|cen|dnp|ct)\b/.test(ref) ||
     hay.includes("norma") ||
     hay.includes("dnorcol")
   )
