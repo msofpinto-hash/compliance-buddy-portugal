@@ -445,12 +445,19 @@ export function AuditTrackingPanel({
                         <TableCell>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant={expanded === a.id ? "secondary" : "outline"}
                             className="h-7 text-[11px] gap-1"
-                            onClick={() => setDocsFor(a)}
+                            onClick={() =>
+                              setExpanded(expanded === a.id ? null : a.id)
+                            }
                           >
                             <Paperclip className="h-3 w-3" />
-                            Atas
+                            Documentos
+                            {expanded === a.id ? (
+                              <ChevronUp className="h-3 w-3" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3" />
+                            )}
                           </Button>
                           {(a.audit_type || "anual") === "mensal" && (
                             <Button
@@ -464,6 +471,7 @@ export function AuditTrackingPanel({
                             </Button>
                           )}
                         </TableCell>
+
                         {isAdmin && (
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
