@@ -123,15 +123,20 @@ export function buildVclPdf(
   doc.text("VERIFICAÇÃO DE CONFORMIDADE", margin, y);
   y += 24;
   doc.text(`LEGAL MENSAL_${vclShortPeriod(audit)}`, margin, y);
-  y += 14;
+  y += 12;
 
   if (orgName) {
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(...TEXT);
-    doc.text(orgName, width - margin, y, { align: "right" });
-    y += 8;
+    doc.text(orgName.toUpperCase(), width - margin, y - 20, {
+      align: "right",
+    });
   }
-  y += 14;
+
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(1.4);
+  doc.line(margin, y, width - margin, y);
+  y += 24;
 
   // ---- Participants box --------------------------------------------------
   doc.setTextColor(...TEXT);
@@ -141,11 +146,12 @@ export function buildVclPdf(
     contentW * 0.56 - 70,
   );
   const boxH = Math.max(46, partLines.length * 12 + 20);
-  doc.setDrawColor(120, 120, 120);
-  doc.setLineWidth(0.8);
-  doc.rect(margin, y, contentW, boxH);
+  doc.setFillColor(249, 250, 252);
+  doc.setDrawColor(150, 160, 175);
+  doc.setLineWidth(0.7);
+  doc.rect(margin, y, contentW, boxH, "FD");
 
-  let ty = y + 16;
+  const ty = y + 16;
   doc.setFont("helvetica", "bold");
   doc.text("Participantes:", margin + 8, ty);
   doc.setFont("helvetica", "normal");
@@ -155,23 +161,42 @@ export function buildVclPdf(
   doc.setFont("helvetica", "bold");
   doc.text("Tipo de reunião:", margin + contentW * 0.6, ty);
   doc.setFont("helvetica", "normal");
-  doc.text(
-    report.meeting_type || "-",
-    margin + contentW * 0.6 + 76,
-    ty,
-  );
-  y += boxH + 18;
+  doc.text(report.meeting_type || "-", margin + contentW * 0.6 + 76, ty);
+  y += boxH + 22;
 
   // ---- Section helpers ---------------------------------------------------
   const bar = (title: string) => {
-    pageBreak(80);
+    pageBreak(90);
     doc.setFillColor(...BAR);
-    doc.rect(margin, y - 11, contentW, 16, "F");
+    doc.rect(margin, y - 11, contentW, 17, "F");
+    doc.setFillColor(...NAVY);
+    doc.rect(margin, y - 11, 3, 17, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(...TEXT);
-    doc.text(title, margin + 4, y);
-    y += 20;
+    doc.setTextColor(...NAVY);
+    doc.text(title, margin + 10, y);
+    y += 22;
+  };
+
+  /** Draws one line with words evenly spread to fill the full column width. */
+  const justifyLine = (line: string, isLast: boolean) => {
+    const words = line.trim().split(/\s+/);
+    if (isLast || words.length < 2) {
+      doc.text(line.trim(), margin, y);
+      return;
+    }
+    const wordsW = words.reduce((sum, w) => sum + doc.getTextWidth(w), 0);
+    const gap = (contentW - wordsW) / (words.length - 1);
+    // Avoid ugly rivers when a line is very short
+    if (gap > 14) {
+      doc.text(line.trim(), margin, y);
+      return;
+    }
+    let x = margin;
+    words.forEach((w) => {
+      doc.text(w, x, y);
+      x += doc.getTextWidth(w) + gap;
+    });
   };
 
   const body = (text: string) => {
@@ -180,16 +205,17 @@ export function buildVclPdf(
     doc.setTextColor(...TEXT);
     const paragraphs = (text?.trim() || "-").split(/\n+/);
     paragraphs.forEach((p) => {
-      const lines = doc.splitTextToSize(p.trim(), contentW);
-      lines.forEach((line: string) => {
-        pageBreak(60);
-        doc.text(line, margin, y, { maxWidth: contentW, align: "justify" });
-        y += 13.5;
+      const lines: string[] = doc.splitTextToSize(p.trim(), contentW);
+      lines.forEach((line, i) => {
+        pageBreak(70);
+        justifyLine(line, i === lines.length - 1);
+        y += 14;
       });
-      y += 5;
+      y += 6;
     });
     y += 8;
   };
+
 
   bar("Descrição da reunião:");
   body(report.description);
