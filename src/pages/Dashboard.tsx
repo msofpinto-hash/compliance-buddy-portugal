@@ -132,7 +132,14 @@ import { ListChecks } from "lucide-react";
 import { AuditCalendar } from "@/components/client/AuditCalendar";
 import { AuditTrackingPanel } from "@/components/client/AuditTrackingPanel";
 
-type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
+type TabType =
+  | "overview"
+  | "actions"
+  | "audits"
+  | "monthly"
+  | "documents"
+  | "indicators";
+
 
 const COLORS = {
   compliant: "hsl(152, 82%, 42%)",
@@ -319,11 +326,8 @@ export default function Dashboard() {
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const [auditSection, setAuditSection] = useState<
-    "plano" | "historico" | "normas" | "acompanhamento"
-  >(
-
-    "plano",
-  );
+    "plano" | "evidencias" | "relatorios" | "atas" | "normas"
+  >("plano");
   const [auditTypeFilter, setAuditTypeFilter] = useState<
     "all" | "anual" | "mensal"
   >("all");
@@ -339,10 +343,27 @@ export default function Dashboard() {
   const activeTab: TabType =
     tabParam === "actions" ||
     tabParam === "audits" ||
+    tabParam === "monthly" ||
     tabParam === "documents" ||
     tabParam === "indicators"
       ? tabParam
       : "overview";
+
+  const secParam = searchParams.get("sec");
+  useEffect(() => {
+    if (
+      secParam === "plano" ||
+      secParam === "evidencias" ||
+      secParam === "relatorios" ||
+      secParam === "atas" ||
+      secParam === "normas"
+    ) {
+      setAuditSection(secParam);
+      if (secParam === "relatorios") setAuditTypeFilter("anual");
+      if (secParam === "atas") setAuditTypeFilter("mensal");
+    }
+  }, [secParam]);
+
 
   // Fetch user profile
   const { data: userProfile } = useQuery({
@@ -1553,24 +1574,37 @@ export default function Dashboard() {
                   Calendário de auditorias
                 </Button>
                 <Button
-                  variant={auditSection === "historico" ? "default" : "ghost"}
+                  variant={auditSection === "evidencias" ? "default" : "ghost"}
                   size="sm"
                   className="gap-2"
-                  onClick={() => setAuditSection("historico")}
+                  onClick={() => setAuditSection("evidencias")}
                 >
-                  <ClipboardCheck className="h-4 w-4" />
-                  Histórico de auditorias
+                  <FolderOpen className="h-4 w-4" />
+                  Evidências de conformidade
                 </Button>
                 <Button
-                  variant={
-                    auditSection === "acompanhamento" ? "default" : "ghost"
-                  }
+                  variant={auditSection === "relatorios" ? "default" : "ghost"}
                   size="sm"
                   className="gap-2"
-                  onClick={() => setAuditSection("acompanhamento")}
+                  onClick={() => {
+                    setAuditSection("relatorios");
+                    setAuditTypeFilter("anual");
+                  }}
+                >
+                  <ClipboardCheck className="h-4 w-4" />
+                  Relatórios anuais
+                </Button>
+                <Button
+                  variant={auditSection === "atas" ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    setAuditSection("atas");
+                    setAuditTypeFilter("mensal");
+                  }}
                 >
                   <ListChecks className="h-4 w-4" />
-                  Acompanhamento
+                  Atas mensais
                 </Button>
                 <Button
                   variant={auditSection === "normas" ? "default" : "ghost"}
@@ -1579,8 +1613,9 @@ export default function Dashboard() {
                   onClick={() => setAuditSection("normas")}
                 >
                   <BookMarked className="h-4 w-4" />
-                  Controlo de normas
+                  Controlo de normas, despachos e notas técnicas
                 </Button>
+
 
                 <div className="ml-auto flex items-center gap-2">
                   <span className="text-xs text-muted-foreground hidden sm:inline">
@@ -1883,17 +1918,13 @@ export default function Dashboard() {
                 );
               })()}
 
-              {/* Standards Control Section */}
+              {/* Evidências de conformidade */}
               <div
-                className={
-                  auditSection === "acompanhamento" ? "" : "hidden"
-                }
+                className={auditSection === "evidencias" ? "" : "hidden"}
               >
-                <AuditTrackingPanel
-                  organizationIds={organizationIds}
-                  organizations={organizations as any}
-                  typeFilter={auditTypeFilter}
-                />
+                {currentOrg?.id && (
+                  <EvidenceRequestsPanel organizationId={currentOrg.id} />
+                )}
               </div>
 
               <div
@@ -1905,11 +1936,12 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* Audit History Section */}
+              {/* Relatórios anuais / Atas mensais */}
 
               <div
-                className={`space-y-4 ${auditSection === "historico" ? "" : "hidden"}`}
+                className={`space-y-4 ${auditSection === "relatorios" || auditSection === "atas" ? "" : "hidden"}`}
               >
+
 
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -1918,11 +1950,16 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        Histórico de Auditorias
+                        {auditSection === "atas"
+                          ? "Atas mensais"
+                          : "Relatórios anuais"}
                       </h2>
                       <p className="text-sm text-muted-foreground">
-                        Auditorias realizadas e encerradas
+                        {auditSection === "atas"
+                          ? "Verificações de conformidade legal mensais realizadas"
+                          : "Auditorias de conformidade legal anuais realizadas"}
                       </p>
+
                     </div>
                   </div>
 
@@ -2233,10 +2270,20 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Acompanhamentos mensais */}
+          {activeTab === "monthly" && (
+            <AuditTrackingPanel
+              organizationIds={organizationIds}
+              organizations={organizations as any}
+              typeFilter="mensal"
+            />
+          )}
+
           {/* Documents Tab */}
           {activeTab === "documents" && currentOrg?.id && (
             <EvidenceRequestsPanel organizationId={currentOrg.id} />
           )}
+
 
           {/* Indicators Tab */}
           {activeTab === "indicators" && (
