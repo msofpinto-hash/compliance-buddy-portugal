@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import logoId from "@/assets/id-compliance-lex.png.asset.json";
+import logoIdUrl from "@/assets/logo-id-compliance.jpg";
 
 type ModuleType =
   "legislacao" | "planos_acao" | "auditorias" | "documentos" | "indicadores";
@@ -128,7 +128,7 @@ export function IDSidebar({ currentOrg, onCloseMobile }: IDSidebarProps) {
         ) : (
           <div className="flex w-full items-center">
             <img
-              src={logoId.url}
+              src={logoIdUrl}
               alt="I&D Compliance"
               className="h-auto w-full max-w-[230px] object-contain object-left"
             />
