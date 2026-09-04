@@ -208,15 +208,26 @@ export function VclReportDialog({
       .eq("id", audit.id);
     if (error) {
       setSaving(false);
-      toast({ title: "Não foi possível guardar", variant: "destructive" });
+      toast({
+        title: "Não foi possível guardar",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
     if (alsoPdf) {
       try {
-        await generateAndAttachVclPdf(audit, report);
-        toast({ title: "Relatório gerado e anexado à verificação" });
-      } catch {
-        toast({ title: "Guardado, mas o PDF falhou", variant: "destructive" });
+        const name = await generateAndAttachVclPdf(audit, report);
+        toast({
+          title: "Relatório gerado e anexado",
+          description: name,
+        });
+      } catch (e: any) {
+        toast({
+          title: "Guardado, mas o PDF falhou",
+          description: e?.message || String(e),
+          variant: "destructive",
+        });
       }
     } else {
       toast({ title: "Relatório guardado" });
@@ -227,9 +238,26 @@ export function VclReportDialog({
   };
 
   const preview = () => {
-    const blob = buildVclPdf(audit, report);
-    window.open(URL.createObjectURL(blob), "_blank", "noopener,noreferrer");
+    try {
+      const blob = buildVclPdf(audit, report);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Relatorio VCL ${vclPeriodLabel(audit).replace(/[^\w]+/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast({ title: "PDF gerado", description: "Transferência iniciada." });
+    } catch (e: any) {
+      toast({
+        title: "Não foi possível gerar o PDF",
+        description: e?.message || String(e),
+        variant: "destructive",
+      });
+    }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -466,7 +494,7 @@ export function VclReportDialog({
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={preview} className="gap-1">
             <FileDown className="h-4 w-4" />
-            Pré-visualizar PDF
+            Descarregar PDF
           </Button>
           {canEdit && (
             <>
