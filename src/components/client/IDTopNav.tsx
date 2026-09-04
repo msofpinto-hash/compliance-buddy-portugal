@@ -133,9 +133,11 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
     const map: Record<string, string> = {
       planos_acao: "actions",
       auditorias: "audits",
+      mensais: "monthly",
       documentos: "documents",
       indicadores: "indicators",
     };
+
     return tabParam === map[item.id];
   };
 
