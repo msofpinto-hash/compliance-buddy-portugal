@@ -304,7 +304,7 @@ export async function attachVclReportIfMonthly(auditId: string) {
     if ((audit.audit_type || "anual") !== "mensal") return null;
     if (!(audit as any).vcl_report) return null;
     return await generateAndAttachVclPdf(
-    return await generateAndAttachVclPdf(
+
       audit as any,
       parseVclReport((audit as any).vcl_report),
       (audit as any).organizations?.name,
