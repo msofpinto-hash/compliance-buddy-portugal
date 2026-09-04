@@ -200,26 +200,40 @@ export default function Normas() {
     enabled: !!currentOrg?.id,
   });
 
-  const periods = useMemo(
-    () =>
-      Array.from(new Set((rows || []).map((r) => r.reference_period).filter(Boolean))).sort(),
-    [rows],
-  );
+  // Mantém apenas a versão mais recente de cada documento (o histórico
+  // completo por mês continua disponível em Auditorias > Controlo de normas).
+  const latestRows = useMemo(() => {
+    const map = new Map<string, StandardRow>();
+    for (const r of rows || []) {
+      const key = (r.document_ref || r.document_name || r.id).trim().toLowerCase();
+      const prev = map.get(key);
+      const keyOf = (x: StandardRow) => x.period_date || x.reference_period || "";
+      if (!prev || keyOf(r) > keyOf(prev)) map.set(key, r);
+    }
+    return Array.from(map.values());
+  }, [rows]);
+
+  const latestPeriod = useMemo(() => {
+    let best: StandardRow | null = null;
+    for (const r of latestRows) {
+      if (!best || (r.period_date || "") > (best.period_date || "")) best = r;
+    }
+    return best?.reference_period || "";
+  }, [latestRows]);
 
   const counts = useMemo(() => {
-    const base: Record<string, number> = { todos: (rows || []).length };
-    for (const r of rows || []) {
+    const base: Record<string, number> = { todos: latestRows.length };
+    for (const r of latestRows) {
       const g = groupOf(r);
       base[g] = (base[g] || 0) + 1;
     }
     return base;
-  }, [rows]);
+  }, [latestRows]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return (rows || [])
+    return latestRows
       .filter((r) => (group === "todos" ? true : groupOf(r) === group))
-      .filter((r) => (period === "all" ? true : r.reference_period === period))
       .filter((r) =>
         !term
           ? true
@@ -235,7 +249,8 @@ export default function Normas() {
         if (ka === kb) return (a.document_ref || "").localeCompare(b.document_ref || "");
         return sortDesc ? kb.localeCompare(ka) : ka.localeCompare(kb);
       });
-  }, [rows, group, period, search, sortDesc]);
+  }, [latestRows, group, search, sortDesc]);
+
 
   const applicabilityLabel = (r: StandardRow) => {
     if (r.applicability_direct) return { label: "Aplicável direta", cls: "bg-primary/15 text-primary" };
