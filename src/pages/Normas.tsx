@@ -243,12 +243,17 @@ export default function Normas() {
               .includes(term),
       )
       .sort((a, b) => {
+        if (sortMode === "name-asc") {
+          const na = (a.document_name || a.document_ref || "").toLowerCase();
+          const nb = (b.document_name || b.document_ref || "").toLowerCase();
+          if (na !== nb) return na.localeCompare(nb);
+        }
         const ka = dateSortKey(a.publication_date || a.period_date);
         const kb = dateSortKey(b.publication_date || b.period_date);
-        if (ka === kb) return (a.document_ref || "").localeCompare(b.document_ref || "");
-        return sortDesc ? kb.localeCompare(ka) : ka.localeCompare(kb);
+        if (ka !== kb) return sortMode === "pub-asc" ? ka.localeCompare(kb) : kb.localeCompare(ka);
+        return (a.document_ref || "").localeCompare(b.document_ref || "");
       });
-  }, [latestRows, group, search, sortDesc]);
+  }, [latestRows, group, search, sortMode]);
 
 
   const applicabilityLabel = (r: StandardRow) => {
