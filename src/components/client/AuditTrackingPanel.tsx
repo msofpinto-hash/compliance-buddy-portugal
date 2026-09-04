@@ -367,10 +367,6 @@ export function AuditTrackingPanel({
                     <TableHead className="w-[110px]">Agendada</TableHead>
                     <TableHead className="w-[110px]">Executada</TableHead>
                     <TableHead className="w-[130px]">Concluída</TableHead>
-                    <TableHead className="w-[130px]">
-                      Não conformidades
-                    </TableHead>
-                    <TableHead className="w-[150px]">Planos de ação</TableHead>
                     <TableHead className="w-[200px]">Conclusão</TableHead>
                     <TableHead className="w-[210px]">Atas / relatório</TableHead>
                     {isAdmin && <TableHead className="w-[200px]" />}
@@ -423,28 +419,6 @@ export function AuditTrackingPanel({
                             >
                               Planeada
                             </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {nc > 0 ? (
-                            <Badge variant="destructive" className="text-[10px]">
-                              {nc}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">0</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {a.no_action_required ? (
-                            <Badge variant="secondary" className="text-[10px]">
-                              Sem ações necessárias
-                            </Badge>
-                          ) : plans > 0 ? (
-                            <Badge variant="outline" className="text-[10px]">
-                              {plans} plano(s)
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell
@@ -523,7 +497,7 @@ export function AuditTrackingPanel({
                         </TableRow>
                         {expanded === a.id && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={isAdmin ? 10 : 9} className="p-4">
+                            <TableCell colSpan={isAdmin ? 8 : 7} className="p-4">
                               <AuditDocumentsList
                                 auditId={a.id}
                                 variant="plain"
