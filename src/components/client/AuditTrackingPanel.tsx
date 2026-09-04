@@ -448,17 +448,6 @@ export function AuditTrackingPanel({
                               <ChevronDown className="h-3 w-3" />
                             )}
                           </Button>
-                          {(a.audit_type || "anual") === "mensal" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-[11px] gap-1 ml-1"
-                              onClick={() => setVclFor(a)}
-                            >
-                              <FileText className="h-3 w-3" />
-                              Relatório
-                            </Button>
-                          )}
                         </TableCell>
 
                         {isAdmin && (
