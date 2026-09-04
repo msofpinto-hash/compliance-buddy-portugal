@@ -85,88 +85,138 @@ export function vclPeriodLabel(audit: Audit) {
   return `${mm}/${d.getFullYear()} — ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** Builds the monthly VCL report PDF in the same structure as the Word/PDF template. */
+export function vclShortPeriod(audit: Audit) {
+  const ref = audit.executed_at || audit.audit_date;
+  if (!ref) return "";
+  const d = new Date(ref);
+  return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+const NAVY: [number, number, number] = [31, 56, 100];
+const BAR: [number, number, number] = [217, 226, 243];
+const TEXT: [number, number, number] = [33, 37, 41];
+
+/** Builds the monthly VCL report PDF replicating the original Word template layout. */
 export function buildVclPdf(
   audit: Audit,
   report: VclReport,
   orgName?: string,
 ): Blob {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const margin = 48;
+  const margin = 56;
   const width = doc.internal.pageSize.getWidth();
-  let y = margin;
+  const height = doc.internal.pageSize.getHeight();
+  const contentW = width - margin * 2;
+  let y = margin + 10;
 
-  const period = vclPeriodLabel(audit);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.text("VERIFICAÇÃO DE CONFORMIDADE", margin, y);
-  y += 19;
-  doc.text(`LEGAL MENSAL — ${period}`, margin, y);
-  y += 22;
-
-  if (orgName) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(orgName, margin, y);
-    y += 18;
-  }
-
-  autoTable(doc, {
-    startY: y,
-    theme: "grid",
-    styles: { fontSize: 9, cellPadding: 6, valign: "top" },
-    headStyles: { fillColor: [44, 62, 80] },
-    head: [["Participantes", "Tipo de reunião"]],
-    body: [[report.participants || "-", report.meeting_type || "-"]],
-    margin: { left: margin, right: margin },
-  });
-  y = (doc as any).lastAutoTable.finalY + 20;
-
-  const section = (title: string, text: string, always = false) => {
-    if (!text?.trim() && !always) return;
-    text = text?.trim() ? text : "-";
-
-    if (y > doc.internal.pageSize.getHeight() - 120) {
+  const pageBreak = (needed = 60) => {
+    if (y > height - needed) {
       doc.addPage();
       y = margin;
     }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text(title, margin, y);
-    y += 14;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(text.trim(), width - margin * 2);
-    lines.forEach((line: string) => {
-      if (y > doc.internal.pageSize.getHeight() - 60) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.text(line, margin, y);
-      y += 13;
-    });
-    y += 12;
   };
 
-  section("Descrição da reunião:", report.description, true);
-  section("Conclusões:", report.conclusions, true);
+  // ---- Title -------------------------------------------------------------
+  doc.setTextColor(...NAVY);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(19);
+  doc.text("VERIFICAÇÃO DE CONFORMIDADE", margin, y);
+  y += 24;
+  doc.text(`LEGAL MENSAL_${vclShortPeriod(audit)}`, margin, y);
+  y += 14;
 
+  if (orgName) {
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT);
+    doc.text(orgName, width - margin, y, { align: "right" });
+    y += 8;
+  }
+  y += 14;
 
-  if (report.diplomas.length) {
-    if (y > doc.internal.pageSize.getHeight() - 140) {
-      doc.addPage();
-      y = margin;
-    }
+  // ---- Participants box --------------------------------------------------
+  doc.setTextColor(...TEXT);
+  doc.setFontSize(9.5);
+  const partLines = doc.splitTextToSize(
+    report.participants?.trim() || "-",
+    contentW * 0.56 - 70,
+  );
+  const boxH = Math.max(46, partLines.length * 12 + 20);
+  doc.setDrawColor(120, 120, 120);
+  doc.setLineWidth(0.8);
+  doc.rect(margin, y, contentW, boxH);
+
+  let ty = y + 16;
+  doc.setFont("helvetica", "bold");
+  doc.text("Participantes:", margin + 8, ty);
+  doc.setFont("helvetica", "normal");
+  partLines.forEach((line: string, i: number) => {
+    doc.text(line, margin + 80, ty + i * 12);
+  });
+  doc.setFont("helvetica", "bold");
+  doc.text("Tipo de reunião:", margin + contentW * 0.6, ty);
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    report.meeting_type || "-",
+    margin + contentW * 0.6 + 76,
+    ty,
+  );
+  y += boxH + 18;
+
+  // ---- Section helpers ---------------------------------------------------
+  const bar = (title: string) => {
+    pageBreak(80);
+    doc.setFillColor(...BAR);
+    doc.rect(margin, y - 11, contentW, 16, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Diplomas analisados no período", margin, y);
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT);
+    doc.text(title, margin + 4, y);
+    y += 20;
+  };
+
+  const body = (text: string) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT);
+    const paragraphs = (text?.trim() || "-").split(/\n+/);
+    paragraphs.forEach((p) => {
+      const lines = doc.splitTextToSize(p.trim(), contentW);
+      lines.forEach((line: string) => {
+        pageBreak(60);
+        doc.text(line, margin, y, { maxWidth: contentW, align: "justify" });
+        y += 13.5;
+      });
+      y += 5;
+    });
+    y += 8;
+  };
+
+  bar("Descrição da reunião:");
+  body(report.description);
+
+  bar("Conclusões:");
+  body(report.conclusions);
+
+  // ---- Diplomas analysed --------------------------------------------------
+  if (report.diplomas.length) {
+    bar("Diplomas analisados no período");
     autoTable(doc, {
-      startY: y + 14,
+      startY: y - 6,
       theme: "grid",
-      styles: { fontSize: 8.5, cellPadding: 5, valign: "top" },
-      headStyles: { fillColor: [44, 62, 80] },
-      columnStyles: { 0: { cellWidth: 110 }, 2: { cellWidth: 95 } },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 5,
+        valign: "top",
+        lineColor: [120, 120, 120],
+        lineWidth: 0.5,
+        textColor: TEXT,
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: TEXT,
+        fontStyle: "bold",
+      },
+      columnStyles: { 0: { cellWidth: 105 }, 2: { cellWidth: 95 } },
       head: [["Diploma", "Título", "Aplicabilidade"]],
       body: report.diplomas.map((d) => [
         d.number || "",
@@ -179,53 +229,78 @@ export function buildVclPdf(
       ]),
       margin: { left: margin, right: margin },
     });
-    y = (doc as any).lastAutoTable.finalY + 20;
+    y = (doc as any).lastAutoTable.finalY + 24;
   }
 
-  if (report.actions.length) {
-    if (y > doc.internal.pageSize.getHeight() - 140) {
-      doc.addPage();
-      y = margin;
-    }
+  // ---- Actions table ------------------------------------------------------
+  bar("Conclusões");
+  autoTable(doc, {
+    startY: y - 6,
+    theme: "grid",
+    styles: {
+      fontSize: 8.5,
+      cellPadding: 6,
+      valign: "middle",
+      lineColor: [120, 120, 120],
+      lineWidth: 0.5,
+      textColor: TEXT,
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: TEXT,
+      fontStyle: "bold",
+      valign: "middle",
+    },
+    columnStyles: {
+      0: { cellWidth: 30, halign: "center" },
+      2: { cellWidth: 100 },
+      3: { cellWidth: 70 },
+    },
+    head: [["N.º", "Ações a desenvolver", "Responsabilidade", "Prazo"]],
+    body: report.actions.length
+      ? report.actions.map((a, i) => [
+          String(i + 1),
+          a.description || "",
+          a.responsible || "",
+          a.deadline || "",
+        ])
+      : [["", "", "", ""]],
+    margin: { left: margin, right: margin },
+  });
+  y = (doc as any).lastAutoTable.finalY + 26;
+
+  // ---- Special notes ------------------------------------------------------
+  bar("Notas especiais:");
+  body(report.special_notes || "Nada a relevar.");
+
+  // ---- Next meeting (right aligned, as in the template) -------------------
+  if (report.next_meeting_date || report.next_meeting_time) {
+    pageBreak(60);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Ações a desenvolver", margin, y);
-    y += 8;
-    autoTable(doc, {
-      startY: y + 6,
-      theme: "grid",
-      styles: { fontSize: 9, cellPadding: 6, valign: "top" },
-      headStyles: { fillColor: [44, 62, 80] },
-      columnStyles: {
-        0: { cellWidth: 28 },
-        2: { cellWidth: 90 },
-        3: { cellWidth: 70 },
-      },
-      head: [["N.º", "Ações a desenvolver", "Responsabilidade", "Prazo"]],
-      body: report.actions.map((a, i) => [
-        String(i + 1),
-        a.description || "",
-        a.responsible || "",
-        a.deadline || "",
-      ]),
-      margin: { left: margin, right: margin },
-    });
-    y = (doc as any).lastAutoTable.finalY + 20;
+    if (report.next_meeting_date) {
+      doc.text(report.next_meeting_date, width - margin, y, { align: "right" });
+      y += 15;
+    }
+    if (report.next_meeting_time) {
+      doc.text(report.next_meeting_time, width - margin, y, { align: "right" });
+      y += 15;
+    }
   }
 
-  section("Notas especiais:", report.special_notes || "Nada a relevar.");
-
-  if (report.next_meeting_date || report.next_meeting_time) {
-    section(
-      "Próxima reunião:",
-      [report.next_meeting_date, report.next_meeting_time]
-        .filter(Boolean)
-        .join("  •  "),
-    );
+  // ---- Page numbers -------------------------------------------------------
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...TEXT);
+    doc.text(String(p), margin, height - 28);
   }
 
   return doc.output("blob");
 }
+
 
 /** Removes previously attached VCL report PDFs so the newest version replaces them. */
 async function removeVclReportDocs(auditId: string) {
