@@ -544,7 +544,11 @@ export function StandardsControlPanel({
                     <TableHead>Responsável</TableHead>
                     <TableHead>Prazo</TableHead>
                     <TableHead className="min-w-[120px]">Estado</TableHead>
-                    {canEdit && <TableHead />}
+                    <TableHead className="min-w-[180px]">
+                      Auditorias afetadas
+                    </TableHead>
+                    <TableHead />
+
                   </TableRow>
                 </TableHeader>
                 <TableBody>
