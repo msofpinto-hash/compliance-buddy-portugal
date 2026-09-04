@@ -289,64 +289,67 @@ export function AuditPlanDetailsDialog({
               )}
             </div>
 
-            <Separator />
+            {!isMonthly && <Separator />}
 
-            {/* Plan fields */}
-            <div className="space-y-1">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
-                Informação do Plano de Auditoria
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                {EDITABLE_FIELDS.map((field) => {
-                  const value = currentValue(field.key as string);
+            {/* Plan fields — as VCL mensais não têm plano de auditoria */}
+            {!isMonthly && (
+              <div className="space-y-1">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
+                  Informação do Plano de Auditoria
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {EDITABLE_FIELDS.map((field) => {
+                    const value = currentValue(field.key as string);
 
-                  if (!canEdit && !value && !field.required) return null;
-                  return (
-                    <div
-                      key={field.key as string}
-                      className={`rounded-lg border p-4 ${
-                        value
-                          ? "bg-card border-border"
-                          : "bg-muted/30 border-dashed border-muted-foreground/30"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <field.icon
-                          className={`h-4 w-4 ${value ? "text-primary" : "text-muted-foreground"}`}
-                        />
-                        <h4 className="font-medium text-sm">
-                          {field.title}
-                          {field.required && (
-                            <span className="text-destructive ml-1">*</span>
-                          )}
-                        </h4>
-                      </div>
-                      {canEdit ? (
-                        <Textarea
-                          rows={3}
-                          placeholder={field.description}
-                          value={form[field.key as string] || ""}
-                          onChange={(e) =>
-                            set(field.key as string, e.target.value)
-                          }
-                        />
-                      ) : value ? (
-                        <p className="text-sm whitespace-pre-wrap">{value}</p>
-                      ) : (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <AlertCircle className="h-3 w-3" />
-                          <span className="text-xs italic">
-                            {field.description}
-                          </span>
+                    if (!canEdit && !value && !field.required) return null;
+                    return (
+                      <div
+                        key={field.key as string}
+                        className={`rounded-lg border p-4 ${
+                          value
+                            ? "bg-card border-border"
+                            : "bg-muted/30 border-dashed border-muted-foreground/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <field.icon
+                            className={`h-4 w-4 ${value ? "text-primary" : "text-muted-foreground"}`}
+                          />
+                          <h4 className="font-medium text-sm">
+                            {field.title}
+                            {field.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </h4>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        {canEdit ? (
+                          <Textarea
+                            rows={3}
+                            placeholder={field.description}
+                            value={form[field.key as string] || ""}
+                            onChange={(e) =>
+                              set(field.key as string, e.target.value)
+                            }
+                          />
+                        ) : value ? (
+                          <p className="text-sm whitespace-pre-wrap">{value}</p>
+                        ) : (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-3 w-3" />
+                            <span className="text-xs italic">
+                              {field.description}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             <Separator />
+
 
             {/* Documentation */}
             <div className="space-y-2">
