@@ -64,3 +64,4 @@
 - [x] Menu Normas, Despachos e Notas Técnicas (página /normas ordenada por data, com ligações)
 - [ ] Normas: ao clicar num documento, mostrar todos os campos do Excel (descritivo, ações, responsável, prazo, estado, ISO, aplicabilidade, auditorias)
 - [~] Correção global da legislação (URLs, categorias, requisitos, metadados) a correr em segundo plano
+- [ ] Correção acelerada da biblioteca: URLs, datas, relações e categorias
