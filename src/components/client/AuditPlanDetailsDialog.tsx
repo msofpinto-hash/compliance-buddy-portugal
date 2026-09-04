@@ -118,10 +118,11 @@ export function AuditPlanDetailsDialog({
 }: AuditPlanDetailsDialogProps) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!audit) return;
-    setForm({
+    const initial = {
       description: audit.description ?? "",
       auditor: audit.auditor ?? "",
       audit_date: audit.audit_date ?? "",
@@ -132,39 +133,61 @@ export function AuditPlanDetailsDialog({
       executive_summary: audit.executive_summary ?? "",
       strengths: audit.strengths ?? "",
       weaknesses: audit.weaknesses ?? "",
-    });
+    };
+    setForm(initial);
+    setSaved(initial);
   }, [audit?.id, open]);
+
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!audit) return;
-      const { error } = await supabase
+      if (!audit) return null;
+      const payload = {
+        description: form.description || null,
+        auditor: form.auditor || null,
+        audit_date: form.audit_date || null,
+        objectives: form.objectives || null,
+        methodology: form.methodology || null,
+        scope: form.scope || null,
+        interlocutors: form.interlocutors || null,
+        executive_summary: form.executive_summary || null,
+        strengths: form.strengths || null,
+        weaknesses: form.weaknesses || null,
+      };
+      const { data, error } = await supabase
         .from("audits")
-        .update({
-          description: form.description || null,
-          auditor: form.auditor || null,
-          audit_date: form.audit_date || null,
-          objectives: form.objectives || null,
-          methodology: form.methodology || null,
-          scope: form.scope || null,
-          interlocutors: form.interlocutors || null,
-          executive_summary: form.executive_summary || null,
-          strengths: form.strengths || null,
-          weaknesses: form.weaknesses || null,
-        })
-        .eq("id", audit.id);
+        .update(payload)
+        .eq("id", audit.id)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error(
+          "Sem permissão para guardar este plano (nenhum registo atualizado).",
+        );
+      }
+      return data;
     },
     onSuccess: () => {
       toast.success("Plano de auditoria guardado");
+      setSaved({ ...form });
+      queryClient.invalidateQueries({ queryKey: ["audits-all"] });
       queryClient.invalidateQueries({ queryKey: ["audits"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-plans"] });
     },
-    onError: () => toast.error("Não foi possível guardar o plano"),
+    onError: (e: unknown) =>
+      toast.error(
+        e instanceof Error ? e.message : "Não foi possível guardar o plano",
+      ),
   });
 
   if (!audit) return null;
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const currentValue = (key: string) =>
+    (saved[key] ?? ((audit[key as keyof AuditPlan] as string | null) || "")) ||
+    "";
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -220,9 +243,9 @@ export function AuditPlanDetailsDialog({
                   />
                 ) : (
                   <span className="font-medium">
-                    {audit.audit_date
+                    {currentValue("audit_date")
                       ? format(
-                          new Date(audit.audit_date),
+                          new Date(currentValue("audit_date")),
                           "d 'de' MMMM 'de' yyyy",
                           { locale: pt },
                         )
@@ -240,7 +263,9 @@ export function AuditPlanDetailsDialog({
                     onChange={(e) => set("auditor", e.target.value)}
                   />
                 ) : (
-                  <span className="font-medium">{audit.auditor || "—"}</span>
+                  <span className="font-medium">
+                    {currentValue("auditor") || "—"}
+                  </span>
                 )}
               </div>
             </div>
@@ -259,7 +284,7 @@ export function AuditPlanDetailsDialog({
                 />
               ) : (
                 <p className="text-sm whitespace-pre-wrap">
-                  {audit.description || "—"}
+                  {currentValue("description") || "—"}
                 </p>
               )}
             </div>
@@ -273,7 +298,8 @@ export function AuditPlanDetailsDialog({
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 {EDITABLE_FIELDS.map((field) => {
-                  const value = (audit[field.key] as string | null) ?? "";
+                  const value = currentValue(field.key as string);
+
                   if (!canEdit && !value && !field.required) return null;
                   return (
                     <div
