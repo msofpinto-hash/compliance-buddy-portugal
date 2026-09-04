@@ -937,6 +937,7 @@ export function StandardsControlPanel({
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
