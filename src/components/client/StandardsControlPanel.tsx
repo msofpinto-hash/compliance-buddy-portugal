@@ -712,13 +712,13 @@ export function StandardsControlPanel({
               Sem registos para os filtros selecionados.
             </p>
           ) : (
-            <div className="overflow-x-auto scrollbar-thin">
+            <div className="max-h-[70vh] overflow-auto scrollbar-thin">
               <Table
                 className="w-full table-fixed"
                 style={{ minWidth: `${tableMinWidth}px` }}
               >
-                <TableHeader>
-                  <TableRow>
+                <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
+                  <TableRow className="bg-background">
                     {showCol("type") && <TableHead className="w-[180px]">Tipo</TableHead>}
                     {showCol("ref") && <TableHead className="w-[140px]">Refª</TableHead>}
                     {showCol("name") && <TableHead className="w-[280px]">Documento</TableHead>}
