@@ -94,10 +94,9 @@ function splitSections(text: string): Record<string, string> {
       buffer.push("");
       continue;
     }
-    const bare = line
-      .replace(/^n\s*[.ºo°]{1,2}\s*(?=\d)/i, "")
-      .replace(/^\d+[.)]\s*/, "");
-    const match = HEADINGS.find((h) => h.re.test(bare));
+    const bare = line.replace(/^\d+[.)]\s*/, "");
+    const alt = bare.replace(/^n\s*[.ºo°]{1,2}\s+/i, "");
+    const match = HEADINGS.find((h) => h.re.test(bare) || h.re.test(alt));
     if (match) {
       flush();
       current = match.key;
