@@ -120,6 +120,7 @@ export function AuditPlanDetailsDialog({
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
+  const isMonthly = (audit?.audit_type || "anual") === "mensal";
 
   useEffect(() => {
     if (!audit) return;
