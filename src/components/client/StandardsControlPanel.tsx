@@ -38,7 +38,13 @@ import {
   Trash2,
   Loader2,
   Download,
+  Upload,
+  History,
+  Link2,
 } from "lucide-react";
+import { StandardsHistoryDialog } from "./StandardsHistoryDialog";
+import { StandardsImportDialog } from "./StandardsImportDialog";
+
 
 type StandardRow = {
   id: string;
