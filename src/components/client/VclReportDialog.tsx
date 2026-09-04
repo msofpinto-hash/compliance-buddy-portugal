@@ -235,6 +235,22 @@ export function VclReportDialog({
       });
       return;
     }
+    try {
+      const sync = await syncVclActionsToPlans(audit, report);
+      if (sync.created || sync.updated) {
+        toast({
+          title: "Ações enviadas para o Plano de Ações",
+          description: `${sync.created} nova(s), ${sync.updated} atualizada(s) — com a origem identificada.`,
+        });
+      }
+    } catch (e: any) {
+      toast({
+        title: "Ações não foram sincronizadas",
+        description: e?.message || String(e),
+        variant: "destructive",
+      });
+    }
+
     if (alsoPdf) {
       try {
         const name = await generateAndAttachVclPdf(audit, report);
