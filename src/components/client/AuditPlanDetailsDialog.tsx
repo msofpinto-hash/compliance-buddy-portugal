@@ -118,10 +118,11 @@ export function AuditPlanDetailsDialog({
 }: AuditPlanDetailsDialogProps) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!audit) return;
-    setForm({
+    const initial = {
       description: audit.description ?? "",
       auditor: audit.auditor ?? "",
       audit_date: audit.audit_date ?? "",
@@ -132,8 +133,11 @@ export function AuditPlanDetailsDialog({
       executive_summary: audit.executive_summary ?? "",
       strengths: audit.strengths ?? "",
       weaknesses: audit.weaknesses ?? "",
-    });
+    };
+    setForm(initial);
+    setSaved(initial);
   }, [audit?.id, open]);
+
 
   const save = useMutation({
     mutationFn: async () => {
