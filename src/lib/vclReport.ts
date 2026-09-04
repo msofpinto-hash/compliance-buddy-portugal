@@ -251,7 +251,11 @@ export function buildVclPdf(
           ? "Aplicável direto"
           : d.applicability === "aplicavel_indireto"
             ? "Aplicável indireto"
-            : d.applicability || "",
+            : d.applicability === "informativo"
+              ? "Informativo"
+              : d.applicability === "nao_aplicavel"
+                ? "Não aplicável"
+                : d.applicability || "",
       ]),
       margin: { left: margin, right: margin },
     });
