@@ -405,7 +405,7 @@ export default function Normas() {
                           </Badge>
                           <Badge variant="outline">{r.reference_period}</Badge>
                           <Badge className={cn("border-0", ap.cls)}>{ap.label}</Badge>
-                          <Badge className={cn("border-0", st.cls)}>{st.label}</Badge>
+                          {st && <Badge className={cn("border-0", st.cls)}>{st.label}</Badge>}
                           <span className="ml-auto text-xs text-muted-foreground">
                             Publicação: {formatDate(r.publication_date)}
                             {r.modification_date
