@@ -159,12 +159,11 @@ export function VclReportDialog({
   if (!audit) return null;
 
   const ref = new Date(audit.executed_at || audit.audit_date || Date.now());
-  const periodStart = new Date(ref.getFullYear(), ref.getMonth() - 1, 1)
-    .toISOString()
-    .slice(0, 10);
-  const periodEnd = new Date(ref.getFullYear(), ref.getMonth(), 0)
-    .toISOString()
-    .slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const periodStart = `${ref.getFullYear()}-${pad(ref.getMonth() + 1)}-01`;
+  const periodEnd = `${ref.getFullYear()}-${pad(ref.getMonth() + 1)}-${pad(
+    new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate(),
+  )}`;
   const periodName = new Date(periodStart).toLocaleDateString("pt-PT", {
     month: "long",
     year: "numeric",
