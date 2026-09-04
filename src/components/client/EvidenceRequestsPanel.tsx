@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -209,6 +210,7 @@ export function EvidenceRequestsPanel({
   organizationId,
 }: EvidenceRequestsPanelProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -296,6 +298,73 @@ export function EvidenceRequestsPanel({
     },
     enabled: !!requests?.length,
   });
+
+  // Auditorias a que cada pedido dá resposta (via diplomas do template)
+  const { data: auditsByRequest } = useQuery({
+    queryKey: ["evidence-request-audits", organizationId, requests?.length],
+    queryFn: async () => {
+      const map: Record<string, { id: string; title: string; date: string | null }[]> = {};
+      if (!requests?.length) return map;
+
+      const templateIds = Array.from(
+        new Set(requests.map((r) => r.template_id).filter(Boolean)),
+      );
+      if (!templateIds.length) return map;
+
+      const { data: links } = await supabase
+        .from("evidence_template_legislation")
+        .select("template_id, legislation_id")
+        .in("template_id", templateIds);
+      if (!links?.length) return map;
+
+      const legIds = Array.from(new Set(links.map((l) => l.legislation_id)));
+
+      const { data: orgAudits } = await supabase
+        .from("audits")
+        .select("id, title, audit_date")
+        .eq("organization_id", organizationId);
+      if (!orgAudits?.length) return map;
+
+      const auditIds = orgAudits.map((a) => a.id);
+      const { data: auditReqs } = await supabase
+        .from("audit_requirements")
+        .select("audit_id, legislation_id")
+        .in("audit_id", auditIds)
+        .in("legislation_id", legIds);
+      if (!auditReqs?.length) return map;
+
+      const auditsByLeg = new Map<string, Set<string>>();
+      auditReqs.forEach((ar) => {
+        const set = auditsByLeg.get(ar.legislation_id) || new Set<string>();
+        set.add(ar.audit_id);
+        auditsByLeg.set(ar.legislation_id, set);
+      });
+
+      const legsByTemplate = new Map<string, string[]>();
+      links.forEach((l) => {
+        legsByTemplate.set(l.template_id, [
+          ...(legsByTemplate.get(l.template_id) || []),
+          l.legislation_id,
+        ]);
+      });
+
+      requests.forEach((r) => {
+        const legs = legsByTemplate.get(r.template_id) || [];
+        const ids = new Set<string>();
+        legs.forEach((lid) =>
+          auditsByLeg.get(lid)?.forEach((aid) => ids.add(aid)),
+        );
+        const list = orgAudits
+          .filter((a) => ids.has(a.id))
+          .map((a) => ({ id: a.id, title: a.title, date: a.audit_date }));
+        if (list.length) map[r.id] = list;
+      });
+
+      return map;
+    },
+    enabled: !!organizationId && !!requests?.length,
+  });
+
 
   // Admin: alterar visibilidade do pedido para o cliente
   const visibilityMutation = useMutation({
@@ -1078,6 +1147,34 @@ export function EvidenceRequestsPanel({
                                       <p className="font-medium whitespace-pre-line">
                                         {request.evidence_templates.title}
                                       </p>
+                                      {(auditsByRequest?.[request.id] || [])
+                                        .length > 0 && (
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                          <span className="text-xs text-muted-foreground">
+                                            Dá resposta a:
+                                          </span>
+                                          {auditsByRequest?.[request.id]?.map(
+                                            (a) => (
+                                              <Badge
+                                                key={a.id}
+                                                variant="outline"
+                                                className="cursor-pointer text-xs"
+                                                onClick={() =>
+                                                  navigate(
+                                                    `/dashboard?tab=audits&sec=plano&audit=${a.id}`,
+                                                  )
+                                                }
+                                              >
+                                                {a.title}
+                                                {a.date
+                                                  ? ` · ${format(new Date(a.date), "dd/MM/yyyy", { locale: pt })}`
+                                                  : ""}
+                                              </Badge>
+                                            ),
+                                          )}
+                                        </div>
+                                      )}
+
                                       {request.evidence_templates
                                         .description && (
                                         <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">

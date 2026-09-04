@@ -34,8 +34,10 @@ export interface CalendarAudit {
 }
 
 type ViewMode = "semanal" | "mensal" | "anual";
+type TypeFilter = "all" | "anual" | "mensal";
 
 const isExecuted = (a: CalendarAudit) => a.status === "closed";
+const isMonthly = (a: CalendarAudit) => (a.audit_type || "anual") === "mensal";
 
 interface Props {
   audits: CalendarAudit[];
@@ -43,9 +45,23 @@ interface Props {
 }
 
 /** Audit calendar with weekly / monthly / annual views showing planned vs executed dates. */
-export function AuditCalendar({ audits, onSelectAudit }: Props) {
+export function AuditCalendar({ audits: allAudits, onSelectAudit }: Props) {
   const [view, setView] = useState<ViewMode>("mensal");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [cursor, setCursor] = useState(new Date());
+
+  const audits = useMemo(
+    () =>
+      allAudits.filter((a) =>
+        typeFilter === "all"
+          ? true
+          : typeFilter === "mensal"
+            ? isMonthly(a)
+            : !isMonthly(a),
+      ),
+    [allAudits, typeFilter],
+  );
+
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarAudit[]>();
@@ -90,17 +106,21 @@ export function AuditCalendar({ audits, onSelectAudit }: Props) {
     <button
       key={a.id}
       onClick={() => onSelectAudit?.(a.id)}
-      title={a.title}
-      className={`w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium ${
+      title={`${isMonthly(a) ? "VCL mensal" : "Auditoria anual"} · ${a.title}`}
+      className={`w-full truncate rounded border-l-2 px-1.5 py-0.5 text-left text-[10px] font-medium ${
+        isMonthly(a) ? "border-sky-500" : "border-emerald-600"
+      } ${
         isExecuted(a)
           ? "bg-primary/15 text-primary"
           : "bg-amber-500/15 text-amber-700"
       }`}
     >
       {isExecuted(a) ? "✓ " : "• "}
+      {isMonthly(a) ? "VCL " : ""}
       {a.title}
     </button>
   );
+
 
   return (
     <Card className="border-0 shadow-lg">
@@ -118,7 +138,26 @@ export function AuditCalendar({ audits, onSelectAudit }: Props) {
             </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className="flex rounded-md border p-0.5">
+              {(
+                [
+                  ["all", "Todas"],
+                  ["anual", "Auditorias anuais"],
+                  ["mensal", "VCL mensais"],
+                ] as [TypeFilter, string][]
+              ).map(([v, lbl]) => (
+                <Button
+                  key={v}
+                  size="sm"
+                  variant={typeFilter === v ? "default" : "ghost"}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setTypeFilter(v)}
+                >
+                  {lbl}
+                </Button>
+              ))}
+            </div>
             <div className="flex rounded-md border p-0.5">
               {(["semanal", "mensal", "anual"] as ViewMode[]).map((v) => (
                 <Button
@@ -151,9 +190,17 @@ export function AuditCalendar({ audits, onSelectAudit }: Props) {
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Executada
           </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-0.5 rounded bg-emerald-600" /> Auditoria
+            anual
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-0.5 rounded bg-sky-500" /> VCL mensal
+          </span>
         </div>
 
         {view === "anual" ? (
+
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 12 }, (_, m) =>
               addMonths(startOfYear(cursor), m),
