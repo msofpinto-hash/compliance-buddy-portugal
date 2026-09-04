@@ -1,0 +1,1 @@
+ALTER TABLE public.standards_control ADD COLUMN IF NOT EXISTS document_url text;

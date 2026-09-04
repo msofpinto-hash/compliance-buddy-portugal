@@ -1731,6 +1731,7 @@ export type Database = {
           document_name: string | null
           document_ref: string | null
           document_type: string | null
+          document_url: string | null
           id: string
           impact_iso_14001: boolean
           impact_iso_45001: boolean
@@ -1757,6 +1758,7 @@ export type Database = {
           document_name?: string | null
           document_ref?: string | null
           document_type?: string | null
+          document_url?: string | null
           id?: string
           impact_iso_14001?: boolean
           impact_iso_45001?: boolean
@@ -1783,6 +1785,7 @@ export type Database = {
           document_name?: string | null
           document_ref?: string | null
           document_type?: string | null
+          document_url?: string | null
           id?: string
           impact_iso_14001?: boolean
           impact_iso_45001?: boolean
