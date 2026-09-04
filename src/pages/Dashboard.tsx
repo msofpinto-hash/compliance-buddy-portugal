@@ -1574,24 +1574,37 @@ export default function Dashboard() {
                   Calendário de auditorias
                 </Button>
                 <Button
-                  variant={auditSection === "historico" ? "default" : "ghost"}
+                  variant={auditSection === "evidencias" ? "default" : "ghost"}
                   size="sm"
                   className="gap-2"
-                  onClick={() => setAuditSection("historico")}
+                  onClick={() => setAuditSection("evidencias")}
                 >
-                  <ClipboardCheck className="h-4 w-4" />
-                  Histórico de auditorias
+                  <FolderOpen className="h-4 w-4" />
+                  Evidências de conformidade
                 </Button>
                 <Button
-                  variant={
-                    auditSection === "acompanhamento" ? "default" : "ghost"
-                  }
+                  variant={auditSection === "relatorios" ? "default" : "ghost"}
                   size="sm"
                   className="gap-2"
-                  onClick={() => setAuditSection("acompanhamento")}
+                  onClick={() => {
+                    setAuditSection("relatorios");
+                    setAuditTypeFilter("anual");
+                  }}
+                >
+                  <ClipboardCheck className="h-4 w-4" />
+                  Relatórios anuais
+                </Button>
+                <Button
+                  variant={auditSection === "atas" ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    setAuditSection("atas");
+                    setAuditTypeFilter("mensal");
+                  }}
                 >
                   <ListChecks className="h-4 w-4" />
-                  Acompanhamento
+                  Atas mensais
                 </Button>
                 <Button
                   variant={auditSection === "normas" ? "default" : "ghost"}
@@ -1600,8 +1613,9 @@ export default function Dashboard() {
                   onClick={() => setAuditSection("normas")}
                 >
                   <BookMarked className="h-4 w-4" />
-                  Controlo de normas
+                  Controlo de normas, despachos e notas técnicas
                 </Button>
+
 
                 <div className="ml-auto flex items-center gap-2">
                   <span className="text-xs text-muted-foreground hidden sm:inline">
