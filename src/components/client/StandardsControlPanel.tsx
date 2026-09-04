@@ -726,12 +726,13 @@ export function StandardsControlPanel({
             <>
             <div
               ref={hScrollRef}
-              className="h-4 overflow-x-auto overflow-y-hidden bg-muted/60 border rounded-t"
+              className="h-2.5 overflow-x-auto overflow-y-hidden scrollbar-thin border-b bg-background rounded-t"
               onScroll={() => syncHorizontalScroll(hScrollRef.current)}
               aria-label="Scroll horizontal da tabela"
             >
               <div style={{ width: `${tableMinWidth}px`, height: "1px" }} />
             </div>
+
             <div
               ref={tableScrollRef}
               className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain relative"
@@ -762,7 +763,7 @@ export function StandardsControlPanel({
                         Auditorias afetadas
                       </TableHead>
                     )}
-                    <TableHead className="w-[110px]">Ações</TableHead>
+                    <TableHead className="w-[110px] sticky right-0 z-30 bg-background shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -866,7 +867,7 @@ export function StandardsControlPanel({
                         </TableCell>
                       )}
                       {showCol("audits") && (
-                        <TableCell className="space-y-1 whitespace-nowrap">
+                        <TableCell className="space-y-1">
                           {auditsForRow(r).length === 0 ? (
                             <span className="text-[11px] text-muted-foreground">
                               —
@@ -878,7 +879,8 @@ export function StandardsControlPanel({
                                 <Badge
                                   key={a.id}
                                   variant="secondary"
-                                  className="text-[10px] block w-fit"
+                                  className="text-[10px] block w-full max-w-full truncate"
+                                  title={a.title}
                                 >
                                   {a.title}
                                 </Badge>
@@ -897,7 +899,8 @@ export function StandardsControlPanel({
                           )}
                         </TableCell>
                       )}
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap sticky right-0 z-10 bg-background shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)]">
+
                         <div className="flex gap-1">
                           <Button
                             size="icon"
