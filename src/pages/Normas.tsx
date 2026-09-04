@@ -31,6 +31,9 @@ import {
   FileText,
   ScrollText,
   Mail,
+  Zap,
+  HeartPulse,
+  Flame,
   StickyNote,
   Folder,
   ArrowUpDown,
@@ -129,17 +132,17 @@ function groupOf(row: StandardRow): GroupKey {
   const hay = `${row.document_type || ""} ${row.document_ref || ""} ${
     row.document_name || ""
   }`.toLowerCase();
-  // Circulares APA têm pasta própria
+  // Entidades com pasta própria
   if (hay.includes("circular")) return "circulares";
+  if (hay.includes("dgeg")) return "dgeg";
+  if (/\bdgs\b/.test(hay)) return "dgs";
+  if (hay.includes("anepc") || hay.includes("proteção civil")) return "anepc";
   // Despachos e orientações de entidades
   if (
     hay.includes("despacho") ||
-    hay.includes("circular") ||
     hay.includes("orienta") ||
     hay.includes("faq") ||
     hay.includes("requisitos de qualificação") ||
-    hay.includes("dgeg") ||
-    hay.includes("dgs") ||
     hay.includes("isenção")
   )
     return "despachos";
