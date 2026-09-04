@@ -55,3 +55,5 @@
 - [ ] Relatório VCL PDF: cabeçalho com logotipos AMCOR + I&D Compliance, data da reunião e páginas numeradas
 - [ ] Preencher relatórios VCL 2025 (12 meses) a partir dos DOCX e anexar Controlo de Normas + Lista de diplomas por mês
 - [ ] Remover coluna de ações (Executada/Conclusões) do Acompanhamento mensal
+- [ ] Novo menu de topo "Normas, Despachos e Notas Técnicas" ao lado de Legislação (estrutura semelhante à Biblioteca), retirando-o de dentro das Auditorias
+- [ ] Verificar PDF VCL de julho com os dois logótipos (AMCOR + I&D) após correção do asset
