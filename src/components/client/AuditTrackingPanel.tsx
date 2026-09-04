@@ -368,7 +368,6 @@ export function AuditTrackingPanel({
                     <TableHead className="w-[100px]">Executada</TableHead>
                     <TableHead className="w-[120px]">Concluída</TableHead>
                     <TableHead className="w-[150px]">Documentos</TableHead>
-                    {isAdmin && <TableHead className="w-[190px]" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -449,48 +448,10 @@ export function AuditTrackingPanel({
                             )}
                           </Button>
                         </TableCell>
-
-                        {isAdmin && (
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {stage === "agendada" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-[11px] gap-1"
-                                  onClick={() => markExecuted(a)}
-                                >
-                                  <PlayCircle className="h-3 w-3" />
-                                  Executada
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-[11px] gap-1"
-                                onClick={() => openConclusion(a)}
-                              >
-                                <ListChecks className="h-3 w-3" />
-                                Conclusões
-                              </Button>
-                              {stage === "concluida" && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 text-[11px] gap-1"
-                                  onClick={() => reopen(a)}
-                                >
-                                  <RotateCcw className="h-3 w-3" />
-                                  Reabrir
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
                         </TableRow>
                         {expanded === a.id && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={isAdmin ? 8 : 7} className="p-4">
+                            <TableCell colSpan={6} className="p-4">
                               <AuditDocumentsList
                                 auditId={a.id}
                                 variant="plain"
