@@ -532,7 +532,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
   const [diplomaTypeFilter, setDiplomaTypeFilter] = useState<string | null>(null);
   const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
   const [pendingRequirementsOnly, setPendingRequirementsOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<"date" | "title" | "number">("date");
+  const [sortBy, setSortBy] = useState<"date" | "title" | "number" | "pending">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<50 | 100>(50);
