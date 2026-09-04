@@ -867,7 +867,7 @@ export function StandardsControlPanel({
                         </TableCell>
                       )}
                       {showCol("audits") && (
-                        <TableCell className="space-y-1 whitespace-nowrap">
+                        <TableCell className="space-y-1">
                           {auditsForRow(r).length === 0 ? (
                             <span className="text-[11px] text-muted-foreground">
                               —
@@ -879,7 +879,8 @@ export function StandardsControlPanel({
                                 <Badge
                                   key={a.id}
                                   variant="secondary"
-                                  className="text-[10px] block w-fit"
+                                  className="text-[10px] block w-full max-w-full truncate"
+                                  title={a.title}
                                 >
                                   {a.title}
                                 </Badge>
@@ -898,7 +899,8 @@ export function StandardsControlPanel({
                           )}
                         </TableCell>
                       )}
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap sticky right-0 z-10 bg-background shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)]">
+
                         <div className="flex gap-1">
                           <Button
                             size="icon"
