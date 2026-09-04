@@ -362,7 +362,7 @@ export function AuditTrackingPanel({
                     </TableHead>
                     <TableHead className="w-[150px]">Planos de ação</TableHead>
                     <TableHead className="w-[200px]">Conclusão</TableHead>
-                    <TableHead className="w-[130px]">Atas / anexos</TableHead>
+                    <TableHead className="w-[210px]">Atas / relatório</TableHead>
                     {isAdmin && <TableHead className="w-[200px]" />}
                   </TableRow>
                 </TableHeader>

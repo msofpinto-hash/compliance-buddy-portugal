@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
+import { attachVclReportIfMonthly } from "@/lib/vclReport";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -179,6 +180,7 @@ export default function Aprovacoes() {
           .in("status", ["rascunho", "aguarda_aprovacao"]);
       }
 
+      await attachVclReportIfMonthly(audit.id);
       await attachStandardsSnapshotIfMonthly(audit.id);
     },
     onSuccess: () => {
