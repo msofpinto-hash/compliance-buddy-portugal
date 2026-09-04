@@ -2301,15 +2301,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Acompanhamentos mensais */}
-          {activeTab === "monthly" && (
-            <AuditTrackingPanel
-              organizationIds={organizationIds}
-              organizations={organizations as any}
-              typeFilter="mensal"
-            />
-          )}
-
           {/* Documents Tab */}
           {activeTab === "documents" && currentOrg?.id && (
             <EvidenceRequestsPanel organizationId={currentOrg.id} />
