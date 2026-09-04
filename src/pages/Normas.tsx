@@ -144,7 +144,7 @@ export default function Normas() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [group, setGroup] = useState<GroupKey | "todos">("todos");
   const [search, setSearch] = useState("");
-  const [period, setPeriod] = useState("all");
+  
   const [sortDesc, setSortDesc] = useState(true);
   const [detailRow, setDetailRow] = useState<StandardRow | null>(null);
   const [linkRow, setLinkRow] = useState<StandardRow | null>(null);
@@ -371,19 +371,10 @@ export default function Normas() {
                   className="pl-9"
                 />
               </div>
-              <Select value={period} onValueChange={setPeriod}>
-                <SelectTrigger className="sm:w-56">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os períodos</SelectItem>
-                  {periods.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Badge variant="outline" className="self-center whitespace-nowrap">
+                Última versão{latestPeriod ? ` · ${latestPeriod}` : ""}
+              </Badge>
+
               <Button variant="outline" onClick={() => setSortDesc((v) => !v)}>
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 {sortDesc ? "Mais recentes" : "Mais antigos"}
