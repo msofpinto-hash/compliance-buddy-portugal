@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, FileDown, Search } from "lucide-react";
+import { Loader2, Plus, Trash2, FileDown, Search, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +34,7 @@ import {
   VclDiploma,
 } from "@/lib/vclReport";
 import { buildVclAutofill, syncVclActionsToPlans } from "@/lib/vclAutomation";
+import { parseAtaPdf } from "@/lib/vclAtaParser";
 
 type Audit = {
   id: string;
@@ -62,6 +63,7 @@ export function VclReportDialog({
   const { toast } = useToast();
   const [report, setReport] = useState<VclReport>(emptyVclReport());
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [pool, setPool] = useState<VclDiploma[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
   const [search, setSearch] = useState("");
