@@ -1750,6 +1750,95 @@ export type Database = {
           },
         ]
       }
+      standards_control_audits: {
+        Row: {
+          audit_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          link_source: string
+          standard_id: string
+        }
+        Insert: {
+          audit_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link_source?: string
+          standard_id: string
+        }
+        Update: {
+          audit_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link_source?: string
+          standard_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standards_control_audits_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "standards_control_audits_standard_id_fkey"
+            columns: ["standard_id"]
+            isOneToOne: false
+            referencedRelation: "standards_control"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      standards_control_history: {
+        Row: {
+          action: string
+          changed_by: string | null
+          changed_by_name: string | null
+          changes: Json
+          created_at: string
+          document_name: string | null
+          document_ref: string | null
+          id: string
+          organization_id: string
+          standard_id: string | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          changes?: Json
+          created_at?: string
+          document_name?: string | null
+          document_ref?: string | null
+          id?: string
+          organization_id: string
+          standard_id?: string | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          changes?: Json
+          created_at?: string
+          document_name?: string | null
+          document_ref?: string | null
+          id?: string
+          organization_id?: string
+          standard_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standards_control_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_logs: {
         Row: {
           completed_at: string | null
