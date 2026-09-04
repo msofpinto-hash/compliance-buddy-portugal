@@ -26,6 +26,7 @@ import {
   vclPeriodLabel,
   VclDiploma,
 } from "@/lib/vclReport";
+import { buildVclAutofill, syncVclActionsToPlans } from "@/lib/vclAutomation";
 
 type Audit = {
   id: string;
