@@ -744,105 +744,135 @@ export function StandardsControlPanel({
                 <TableBody>
                   {filtered.map((r) => (
                     <TableRow key={r.id} className="align-top">
-                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.document_type}
-                      </TableCell>
-                      <TableCell className="text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.document_ref}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
-                        title={r.document_name || ""}
-                      >
-                        {r.document_name}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.publication_date}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.modification_date}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.issuer}
-                      </TableCell>
-                      <TableCell className="text-center text-xs whitespace-nowrap">
-                        {r.impact_iso_14001 ? "x" : ""}
-                      </TableCell>
-                      <TableCell className="text-center text-xs whitespace-nowrap">
-                        {r.impact_iso_45001 ? "x" : ""}
-                      </TableCell>
-                      <TableCell className="space-y-1 whitespace-nowrap">
-                        {r.applicability_direct && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Direta
-                          </Badge>
-                        )}
-                        {r.applicability_indirect && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Indireta
-                          </Badge>
-                        )}
-                        {r.applicability_informative && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Informativo
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
-                        title={r.descriptive || ""}
-                      >
-                        {r.descriptive}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
-                        title={r.actions || ""}
-                      >
-                        {r.actions}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.responsible}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.implementation_deadline}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.implementation_status && (
-                          <Badge className="bg-green-500 text-white border-0 text-[10px]">
-                            {r.implementation_status}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="space-y-1 whitespace-nowrap">
-                        {auditsForRow(r).length === 0 ? (
-                          <span className="text-[11px] text-muted-foreground">
-                            —
-                          </span>
-                        ) : (
-                          auditsForRow(r)
-                            .slice(0, 3)
-                            .map((a) => (
-                              <Badge
-                                key={a.id}
-                                variant="secondary"
-                                className="text-[10px] block w-fit"
-                              >
-                                {a.title}
-                              </Badge>
-                            ))
-                        )}
-                        {canEdit && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 px-1 text-[11px] gap-1"
-                            onClick={() => setLinkingRow(r)}
-                          >
-                            <Link2 className="h-3 w-3" />
-                            Ligar
-                          </Button>
-                        )}
-                      </TableCell>
+                      {showCol("type") && (
+                        <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.document_type}
+                        </TableCell>
+                      )}
+                      {showCol("ref") && (
+                        <TableCell className="text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.document_ref}
+                        </TableCell>
+                      )}
+                      {showCol("name") && (
+                        <TableCell
+                          className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                          title={r.document_name || ""}
+                        >
+                          {r.document_name}
+                        </TableCell>
+                      )}
+                      {showCol("publication") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.publication_date}
+                        </TableCell>
+                      )}
+                      {showCol("modification") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.modification_date}
+                        </TableCell>
+                      )}
+                      {showCol("issuer") && (
+                        <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.issuer}
+                        </TableCell>
+                      )}
+                      {showCol("iso14001") && (
+                        <TableCell className="text-center text-xs whitespace-nowrap">
+                          {r.impact_iso_14001 ? "x" : ""}
+                        </TableCell>
+                      )}
+                      {showCol("iso45001") && (
+                        <TableCell className="text-center text-xs whitespace-nowrap">
+                          {r.impact_iso_45001 ? "x" : ""}
+                        </TableCell>
+                      )}
+                      {showCol("applicability") && (
+                        <TableCell className="space-y-1 whitespace-nowrap">
+                          {r.applicability_direct && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Direta
+                            </Badge>
+                          )}
+                          {r.applicability_indirect && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Indireta
+                            </Badge>
+                          )}
+                          {r.applicability_informative && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Informativo
+                            </Badge>
+                          )}
+                        </TableCell>
+                      )}
+                      {showCol("descriptive") && (
+                        <TableCell
+                          className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                          title={r.descriptive || ""}
+                        >
+                          {r.descriptive}
+                        </TableCell>
+                      )}
+                      {showCol("actions") && (
+                        <TableCell
+                          className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                          title={r.actions || ""}
+                        >
+                          {r.actions}
+                        </TableCell>
+                      )}
+                      {showCol("responsible") && (
+                        <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.responsible}
+                        </TableCell>
+                      )}
+                      {showCol("deadline") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.implementation_deadline}
+                        </TableCell>
+                      )}
+                      {showCol("status") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.implementation_status && (
+                            <Badge className="bg-green-500 text-white border-0 text-[10px]">
+                              {r.implementation_status}
+                            </Badge>
+                          )}
+                        </TableCell>
+                      )}
+                      {showCol("audits") && (
+                        <TableCell className="space-y-1 whitespace-nowrap">
+                          {auditsForRow(r).length === 0 ? (
+                            <span className="text-[11px] text-muted-foreground">
+                              —
+                            </span>
+                          ) : (
+                            auditsForRow(r)
+                              .slice(0, 3)
+                              .map((a) => (
+                                <Badge
+                                  key={a.id}
+                                  variant="secondary"
+                                  className="text-[10px] block w-fit"
+                                >
+                                  {a.title}
+                                </Badge>
+                              ))
+                          )}
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1 text-[11px] gap-1"
+                              onClick={() => setLinkingRow(r)}
+                            >
+                              <Link2 className="h-3 w-3" />
+                              Ligar
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="whitespace-nowrap">
                         <div className="flex gap-1">
                           <Button
