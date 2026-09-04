@@ -63,6 +63,8 @@ import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
 import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDialog";
+import { StandardsControlPanel } from "@/components/client/StandardsControlPanel";
+
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
 
@@ -1868,7 +1870,18 @@ export default function Dashboard() {
                 );
               })()}
 
+              {/* Standards Control Section */}
+              <div
+                className={auditSection === "normas" ? "" : "hidden"}
+              >
+                <StandardsControlPanel
+                  organizationId={selectedOrgId || organizationIds[0]}
+                  canEdit={isAdmin}
+                />
+              </div>
+
               {/* Audit History Section */}
+
               <div
                 className={`space-y-4 ${auditSection === "historico" ? "" : "hidden"}`}
               >
