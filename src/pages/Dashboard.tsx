@@ -312,7 +312,10 @@ export default function Dashboard() {
   );
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
-  const [auditSection, setAuditSection] = useState<"plano" | "historico">(
+  const [auditSection, setAuditSection] = useState<
+    "plano" | "historico" | "normas"
+  >(
+
     "plano",
   );
   const [auditTypeFilter, setAuditTypeFilter] = useState<
