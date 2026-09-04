@@ -137,34 +137,53 @@ export function AuditPlanDetailsDialog({
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!audit) return;
-      const { error } = await supabase
+      if (!audit) return null;
+      const payload = {
+        description: form.description || null,
+        auditor: form.auditor || null,
+        audit_date: form.audit_date || null,
+        objectives: form.objectives || null,
+        methodology: form.methodology || null,
+        scope: form.scope || null,
+        interlocutors: form.interlocutors || null,
+        executive_summary: form.executive_summary || null,
+        strengths: form.strengths || null,
+        weaknesses: form.weaknesses || null,
+      };
+      const { data, error } = await supabase
         .from("audits")
-        .update({
-          description: form.description || null,
-          auditor: form.auditor || null,
-          audit_date: form.audit_date || null,
-          objectives: form.objectives || null,
-          methodology: form.methodology || null,
-          scope: form.scope || null,
-          interlocutors: form.interlocutors || null,
-          executive_summary: form.executive_summary || null,
-          strengths: form.strengths || null,
-          weaknesses: form.weaknesses || null,
-        })
-        .eq("id", audit.id);
+        .update(payload)
+        .eq("id", audit.id)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error(
+          "Sem permissão para guardar este plano (nenhum registo atualizado).",
+        );
+      }
+      return data;
     },
     onSuccess: () => {
       toast.success("Plano de auditoria guardado");
+      setSaved({ ...form });
+      queryClient.invalidateQueries({ queryKey: ["audits-all"] });
       queryClient.invalidateQueries({ queryKey: ["audits"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-plans"] });
     },
-    onError: () => toast.error("Não foi possível guardar o plano"),
+    onError: (e: unknown) =>
+      toast.error(
+        e instanceof Error ? e.message : "Não foi possível guardar o plano",
+      ),
   });
 
   if (!audit) return null;
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const currentValue = (key: string) =>
+    (saved[key] ?? ((audit[key as keyof AuditPlan] as string | null) || "")) ||
+    "";
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
