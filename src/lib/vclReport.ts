@@ -149,8 +149,9 @@ export function buildVclPdf(
     y += 12;
   };
 
-  section("Descrição da reunião:", report.description);
-  section("Conclusões:", report.conclusions);
+  section("Descrição da reunião:", report.description, true);
+  section("Conclusões:", report.conclusions, true);
+
 
   if (report.diplomas.length) {
     if (y > doc.internal.pageSize.getHeight() - 140) {
