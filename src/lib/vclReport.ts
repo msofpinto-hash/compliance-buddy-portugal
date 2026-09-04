@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
-import idLogoAsset from "@/assets/id-compliance-header.png.asset.json";
+import idLogoUrl from "@/assets/logo-id-compliance.jpg";
 
 export const VCL_REPORT_PREFIX = "Verificação de Conformidade Legal Mensal";
 
