@@ -1624,6 +1624,17 @@ export default function Dashboard() {
                   <BookMarked className="h-4 w-4" />
                   Controlo de normas, despachos e notas técnicas
                 </Button>
+                <Button
+                  variant={
+                    auditSection === "acompanhamento" ? "default" : "ghost"
+                  }
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAuditSection("acompanhamento")}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Acompanhamento mensal
+                </Button>
 
 
                 <div className="ml-auto flex items-center gap-2">
