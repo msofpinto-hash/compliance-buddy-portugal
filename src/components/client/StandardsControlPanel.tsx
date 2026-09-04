@@ -723,7 +723,11 @@ export function StandardsControlPanel({
               Sem registos para os filtros selecionados.
             </p>
           ) : (
-            <div className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain">
+            <div
+              ref={tableScrollRef}
+              className="max-h-[65vh] overflow-auto scrollbar-thin overscroll-contain relative"
+              onScroll={() => syncHorizontalScroll(tableScrollRef.current)}
+            >
               <Table
                 className="w-full table-fixed"
                 style={{ minWidth: `${tableMinWidth}px` }}
