@@ -1961,6 +1961,35 @@ export default function Dashboard() {
               <div
                 className={`space-y-4 ${auditSection === "relatorios" || auditSection === "atas" ? "" : "hidden"}`}
               >
+                {auditSection === "atas" && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <BookMarked className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold">
+                          Controlo de normas, despachos e notas técnicas
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Enquanto a verificação mensal não estiver encerrada, o
+                          ficheiro é gerido no submenu próprio. Ao encerrar cada
+                          VCL é gerado um Excel dessas normas e anexado à
+                          respetiva ata mensal.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 shrink-0"
+                      onClick={() => setAuditSection("normas")}
+                    >
+                      <BookMarked className="h-4 w-4" />
+                      Abrir controlo de normas
+                    </Button>
+                  </div>
+                )}
+
+
 
 
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
