@@ -1,8 +1,25 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
+import idLogoAsset from "@/assets/id-compliance-header.png.asset.json";
 
 export const VCL_REPORT_PREFIX = "Verificação de Conformidade Legal Mensal";
+
+async function toDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
 
 export type VclAction = {
   description: string;
@@ -23,6 +40,8 @@ export type VclDiploma = {
 export type VclReport = {
   participants: string;
   meeting_type: string;
+  /** Data da reunião (dd/mm/aaaa). Se vazio, usa a data da auditoria. */
+  meeting_date?: string | null;
   description: string;
   conclusions: string;
   actions: VclAction[];
