@@ -237,8 +237,15 @@ export function VclReportDialog({
     if (alsoPdf) onOpenChange(false);
   };
 
-  const preview = () => {
+  const preview = async () => {
     try {
+      if (canEdit) {
+        await supabase
+          .from("audits")
+          .update({ vcl_report: report as any })
+          .eq("id", audit.id);
+      }
+
       const blob = buildVclPdf(audit, report);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
