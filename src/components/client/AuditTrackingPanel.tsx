@@ -225,6 +225,8 @@ export function AuditTrackingPanel({
                 </TableHeader>
                 <TableBody>
                   {rows.map((a) => {
+                    const stage = stageOf(a);
+                    return (
                       <Fragment key={a.id}>
                         <TableRow className="align-top">
                         <TableCell className="text-sm font-medium">
@@ -320,6 +322,8 @@ export function AuditTrackingPanel({
           )}
         </CardContent>
       </Card>
+
+      <VclReportDialog
         audit={vclFor as any}
         open={!!vclFor}
         onOpenChange={(o) => !o && setVclFor(null)}
