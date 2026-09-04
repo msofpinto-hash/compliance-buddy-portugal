@@ -336,6 +336,7 @@ export default function Dashboard() {
     "date_desc" | "date_asc" | "title" | "status"
   >("date_desc");
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Get active tab from URL params
