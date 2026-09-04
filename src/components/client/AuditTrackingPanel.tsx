@@ -1,9 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { attachStandardsSnapshotIfMonthly } from "@/lib/standardsSnapshot";
-import { attachVclReportIfMonthly, parseVclReport } from "@/lib/vclReport";
-import { syncVclActionsToPlans } from "@/lib/vclAutomation";
 import { VclReportDialog } from "@/components/client/VclReportDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -12,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -23,12 +18,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -40,12 +29,9 @@ import {
 import {
   CalendarCheck,
   CheckCircle2,
-  ClipboardList,
   Loader2,
   PlayCircle,
-  ListChecks,
   Paperclip,
-  RotateCcw,
   FileText,
   ChevronDown,
   ChevronUp,
