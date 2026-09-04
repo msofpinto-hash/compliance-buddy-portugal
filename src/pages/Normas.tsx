@@ -501,15 +501,16 @@ export default function Normas() {
                 <Field label="Aplicabilidade" value={applicabilityLabel(detailRow).label} />
                 <Field label="Responsável" value={detailRow.responsible} />
                 <Field label="Prazo de implementação" value={detailRow.implementation_deadline} />
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Estado</p>
-                  {(() => {
-                    const st = implementationStatusBadge(detailRow);
-                    return (
+                {(() => {
+                  const st = implementationStatusBadge(detailRow);
+                  if (!st) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">Estado</p>
                       <Badge className={cn("mt-1 border-0", st.cls)}>{st.label}</Badge>
-                    );
-                  })()}
-                </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>
