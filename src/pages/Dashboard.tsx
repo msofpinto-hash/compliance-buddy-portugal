@@ -1667,9 +1667,17 @@ export default function Dashboard() {
                       audits={typedAudits as any}
                       onSelectAudit={(auditId) => {
                         const found = typedAudits.find((a) => a.id === auditId);
-                        if (found) setViewingAuditPlan(found as any);
+                        if (!found) return;
+                        const tipo = (found.audit_type || "anual") as
+                          | "anual"
+                          | "mensal";
+                        setAuditTypeFilter(tipo);
+                        setAuditSection(
+                          tipo === "mensal" ? "acompanhamento" : "relatorios",
+                        );
                       }}
                     />
+
 
                   </div>
                 );
