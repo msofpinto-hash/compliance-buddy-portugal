@@ -53,7 +53,55 @@ export function VclReportDialog({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (audit) setReport(parseVclReport(audit.vcl_report));
+    if (!audit) return;
+    const parsed = parseVclReport(audit.vcl_report);
+    setReport(parsed);
+    // Prefill from the audit plan whenever the report is still empty
+    (async () => {
+      const isEmpty =
+        !parsed.participants &&
+        !parsed.description &&
+        !parsed.conclusions &&
+        parsed.actions.length === 0;
+      if (!isEmpty) return;
+      const { data } = await supabase
+        .from("audits")
+        .select(
+          "interlocutors, methodology, scope, objectives, description, findings, conclusion_note, executive_summary, audit_date, executed_at",
+        )
+        .eq("id", audit.id)
+        .maybeSingle();
+      if (!data) return;
+      const { data: plans } = await supabase
+        .from("action_plans")
+        .select("title, description, responsible, due_date")
+        .eq("organization_id", audit.organization_id)
+        .ilike("title", `%${audit.title}%`);
+      setReport((r) => ({
+        ...r,
+        participants: r.participants || data.interlocutors || "",
+        description:
+          r.description ||
+          [data.description, data.objectives, data.methodology, data.scope]
+            .filter(Boolean)
+            .join("\n\n"),
+        conclusions:
+          r.conclusions ||
+          data.conclusion_note ||
+          data.executive_summary ||
+          data.findings ||
+          "",
+        actions: r.actions.length
+          ? r.actions
+          : (plans || []).map((p: any) => ({
+              description: p.description || p.title || "",
+              responsible: p.responsible || "",
+              deadline: p.due_date
+                ? new Date(p.due_date).toLocaleDateString("pt-PT")
+                : "",
+            })),
+      }));
+    })();
   }, [audit]);
 
   if (!audit) return null;
@@ -108,7 +156,8 @@ export function VclReportDialog({
             Relatório VCL Mensal — {vclPeriodLabel(audit)}
           </DialogTitle>
           <DialogDescription>
-            Preencha os mesmos campos do relatório mensal. Ao encerrar a
+            Os campos do plano (interlocutores, objetivos, metodologia,
+            âmbito e conclusões) são transportados automaticamente. Ao encerrar a
             verificação, o PDF é gerado e anexado automaticamente.
           </DialogDescription>
         </DialogHeader>
