@@ -10,12 +10,21 @@ export type VclAction = {
   deadline: string;
 };
 
+export type VclDiploma = {
+  id: string;
+  number: string;
+  title: string;
+  applicability: string;
+  publication_date?: string | null;
+};
+
 export type VclReport = {
   participants: string;
   meeting_type: string;
   description: string;
   conclusions: string;
   actions: VclAction[];
+  diplomas: VclDiploma[];
   special_notes: string;
   next_meeting_date: string;
   next_meeting_time: string;
@@ -27,6 +36,7 @@ export const emptyVclReport = (): VclReport => ({
   description: "",
   conclusions: "",
   actions: [],
+  diplomas: [],
   special_notes: "",
   next_meeting_date: "",
   next_meeting_time: "",
@@ -40,6 +50,7 @@ export function parseVclReport(value: unknown): VclReport {
     ...base,
     ...v,
     actions: Array.isArray(v.actions) ? v.actions : [],
+    diplomas: Array.isArray(v.diplomas) ? v.diplomas : [],
   };
 }
 
@@ -138,6 +149,35 @@ export function buildVclPdf(
 
   section("Descrição da reunião:", report.description);
   section("Conclusões:", report.conclusions);
+
+  if (report.diplomas.length) {
+    if (y > doc.internal.pageSize.getHeight() - 140) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Diplomas analisados no período", margin, y);
+    autoTable(doc, {
+      startY: y + 14,
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 5, valign: "top" },
+      headStyles: { fillColor: [44, 62, 80] },
+      columnStyles: { 0: { cellWidth: 110 }, 2: { cellWidth: 95 } },
+      head: [["Diploma", "Título", "Aplicabilidade"]],
+      body: report.diplomas.map((d) => [
+        d.number || "",
+        d.title || "",
+        d.applicability === "aplicavel_direto"
+          ? "Aplicável direto"
+          : d.applicability === "aplicavel_indireto"
+            ? "Aplicável indireto"
+            : d.applicability || "",
+      ]),
+      margin: { left: margin, right: margin },
+    });
+    y = (doc as any).lastAutoTable.finalY + 20;
+  }
 
   if (report.actions.length) {
     if (y > doc.internal.pageSize.getHeight() - 140) {
