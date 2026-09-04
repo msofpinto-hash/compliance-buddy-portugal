@@ -401,14 +401,17 @@ export type Database = {
           audit_date: string | null
           audit_type: string
           auditor: string | null
+          conclusion_note: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          executed_at: string | null
           executive_summary: string | null
           findings: string | null
           id: string
           interlocutors: string | null
           methodology: string | null
+          no_action_required: boolean
           objectives: string | null
           organization_id: string
           plan_approved_at: string | null
@@ -428,14 +431,17 @@ export type Database = {
           audit_date?: string | null
           audit_type?: string
           auditor?: string | null
+          conclusion_note?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          executed_at?: string | null
           executive_summary?: string | null
           findings?: string | null
           id?: string
           interlocutors?: string | null
           methodology?: string | null
+          no_action_required?: boolean
           objectives?: string | null
           organization_id: string
           plan_approved_at?: string | null
@@ -455,14 +461,17 @@ export type Database = {
           audit_date?: string | null
           audit_type?: string
           auditor?: string | null
+          conclusion_note?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          executed_at?: string | null
           executive_summary?: string | null
           findings?: string | null
           id?: string
           interlocutors?: string | null
           methodology?: string | null
+          no_action_required?: boolean
           objectives?: string | null
           organization_id?: string
           plan_approved_at?: string | null

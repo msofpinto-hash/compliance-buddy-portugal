@@ -128,7 +128,9 @@ import indicatorsHero from "@/assets/indicators-hero.png";
 import logoIdAsset from "@/assets/id-compliance-lex.png.asset.json";
 const logoIdCompliance = logoIdAsset.url;
 import heroVideo from "@/assets/hero-background.mp4";
+import { ListChecks } from "lucide-react";
 import { AuditCalendar } from "@/components/client/AuditCalendar";
+import { AuditTrackingPanel } from "@/components/client/AuditTrackingPanel";
 
 type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
 
@@ -317,7 +319,7 @@ export default function Dashboard() {
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const [auditSection, setAuditSection] = useState<
-    "plano" | "historico" | "normas"
+    "plano" | "historico" | "normas" | "acompanhamento"
   >(
 
     "plano",
@@ -1560,6 +1562,17 @@ export default function Dashboard() {
                   Histórico de auditorias
                 </Button>
                 <Button
+                  variant={
+                    auditSection === "acompanhamento" ? "default" : "ghost"
+                  }
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAuditSection("acompanhamento")}
+                >
+                  <ListChecks className="h-4 w-4" />
+                  Acompanhamento
+                </Button>
+                <Button
                   variant={auditSection === "normas" ? "default" : "ghost"}
                   size="sm"
                   className="gap-2"
@@ -1871,6 +1884,18 @@ export default function Dashboard() {
               })()}
 
               {/* Standards Control Section */}
+              <div
+                className={
+                  auditSection === "acompanhamento" ? "" : "hidden"
+                }
+              >
+                <AuditTrackingPanel
+                  organizationIds={organizationIds}
+                  organizations={organizations as any}
+                  typeFilter={auditTypeFilter}
+                />
+              </div>
+
               <div
                 className={`overflow-x-auto ${auditSection === "normas" ? "" : "hidden"}`}
               >
