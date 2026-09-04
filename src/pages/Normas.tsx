@@ -92,18 +92,36 @@ const GROUPS: {
 ];
 
 function groupOf(row: StandardRow): GroupKey {
+  const ref = (row.document_ref || "").trim().toLowerCase();
   const hay = `${row.document_type || ""} ${row.document_ref || ""} ${
     row.document_name || ""
   }`.toLowerCase();
-  if (hay.includes("despacho") || hay.includes("circular") || hay.includes("orienta"))
-    return "despachos";
-  if (hay.includes("nota") || hay.includes("guia") || hay.includes("caderno"))
-    return "notas";
+  // Despachos, circulares e orientações de entidades
   if (
+    hay.includes("despacho") ||
+    hay.includes("circular") ||
+    hay.includes("orienta") ||
+    hay.includes("faq") ||
+    hay.includes("requisitos de qualificação") ||
+    hay.includes("dgeg") ||
+    hay.includes("dgs") ||
+    hay.includes("isenção")
+  )
+    return "despachos";
+  // Notas técnicas, guias e cadernos técnicos
+  if (
+    hay.includes("nota") ||
+    hay.includes("guia") ||
+    hay.includes("caderno") ||
+    hay.includes("informação técnica") ||
+    hay.includes("manual")
+  )
+    return "notas";
+  // Normas: referências que começam por NP, EN, ISO, CEN, DNP, CT
+  if (
+    /^(np|en|iso|cen|dnp|ct)\b/.test(ref) ||
     hay.includes("norma") ||
-    /\bnp\b/.test(hay) ||
-    hay.includes("iso ") ||
-    hay.includes(" en ")
+    hay.includes("dnorcol")
   )
     return "normas";
   return "outros";
