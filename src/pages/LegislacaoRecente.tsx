@@ -74,10 +74,11 @@ export default function LegislacaoRecente() {
       
       // Apply origin filter
       if (originFilter === "PT") {
-        query = query.eq("source", "dre");
+        query = query.in("origin", ["PT", "dre"]);
       } else if (originFilter === "EU") {
-        query = query.eq("source", "eurlex");
+        query = query.in("origin", ["EU", "eurlex"]);
       }
+
       
       // Apply date filters
       if (dateFrom) {
@@ -102,8 +103,9 @@ export default function LegislacaoRecente() {
       
       const [totalResult, ptResult, euResult, last30Result, last7Result] = await Promise.all([
         supabase.from("legislation").select("*", { count: "exact", head: true }),
-        supabase.from("legislation").select("*", { count: "exact", head: true }).eq("source", "dre"),
-        supabase.from("legislation").select("*", { count: "exact", head: true }).eq("source", "eurlex"),
+        supabase.from("legislation").select("*", { count: "exact", head: true }).in("origin", ["PT", "dre"]),
+        supabase.from("legislation").select("*", { count: "exact", head: true }).in("origin", ["EU", "eurlex"]),
+
         supabase.from("legislation").select("*", { count: "exact", head: true }).gte("publication_date", last30Days),
         supabase.from("legislation").select("*", { count: "exact", head: true }).gte("publication_date", last7Days),
       ]);
@@ -133,10 +135,11 @@ export default function LegislacaoRecente() {
       
       // Apply origin filter
       if (originFilter === "PT") {
-        query = query.eq("source", "dre");
+        query = query.in("origin", ["PT", "dre"]);
       } else if (originFilter === "EU") {
-        query = query.eq("source", "eurlex");
+        query = query.in("origin", ["EU", "eurlex"]);
       }
+
       
       // Apply date filters
       if (dateFrom) {
@@ -147,8 +150,9 @@ export default function LegislacaoRecente() {
       }
       
       const { data, error } = await query
-        .order(orderColumn, { ascending: sortOrder === "asc" })
+        .order(orderColumn, { ascending: sortOrder === "asc", nullsFirst: false })
         .range(from, to);
+
       if (error) throw error;
       return data;
     },
