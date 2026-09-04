@@ -56,7 +56,7 @@ import {
   HardHat,
   type LucideIcon,
 } from "lucide-react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { OrganizationSelector } from "@/components/OrganizationSelector";
 import { DocumentsPanel } from "@/components/client/DocumentsPanel";
