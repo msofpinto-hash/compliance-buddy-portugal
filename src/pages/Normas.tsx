@@ -246,7 +246,10 @@ export default function Normas() {
     return { label: "Por classificar", cls: "bg-red-100 text-red-700" };
   };
 
-  const implementationStatusBadge = (r: StandardRow) => {
+  const implementationStatusBadge = (
+    r: StandardRow,
+  ): { label: string; cls: string } | null => {
+    if (r.applicability_informative) return null;
     const s = (r.implementation_status || "").trim().toLowerCase();
     if (s.includes("implementad"))
       return { label: "Implementado", cls: "bg-green-100 text-green-800 border-0" };
@@ -402,7 +405,7 @@ export default function Normas() {
                           </Badge>
                           <Badge variant="outline">{r.reference_period}</Badge>
                           <Badge className={cn("border-0", ap.cls)}>{ap.label}</Badge>
-                          <Badge className={cn("border-0", st.cls)}>{st.label}</Badge>
+                          {st && <Badge className={cn("border-0", st.cls)}>{st.label}</Badge>}
                           <span className="ml-auto text-xs text-muted-foreground">
                             Publicação: {formatDate(r.publication_date)}
                             {r.modification_date
@@ -498,15 +501,16 @@ export default function Normas() {
                 <Field label="Aplicabilidade" value={applicabilityLabel(detailRow).label} />
                 <Field label="Responsável" value={detailRow.responsible} />
                 <Field label="Prazo de implementação" value={detailRow.implementation_deadline} />
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Estado</p>
-                  {(() => {
-                    const st = implementationStatusBadge(detailRow);
-                    return (
+                {(() => {
+                  const st = implementationStatusBadge(detailRow);
+                  if (!st) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">Estado</p>
                       <Badge className={cn("mt-1 border-0", st.cls)}>{st.label}</Badge>
-                    );
-                  })()}
-                </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>
