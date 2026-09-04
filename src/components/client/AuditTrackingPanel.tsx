@@ -431,12 +431,6 @@ export function AuditTrackingPanel({
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell
-                          className="text-xs max-w-[200px] truncate"
-                          title={a.conclusion_note || a.findings || ""}
-                        >
-                          {a.conclusion_note || a.findings || "—"}
-                        </TableCell>
                         <TableCell>
                           <Button
                             size="sm"
