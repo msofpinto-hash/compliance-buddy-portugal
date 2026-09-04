@@ -167,3 +167,24 @@ export async function generateStandardsSnapshot(audit: Audit) {
 
   return { fileName, rows: selected.length };
 }
+
+/**
+ * Called when an audit is closed: for monthly compliance verifications (VCL)
+ * generates and attaches the standards control Excel snapshot, once.
+ */
+export async function attachStandardsSnapshotIfMonthly(auditId: string) {
+  try {
+    const { data: audit } = await supabase
+      .from("audits")
+      .select("id, title, audit_type, audit_date, executed_at, organization_id")
+      .eq("id", auditId)
+      .maybeSingle();
+    if (!audit) return null;
+    if ((audit.audit_type || "anual") !== "mensal") return null;
+    if (await hasStandardsSnapshot(auditId)) return null;
+    return await generateStandardsSnapshot(audit as any);
+  } catch (err) {
+    console.error("standards snapshot failed", err);
+    return null;
+  }
+}
