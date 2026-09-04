@@ -63,7 +63,15 @@ type StandardRow = {
 };
 
 
-type GroupKey = "normas" | "despachos" | "circulares" | "notas" | "outros";
+type GroupKey =
+  | "normas"
+  | "despachos"
+  | "circulares"
+  | "dgeg"
+  | "dgs"
+  | "anepc"
+  | "notas"
+  | "outros";
 
 const GROUPS: {
   key: GroupKey;
@@ -88,6 +96,24 @@ const GROUPS: {
     label: "Circulares APA",
     icon: Mail,
     hint: "Circulares informativas da APA",
+  },
+  {
+    key: "dgeg",
+    label: "DGEG",
+    icon: Zap,
+    hint: "Despachos e orientações da DGEG (energia)",
+  },
+  {
+    key: "dgs",
+    label: "DGS",
+    icon: HeartPulse,
+    hint: "Orientações e normas da DGS (saúde)",
+  },
+  {
+    key: "anepc",
+    label: "ANEPC",
+    icon: Flame,
+    hint: "Documentos da ANEPC (proteção civil)",
   },
   {
     key: "notas",
