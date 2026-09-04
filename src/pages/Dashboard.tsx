@@ -1552,6 +1552,16 @@ export default function Dashboard() {
                   <ClipboardCheck className="h-4 w-4" />
                   Histórico de auditorias
                 </Button>
+                <Button
+                  variant={auditSection === "normas" ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAuditSection("normas")}
+                >
+                  <BookMarked className="h-4 w-4" />
+                  Controlo de normas
+                </Button>
+
                 <div className="ml-auto flex items-center gap-2">
                   <span className="text-xs text-muted-foreground hidden sm:inline">
                     Tipo
