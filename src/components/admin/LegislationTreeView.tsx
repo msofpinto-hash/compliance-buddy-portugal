@@ -797,6 +797,9 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
               ? partsA.year - partsB.year 
               : partsA.num - partsB.num;
             break;
+          case "pending":
+            comparison = (pendingRequirementsMap?.[a.id] || 0) - (pendingRequirementsMap?.[b.id] || 0);
+            break;
         }
         
         return sortOrder === "asc" ? comparison : -comparison;
@@ -804,7 +807,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
     }
     
     return result;
-  }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation, sortBy, sortOrder]);
+  }, [selectedCategoryId, categoryTree, selectedThemeId, selectedTheme, filteredLegislation, sortBy, sortOrder, pendingRequirementsMap]);
 
   // Pagination
   const totalPages = Math.ceil(displayedLegislation.length / pageSize);
