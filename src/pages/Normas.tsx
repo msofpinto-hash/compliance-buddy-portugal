@@ -1,0 +1,462 @@
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { IDTopNav } from "@/components/client/IDTopNav";
+import { OrganizationSelector } from "@/components/OrganizationSelector";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  BookMarked,
+  Search,
+  ExternalLink,
+  Link2,
+  FileText,
+  ScrollText,
+  StickyNote,
+  Folder,
+  ArrowUpDown,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+type StandardRow = {
+  id: string;
+  organization_id: string;
+  reference_period: string;
+  period_date: string | null;
+  document_type: string | null;
+  document_ref: string | null;
+  document_name: string | null;
+  publication_date: string | null;
+  modification_date: string | null;
+  issuer: string | null;
+  descriptive: string | null;
+  implementation_status: string | null;
+  applicability_direct: boolean;
+  applicability_indirect: boolean;
+  applicability_informative: boolean;
+  document_url: string | null;
+};
+
+type GroupKey = "normas" | "despachos" | "notas" | "outros";
+
+const GROUPS: {
+  key: GroupKey;
+  label: string;
+  icon: React.ElementType;
+  hint: string;
+}[] = [
+  {
+    key: "normas",
+    label: "Normas",
+    icon: BookMarked,
+    hint: "Normas portuguesas e europeias (NP, EN, ISO)",
+  },
+  {
+    key: "despachos",
+    label: "Despachos",
+    icon: ScrollText,
+    hint: "Despachos, circulares e orientações de entidades",
+  },
+  {
+    key: "notas",
+    label: "Notas técnicas",
+    icon: StickyNote,
+    hint: "Notas técnicas, guias e cadernos técnicos",
+  },
+  { key: "outros", label: "Outros documentos", icon: Folder, hint: "Restantes documentos" },
+];
+
+function groupOf(row: StandardRow): GroupKey {
+  const hay = `${row.document_type || ""} ${row.document_ref || ""} ${
+    row.document_name || ""
+  }`.toLowerCase();
+  if (hay.includes("despacho") || hay.includes("circular") || hay.includes("orienta"))
+    return "despachos";
+  if (hay.includes("nota") || hay.includes("guia") || hay.includes("caderno"))
+    return "notas";
+  if (
+    hay.includes("norma") ||
+    /\bnp\b/.test(hay) ||
+    hay.includes("iso ") ||
+    hay.includes(" en ")
+  )
+    return "normas";
+  return "outros";
+}
+
+/** Converte datas em texto ("2024", "2024-09-01", "09/2024") num valor ordenável. */
+function dateSortKey(value: string | null): string {
+  if (!value) return "0000-00-00";
+  const iso = value.match(/(\d{4})-(\d{2})(?:-(\d{2}))?/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3] || "01"}`;
+  const slash = value.match(/(\d{2})[/.](\d{4})/);
+  if (slash) return `${slash[2]}-${slash[1]}-01`;
+  const year = value.match(/(19|20)\d{2}/);
+  if (year) return `${year[0]}-01-01`;
+  return "0000-00-00";
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return "—";
+  const key = dateSortKey(value);
+  if (key === "0000-00-00") return value;
+  const [y, m, d] = key.split("-");
+  return value.length <= 4 ? y : `${d}/${m}/${y}`;
+}
+
+export default function Normas() {
+  const { user, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [group, setGroup] = useState<GroupKey | "todos">("todos");
+  const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState("all");
+  const [sortDesc, setSortDesc] = useState(true);
+  const [linkRow, setLinkRow] = useState<StandardRow | null>(null);
+  const [linkValue, setLinkValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: userRoles } = useQuery({
+    queryKey: ["user-roles-normas", user?.id, isAdmin],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from("organizations")
+          .select("id, name, logo_url")
+          .order("name");
+        if (error) throw error;
+        return (data || []).map((o) => ({ organization_id: o.id, organizations: o }));
+      }
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("*, organizations(*)")
+        .eq("user_id", user.id)
+        .eq("role", "client");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const organizations =
+    (userRoles as any[])
+      ?.map((r) => ({
+        id: r.organization_id as string,
+        name: (r.organizations as any)?.name as string,
+        logo_url: (r.organizations as any)?.logo_url as string | undefined,
+      }))
+      .filter((o) => o.id && o.name) || [];
+
+  const currentOrg =
+    organizations.find((o) => o.id === selectedOrgId) || organizations[0];
+
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ["normas-standards", currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [] as StandardRow[];
+      const { data, error } = await supabase
+        .from("standards_control")
+        .select("*")
+        .eq("organization_id", currentOrg.id);
+      if (error) throw error;
+      return (data || []) as unknown as StandardRow[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  const periods = useMemo(
+    () =>
+      Array.from(new Set((rows || []).map((r) => r.reference_period).filter(Boolean))).sort(),
+    [rows],
+  );
+
+  const counts = useMemo(() => {
+    const base: Record<string, number> = { todos: (rows || []).length };
+    for (const r of rows || []) {
+      const g = groupOf(r);
+      base[g] = (base[g] || 0) + 1;
+    }
+    return base;
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (rows || [])
+      .filter((r) => (group === "todos" ? true : groupOf(r) === group))
+      .filter((r) => (period === "all" ? true : r.reference_period === period))
+      .filter((r) =>
+        !term
+          ? true
+          : `${r.document_ref || ""} ${r.document_name || ""} ${r.issuer || ""} ${
+              r.document_type || ""
+            }`
+              .toLowerCase()
+              .includes(term),
+      )
+      .sort((a, b) => {
+        const ka = dateSortKey(a.publication_date || a.period_date);
+        const kb = dateSortKey(b.publication_date || b.period_date);
+        if (ka === kb) return (a.document_ref || "").localeCompare(b.document_ref || "");
+        return sortDesc ? kb.localeCompare(ka) : ka.localeCompare(kb);
+      });
+  }, [rows, group, period, search, sortDesc]);
+
+  const applicabilityLabel = (r: StandardRow) => {
+    if (r.applicability_direct) return { label: "Aplicável direta", cls: "bg-primary/15 text-primary" };
+    if (r.applicability_indirect)
+      return { label: "Aplicável indireta", cls: "bg-amber-100 text-amber-800" };
+    if (r.applicability_informative)
+      return { label: "Informativo", cls: "bg-muted text-muted-foreground" };
+    return { label: "Por classificar", cls: "bg-red-100 text-red-700" };
+  };
+
+  const saveLink = async () => {
+    if (!linkRow) return;
+    setSaving(true);
+    const value = linkValue.trim();
+    const { error } = await supabase
+      .from("standards_control")
+      .update({ document_url: value || null } as any)
+      .eq("id", linkRow.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Não foi possível guardar a ligação");
+      return;
+    }
+    toast.success("Ligação guardada");
+    setLinkRow(null);
+    queryClient.invalidateQueries({ queryKey: ["normas-standards", currentOrg?.id] });
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <IDTopNav
+        currentOrg={currentOrg}
+        actions={
+          organizations.length > 1 ? (
+            <OrganizationSelector
+              organizations={organizations}
+              selectedOrgId={currentOrg?.id || null}
+              onSelect={setSelectedOrgId}
+            />
+          ) : null
+        }
+      />
+
+      <main className="px-4 lg:px-8 py-6 space-y-6">
+        <header className="space-y-1">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <BookMarked className="h-6 w-6 text-primary" />
+            Normas, Despachos e Notas Técnicas
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Documentação normativa aplicável, organizada por tipo e ordenada por data de
+            publicação.
+          </p>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+          {/* Navegação por tipo */}
+          <aside className="space-y-2">
+            <button
+              onClick={() => setGroup("todos")}
+              className={cn(
+                "w-full text-left px-4 py-3 rounded-lg border transition-colors",
+                group === "todos"
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:bg-accent/40",
+              )}
+            >
+              <span className="flex items-center justify-between text-sm font-medium">
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" /> Todos
+                </span>
+                <Badge variant="secondary">{counts.todos || 0}</Badge>
+              </span>
+            </button>
+            {GROUPS.map((g) => (
+              <button
+                key={g.key}
+                onClick={() => setGroup(g.key)}
+                className={cn(
+                  "w-full text-left px-4 py-3 rounded-lg border transition-colors",
+                  group === g.key
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-accent/40",
+                )}
+              >
+                <span className="flex items-center justify-between text-sm font-medium">
+                  <span className="flex items-center gap-2">
+                    <g.icon className="h-4 w-4 text-primary" /> {g.label}
+                  </span>
+                  <Badge variant="secondary">{counts[g.key] || 0}</Badge>
+                </span>
+                <span className="block mt-1 text-xs text-muted-foreground">{g.hint}</span>
+              </button>
+            ))}
+          </aside>
+
+          {/* Lista */}
+          <section className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Pesquisar por referência, título ou emissor…"
+                  className="pl-9"
+                />
+              </div>
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="sm:w-56">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os períodos</SelectItem>
+                  {periods.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={() => setSortDesc((v) => !v)}>
+                <ArrowUpDown className="h-4 w-4 mr-2" />
+                {sortDesc ? "Mais recentes" : "Mais antigos"}
+              </Button>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  Sem documentos para os filtros escolhidos.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map((r) => {
+                  const ap = applicabilityLabel(r);
+                  return (
+                    <Card key={r.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="bg-primary/10 text-primary border-0">
+                            {r.document_ref || "Sem referência"}
+                          </Badge>
+                          <Badge variant="outline">{r.reference_period}</Badge>
+                          <Badge className={cn("border-0", ap.cls)}>{ap.label}</Badge>
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            Publicação: {formatDate(r.publication_date)}
+                            {r.modification_date
+                              ? ` · Modificação: ${formatDate(r.modification_date)}`
+                              : ""}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-foreground">
+                          {r.document_name || r.document_type || "Documento sem título"}
+                        </p>
+                        {r.issuer && (
+                          <p className="text-xs text-muted-foreground">Emissor: {r.issuer}</p>
+                        )}
+                        {r.descriptive && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {r.descriptive}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 pt-1">
+                          {r.document_url ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                window.open(
+                                  r.document_url as string,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                )
+                              }
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" /> Abrir documento
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              Sem ligação associada
+                            </span>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setLinkRow(r);
+                                setLinkValue(r.document_url || "");
+                              }}
+                            >
+                              <Link2 className="h-4 w-4 mr-2" />
+                              {r.document_url ? "Editar ligação" : "Adicionar ligação"}
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+
+      <Dialog open={!!linkRow} onOpenChange={(o) => !o && setLinkRow(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ligação do documento</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {linkRow?.document_ref} — {linkRow?.document_name}
+          </p>
+          <Input
+            value={linkValue}
+            onChange={(e) => setLinkValue(e.target.value)}
+            placeholder="https://…"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkRow(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveLink} disabled={saving}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
