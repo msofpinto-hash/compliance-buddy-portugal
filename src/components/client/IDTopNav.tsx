@@ -53,6 +53,7 @@ const ALL_MODULES: NavItem[] = [
     label: "Auditorias",
     icon: ClipboardCheck,
     href: "/dashboard?tab=audits&sec=plano",
+    alwaysShow: true,
   },
   {
     id: "planos_acao",
