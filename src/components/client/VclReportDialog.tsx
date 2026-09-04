@@ -308,8 +308,44 @@ export function VclReportDialog({
     }
   };
 
+  const importAta = async (file: File | null) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const { patch, matchedDiplomas } = await parseAtaPdf(file, pool);
+      const filled = Object.values(patch).filter(
+        (v) => (Array.isArray(v) ? v.length : String(v || "").trim()) !== 0,
+      ).length;
+      setReport((r) => {
+        const ids = new Set(r.diplomas.map((d) => d.id));
+        return {
+          ...r,
+          ...patch,
+          actions:
+            patch.actions && patch.actions.length ? patch.actions : r.actions,
+          diplomas: [
+            ...r.diplomas,
+            ...matchedDiplomas.filter((d) => !ids.has(d.id)),
+          ],
+        };
+      });
+      toast({
+        title: "Ata lida com sucesso",
+        description: `${filled} campo(s) preenchido(s) e ${matchedDiplomas.length} diploma(s) identificado(s). Confirme antes de guardar.`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "Não foi possível ler a ata",
+        description: e?.message || String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
