@@ -246,6 +246,15 @@ export default function Normas() {
     return { label: "Por classificar", cls: "bg-red-100 text-red-700" };
   };
 
+  const implementationStatusBadge = (r: StandardRow) => {
+    const s = (r.implementation_status || "").trim().toLowerCase();
+    if (s.includes("implementad"))
+      return { label: "Implementado", cls: "bg-green-100 text-green-800 border-0" };
+    if (s.includes("em curso") || s.includes("curso"))
+      return { label: "Em curso", cls: "bg-amber-100 text-amber-800 border-0" };
+    return { label: "Por analisar", cls: "bg-red-100 text-red-700 border-0" };
+  };
+
   const saveLink = async () => {
     if (!linkRow) return;
     setSaving(true);
