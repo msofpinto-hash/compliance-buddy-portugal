@@ -30,6 +30,7 @@ import {
   Link2,
   FileText,
   ScrollText,
+  Mail,
   StickyNote,
   Folder,
   ArrowUpDown,
