@@ -189,12 +189,21 @@ export default function Normas() {
     queryKey: ["normas-standards", currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return [] as StandardRow[];
-      const { data, error } = await supabase
-        .from("standards_control")
-        .select("*")
-        .eq("organization_id", currentOrg.id);
-      if (error) throw error;
-      return (data || []) as unknown as StandardRow[];
+      // Paginação: o limite padrão (1000) cortaria os registos mais recentes.
+      const all: StandardRow[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("standards_control")
+          .select("*")
+          .eq("organization_id", currentOrg.id)
+          .order("created_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        all.push(...((data || []) as unknown as StandardRow[]));
+        if (!data || data.length < pageSize) break;
+      }
+      return all;
     },
     enabled: !!currentOrg?.id,
   });
