@@ -45,6 +45,7 @@ type AuditPlan = {
   strengths?: string | null;
   weaknesses?: string | null;
   plan_approved_at?: string | null;
+  audit_type?: string | null;
 };
 
 interface AuditPlanDetailsDialogProps {
