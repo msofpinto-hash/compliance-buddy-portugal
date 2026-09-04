@@ -494,7 +494,7 @@ export function VclReportDialog({
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={preview} className="gap-1">
             <FileDown className="h-4 w-4" />
-            Pré-visualizar PDF
+            Descarregar PDF
           </Button>
           {canEdit && (
             <>
