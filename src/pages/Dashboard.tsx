@@ -2287,6 +2287,17 @@ export default function Dashboard() {
                   );
                 })()}
               </div>
+
+              {/* Acompanhamento mensal (unificado em Auditorias) */}
+              <div
+                className={auditSection === "acompanhamento" ? "" : "hidden"}
+              >
+                <AuditTrackingPanel
+                  organizationIds={organizationIds}
+                  organizations={organizations as any}
+                  typeFilter="mensal"
+                />
+              </div>
             </div>
           )}
 
