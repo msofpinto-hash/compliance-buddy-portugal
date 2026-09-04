@@ -326,7 +326,7 @@ export default function Dashboard() {
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const [auditSection, setAuditSection] = useState<
-    "plano" | "evidencias" | "relatorios" | "atas" | "normas"
+    "plano" | "evidencias" | "relatorios" | "atas" | "normas" | "acompanhamento"
   >("plano");
   const [auditTypeFilter, setAuditTypeFilter] = useState<
     "all" | "anual" | "mensal"
