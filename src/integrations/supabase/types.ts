@@ -942,8 +942,10 @@ export type Database = {
       legislation: {
         Row: {
           category: string | null
+          ce_number: string | null
           created_at: string
           created_by: string | null
+          document_type: string | null
           document_url: string | null
           effective_date: string | null
           entity: string | null
@@ -964,8 +966,10 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          ce_number?: string | null
           created_at?: string
           created_by?: string | null
+          document_type?: string | null
           document_url?: string | null
           effective_date?: string | null
           entity?: string | null
@@ -986,8 +990,10 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          ce_number?: string | null
           created_at?: string
           created_by?: string | null
+          document_type?: string | null
           document_url?: string | null
           effective_date?: string | null
           entity?: string | null
@@ -1043,6 +1049,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      legislation_duplicate_reviews: {
+        Row: {
+          created_at: string
+          decision: string
+          group_key: string
+          id: string
+          legislation_ids: string[]
+          match_type: string
+          notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decision?: string
+          group_key: string
+          id?: string
+          legislation_ids?: string[]
+          match_type: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          group_key?: string
+          id?: string
+          legislation_ids?: string[]
+          match_type?: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       legislation_processing_failures: {
         Row: {
