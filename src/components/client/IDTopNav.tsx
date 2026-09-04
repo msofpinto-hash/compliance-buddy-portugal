@@ -48,6 +48,15 @@ const ALL_MODULES: NavItem[] = [
     alwaysShow: true,
   },
   {
+    id: "normas",
+    moduleKey: "legislacao",
+    label: "Normas",
+    icon: BookMarked,
+    href: "/normas",
+    alwaysShow: true,
+  },
+
+  {
     id: "auditorias",
     moduleKey: "auditorias",
     label: "Auditorias",
