@@ -31,7 +31,6 @@ import {
   Menu,
   Gavel,
   ClipboardCheck,
-  BookMarked,
 
   FolderOpen,
   BarChart3,
@@ -63,7 +62,6 @@ import { DocumentsPanel } from "@/components/client/DocumentsPanel";
 import { ActionPlansView } from "@/components/client/ActionPlansView";
 import { PlanFeedbackDialog } from "@/components/client/PlanFeedbackDialog";
 import { AuditPlanDetailsDialog } from "@/components/client/AuditPlanDetailsDialog";
-import { StandardsControlPanel } from "@/components/client/StandardsControlPanel";
 
 import { EvidenceRequestsPanel } from "@/components/client/EvidenceRequestsPanel";
 import { AuditDocumentsList } from "@/components/client/AuditDocumentsList";
@@ -326,8 +324,9 @@ export default function Dashboard() {
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const [auditSection, setAuditSection] = useState<
-    "plano" | "evidencias" | "relatorios" | "normas" | "acompanhamento"
+    "plano" | "evidencias" | "relatorios" | "acompanhamento"
   >("plano");
+
   const [auditTypeFilter, setAuditTypeFilter] = useState<
     "all" | "anual" | "mensal"
   >("all");
@@ -352,17 +351,21 @@ export default function Dashboard() {
 
   const secParam = searchParams.get("sec");
   useEffect(() => {
+    if (secParam === "normas") {
+      setAuditSection("acompanhamento");
+      return;
+    }
     if (
       secParam === "plano" ||
       secParam === "evidencias" ||
       secParam === "relatorios" ||
-      secParam === "normas" ||
       secParam === "acompanhamento"
     ) {
       setAuditSection(secParam as any);
       if (secParam === "relatorios") setAuditTypeFilter("anual");
     }
   }, [secParam]);
+
 
   // Redirect legacy monthly tab into the unified audits menu
   useEffect(() => {
@@ -1602,15 +1605,6 @@ export default function Dashboard() {
                   Relatórios anuais
                 </Button>
                 <Button
-                  variant={auditSection === "normas" ? "default" : "ghost"}
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setAuditSection("normas")}
-                >
-                  <BookMarked className="h-4 w-4" />
-                  Controlo de normas, despachos e notas técnicas
-                </Button>
-                <Button
                   variant={
                     auditSection === "acompanhamento" ? "default" : "ghost"
                   }
@@ -1692,14 +1686,8 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div
-                className={auditSection === "normas" ? "" : "hidden"}
-              >
-                <StandardsControlPanel
-                  organizationId={selectedOrgId || organizationIds[0]}
-                  canEdit={isAdmin}
-                />
-              </div>
+
+
 
               {/* Relatórios anuais / Atas mensais */}
 
