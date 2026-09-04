@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -43,10 +48,32 @@ import {
   History,
   Link2,
   CalendarPlus,
+  Columns3,
 } from "lucide-react";
 import { StandardsHistoryDialog } from "./StandardsHistoryDialog";
 import { StandardsImportDialog } from "./StandardsImportDialog";
 
+
+const COLUMNS = [
+  { key: "type", label: "Tipo", width: 180 },
+  { key: "ref", label: "Refª", width: 140 },
+  { key: "name", label: "Documento", width: 280 },
+  { key: "publication", label: "Publicação", width: 110 },
+  { key: "modification", label: "Modificação", width: 110 },
+  { key: "issuer", label: "Emissor", width: 150 },
+  { key: "iso14001", label: "ISO 14001", width: 80 },
+  { key: "iso45001", label: "ISO 45001", width: 80 },
+  { key: "applicability", label: "Aplicabilidade", width: 140 },
+  { key: "descriptive", label: "Descritivo", width: 260 },
+  { key: "actions", label: "Ações", width: 260 },
+  { key: "responsible", label: "Responsável", width: 140 },
+  { key: "deadline", label: "Prazo", width: 120 },
+  { key: "status", label: "Estado", width: 130 },
+  { key: "audits", label: "Auditorias afetadas", width: 200 },
+] as const;
+
+type ColumnKey = (typeof COLUMNS)[number]["key"];
+const HIDDEN_STORAGE_KEY = "standards-control-hidden-columns";
 
 type StandardRow = {
   id: string;
@@ -126,6 +153,30 @@ export function StandardsControlPanel({
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [hiddenCols, setHiddenCols] = useState<ColumnKey[]>(() => {
+    try {
+      const raw = localStorage.getItem(HIDDEN_STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as ColumnKey[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const showCol = (k: ColumnKey) => !hiddenCols.includes(k);
+  const tableMinWidth =
+    COLUMNS.filter((c) => !hiddenCols.includes(c.key)).reduce(
+      (sum, c) => sum + c.width,
+      0,
+    ) + 110;
+  const toggleCol = (k: ColumnKey) =>
+    setHiddenCols((prev) => {
+      const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k];
+      try {
+        localStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
   const [newPeriodOpen, setNewPeriodOpen] = useState(false);
   const [newPeriodName, setNewPeriodName] = useState("");
   const [newPeriodDate, setNewPeriodDate] = useState("");
@@ -316,6 +367,20 @@ export function StandardsControlPanel({
         return false;
       if (applicabilityFilter === "informativo" && !r.applicability_informative)
         return false;
+      if (
+        applicabilityFilter === "aplicavel" &&
+        !(r.applicability_direct || r.applicability_indirect)
+      )
+        return false;
+      if (
+        applicabilityFilter === "nao_aplicavel" &&
+        (r.applicability_direct ||
+          r.applicability_indirect ||
+          r.applicability_informative)
+      )
+        return false;
+      if (applicabilityFilter === "iso14001" && !r.impact_iso_14001) return false;
+      if (applicabilityFilter === "iso45001" && !r.impact_iso_45001) return false;
       if (
         statusFilter === "implementado" &&
         (r.implementation_status || "").toLowerCase() !== "implementado"
@@ -570,11 +635,60 @@ export function StandardsControlPanel({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toda a aplicabilidade</SelectItem>
+            <SelectItem value="aplicavel">Aplicável (direta ou indireta)</SelectItem>
+            <SelectItem value="nao_aplicavel">Não aplicável</SelectItem>
             <SelectItem value="direta">Aplicabilidade direta</SelectItem>
             <SelectItem value="indireta">Aplicabilidade indireta</SelectItem>
             <SelectItem value="informativo">Informativo</SelectItem>
+            <SelectItem value="iso14001">Impacto ISO 14001</SelectItem>
+            <SelectItem value="iso45001">Impacto ISO 45001</SelectItem>
           </SelectContent>
         </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Columns3 className="h-4 w-4" />
+              Colunas
+              {hiddenCols.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {hiddenCols.length} ocultas
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 bg-background z-50">
+            <p className="text-xs font-medium mb-2">Colunas visíveis</p>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {COLUMNS.map((c) => (
+                <label
+                  key={c.key}
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                >
+                  <Checkbox
+                    checked={showCol(c.key)}
+                    onCheckedChange={() => toggleCol(c.key)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={() => {
+                setHiddenCols([]);
+                try {
+                  localStorage.removeItem(HIDDEN_STORAGE_KEY);
+                } catch {
+                  /* ignore */
+                }
+              }}
+            >
+              Mostrar todas
+            </Button>
+          </PopoverContent>
+        </Popover>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[170px]">
             <SelectValue placeholder="Estado" />
@@ -599,131 +713,166 @@ export function StandardsControlPanel({
             </p>
           ) : (
             <div className="overflow-x-auto scrollbar-thin">
-              <Table className="min-w-[2200px] w-full table-fixed">
+              <Table
+                className="w-full table-fixed"
+                style={{ minWidth: `${tableMinWidth}px` }}
+              >
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[180px]">Tipo</TableHead>
-                    <TableHead className="w-[140px]">Refª</TableHead>
-                    <TableHead className="w-[280px]">Documento</TableHead>
-                    <TableHead className="w-[110px]">Publicação</TableHead>
-                    <TableHead className="w-[110px]">Modificação</TableHead>
-                    <TableHead className="w-[150px]">Emissor</TableHead>
-                    <TableHead className="w-[80px] text-center">14001</TableHead>
-                    <TableHead className="w-[80px] text-center">45001</TableHead>
-                    <TableHead className="w-[140px]">Aplicabilidade</TableHead>
-                    <TableHead className="w-[260px]">Descritivo</TableHead>
-                    <TableHead className="w-[260px]">Ações</TableHead>
-                    <TableHead className="w-[140px]">Responsável</TableHead>
-                    <TableHead className="w-[120px]">Prazo</TableHead>
-                    <TableHead className="w-[130px]">Estado</TableHead>
-                    <TableHead className="w-[200px]">
-                      Auditorias afetadas
-                    </TableHead>
+                    {showCol("type") && <TableHead className="w-[180px]">Tipo</TableHead>}
+                    {showCol("ref") && <TableHead className="w-[140px]">Refª</TableHead>}
+                    {showCol("name") && <TableHead className="w-[280px]">Documento</TableHead>}
+                    {showCol("publication") && <TableHead className="w-[110px]">Publicação</TableHead>}
+                    {showCol("modification") && <TableHead className="w-[110px]">Modificação</TableHead>}
+                    {showCol("issuer") && <TableHead className="w-[150px]">Emissor</TableHead>}
+                    {showCol("iso14001") && <TableHead className="w-[80px] text-center">14001</TableHead>}
+                    {showCol("iso45001") && <TableHead className="w-[80px] text-center">45001</TableHead>}
+                    {showCol("applicability") && <TableHead className="w-[140px]">Aplicabilidade</TableHead>}
+                    {showCol("descriptive") && <TableHead className="w-[260px]">Descritivo</TableHead>}
+                    {showCol("actions") && <TableHead className="w-[260px]">Ações</TableHead>}
+                    {showCol("responsible") && <TableHead className="w-[140px]">Responsável</TableHead>}
+                    {showCol("deadline") && <TableHead className="w-[120px]">Prazo</TableHead>}
+                    {showCol("status") && <TableHead className="w-[130px]">Estado</TableHead>}
+                    {showCol("audits") && (
+                      <TableHead className="w-[200px]">
+                        Auditorias afetadas
+                      </TableHead>
+                    )}
                     <TableHead className="w-[110px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((r) => (
                     <TableRow key={r.id} className="align-top">
-                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.document_type}
-                      </TableCell>
-                      <TableCell className="text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.document_ref}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
-                        title={r.document_name || ""}
-                      >
-                        {r.document_name}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.publication_date}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.modification_date}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.issuer}
-                      </TableCell>
-                      <TableCell className="text-center text-xs whitespace-nowrap">
-                        {r.impact_iso_14001 ? "x" : ""}
-                      </TableCell>
-                      <TableCell className="text-center text-xs whitespace-nowrap">
-                        {r.impact_iso_45001 ? "x" : ""}
-                      </TableCell>
-                      <TableCell className="space-y-1 whitespace-nowrap">
-                        {r.applicability_direct && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Direta
-                          </Badge>
-                        )}
-                        {r.applicability_indirect && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Indireta
-                          </Badge>
-                        )}
-                        {r.applicability_informative && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Informativo
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
-                        title={r.descriptive || ""}
-                      >
-                        {r.descriptive}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
-                        title={r.actions || ""}
-                      >
-                        {r.actions}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-                        {r.responsible}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.implementation_deadline}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {r.implementation_status && (
-                          <Badge className="bg-green-500 text-white border-0 text-[10px]">
-                            {r.implementation_status}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="space-y-1 whitespace-nowrap">
-                        {auditsForRow(r).length === 0 ? (
-                          <span className="text-[11px] text-muted-foreground">
-                            —
-                          </span>
-                        ) : (
-                          auditsForRow(r)
-                            .slice(0, 3)
-                            .map((a) => (
-                              <Badge
-                                key={a.id}
-                                variant="secondary"
-                                className="text-[10px] block w-fit"
-                              >
-                                {a.title}
-                              </Badge>
-                            ))
-                        )}
-                        {canEdit && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 px-1 text-[11px] gap-1"
-                            onClick={() => setLinkingRow(r)}
-                          >
-                            <Link2 className="h-3 w-3" />
-                            Ligar
-                          </Button>
-                        )}
-                      </TableCell>
+                      {showCol("type") && (
+                        <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.document_type}
+                        </TableCell>
+                      )}
+                      {showCol("ref") && (
+                        <TableCell className="text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.document_ref}
+                        </TableCell>
+                      )}
+                      {showCol("name") && (
+                        <TableCell
+                          className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                          title={r.document_name || ""}
+                        >
+                          {r.document_name}
+                        </TableCell>
+                      )}
+                      {showCol("publication") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.publication_date}
+                        </TableCell>
+                      )}
+                      {showCol("modification") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.modification_date}
+                        </TableCell>
+                      )}
+                      {showCol("issuer") && (
+                        <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.issuer}
+                        </TableCell>
+                      )}
+                      {showCol("iso14001") && (
+                        <TableCell className="text-center text-xs whitespace-nowrap">
+                          {r.impact_iso_14001 ? "x" : ""}
+                        </TableCell>
+                      )}
+                      {showCol("iso45001") && (
+                        <TableCell className="text-center text-xs whitespace-nowrap">
+                          {r.impact_iso_45001 ? "x" : ""}
+                        </TableCell>
+                      )}
+                      {showCol("applicability") && (
+                        <TableCell className="space-y-1 whitespace-nowrap">
+                          {r.applicability_direct && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Direta
+                            </Badge>
+                          )}
+                          {r.applicability_indirect && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Indireta
+                            </Badge>
+                          )}
+                          {r.applicability_informative && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Informativo
+                            </Badge>
+                          )}
+                        </TableCell>
+                      )}
+                      {showCol("descriptive") && (
+                        <TableCell
+                          className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                          title={r.descriptive || ""}
+                        >
+                          {r.descriptive}
+                        </TableCell>
+                      )}
+                      {showCol("actions") && (
+                        <TableCell
+                          className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                          title={r.actions || ""}
+                        >
+                          {r.actions}
+                        </TableCell>
+                      )}
+                      {showCol("responsible") && (
+                        <TableCell className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+                          {r.responsible}
+                        </TableCell>
+                      )}
+                      {showCol("deadline") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.implementation_deadline}
+                        </TableCell>
+                      )}
+                      {showCol("status") && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {r.implementation_status && (
+                            <Badge className="bg-green-500 text-white border-0 text-[10px]">
+                              {r.implementation_status}
+                            </Badge>
+                          )}
+                        </TableCell>
+                      )}
+                      {showCol("audits") && (
+                        <TableCell className="space-y-1 whitespace-nowrap">
+                          {auditsForRow(r).length === 0 ? (
+                            <span className="text-[11px] text-muted-foreground">
+                              —
+                            </span>
+                          ) : (
+                            auditsForRow(r)
+                              .slice(0, 3)
+                              .map((a) => (
+                                <Badge
+                                  key={a.id}
+                                  variant="secondary"
+                                  className="text-[10px] block w-fit"
+                                >
+                                  {a.title}
+                                </Badge>
+                              ))
+                          )}
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1 text-[11px] gap-1"
+                              onClick={() => setLinkingRow(r)}
+                            >
+                              <Link2 className="h-3 w-3" />
+                              Ligar
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="whitespace-nowrap">
                         <div className="flex gap-1">
                           <Button
