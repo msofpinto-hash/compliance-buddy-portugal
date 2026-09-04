@@ -49,3 +49,6 @@
 - [x] Preenchimento automático das VCL futuras (participantes, descrição, diplomas do mês, ações)
 - [x] Ações da VCL enviadas para o Plano de Ações com identificação da origem
 - [x] Remover o submenu "Atas mensais"; documentos passam a estar em cada linha do Acompanhamento mensal
+- [x] Preenchimento automático dos relatórios VCL a partir das atas PDF
+- [x] Anexar documentos por mês (exceto relatórios VCL mensais)
+- [x] Reabrir VCL de julho 2026 para edição

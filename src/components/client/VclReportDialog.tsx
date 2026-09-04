@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, FileDown, Search } from "lucide-react";
+import { Loader2, Plus, Trash2, FileDown, Search, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +34,7 @@ import {
   VclDiploma,
 } from "@/lib/vclReport";
 import { buildVclAutofill, syncVclActionsToPlans } from "@/lib/vclAutomation";
+import { parseAtaPdf } from "@/lib/vclAtaParser";
 
 type Audit = {
   id: string;
@@ -62,6 +63,7 @@ export function VclReportDialog({
   const { toast } = useToast();
   const [report, setReport] = useState<VclReport>(emptyVclReport());
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [pool, setPool] = useState<VclDiploma[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -308,8 +310,44 @@ export function VclReportDialog({
     }
   };
 
+  const importAta = async (file: File | null) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const { patch, matchedDiplomas } = await parseAtaPdf(file, pool);
+      const filled = Object.values(patch).filter(
+        (v) => (Array.isArray(v) ? v.length : String(v || "").trim()) !== 0,
+      ).length;
+      setReport((r) => {
+        const ids = new Set(r.diplomas.map((d) => d.id));
+        return {
+          ...r,
+          ...patch,
+          actions:
+            patch.actions && patch.actions.length ? patch.actions : r.actions,
+          diplomas: [
+            ...r.diplomas,
+            ...matchedDiplomas.filter((d) => !ids.has(d.id)),
+          ],
+        };
+      });
+      toast({
+        title: "Ata lida com sucesso",
+        description: `${filled} campo(s) preenchido(s) e ${matchedDiplomas.length} diploma(s) identificado(s). Confirme antes de guardar.`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "Não foi possível ler a ata",
+        description: e?.message || String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
@@ -323,7 +361,45 @@ export function VclReportDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {canEdit && (
+          <Card className="p-3 flex flex-wrap items-center justify-between gap-2 bg-muted/40">
+            <div className="text-xs text-muted-foreground max-w-md">
+              Carregue a ata do mês em PDF para preencher automaticamente
+              participantes, descrição, conclusões, ações e diplomas referidos.
+            </div>
+            <div>
+              <input
+                id="vcl-ata-input"
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  importAta(e.target.files?.[0] || null);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={importing || poolLoading}
+                onClick={() =>
+                  document.getElementById("vcl-ata-input")?.click()
+                }
+              >
+                {importing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5" />
+                )}
+                Preencher a partir da ata (PDF)
+              </Button>
+            </div>
+          </Card>
+        )}
+
         <div className="space-y-4">
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Participantes</Label>
