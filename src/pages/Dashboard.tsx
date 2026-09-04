@@ -132,7 +132,14 @@ import { ListChecks } from "lucide-react";
 import { AuditCalendar } from "@/components/client/AuditCalendar";
 import { AuditTrackingPanel } from "@/components/client/AuditTrackingPanel";
 
-type TabType = "overview" | "actions" | "audits" | "documents" | "indicators";
+type TabType =
+  | "overview"
+  | "actions"
+  | "audits"
+  | "monthly"
+  | "documents"
+  | "indicators";
+
 
 const COLORS = {
   compliant: "hsl(152, 82%, 42%)",
