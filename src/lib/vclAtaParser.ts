@@ -33,6 +33,7 @@ export async function extractPdfText(file: File): Promise<string> {
 
 const clean = (s: string) =>
   s
+    .replace(/^\s*\d{1,2}\s*$/gm, "")
     .replace(/\u00a0/g, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -93,7 +94,9 @@ function splitSections(text: string): Record<string, string> {
       buffer.push("");
       continue;
     }
-    const bare = line.replace(/^\d+[.)]\s*/, "");
+    const bare = line
+      .replace(/^n\s*[.ºo°]{1,2}\s*/i, "")
+      .replace(/^\d+[.)]\s*/, "");
     const match = HEADINGS.find((h) => h.re.test(bare));
     if (match) {
       flush();
@@ -121,41 +124,68 @@ function parseParticipants(block: string): string {
 const DEADLINE_RE =
   /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|imediat\w*|em curso|permanente)/i;
 
+const RESP_DEADLINE_RE =
+  /\s{1,}([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\s]{1,30}?)\s+(on going|em curso|imediat\w*|permanente|[A-Za-zÀ-ÿ]{3,10}\.?\s*\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*$/i;
+
+function buildAction(text: string): VclAction | null {
+  let description = text.replace(/\s+/g, " ").trim();
+  if (description.length < 8) return null;
+  let responsible = "";
+  let deadline = "";
+  const m = description.match(RESP_DEADLINE_RE);
+  if (m) {
+    responsible = m[1].trim();
+    deadline = m[2].trim();
+    description = description.replace(m[0], " ").replace(/\s+/g, " ").trim();
+  } else {
+    const parts = description.split(/\s*[|;]\s*|\s+[–—]\s+/);
+    if (parts.length >= 3) {
+      description = parts[0].trim();
+      responsible = parts[1].trim();
+      deadline = parts[2].trim();
+    }
+  }
+  return {
+    description,
+    responsible,
+    deadline,
+    legislation_id: null,
+    legislation_label: null,
+  };
+}
+
 function parseActions(block: string): VclAction[] {
   if (!block) return [];
-  const actions: VclAction[] = [];
-  for (const raw of block.split("\n")) {
-    const line = raw.replace(/^[-•*]\s*/, "").trim();
-    if (line.length < 8) continue;
-    if (/^(a[çc][õo]es|respons[áa]vel|prazo)\b/i.test(line)) continue;
-    // formatos "descrição | responsável | prazo" ou "descrição – responsável – prazo"
-    const parts = line.split(/\s*[|;]\s*|\s+[–—]\s+/).map((p) => p.trim());
-    let description = parts[0];
-    let responsible = "";
-    let deadline = "";
-    if (parts.length >= 3) {
-      responsible = parts[1];
-      deadline = parts[2];
-    } else if (parts.length === 2) {
-      if (DEADLINE_RE.test(parts[1])) deadline = parts[1];
-      else responsible = parts[1];
-    }
-    const inline = description.match(
-      /\((?:prazo|at[ée])\s*:?\s*([^)]+)\)\s*$/i,
+  const lines = block
+    .split("\n")
+    .map((l) => l.replace(/^[-•*]\s*/, "").trim())
+    .filter(
+      (l) =>
+        l.length > 0 &&
+        !/^\d{1,2}$/.test(l) &&
+        !/^(respons\w*|prazo|a[çc][õo]es a desenvolver)\b/i.test(l),
     );
-    if (inline && !deadline) {
-      deadline = inline[1].trim();
-      description = description.replace(inline[0], "").trim();
+
+  const numbered = lines.some((l) => /^\d{1,2}\s+\S/.test(l));
+  const chunks: string[] = [];
+  if (numbered) {
+    let current = "";
+    for (const l of lines) {
+      if (/^\d{1,2}\s+\S/.test(l)) {
+        if (current.trim()) chunks.push(current);
+        current = l.replace(/^\d{1,2}\s+/, "");
+      } else {
+        current += " " + l;
+      }
     }
-    actions.push({
-      description,
-      responsible,
-      deadline,
-      legislation_id: null,
-      legislation_label: null,
-    });
+    if (current.trim()) chunks.push(current);
+  } else {
+    chunks.push(...lines);
   }
-  return actions;
+
+  return chunks
+    .map(buildAction)
+    .filter((a): a is VclAction => a !== null && a.description.length >= 8);
 }
 
 /** Números de diplomas presentes no texto (DL, Lei, Portaria, Regulamento UE, ...). */
