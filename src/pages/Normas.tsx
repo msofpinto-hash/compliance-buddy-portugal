@@ -246,7 +246,10 @@ export default function Normas() {
     return { label: "Por classificar", cls: "bg-red-100 text-red-700" };
   };
 
-  const implementationStatusBadge = (r: StandardRow) => {
+  const implementationStatusBadge = (
+    r: StandardRow,
+  ): { label: string; cls: string } | null => {
+    if (r.applicability_informative) return null;
     const s = (r.implementation_status || "").trim().toLowerCase();
     if (s.includes("implementad"))
       return { label: "Implementado", cls: "bg-green-100 text-green-800 border-0" };
