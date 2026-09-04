@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Props {
   open: boolean;
@@ -52,6 +59,7 @@ export function StandardsImportDialog({
   const [file, setFile] = useState<File | null>(null);
   const [period, setPeriod] = useState(defaultPeriod || "");
   const [periodDate, setPeriodDate] = useState("");
+  const [mode, setMode] = useState<"merge" | "append" | "replace">("merge");
   const [busy, setBusy] = useState(false);
 
   const handleImport = async () => {
@@ -111,22 +119,73 @@ export function StandardsImportDialog({
 
       if (!rows.length) throw new Error("Não foram encontrados registos no ficheiro.");
 
-      const { error: delError } = await supabase
-        .from("standards_control")
-        .delete()
-        .eq("organization_id", organizationId)
-        .eq("reference_period", period.trim());
-      if (delError) throw delError;
+      let inserted = 0;
+      let updated = 0;
+      let skipped = 0;
+      let toInsert = rows;
 
-      for (let i = 0; i < rows.length; i += 200) {
+      if (mode === "replace") {
+        const { error: delError } = await supabase
+          .from("standards_control")
+          .delete()
+          .eq("organization_id", organizationId)
+          .eq("reference_period", period.trim());
+        if (delError) throw delError;
+      } else {
+        const { data: existing, error: exError } = await supabase
+          .from("standards_control")
+          .select("id, document_ref, document_name")
+          .eq("organization_id", organizationId)
+          .eq("reference_period", period.trim());
+        if (exError) throw exError;
+
+        const keyOf = (ref: unknown, name: unknown) =>
+          `${String(ref || "").trim().toLowerCase()}|${String(name || "")
+            .trim()
+            .toLowerCase()}`;
+        const map = new Map(
+          (existing || []).map((e) => [keyOf(e.document_ref, e.document_name), e.id]),
+        );
+
+        const fresh: ParsedRow[] = [];
+        for (const r of rows) {
+          const id = map.get(keyOf(r.document_ref, r.document_name));
+          if (!id) {
+            fresh.push(r);
+            continue;
+          }
+          if (mode === "append") {
+            skipped += 1;
+            continue;
+          }
+          const { organization_id: _o, ...patch } = r as Record<string, unknown>;
+          const { error } = await supabase
+            .from("standards_control")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update(patch as any)
+            .eq("id", id);
+          if (error) throw error;
+          updated += 1;
+        }
+        toInsert = fresh;
+      }
+
+      for (let i = 0; i < toInsert.length; i += 200) {
         const { error } = await supabase
           .from("standards_control")
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .insert(rows.slice(i, i + 200) as any);
+          .insert(toInsert.slice(i, i + 200) as any);
         if (error) throw error;
+        inserted += toInsert.slice(i, i + 200).length;
       }
 
-      toast.success(`${rows.length} registos importados para ${period.trim()}`);
+      toast.success(
+        mode === "replace"
+          ? `${inserted} registos importados para ${period.trim()}`
+          : `${period.trim()}: ${inserted} novos, ${updated} atualizados${
+              skipped ? `, ${skipped} inalterados` : ""
+            }`,
+      );
       queryClient.invalidateQueries({ queryKey: ["standards-control"] });
       queryClient.invalidateQueries({ queryKey: ["standards-history"] });
       setFile(null);
@@ -174,9 +233,29 @@ export function StandardsImportDialog({
               onChange={(e) => setPeriodDate(e.target.value)}
             />
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Como tratar os registos existentes</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="merge">
+                  Atualizar existentes e acrescentar novos
+                </SelectItem>
+                <SelectItem value="append">
+                  Acrescentar apenas os que ainda não existem
+                </SelectItem>
+                <SelectItem value="replace">
+                  Substituir tudo o que existe no período
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Os registos existentes desse período são substituídos pelos do
-            ficheiro. Todas as alterações ficam registadas no histórico.
+            Pode carregar o ficheiro várias vezes ao longo do tempo: os registos
+            são identificados pela referência e nome do documento. Todas as
+            alterações ficam registadas no histórico.
           </p>
         </div>
         <DialogFooter>
