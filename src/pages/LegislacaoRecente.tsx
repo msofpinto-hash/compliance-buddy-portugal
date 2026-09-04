@@ -74,10 +74,11 @@ export default function LegislacaoRecente() {
       
       // Apply origin filter
       if (originFilter === "PT") {
-        query = query.eq("source", "dre");
+        query = query.in("origin", ["PT", "dre"]);
       } else if (originFilter === "EU") {
-        query = query.eq("source", "eurlex");
+        query = query.in("origin", ["EU", "eurlex"]);
       }
+
       
       // Apply date filters
       if (dateFrom) {
