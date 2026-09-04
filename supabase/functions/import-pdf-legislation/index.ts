@@ -169,8 +169,16 @@ function parsePdfContent(content: string): ParsedLegislation[] {
     }
     seenNumbers.add(normalizedNum);
     
-    // Determine origin
-    const isEU = /regulamento|diretiva|decisão|recomendação/i.test(type) && /\(ue\)|\(ce\)/i.test(type);
+    // Determine origin: explicit EU markers or known EU-only instruments
+    const hasEUMarker = /\(ue\)|\(ce\)|\(cee\)|\(euratom\)/i.test(type);
+    const isKnownEUType = /comunicação|regulamento de execução|regulamento delegado|decisão de execução|decisão delegada|diretiva delegada/i.test(type);
+    // Ambiguous PT/EU types without markers: assume EU when the number uses the EU format
+    // (sequence/year, e.g. "1020/2026") and no Portuguese entity is mentioned.
+    const isAmbiguousEU = /regulamento|diretiva|decisão|recomendação/i.test(type) &&
+      !hasEUMarker &&
+      /^\d{1,4}\/\d{4}$/.test(number) &&
+      !/portugal|município|câmara|assembleia|presidência|republica|dre/i.test(diplomaStr);
+    const isEU = hasEUMarker || isKnownEUType || isAmbiguousEU;
     
     // Try to extract summary (text after the diploma until next diploma or end)
     const afterMatch = cleanedContent.substring(match.index + match[0].length);
