@@ -2032,6 +2032,14 @@ export function ActionPlansView({
                       >
                         {typeInfo.icon} {typeInfo.label}
                       </Badge>
+                      {plan.audit_requirements?.audits?.title && (
+                        <span
+                          className="text-[11px] text-muted-foreground max-w-[140px] truncate"
+                          title={plan.audit_requirements.audits.title}
+                        >
+                          {plan.audit_requirements.audits.title}
+                        </span>
+                      )}
                     </div>
                     <Badge
                       variant="outline"
