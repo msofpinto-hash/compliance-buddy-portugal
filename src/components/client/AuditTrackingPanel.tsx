@@ -99,12 +99,6 @@ export function AuditTrackingPanel({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [stageFilter, setStageFilter] = useState<"all" | StageKey>("all");
-  const [conclusionFor, setConclusionFor] = useState<AuditRow | null>(null);
-  const [note, setNote] = useState("");
-  const [noAction, setNoAction] = useState(false);
-  const [planTitle, setPlanTitle] = useState("");
-  const [planDue, setPlanDue] = useState("");
-  const [saving, setSaving] = useState(false);
 
   const { data: audits, isLoading } = useQuery({
     queryKey: ["audit-tracking", organizationIds],
@@ -120,43 +114,6 @@ export function AuditTrackingPanel({
       return (data || []) as AuditRow[];
     },
     enabled: organizationIds.length > 0,
-  });
-
-  // Non-conformities and linked action plans per audit
-  const { data: linkage } = useQuery({
-    queryKey: ["audit-tracking-linkage", organizationIds],
-    queryFn: async () => {
-      const ids = (audits || []).map((a) => a.id);
-      if (ids.length === 0) return { ncByAudit: {}, plansByAudit: {} } as any;
-      const { data: reqs } = await supabase
-        .from("audit_requirements")
-        .select("id, audit_id, compliance_status")
-        .in("audit_id", ids);
-      const ncByAudit: Record<string, string[]> = {};
-      const auditByReq: Record<string, string> = {};
-      (reqs || []).forEach((r: any) => {
-        auditByReq[r.id] = r.audit_id;
-        if (["non_compliant", "partial"].includes(r.compliance_status || "")) {
-          (ncByAudit[r.audit_id] ||= []).push(r.id);
-        }
-      });
-      const reqIds = Object.keys(auditByReq);
-      const plansByAudit: Record<string, number> = {};
-      if (reqIds.length > 0) {
-        for (let i = 0; i < reqIds.length; i += 200) {
-          const { data: plans } = await supabase
-            .from("action_plans")
-            .select("id, audit_requirement_id")
-            .in("audit_requirement_id", reqIds.slice(i, i + 200));
-          (plans || []).forEach((p: any) => {
-            const aid = auditByReq[p.audit_requirement_id];
-            if (aid) plansByAudit[aid] = (plansByAudit[aid] || 0) + 1;
-          });
-        }
-      }
-      return { ncByAudit, plansByAudit };
-    },
-    enabled: !!audits && audits.length > 0,
   });
 
   const rows = useMemo(() => {
