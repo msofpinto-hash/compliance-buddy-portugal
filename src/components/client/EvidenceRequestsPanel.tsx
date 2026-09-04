@@ -1145,6 +1145,34 @@ export function EvidenceRequestsPanel({
                                       <p className="font-medium whitespace-pre-line">
                                         {request.evidence_templates.title}
                                       </p>
+                                      {(auditsByRequest?.[request.id] || [])
+                                        .length > 0 && (
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                          <span className="text-xs text-muted-foreground">
+                                            Dá resposta a:
+                                          </span>
+                                          {auditsByRequest?.[request.id]?.map(
+                                            (a) => (
+                                              <Badge
+                                                key={a.id}
+                                                variant="outline"
+                                                className="cursor-pointer text-xs"
+                                                onClick={() =>
+                                                  navigate(
+                                                    `/dashboard?tab=audits&sec=plano&audit=${a.id}`,
+                                                  )
+                                                }
+                                              >
+                                                {a.title}
+                                                {a.date
+                                                  ? ` · ${format(new Date(a.date), "dd/MM/yyyy", { locale: pt })}`
+                                                  : ""}
+                                              </Badge>
+                                            ),
+                                          )}
+                                        </div>
+                                      )}
+
                                       {request.evidence_templates
                                         .description && (
                                         <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
