@@ -34,8 +34,10 @@ export interface CalendarAudit {
 }
 
 type ViewMode = "semanal" | "mensal" | "anual";
+type TypeFilter = "all" | "anual" | "mensal";
 
 const isExecuted = (a: CalendarAudit) => a.status === "closed";
+const isMonthly = (a: CalendarAudit) => (a.audit_type || "anual") === "mensal";
 
 interface Props {
   audits: CalendarAudit[];
@@ -43,9 +45,23 @@ interface Props {
 }
 
 /** Audit calendar with weekly / monthly / annual views showing planned vs executed dates. */
-export function AuditCalendar({ audits, onSelectAudit }: Props) {
+export function AuditCalendar({ audits: allAudits, onSelectAudit }: Props) {
   const [view, setView] = useState<ViewMode>("mensal");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [cursor, setCursor] = useState(new Date());
+
+  const audits = useMemo(
+    () =>
+      allAudits.filter((a) =>
+        typeFilter === "all"
+          ? true
+          : typeFilter === "mensal"
+            ? isMonthly(a)
+            : !isMonthly(a),
+      ),
+    [allAudits, typeFilter],
+  );
+
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarAudit[]>();
