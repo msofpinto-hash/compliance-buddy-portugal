@@ -95,7 +95,7 @@ function splitSections(text: string): Record<string, string> {
       continue;
     }
     const bare = line
-      .replace(/^n\s*[.ºo°]{1,2}\s*/i, "")
+      .replace(/^n\s*[.ºo°]{1,2}\s*(?=\d)/i, "")
       .replace(/^\d+[.)]\s*/, "");
     const match = HEADINGS.find((h) => h.re.test(bare));
     if (match) {
@@ -125,7 +125,7 @@ const DEADLINE_RE =
   /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|imediat\w*|em curso|permanente)/i;
 
 const RESP_DEADLINE_RE =
-  /\s{1,}([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\s]{1,30}?)\s+(on going|em curso|imediat\w*|permanente|[A-Za-zÀ-ÿ]{3,10}\.?\s*\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*$/i;
+  /\s([A-ZÀ-Ý][A-Za-zÀ-ÿ.]{2,25}(?:\s[A-ZÀ-Ý][A-Za-zÀ-ÿ.]{2,25})?)\s+(on going|em curso|imediat\w*|permanente|(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*\.?\s*\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})(?=\s|$)/i;
 
 function buildAction(text: string): VclAction | null {
   let description = text.replace(/\s+/g, " ").trim();
