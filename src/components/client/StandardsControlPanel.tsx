@@ -606,28 +606,72 @@ export function StandardsControlPanel({
                           </Badge>
                         )}
                       </TableCell>
-                      {canEdit && (
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              onClick={() => setEditing(r)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 text-destructive"
-                              onClick={() => deleteRow.mutate(r.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
+                      <TableCell className="space-y-1">
+                        {auditsForRow(r).length === 0 ? (
+                          <span className="text-[11px] text-muted-foreground">
+                            —
+                          </span>
+                        ) : (
+                          auditsForRow(r)
+                            .slice(0, 3)
+                            .map((a) => (
+                              <Badge
+                                key={a.id}
+                                variant="secondary"
+                                className="text-[10px] block w-fit"
+                              >
+                                {a.title}
+                              </Badge>
+                            ))
+                        )}
+                        {canEdit && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-1 text-[11px] gap-1"
+                            onClick={() => setLinkingRow(r)}
+                          >
+                            <Link2 className="h-3 w-3" />
+                            Ligar
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              setHistoryFor(r.id);
+                              setHistoryOpen(true);
+                            }}
+                          >
+                            <History className="h-3.5 w-3.5" />
+                          </Button>
+                          {canEdit && (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => setEditing(r)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-destructive"
+                                onClick={() => deleteRow.mutate(r.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
