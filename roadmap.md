@@ -52,3 +52,5 @@
 - [x] Preenchimento automático dos relatórios VCL a partir das atas PDF
 - [x] Anexar documentos por mês (exceto relatórios VCL mensais)
 - [x] Reabrir VCL de julho 2026 para edição
+- [ ] Relatório VCL PDF: cabeçalho com logotipos AMCOR + I&D Compliance, data da reunião e páginas numeradas
+- [ ] Preencher relatórios VCL 2025 (12 meses) a partir dos DOCX e anexar Controlo de Normas + Lista de diplomas por mês
