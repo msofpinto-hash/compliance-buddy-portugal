@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -209,6 +210,7 @@ export function EvidenceRequestsPanel({
   organizationId,
 }: EvidenceRequestsPanelProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
