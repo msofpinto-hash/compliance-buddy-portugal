@@ -1602,15 +1602,6 @@ export default function Dashboard() {
                   Relatórios anuais
                 </Button>
                 <Button
-                  variant={auditSection === "normas" ? "default" : "ghost"}
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setAuditSection("normas")}
-                >
-                  <BookMarked className="h-4 w-4" />
-                  Controlo de normas, despachos e notas técnicas
-                </Button>
-                <Button
                   variant={
                     auditSection === "acompanhamento" ? "default" : "ghost"
                   }
