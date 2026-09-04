@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -43,10 +48,32 @@ import {
   History,
   Link2,
   CalendarPlus,
+  Columns3,
 } from "lucide-react";
 import { StandardsHistoryDialog } from "./StandardsHistoryDialog";
 import { StandardsImportDialog } from "./StandardsImportDialog";
 
+
+const COLUMNS = [
+  { key: "type", label: "Tipo", width: 180 },
+  { key: "ref", label: "Refª", width: 140 },
+  { key: "name", label: "Documento", width: 280 },
+  { key: "publication", label: "Publicação", width: 110 },
+  { key: "modification", label: "Modificação", width: 110 },
+  { key: "issuer", label: "Emissor", width: 150 },
+  { key: "iso14001", label: "ISO 14001", width: 80 },
+  { key: "iso45001", label: "ISO 45001", width: 80 },
+  { key: "applicability", label: "Aplicabilidade", width: 140 },
+  { key: "descriptive", label: "Descritivo", width: 260 },
+  { key: "actions", label: "Ações", width: 260 },
+  { key: "responsible", label: "Responsável", width: 140 },
+  { key: "deadline", label: "Prazo", width: 120 },
+  { key: "status", label: "Estado", width: 130 },
+  { key: "audits", label: "Auditorias afetadas", width: 200 },
+] as const;
+
+type ColumnKey = (typeof COLUMNS)[number]["key"];
+const HIDDEN_STORAGE_KEY = "standards-control-hidden-columns";
 
 type StandardRow = {
   id: string;
@@ -126,6 +153,25 @@ export function StandardsControlPanel({
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [hiddenCols, setHiddenCols] = useState<ColumnKey[]>(() => {
+    try {
+      const raw = localStorage.getItem(HIDDEN_STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as ColumnKey[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const showCol = (k: ColumnKey) => !hiddenCols.includes(k);
+  const toggleCol = (k: ColumnKey) =>
+    setHiddenCols((prev) => {
+      const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k];
+      try {
+        localStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
   const [newPeriodOpen, setNewPeriodOpen] = useState(false);
   const [newPeriodName, setNewPeriodName] = useState("");
   const [newPeriodDate, setNewPeriodDate] = useState("");
@@ -316,6 +362,20 @@ export function StandardsControlPanel({
         return false;
       if (applicabilityFilter === "informativo" && !r.applicability_informative)
         return false;
+      if (
+        applicabilityFilter === "aplicavel" &&
+        !(r.applicability_direct || r.applicability_indirect)
+      )
+        return false;
+      if (
+        applicabilityFilter === "nao_aplicavel" &&
+        (r.applicability_direct ||
+          r.applicability_indirect ||
+          r.applicability_informative)
+      )
+        return false;
+      if (applicabilityFilter === "iso14001" && !r.impact_iso_14001) return false;
+      if (applicabilityFilter === "iso45001" && !r.impact_iso_45001) return false;
       if (
         statusFilter === "implementado" &&
         (r.implementation_status || "").toLowerCase() !== "implementado"
@@ -570,11 +630,60 @@ export function StandardsControlPanel({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toda a aplicabilidade</SelectItem>
+            <SelectItem value="aplicavel">Aplicável (direta ou indireta)</SelectItem>
+            <SelectItem value="nao_aplicavel">Não aplicável</SelectItem>
             <SelectItem value="direta">Aplicabilidade direta</SelectItem>
             <SelectItem value="indireta">Aplicabilidade indireta</SelectItem>
             <SelectItem value="informativo">Informativo</SelectItem>
+            <SelectItem value="iso14001">Impacto ISO 14001</SelectItem>
+            <SelectItem value="iso45001">Impacto ISO 45001</SelectItem>
           </SelectContent>
         </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Columns3 className="h-4 w-4" />
+              Colunas
+              {hiddenCols.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {hiddenCols.length} ocultas
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 bg-background z-50">
+            <p className="text-xs font-medium mb-2">Colunas visíveis</p>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {COLUMNS.map((c) => (
+                <label
+                  key={c.key}
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                >
+                  <Checkbox
+                    checked={showCol(c.key)}
+                    onCheckedChange={() => toggleCol(c.key)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={() => {
+                setHiddenCols([]);
+                try {
+                  localStorage.removeItem(HIDDEN_STORAGE_KEY);
+                } catch {
+                  /* ignore */
+                }
+              }}
+            >
+              Mostrar todas
+            </Button>
+          </PopoverContent>
+        </Popover>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[170px]">
             <SelectValue placeholder="Estado" />
