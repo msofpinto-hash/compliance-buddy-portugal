@@ -327,7 +327,7 @@ export default function Dashboard() {
   const [auditStartDate, setAuditStartDate] = useState<string | null>(null);
   const [auditEndDate, setAuditEndDate] = useState<string | null>(null);
   const [auditSection, setAuditSection] = useState<
-    "plano" | "evidencias" | "relatorios" | "atas" | "normas" | "acompanhamento"
+    "plano" | "evidencias" | "relatorios" | "normas" | "acompanhamento"
   >("plano");
   const [auditTypeFilter, setAuditTypeFilter] = useState<
     "all" | "anual" | "mensal"
@@ -357,13 +357,11 @@ export default function Dashboard() {
       secParam === "plano" ||
       secParam === "evidencias" ||
       secParam === "relatorios" ||
-      secParam === "atas" ||
       secParam === "normas" ||
       secParam === "acompanhamento"
     ) {
-      setAuditSection(secParam);
+      setAuditSection(secParam as any);
       if (secParam === "relatorios") setAuditTypeFilter("anual");
-      if (secParam === "atas") setAuditTypeFilter("mensal");
     }
   }, [secParam]);
 
@@ -1605,18 +1603,6 @@ export default function Dashboard() {
                   Relatórios anuais
                 </Button>
                 <Button
-                  variant={auditSection === "atas" ? "default" : "ghost"}
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => {
-                    setAuditSection("atas");
-                    setAuditTypeFilter("mensal");
-                  }}
-                >
-                  <ListChecks className="h-4 w-4" />
-                  Atas mensais
-                </Button>
-                <Button
                   variant={auditSection === "normas" ? "default" : "ghost"}
                   size="sm"
                   className="gap-2"
@@ -1962,35 +1948,8 @@ export default function Dashboard() {
               {/* Relatórios anuais / Atas mensais */}
 
               <div
-                className={`space-y-4 ${auditSection === "relatorios" || auditSection === "atas" ? "" : "hidden"}`}
+                className={`space-y-4 ${auditSection === "relatorios" ? "" : "hidden"}`}
               >
-                {auditSection === "atas" && (
-                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <BookMarked className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold">
-                          Controlo de normas, despachos e notas técnicas
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Enquanto a verificação mensal não estiver encerrada, o
-                          ficheiro é gerido no submenu próprio. Ao encerrar cada
-                          VCL é gerado um Excel dessas normas e anexado à
-                          respetiva ata mensal.
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 shrink-0"
-                      onClick={() => setAuditSection("normas")}
-                    >
-                      <BookMarked className="h-4 w-4" />
-                      Abrir controlo de normas
-                    </Button>
-                  </div>
-                )}
 
 
 
@@ -2002,14 +1961,10 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        {auditSection === "atas"
-                          ? "Atas mensais"
-                          : "Relatórios anuais"}
+                        Relatórios anuais
                       </h2>
                       <p className="text-sm text-muted-foreground">
-                        {auditSection === "atas"
-                          ? "Verificações de conformidade legal mensais realizadas"
-                          : "Auditorias de conformidade legal anuais realizadas"}
+                        Auditorias de conformidade legal anuais realizadas
                       </p>
 
                     </div>
