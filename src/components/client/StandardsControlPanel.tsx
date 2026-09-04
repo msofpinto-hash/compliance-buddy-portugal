@@ -182,6 +182,17 @@ export function StandardsControlPanel({
   const [newPeriodDate, setNewPeriodDate] = useState("");
   const [copyPrevious, setCopyPrevious] = useState(true);
   const [linkingRow, setLinkingRow] = useState<StandardRow | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const hScrollRef = useRef<HTMLDivElement>(null);
+
+  const syncHorizontalScroll = (source: HTMLDivElement | null) => {
+    if (!source) return;
+    const target =
+      source === tableScrollRef.current ? hScrollRef.current : tableScrollRef.current;
+    if (target && target.scrollLeft !== source.scrollLeft) {
+      target.scrollLeft = source.scrollLeft;
+    }
+  };
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["standards-control", organizationId],
