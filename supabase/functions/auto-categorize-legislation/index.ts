@@ -83,16 +83,26 @@ function findMatchingCategories(
     }
   }
 
-  // If no matches from DB keywords, try additional keyword mappings
+  // If no matches from DB keywords, try additional keyword mappings.
+  // IMPORTANT: only match against the CATEGORY NAME (never the theme name),
+  // otherwise generic topics (e.g. "seguranca") fall into the first category of
+  // the theme (which was dumping everything into "Constituicao da Republica Portuguesa").
+  const GENERIC_CATEGORY_BLOCKLIST = [
+    'constituicao da republica',
+    'diplomas gerais',
+    'diversos',
+    'geral',
+  ];
+
   if (matchedCategoryIds.size === 0) {
     for (const [topic, keywords] of Object.entries(additionalKeywords)) {
       for (const keyword of keywords) {
         if (matchesKeyword(searchText, keyword)) {
-          // Find a category that matches this topic
-          const matchingCat = categories.find(c => 
-            normalizeText(c.name).includes(normalizeText(topic)) ||
-            normalizeText(c.theme_name).includes(normalizeText(topic))
-          );
+          const matchingCat = categories.find(c => {
+            const name = normalizeText(c.name);
+            if (GENERIC_CATEGORY_BLOCKLIST.some(b => name.includes(b))) return false;
+            return name.includes(normalizeText(topic));
+          });
           if (matchingCat) {
             matchedCategoryIds.add(matchingCat.id);
           }
@@ -100,6 +110,7 @@ function findMatchingCategories(
         }
       }
     }
+
   }
 
   return Array.from(matchedCategoryIds);
