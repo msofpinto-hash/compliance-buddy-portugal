@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { RouteSeo } from "@/components/seo/RouteSeo";
 import { IDTopNav } from "@/components/client/IDTopNav";
+import { CategoryReviewPanel } from "@/components/admin/CategoryReviewPanel";
+
 
 type Category = {
   id: string;
