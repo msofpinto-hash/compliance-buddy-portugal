@@ -38,14 +38,8 @@ const additionalKeywords: Record<string, string[]> = {
   'ruído': ['ruído', 'acústica', 'insonorização', 'sonómetro'],
   // Ambiente - Energia
   'energia': ['energia', 'energético', 'renováveis', 'eficiência energética', 'eletricidade', 'gás natural'],
-  // Segurança
-  'segurança': ['segurança', 'acidentes', 'prevenção', 'equipamentos de proteção', 'EPI'],
   // SST
   'sst': ['saúde no trabalho', 'segurança no trabalho', 'medicina do trabalho', 'acidentes de trabalho'],
-  // Qualidade
-  'qualidade': ['qualidade', 'certificação', 'normalização', 'metrologia', 'acreditação'],
-  // ESG
-  'esg': ['ESG', 'sustentabilidade', 'responsabilidade social', 'governança', 'rótulo ecológico'],
   // Euratom
   'euratom': ['radiação', 'radioativo', 'Euratom', 'nuclear', 'ionizante'],
   // Florestas
