@@ -467,7 +467,14 @@ export default function GestaoTemas() {
           </p>
         </header>
 
-        <CategoryReviewPanel />
+        <div className="flex flex-wrap items-center gap-2">
+          <CategoryReviewPanel />
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/corrigir-diplomas" className="gap-2">
+              <Wrench className="h-4 w-4" /> Corrigir diplomas (sem data / sem requisitos)
+            </Link>
+          </Button>
+        </div>
 
 
 
