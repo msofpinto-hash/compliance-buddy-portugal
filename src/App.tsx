@@ -156,12 +156,6 @@ const App = () => (
                 </RequireAdmin>
               }
             />
-              element={
-                <RequireAdmin>
-                  <GestaoTemas />
-                </RequireAdmin>
-              }
-            />
             <Route
               path="/requisitos-tema"
               element={
