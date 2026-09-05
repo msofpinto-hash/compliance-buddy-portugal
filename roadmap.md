@@ -65,3 +65,7 @@
 - [ ] Normas: ao clicar num documento, mostrar todos os campos do Excel (descritivo, ações, responsável, prazo, estado, ISO, aplicabilidade, auditorias)
 - [~] Correção global da legislação (URLs, categorias, requisitos, metadados) a correr em segundo plano
 - [ ] Correção acelerada da biblioteca: URLs, datas, relações e categorias
+
+## 2026-09-05
+- [x] Associar diploma existente na base de dados diretamente a um descritor (biblioteca)
+- [x] Painel de revisão de categorias (suspeitas + diplomas em demasiados descritores)
