@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { RouteSeo } from "@/components/seo/RouteSeo";
 import { IDTopNav } from "@/components/client/IDTopNav";
+import { CategoryReviewPanel } from "@/components/admin/CategoryReviewPanel";
+
 
 type Category = {
   id: string;
@@ -464,6 +466,10 @@ export default function GestaoTemas() {
             mover diplomas entre descritores ou retirar os que não interessam.
           </p>
         </header>
+
+        <CategoryReviewPanel />
+
+
 
         <Card>
           <CardContent className="flex flex-wrap items-end gap-3 pt-6">

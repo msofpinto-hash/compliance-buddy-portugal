@@ -83,6 +83,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { AddLegislationToCategoryDialog } from "./AddLegislationToCategoryDialog";
+
 
 
 // Theme color configurations with warm corporate palette
@@ -1858,7 +1860,26 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             </CardDescription>
           </CardHeader>
           <CardContent className="p-2 flex flex-col">
+            {selectedCategoryId && (
+              <div className="mb-2 flex items-center gap-2">
+                <AddLegislationToCategoryDialog
+                  categoryId={selectedCategoryId}
+                  categoryName={
+                    selectedTheme?.categories.find((c) => c.id === selectedCategoryId)?.name || "Descritor"
+                  }
+                  onAdded={() => {
+                    queryClient.invalidateQueries({ queryKey: ["legislation-with-categories"] });
+                    queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+                    queryClient.invalidateQueries({ queryKey: ["legislation"] });
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">
+                  Associar um diploma já existente na base de dados a este descritor
+                </span>
+              </div>
+            )}
             {editableOrganizationId && selectedLegIds.size > 0 && (
+
               <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2">
                 <span className="flex items-center gap-1.5 text-xs font-medium">
                   <FolderTreeIcon className="h-4 w-4 text-primary" />
