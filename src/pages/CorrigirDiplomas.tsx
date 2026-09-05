@@ -125,7 +125,7 @@ export default function CorrigirDiplomas() {
 
   return (
     <div className="min-h-screen bg-background">
-      <RouteSeo title="Corrigir Diplomas | I&D Compliance Lex" description="Correção manual de diplomas sem data de publicação e sem requisitos legais." />
+      <RouteSeo />
       <IDTopNav />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div>
