@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ import {
   Trash2,
   Check,
   ArrowLeftRight,
+  Wrench,
 } from "lucide-react";
 import { RouteSeo } from "@/components/seo/RouteSeo";
 import { IDTopNav } from "@/components/client/IDTopNav";
@@ -467,7 +469,14 @@ export default function GestaoTemas() {
           </p>
         </header>
 
-        <CategoryReviewPanel />
+        <div className="flex flex-wrap items-center gap-2">
+          <CategoryReviewPanel />
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/corrigir-diplomas" className="gap-2">
+              <Wrench className="h-4 w-4" /> Corrigir diplomas (sem data / sem requisitos)
+            </Link>
+          </Button>
+        </div>
 
 
 
