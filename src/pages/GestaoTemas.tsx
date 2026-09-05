@@ -465,6 +465,10 @@ export default function GestaoTemas() {
           </p>
         </header>
 
+        <CategoryReviewPanel />
+
+
+
         <Card>
           <CardContent className="flex flex-wrap items-end gap-3 pt-6">
             <div className="space-y-1">
