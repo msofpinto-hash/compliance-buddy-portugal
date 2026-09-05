@@ -83,6 +83,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { AddLegislationToCategoryDialog } from "./AddLegislationToCategoryDialog";
+
 
 
 // Theme color configurations with warm corporate palette
