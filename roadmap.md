@@ -76,3 +76,4 @@
 - [ ] Página de vigência por diploma (entrada em vigor, cessação, alertas para próximos)
 - [ ] Recuperar links oficiais e datas dos 3 diplomas de 2026 bloqueados no DRE
 - [ ] Classificar os 23 diplomas importados nos descritores certos
+- [ ] Validar diplomas repetidos em vários descritores/subdescritores e limpar duplicações
