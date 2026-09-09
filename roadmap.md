@@ -75,6 +75,6 @@
 - [x] AMCOR: só carregar diplomas municipais do Porto e de Vila Nova de Gaia (ignorar outros municípios)
 - [x] Página de vigência por diploma (entrada em vigor, cessação, alertas para próximos)
 - [x] Recuperar links oficiais e datas dos 3 diplomas de 2026 bloqueados no DRE
-- [ ] Gestão de temas: selecionar vários diplomas e arrastar/mover para outro descritor ou tema, ou eliminar
+- [x] Página /categorias: contagem por tema/descritor, arrastar e largar para mover diplomas, retirar/eliminar com confirmação
 - [x] Classificar os 23 diplomas importados nos descritores certos
 - [x] Validar diplomas repetidos em vários descritores/subdescritores e limpar duplicações
