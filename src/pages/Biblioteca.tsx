@@ -23,6 +23,7 @@ import {
   Award,
   Heart,
   Folder,
+  FolderTree,
   Menu,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ import { usePendingRequirements } from "@/hooks/usePendingRequirements";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
 import { ExportApplicableDialog } from "@/components/client/ExportApplicableDialog";
+import { CategoriasPanel } from "@/components/client/CategoriasPanel";
 
 import { IDTopNav } from "@/components/client/IDTopNav";
 import {
@@ -190,6 +192,7 @@ const applicabilityFilterOptions = [
 export default function Biblioteca() {
   const { user, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [view, setView] = useState<"lista" | "categorias">("lista");
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
@@ -614,6 +617,26 @@ export default function Biblioteca() {
               {filteredCount !== 1 ? "s" : ""}
             </p>
 
+            <Tabs
+              value={view}
+              onValueChange={(v) => setView(v as "lista" | "categorias")}
+            >
+              <TabsList className="bg-muted border border-border/60">
+                <TabsTrigger
+                  value="lista"
+                  className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
+                >
+                  <BookOpen className="h-3 w-3" /> Diplomas
+                </TabsTrigger>
+                <TabsTrigger
+                  value="categorias"
+                  className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
+                >
+                  <FolderTree className="h-3 w-3" /> Categorias
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
             {hasActiveFilters && (
               <div className="flex items-center gap-2 flex-wrap">
                 {selectedSource !== "all" && (
@@ -712,7 +735,9 @@ export default function Biblioteca() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.4 }}
           >
-            {isLoading ? (
+             {view === "categorias" ? (
+              <CategoriasPanel />
+            ) : isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton
