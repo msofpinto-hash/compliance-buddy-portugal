@@ -149,6 +149,13 @@ async function smartScrape(url: string, firecrawlApiKey: string | undefined, fir
     return null;
   }
 
+  // Search pages have no diploma text — never try to extract requirements from them
+  if (/diariodarepublica\.pt\/dr\/pesquisa|search\/basic/i.test(formattedUrl)) {
+    console.log('Skipping DRE search URL:', formattedUrl);
+    return null;
+  }
+
+
   // Try Firecrawl if available and not exhausted
   if (firecrawlApiKey && !firecrawlExhausted.value) {
     const markdown = await scrapeWithFirecrawl(formattedUrl, firecrawlApiKey);
