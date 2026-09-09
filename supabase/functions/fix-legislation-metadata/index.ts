@@ -230,13 +230,14 @@ Deno.serve(async (req) => {
       // Handle DRE legislation
       if (detectedOrigin === 'PT' && firecrawlApiKey) {
         if (hasMissingUrl) {
-          // Try to generate DRE URL from number
-          // Format: "Portaria n.º 123/2024" -> search on DRE
-          const numberMatch = leg.number.match(/(\d+)\/(\d{4})/);
-          if (numberMatch) {
-            updates.document_url = `https://diariodarepublica.pt/dr/pesquisa/-/search/basic?q=${encodeURIComponent(leg.number)}`;
+          // Resolve the real DRE page via ELI (never store a search URL:
+          // search pages cannot be scraped and break requirement extraction)
+          const resolved = await resolveDreUrl(leg.number, leg.publication_date);
+          if (resolved) {
+            updates.document_url = resolved;
           }
         }
+
 
         // Scrape DRE if we have URL and need title/summary
         if ((hasGenericTitle || hasMissingSummary) && (leg.document_url || updates.document_url)) {
