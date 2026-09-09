@@ -33,6 +33,7 @@ import { usePendingRequirements } from "@/hooks/usePendingRequirements";
 import { LegislationTreeView } from "@/components/admin/LegislationTreeView";
 import { AdvancedSearchDialog } from "@/components/AdvancedSearchDialog";
 import { ExportApplicableDialog } from "@/components/client/ExportApplicableDialog";
+import { CategoriasPanel } from "@/components/client/CategoriasPanel";
 
 import { IDTopNav } from "@/components/client/IDTopNav";
 import {
