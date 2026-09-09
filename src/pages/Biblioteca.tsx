@@ -23,6 +23,7 @@ import {
   Award,
   Heart,
   Folder,
+  FolderTree,
   Menu,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -191,6 +192,7 @@ const applicabilityFilterOptions = [
 export default function Biblioteca() {
   const { user, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [view, setView] = useState<"lista" | "categorias">("lista");
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
