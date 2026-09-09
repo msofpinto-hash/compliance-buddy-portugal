@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   BadgeCheck,
   BookMarked,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -56,6 +57,15 @@ const ALL_MODULES: NavItem[] = [
     href: "/normas",
     alwaysShow: true,
   },
+  {
+    id: "vigencia",
+    moduleKey: "legislacao",
+    label: "Vigência",
+    icon: CalendarClock,
+    href: "/vigencia",
+    alwaysShow: true,
+  },
+
 
   {
     id: "auditorias",
