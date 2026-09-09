@@ -12,6 +12,11 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Plataforma portuguesa de gestão de conformidade legal: legislação atualizada, requisitos, auditorias e planos de ação num só lugar.",
   },
+  "/vigencia": {
+    title: "Vigência dos Diplomas | ID Compliance",
+    description:
+      "Consulte a entrada em vigor e a cessação de cada diploma legal, com alertas para as alterações previstas nos próximos meses.",
+  },
   "/corrigir-diplomas": {
     title: "Corrigir Diplomas | ID Compliance",
     description:

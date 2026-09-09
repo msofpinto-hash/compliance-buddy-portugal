@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   BadgeCheck,
   BookMarked,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -56,6 +57,15 @@ const ALL_MODULES: NavItem[] = [
     href: "/normas",
     alwaysShow: true,
   },
+  {
+    id: "vigencia",
+    moduleKey: "legislacao",
+    label: "Vigência",
+    icon: CalendarClock,
+    href: "/vigencia",
+    alwaysShow: true,
+  },
+
 
   {
     id: "auditorias",
@@ -131,6 +141,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
   const isItemActive = (item: NavItem) => {
     if (item.id === "legislacao") return location.pathname === "/biblioteca";
     if (item.id === "normas") return location.pathname === "/normas";
+    if (item.id === "vigencia") return location.pathname === "/vigencia";
     if (item.id === "aprovacoes") return location.pathname === "/aprovacoes";
 
     if (location.pathname !== "/dashboard") return false;

@@ -18,6 +18,7 @@ import Biblioteca from "./pages/Biblioteca";
 import Normas from "./pages/Normas";
 import LegislacaoDetalhes from "./pages/LegislacaoDetalhes";
 import LegislacaoRecente from "./pages/LegislacaoRecente";
+import Vigencia from "./pages/Vigencia";
 import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
 import Diplomas from "./pages/Diplomas";
@@ -186,6 +187,14 @@ const App = () => (
               element={
                 <RequireAuth>
                   <LegislacaoRecente />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/vigencia"
+              element={
+                <RequireAuth>
+                  <Vigencia />
                 </RequireAuth>
               }
             />
