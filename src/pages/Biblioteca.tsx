@@ -617,6 +617,26 @@ export default function Biblioteca() {
               {filteredCount !== 1 ? "s" : ""}
             </p>
 
+            <Tabs
+              value={view}
+              onValueChange={(v) => setView(v as "lista" | "categorias")}
+            >
+              <TabsList className="bg-muted border border-border/60">
+                <TabsTrigger
+                  value="lista"
+                  className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
+                >
+                  <BookOpen className="h-3 w-3" /> Diplomas
+                </TabsTrigger>
+                <TabsTrigger
+                  value="categorias"
+                  className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
+                >
+                  <FolderTree className="h-3 w-3" /> Categorias
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
             {hasActiveFilters && (
               <div className="flex items-center gap-2 flex-wrap">
                 {selectedSource !== "all" && (
