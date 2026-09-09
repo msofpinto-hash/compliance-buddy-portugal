@@ -74,6 +74,7 @@
 - [x] Importar 23 diplomas dos relatórios SIAWISE (Ambiente + SST, setembro 2026)
 - [x] AMCOR: só carregar diplomas municipais do Porto e de Vila Nova de Gaia (ignorar outros municípios)
 - [x] Página de vigência por diploma (entrada em vigor, cessação, alertas para próximos)
-- [ ] Recuperar links oficiais e datas dos 3 diplomas de 2026 bloqueados no DRE
+- [x] Recuperar links oficiais e datas dos 3 diplomas de 2026 bloqueados no DRE
+- [ ] Gestão de temas: selecionar vários diplomas e arrastar/mover para outro descritor ou tema, ou eliminar
 - [x] Classificar os 23 diplomas importados nos descritores certos
 - [x] Validar diplomas repetidos em vários descritores/subdescritores e limpar duplicações
