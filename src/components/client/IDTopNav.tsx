@@ -65,6 +65,13 @@ const ALL_MODULES: NavItem[] = [
     href: "/vigencia",
     alwaysShow: true,
   },
+  {
+    id: "categorias",
+    moduleKey: "legislacao",
+    label: "Categorias",
+    icon: FolderTree,
+    href: "/categorias",
+  },
 
 
   {
