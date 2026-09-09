@@ -715,7 +715,9 @@ export default function Biblioteca() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.4 }}
           >
-            {isLoading ? (
+             {view === "categorias" ? (
+              <CategoriasPanel />
+            ) : isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton
