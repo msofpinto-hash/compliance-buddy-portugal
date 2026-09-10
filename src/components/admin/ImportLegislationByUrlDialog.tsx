@@ -136,6 +136,66 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }:
     return data;
   };
 
+  // Modo manual: não chama leitura automática; vai direto para o formulário.
+  const handleManualMode = async () => {
+    if (!url.trim()) {
+      toast({
+        title: "URL em falta",
+        description: "Introduza um URL válido",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      new URL(url);
+    } catch {
+      toast({
+        title: "URL inválido",
+        description: "O URL introduzido não é válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsScraping(true);
+    setScrapedData(null);
+    setExistingLegislation(null);
+    try {
+      const normalizedUrl = normalizeUrlInput(url);
+      const existing = await checkExistingLegislation(normalizedUrl);
+      if (existing) {
+        setExistingLegislation(existing);
+        return;
+      }
+
+      const { type, origin } = detectUrlType(url);
+      let guessedNumber = "";
+      const dreMatch = url.match(/\/(\d+)-(\d{4})(?:-\d+)?/);
+      const euMatch = url.match(/CELEX[%:]*3?(\d{4})([A-Z])(\d+)/i);
+      if (euMatch) {
+        guessedNumber = `${euMatch[2].toUpperCase() === "R" ? "Regulamento" : euMatch[2].toUpperCase() === "L" ? "Diretiva" : "Decisão"} (UE) ${euMatch[1]}/${euMatch[3].replace(/^0+/, "")}`;
+      } else if (dreMatch) {
+        guessedNumber = `${dreMatch[1]}/${dreMatch[2]}`;
+      }
+
+      const manual: ScrapedData = {
+        title: "",
+        summary: "",
+        number: guessedNumber,
+        publication_date: "",
+        effective_date: "",
+        entity: "",
+        source: type === "eurlex" ? "eurlex" : "dre",
+        origin,
+      };
+      setScrapedData(manual);
+      setEditedData(manual);
+      setStep("preview");
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
   const handleScrape = async () => {
     if (!url.trim()) {
       toast({
