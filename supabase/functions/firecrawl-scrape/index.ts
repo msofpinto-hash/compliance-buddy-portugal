@@ -50,6 +50,61 @@ function isAllowedUrl(url: string): boolean {
   }
 }
 
+// Direct page read used when Firecrawl has no credits
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_m, d) => String.fromCharCode(Number(d)));
+}
+
+async function nativeFetchScrape(url: string): Promise<{ markdown: string; metadata: Record<string, string> } | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+      },
+    });
+    if (!res.ok) {
+      console.error('Native fetch failed:', res.status);
+      return null;
+    }
+    const html = await res.text();
+
+    const pick = (re: RegExp) => decodeEntities((html.match(re)?.[1] || '').trim());
+
+    const metadata: Record<string, string> = {
+      title: pick(/<title[^>]*>([\s\S]*?)<\/title>/i),
+      description:
+        pick(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+        pick(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i),
+      'og:title': pick(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i),
+      sourceURL: url,
+    };
+
+    const text = decodeEntities(
+      html
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+    )
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!metadata.title && text.length < 200) return null;
+
+    return { markdown: text.slice(0, 100000), metadata };
+  } catch (e) {
+    console.error('Native fetch error:', e);
+    return null;
+  }
+}
+
 // Check if user is admin
 async function checkAdminRole(supabase: any, userId: string): Promise<boolean> {
   const { data } = await supabase
