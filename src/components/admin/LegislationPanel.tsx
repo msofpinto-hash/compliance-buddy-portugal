@@ -1552,8 +1552,9 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
 
       {/* Bulk Delete Confirmation Dialog */}
       <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent className="max-h-[85vh] flex flex-col overflow-hidden">
+          <AlertDialogHeader className="overflow-y-auto">
+
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="h-5 w-5" />
               Confirmar Eliminação
@@ -1590,7 +1591,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="shrink-0 border-t pt-3">
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkDelete}
