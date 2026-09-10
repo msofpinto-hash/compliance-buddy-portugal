@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 type Theme = { id: string; name: string };
 type Category = { id: string; theme_id: string; parent_id: string | null; name: string };
 type Mapping = { legislation_id: string; category_id: string };
-type Diploma = { id: string; number: string | null; title: string; origin: string | null };
+type Diploma = { id: string; number: string | null; title: string; origin: string | null; summary?: string | null };
 
 type PendingMove = { ids: string[]; sourceId: string | null; targetId: string };
 type PendingRemove = { ids: string[]; categoryId: string };
@@ -101,7 +101,7 @@ export function CategoriasPanel() {
       for (let i = 0; i < ids.length; i += 200) {
         const { data, error } = await supabase
           .from("legislation")
-          .select("id,number,title,origin")
+          .select("id,number,title,origin,summary")
           .in("id", ids.slice(i, i + 200));
         if (error) throw error;
         out.push(...((data || []) as Diploma[]));
@@ -176,7 +176,10 @@ export function CategoriasPanel() {
     const q = search.trim().toLowerCase();
     if (!q) return diplomas || [];
     return (diplomas || []).filter(
-      (d) => (d.number || "").toLowerCase().includes(q) || d.title.toLowerCase().includes(q),
+      (d) =>
+        (d.number || "").toLowerCase().includes(q) ||
+        d.title.toLowerCase().includes(q) ||
+        (d.summary || "").toLowerCase().includes(q),
     );
   }, [diplomas, search]);
 
@@ -433,7 +436,7 @@ export function CategoriasPanel() {
                     <Input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Procurar diploma…"
+                      placeholder="Procurar palavra no número, título ou sumário…"
                       className="pl-8"
                     />
                   </div>
