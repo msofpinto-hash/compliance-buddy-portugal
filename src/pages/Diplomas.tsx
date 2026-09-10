@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,22 +20,103 @@ import {
   Link2,
   Tags,
   ExternalLink,
+  FileText,
+  Copy,
 } from "lucide-react";
+import { openExternalUrl } from "@/lib/openExternalUrl";
+import { DiplomaCategoriesDialog } from "@/components/legislation/DiplomaCategoriesDialog";
+import {
+  DiplomaDuplicatesDialog,
+  type DuplicateRow,
+} from "@/components/legislation/DiplomaDuplicatesDialog";
 
 const PAGE_SIZE = 25;
 
-type MissingFilter = "all" | "category" | "eu" | "relations" | "any";
+type MissingFilter = "all" | "category" | "eu" | "relations" | "duplicates" | "any";
 
 interface Row {
   id: string;
   number: string;
   title: string;
+  summary: string | null;
+  document_url: string | null;
   origin: string | null;
   publication_date: string | null;
   categories: string[];
   relationsCount: number;
   hasEuLink: boolean;
   isEu: boolean;
+}
+
+const normalizeNumber = (n: string) =>
+  (n || "")
+    .toLowerCase()
+    .replace(/n\.?[ºo°]?/g, " ")
+    .replace(/[.,;:_-]/g, " ")
+    .replace(/\s+/g, "")
+    .trim();
+
+const normalizeTitle = (t: string) =>
+  (t || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const normalizeUrl = (u: string) => {
+  try {
+    const url = new URL(u.trim());
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
+    return url.toString().toLowerCase();
+  } catch {
+    return u.trim().toLowerCase();
+  }
+};
+
+type DupInfo = { rows: DuplicateRow[]; reason: string };
+
+async function fetchDuplicateIndex(): Promise<Map<string, DupInfo>> {
+  const pageSize = 1000;
+  let from = 0;
+  const all: DuplicateRow[] = [];
+  for (;;) {
+    const { data, error } = await supabase
+      .from("legislation")
+      .select("id, number, title, origin, publication_date, document_url")
+      .order("created_at", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    all.push(...(data as DuplicateRow[]));
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  const index = new Map<string, DupInfo>();
+  const collect = (keyFn: (r: DuplicateRow) => string | null, reason: string) => {
+    const map = new Map<string, DuplicateRow[]>();
+    for (const r of all) {
+      const k = keyFn(r);
+      if (!k) continue;
+      const list = map.get(k);
+      if (list) list.push(r);
+      else map.set(k, [r]);
+    }
+    for (const list of map.values()) {
+      if (list.length < 2) continue;
+      for (const r of list) {
+        if (!index.has(r.id)) index.set(r.id, { rows: list, reason });
+      }
+    }
+  };
+
+  collect((r) => normalizeNumber(r.number) || null, "Mesmo número");
+  collect((r) => normalizeTitle(r.title) || null, "Mesmo título");
+  collect((r) => (r.document_url ? normalizeUrl(r.document_url) : null), "Mesmo documento oficial");
+  return index;
 }
 
 function StatusChip({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: typeof Tags }) {
@@ -60,23 +141,33 @@ function StatusChip({ ok, label, icon: Icon }: { ok: boolean; label: string; ico
 }
 
 export default function Diplomas() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [origin, setOrigin] = useState<"all" | "PT" | "EU">("all");
   const [missing, setMissing] = useState<MissingFilter>("all");
   const [page, setPage] = useState(0);
+  const [categoryTarget, setCategoryTarget] = useState<Row | null>(null);
+  const [dupTarget, setDupTarget] = useState<{ rows: DuplicateRow[]; reason: string } | null>(null);
+
+  const { data: dupIndex } = useQuery({
+    queryKey: ["diplomas-duplicate-index"],
+    queryFn: fetchDuplicateIndex,
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["diplomas-overview", search, origin, page],
     queryFn: async () => {
       let q = supabase
         .from("legislation")
-        .select("id, number, title, origin, publication_date", { count: "exact" })
+        .select("id, number, title, summary, document_url, origin, publication_date", {
+          count: "exact",
+        })
         .order("publication_date", { ascending: false, nullsFirst: false })
         .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
       if (search.trim()) {
         const term = `%${search.trim()}%`;
-        q = q.or(`title.ilike.${term},number.ilike.${term}`);
+        q = q.or(`title.ilike.${term},number.ilike.${term},summary.ilike.${term}`);
       }
       if (origin === "PT") q = q.in("origin", ["PT", "dre"]);
       if (origin === "EU") q = q.in("origin", ["EU", "eurlex"]);
@@ -127,6 +218,8 @@ export default function Diplomas() {
         id: l.id,
         number: l.number,
         title: l.title,
+        summary: (l as any).summary ?? null,
+        document_url: (l as any).document_url ?? null,
         origin: l.origin,
         publication_date: l.publication_date,
         categories: catMap.get(l.id) ?? [],
@@ -148,14 +241,25 @@ export default function Diplomas() {
         return all.filter((r) => !r.isEu && !r.hasEuLink);
       case "relations":
         return all.filter((r) => r.relationsCount === 0);
+      case "duplicates":
+        return all.filter((r) => dupIndex?.has(r.id));
       case "any":
         return all.filter(
-          (r) => r.categories.length === 0 || r.relationsCount === 0 || (!r.isEu && !r.hasEuLink),
+          (r) =>
+            r.categories.length === 0 ||
+            r.relationsCount === 0 ||
+            (!r.isEu && !r.hasEuLink) ||
+            dupIndex?.has(r.id),
         );
       default:
         return all;
     }
-  }, [data, missing]);
+  }, [data, missing, dupIndex]);
+
+  const refreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["diplomas-overview"] });
+    queryClient.invalidateQueries({ queryKey: ["diplomas-duplicate-index"] });
+  };
 
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -175,7 +279,8 @@ export default function Diplomas() {
         <header className="mb-6">
           <h1 className="font-heading text-3xl font-bold text-foreground">Diplomas</h1>
           <p className="mt-1 text-muted-foreground">
-            Título, categoria e o que ainda falta em cada diploma: categoria, ligação EU e relações.
+            Sumário, documento oficial e estado de cada diploma. Edite categorizações e elimine cópias
+            repetidas sem sair desta página.
           </p>
         </header>
 
@@ -189,7 +294,7 @@ export default function Diplomas() {
                   setSearch(e.target.value);
                   setPage(0);
                 }}
-                placeholder="Pesquisar por título ou número..."
+                placeholder="Pesquisar por título, número ou sumário..."
                 className="pl-9"
                 aria-label="Pesquisar diplomas"
               />
@@ -220,6 +325,7 @@ export default function Diplomas() {
                 <SelectItem value="category">Sem categoria</SelectItem>
                 <SelectItem value="eu">Sem ligação EU</SelectItem>
                 <SelectItem value="relations">Sem relações</SelectItem>
+                <SelectItem value="duplicates">Repetidos</SelectItem>
               </SelectContent>
             </Select>
           </CardContent>
@@ -239,74 +345,113 @@ export default function Diplomas() {
           </Card>
         ) : (
           <ul className="space-y-3">
-            {rows.map((r) => (
-              <li key={r.id}>
-                <Card className="transition-shadow hover:shadow-md">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="mb-1 flex items-center gap-2">
-                          <Badge variant="secondary">
-                            {r.isEu ? (
-                              <Globe className="mr-1 h-3 w-3" aria-hidden="true" />
-                            ) : (
-                              <Flag className="mr-1 h-3 w-3" aria-hidden="true" />
+            {rows.map((r) => {
+              const dup = dupIndex?.get(r.id);
+              return (
+                <li key={r.id}>
+                  <Card className="transition-shadow hover:shadow-md">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">
+                              {r.isEu ? (
+                                <Globe className="mr-1 h-3 w-3" aria-hidden="true" />
+                              ) : (
+                                <Flag className="mr-1 h-3 w-3" aria-hidden="true" />
+                              )}
+                              {r.isEu ? "EU" : "PT"}
+                            </Badge>
+                            <span className="text-sm font-medium text-muted-foreground">{r.number}</span>
+                            {r.publication_date && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(r.publication_date).toLocaleDateString("pt-PT")}
+                              </span>
                             )}
-                            {r.isEu ? "EU" : "PT"}
-                          </Badge>
-                          <span className="text-sm font-medium text-muted-foreground">{r.number}</span>
-                          {r.publication_date && (
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(r.publication_date).toLocaleDateString("pt-PT")}
-                            </span>
-                          )}
+                            {dup && (
+                              <Badge variant="destructive">
+                                {dup.rows.length} cópias · {dup.reason}
+                              </Badge>
+                            )}
+                          </div>
+                          <CardTitle className="text-base leading-snug">{r.title}</CardTitle>
                         </div>
-                        <CardTitle className="text-base leading-snug">{r.title}</CardTitle>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/legislacao/${r.id}`}>
+                            Abrir
+                            <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />
+                          </Link>
+                        </Button>
                       </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/legislacao/${r.id}`}>
-                          Abrir
-                          <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 pt-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Categorias
-                      </span>
-                      {r.categories.length > 0 ? (
-                        r.categories.map((c) => (
-                          <Badge key={c} variant="secondary">
-                            {c}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-destructive">Sem categoria atribuída</span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <StatusChip
-                        ok={r.categories.length > 0}
-                        label={r.categories.length > 0 ? "Categoria" : "Falta categoria"}
-                        icon={Tags}
-                      />
-                      <StatusChip
-                        ok={r.isEu || r.hasEuLink}
-                        label={r.isEu ? "Diploma EU" : r.hasEuLink ? "Ligação EU" : "Falta ligação EU"}
-                        icon={Globe}
-                      />
-                      <StatusChip
-                        ok={r.relationsCount > 0}
-                        label={r.relationsCount > 0 ? `${r.relationsCount} relações` : "Faltam relações"}
-                        icon={Link2}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      <p className="text-sm text-muted-foreground">
+                        {r.summary?.trim() ? r.summary : "Sem sumário disponível."}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Categorias
+                        </span>
+                        {r.categories.length > 0 ? (
+                          r.categories.map((c) => (
+                            <Badge key={c} variant="secondary">
+                              {c}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-destructive">Sem categoria atribuída</span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <StatusChip
+                          ok={r.categories.length > 0}
+                          label={r.categories.length > 0 ? "Categoria" : "Falta categoria"}
+                          icon={Tags}
+                        />
+                        <StatusChip
+                          ok={r.isEu || r.hasEuLink}
+                          label={r.isEu ? "Diploma EU" : r.hasEuLink ? "Ligação EU" : "Falta ligação EU"}
+                          icon={Globe}
+                        />
+                        <StatusChip
+                          ok={r.relationsCount > 0}
+                          label={r.relationsCount > 0 ? `${r.relationsCount} relações` : "Faltam relações"}
+                          icon={Link2}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 border-t pt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!r.document_url}
+                          onClick={() => r.document_url && openExternalUrl(r.document_url)}
+                        >
+                          <FileText className="mr-1 h-3 w-3" aria-hidden="true" />
+                          {r.document_url ? "Documento oficial" : "Sem documento oficial"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setCategoryTarget(r)}>
+                          <Tags className="mr-1 h-3 w-3" aria-hidden="true" />
+                          Editar categorizações
+                        </Button>
+                        {dup && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setDupTarget({ rows: dup.rows, reason: dup.reason })}
+                          >
+                            <Copy className="mr-1 h-3 w-3" aria-hidden="true" />
+                            Resolver duplicados ({dup.rows.length})
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </li>
+              );
+            })}
           </ul>
         )}
 
@@ -336,6 +481,22 @@ export default function Diplomas() {
           </div>
         </nav>
       </main>
+
+      <DiplomaCategoriesDialog
+        open={!!categoryTarget}
+        onOpenChange={(o) => !o && setCategoryTarget(null)}
+        legislationId={categoryTarget?.id ?? null}
+        legislationLabel={categoryTarget ? `${categoryTarget.number} — ${categoryTarget.title}` : ""}
+        onChanged={refreshAll}
+      />
+
+      <DiplomaDuplicatesDialog
+        open={!!dupTarget}
+        onOpenChange={(o) => !o && setDupTarget(null)}
+        rows={dupTarget?.rows ?? []}
+        reason={dupTarget?.reason ?? ""}
+        onMerged={refreshAll}
+      />
     </div>
   );
 }
