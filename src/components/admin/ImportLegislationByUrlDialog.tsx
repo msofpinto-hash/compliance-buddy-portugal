@@ -265,10 +265,37 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }:
 
     } catch (error) {
       console.error("Scraping error:", error);
+
+      // Leitura automática indisponível (ex.: sem créditos de recolha):
+      // avançar para preenchimento manual em vez de bloquear a importação.
+      const { type, origin } = detectUrlType(url);
+      let guessedNumber = "";
+      const dreMatch = url.match(/\/(\d+)-(\d{4})(?:-\d+)?/);
+      const euMatch = url.match(/CELEX[%:]*3?(\d{4})([A-Z])(\d+)/i);
+      if (euMatch) {
+        guessedNumber = `${euMatch[2].toUpperCase() === "R" ? "Regulamento" : euMatch[2].toUpperCase() === "L" ? "Diretiva" : "Decisão"} (UE) ${euMatch[1]}/${euMatch[3].replace(/^0+/, "")}`;
+      } else if (dreMatch) {
+        guessedNumber = `${dreMatch[1]}/${dreMatch[2]}`;
+      }
+
+      const manual: ScrapedData = {
+        title: "",
+        summary: "",
+        number: guessedNumber,
+        publication_date: "",
+        effective_date: "",
+        entity: "",
+        source: type === "eurlex" ? "eurlex" : "dre",
+        origin,
+      };
+
+      setScrapedData(manual);
+      setEditedData(manual);
+      setStep("preview");
+
       toast({
-        title: "Erro no scraping",
-        description: error instanceof Error ? error.message : "Não foi possível extrair dados do URL",
-        variant: "destructive",
+        title: "Leitura automática indisponível",
+        description: "Preencha o número e o título manualmente — o endereço oficial fica guardado.",
       });
     } finally {
       setIsScraping(false);
