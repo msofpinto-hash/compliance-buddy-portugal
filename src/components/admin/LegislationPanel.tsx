@@ -1591,7 +1591,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="shrink-0 border-t pt-3">
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkDelete}
