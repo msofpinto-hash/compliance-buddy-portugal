@@ -335,7 +335,10 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }:
 
       toast({
         title: "Leitura automática indisponível",
-        description: "Preencha o número e o título manualmente — o endereço oficial fica guardado.",
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : "Preencha o número e o título manualmente — o endereço oficial fica guardado.",
       });
     } finally {
       setIsScraping(false);
