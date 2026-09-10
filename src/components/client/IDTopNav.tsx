@@ -74,6 +74,13 @@ const ALL_MODULES: NavItem[] = [
     icon: FolderTree,
     href: "/categorias",
   },
+  {
+    id: "duplicados",
+    moduleKey: "legislacao",
+    label: "Duplicados",
+    icon: Copy,
+    href: "/duplicados",
+  },
 
 
   {
