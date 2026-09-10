@@ -150,6 +150,7 @@ export default function Diplomas() {
   const [page, setPage] = useState(0);
   const [categoryTarget, setCategoryTarget] = useState<Row | null>(null);
   const [dupTarget, setDupTarget] = useState<{ rows: DuplicateRow[]; reason: string } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: dupIndex } = useQuery({
     queryKey: ["diplomas-duplicate-index"],
