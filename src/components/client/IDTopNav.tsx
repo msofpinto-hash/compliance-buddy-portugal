@@ -159,6 +159,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
     if (item.id === "normas") return location.pathname === "/normas";
     if (item.id === "vigencia") return location.pathname === "/vigencia";
     if (item.id === "categorias") return location.pathname === "/categorias";
+    if (item.id === "duplicados") return location.pathname === "/duplicados";
     if (item.id === "aprovacoes") return location.pathname === "/aprovacoes";
 
     if (location.pathname !== "/dashboard") return false;
