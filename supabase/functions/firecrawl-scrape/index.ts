@@ -341,6 +341,16 @@ Deno.serve(async (req) => {
     if (!firecrawlOk) {
       console.warn('Firecrawl unavailable — using reader fallback');
       const fallback = (await readerScrape(formattedUrl)) || (await nativeFetchScrape(formattedUrl));
+      if (fallback && /A página não se encontra disponível|página que acedeu não se encontra/i.test(fallback.markdown)) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error_code: 'page_not_found',
+            error: 'A página oficial indicada não existe ou já não está disponível. Verifique o endereço.',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       if (fallback) {
         const extracted = extractDiplomaFields(fallback.markdown, fallback.metadata.title || '', formattedUrl);
         return new Response(
