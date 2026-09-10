@@ -528,6 +528,7 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }:
                   <Button
                     onClick={handleScrape}
                     disabled={isScraping || !url.trim()}
+                    title="Ler automaticamente a página"
                   >
                     {isScraping ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -536,6 +537,16 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }:
                     )}
                   </Button>
                 </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleManualMode}
+                  disabled={isScraping || !url.trim()}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Preencher manualmente (sem leitura automática)
+                </Button>
                 <p className="text-xs text-muted-foreground">
                   Suporta URLs do DRE (diariodarepublica.pt) e EUR-Lex
                 </p>
