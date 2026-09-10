@@ -143,8 +143,10 @@ const MONTHS: Record<string, string> = {
 
 // Best-effort structured extraction from the rendered page text
 function extractDiplomaFields(markdown: string, title: string, url: string) {
-  const head = markdown.slice(0, 6000);
-  const plain = head.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+  const head = markdown.slice(0, 20000);
+  const plain = head
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
 
   // Number
   const ptNum = plain.match(
