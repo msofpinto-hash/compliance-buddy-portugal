@@ -180,13 +180,20 @@ Deno.serve(async (req) => {
       break;
     }
 
-    if (!response || response.status === 402) {
-      console.error('All Firecrawl keys out of credits');
+    if (!response || response.status === 402 || response.status === 429) {
+      console.warn('Firecrawl unavailable (credits/rate limit) — using native fetch fallback');
+      const fallback = await nativeFetchScrape(formattedUrl);
+      if (fallback) {
+        return new Response(
+          JSON.stringify({ success: true, fallback: 'native_fetch', data: fallback }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({
           success: false,
           error_code: 'firecrawl_insufficient_credits',
-          error: 'Sem créditos disponíveis na conta Firecrawl. Recarregue os créditos para retomar a recolha automática.',
+          error: 'Sem créditos Firecrawl e a leitura direta da página falhou. Recarregue os créditos ou cole o texto do diploma.',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
