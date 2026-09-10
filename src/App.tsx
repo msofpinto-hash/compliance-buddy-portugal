@@ -24,6 +24,7 @@ import Settings from "./pages/Settings";
 import Diplomas from "./pages/Diplomas";
 import GestaoTemas from "./pages/GestaoTemas";
 import Categorias from "./pages/Categorias";
+import Duplicados from "./pages/Duplicados";
 import CorrigirDiplomas from "./pages/CorrigirDiplomas";
 import RequisitosTema from "./pages/RequisitosTema";
 
@@ -197,6 +198,14 @@ const App = () => (
                 <RequireAuth>
                   <Vigencia />
                 </RequireAuth>
+              }
+            />
+            <Route
+              path="/duplicados"
+              element={
+                <RequireAdmin>
+                  <Duplicados />
+                </RequireAdmin>
               }
             />
             <Route

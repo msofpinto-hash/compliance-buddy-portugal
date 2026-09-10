@@ -12,6 +12,11 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Plataforma portuguesa de gestão de conformidade legal: legislação atualizada, requisitos, auditorias e planos de ação num só lugar.",
   },
+  "/duplicados": {
+    title: "Diplomas Duplicados | ID Compliance",
+    description:
+      "Identifique diplomas repetidos por número, título ou documento oficial e escolha qual manter, preservando requisitos, temas e clientes associados.",
+  },
   "/vigencia": {
     title: "Vigência dos Diplomas | ID Compliance",
     description:
