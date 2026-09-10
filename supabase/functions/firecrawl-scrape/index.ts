@@ -179,8 +179,14 @@ function extractDiplomaFields(markdown: string, title: string, url: string) {
   // Summary: first substantial paragraph after the heading/date lines
   const paragraphs = plain
     .split(/\n{1,}/)
-    .map((p) => p.replace(/^[#>*\s-]+/, '').trim())
-    .filter((p) => p.length > 60 && !/^Sumário/i.test(p));
+    .map((p) => p.replace(/^[#>*\s|-]+/, '').trim())
+    .filter(
+      (p) =>
+        p.length > 80 &&
+        !/https?:\/\//i.test(p) &&
+        !/^(Sumário|Índice|Ir para|Partilhar|Descarregar|Imprimir|Voltar|Início)/i.test(p) &&
+        /\s/.test(p),
+    );
   const summary = paragraphs[0]?.slice(0, 800) || '';
 
   // Title fallback: first heading line
