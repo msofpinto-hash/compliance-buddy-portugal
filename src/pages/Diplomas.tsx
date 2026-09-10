@@ -277,15 +277,20 @@ export default function Diplomas() {
               Voltar
             </Link>
           </Button>
+          <Button size="sm" className="ml-auto" onClick={() => setImportOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+            Importar diploma
+          </Button>
         </div>
 
         <header className="mb-6">
           <h1 className="font-heading text-3xl font-bold text-foreground">Diplomas</h1>
           <p className="mt-1 text-muted-foreground">
-            Sumário, documento oficial e estado de cada diploma. Edite categorizações e elimine cópias
-            repetidas sem sair desta página.
+            Sumário, documento oficial e estado de cada diploma. Importe novos diplomas por endereço,
+            edite categorizações e elimine cópias repetidas sem sair desta página.
           </p>
         </header>
+
 
         <Card className="mb-6">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row">
