@@ -505,6 +505,15 @@ export default function Diplomas() {
         reason={dupTarget?.reason ?? ""}
         onMerged={refreshAll}
       />
+
+      <ImportLegislationByUrlDialog
+        open={importOpen}
+        onOpenChange={(o) => {
+          setImportOpen(o);
+          if (!o) refreshAll();
+        }}
+      />
+
     </div>
   );
 }
