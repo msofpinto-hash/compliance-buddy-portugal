@@ -22,8 +22,10 @@ import {
   ExternalLink,
   FileText,
   Copy,
+  Plus,
 } from "lucide-react";
 import { openExternalUrl } from "@/lib/openExternalUrl";
+import { ImportLegislationByUrlDialog } from "@/components/admin/ImportLegislationByUrlDialog";
 import { DiplomaCategoriesDialog } from "@/components/legislation/DiplomaCategoriesDialog";
 import {
   DiplomaDuplicatesDialog,
