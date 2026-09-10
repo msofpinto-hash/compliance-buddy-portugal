@@ -16,6 +16,7 @@ import {
   BookMarked,
   CalendarClock,
   FolderTree,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
