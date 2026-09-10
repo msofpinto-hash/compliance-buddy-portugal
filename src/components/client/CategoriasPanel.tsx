@@ -374,7 +374,7 @@ export function CategoriasPanel() {
         descritor ou tema — é sempre pedida confirmação.
       </p>
 
-      <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+      <div className="grid w-full min-w-0 gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
         <Card className="h-fit">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Temas e descritores</CardTitle>
@@ -416,11 +416,12 @@ export function CategoriasPanel() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">
+            <CardTitle className="text-base leading-snug [overflow-wrap:anywhere]">
               {activeCategoryId ? pathOf(activeCategoryId) : "Selecione um descritor"}
             </CardTitle>
+
             <CardDescription>
               {activeCategoryId
                 ? `${filteredDiplomas.length} diploma(s) neste descritor`
