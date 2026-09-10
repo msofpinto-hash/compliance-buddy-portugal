@@ -190,7 +190,11 @@ function extractDiplomaFields(markdown: string, title: string, url: string) {
   const summary = paragraphs[0]?.slice(0, 800) || '';
 
   // Title fallback: first heading line
-  const firstLine = plain.split('\n').map((l) => l.trim()).find((l) => l.length > 5) || '';
+  const firstLine =
+    plain
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l.length > 5 && !/^(URL Source|Title|Markdown Content)\s*:/i.test(l)) || '';
   const cleanTitle = (title || firstLine).replace(/\s*\|\s*DRE.*$/i, '').replace(/\s*-\s*EUR-Lex.*$/i, '').trim();
 
   return {
