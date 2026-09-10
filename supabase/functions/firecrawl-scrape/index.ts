@@ -324,36 +324,37 @@ Deno.serve(async (req) => {
       break;
     }
 
-    if (!response || response.status === 402 || response.status === 429) {
-      console.warn('Firecrawl unavailable (credits/rate limit) — using native fetch fallback');
-      const fallback = await nativeFetchScrape(formattedUrl);
+    const firecrawlOk = !!response && response.ok && !!(data?.data?.markdown || data?.markdown);
+
+    if (!firecrawlOk) {
+      console.warn('Firecrawl unavailable — using reader fallback');
+      const fallback = (await readerScrape(formattedUrl)) || (await nativeFetchScrape(formattedUrl));
       if (fallback) {
+        const extracted = extractDiplomaFields(fallback.markdown, fallback.metadata.title || '', formattedUrl);
         return new Response(
-          JSON.stringify({ success: true, fallback: 'native_fetch', data: fallback }),
+          JSON.stringify({ success: true, fallback: 'reader', data: { ...fallback, extracted } }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       return new Response(
         JSON.stringify({
           success: false,
-          error_code: 'firecrawl_insufficient_credits',
-          error: 'Sem créditos Firecrawl e a leitura direta da página falhou. Recarregue os créditos ou cole o texto do diploma.',
+          error_code: 'scrape_failed',
+          error: 'Não foi possível ler a página oficial automaticamente. Preencha manualmente ou tente novamente.',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!response.ok) {
-      console.error('Firecrawl API error:', data);
-      return new Response(
-        JSON.stringify({ success: false, error: data?.error || `Request failed with status ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     console.log('Scrape successful');
+    const md = data?.data?.markdown || data?.markdown || '';
+    const meta = data?.data?.metadata || data?.metadata || {};
+    const extracted = extractDiplomaFields(md, meta.title || meta['og:title'] || '', formattedUrl);
+    const payload = data?.data
+      ? { ...data, data: { ...data.data, extracted } }
+      : { ...data, extracted };
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify(payload),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
