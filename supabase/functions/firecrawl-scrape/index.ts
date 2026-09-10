@@ -151,27 +151,51 @@ Deno.serve(async (req) => {
 
     console.log('Scraping URL:', formattedUrl);
 
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: formattedUrl,
-        formats: options?.formats || ['markdown'],
-        onlyMainContent: options?.onlyMainContent ?? true,
-        waitFor: options?.waitFor,
-        location: options?.location,
-      }),
-    });
+    let response: Response | null = null;
+    let data: any = null;
 
-    const data = await response.json();
+    for (const key of apiKeys) {
+      response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: formattedUrl,
+          formats: options?.formats || ['markdown'],
+          onlyMainContent: options?.onlyMainContent ?? true,
+          waitFor: options?.waitFor,
+          location: options?.location,
+        }),
+      });
+
+      data = await response.json().catch(() => ({}));
+
+      // Try the next key when this one is out of credits or rate-limited
+      if (response.status === 402 || response.status === 429) {
+        console.warn(`Firecrawl key exhausted (status ${response.status}), trying next key if available`);
+        continue;
+      }
+      break;
+    }
+
+    if (!response || response.status === 402) {
+      console.error('All Firecrawl keys out of credits');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error_code: 'firecrawl_insufficient_credits',
+          error: 'Sem créditos disponíveis na conta Firecrawl. Recarregue os créditos para retomar a recolha automática.',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!response.ok) {
       console.error('Firecrawl API error:', data);
       return new Response(
-        JSON.stringify({ success: false, error: data.error || `Request failed with status ${response.status}` }),
+        JSON.stringify({ success: false, error: data?.error || `Request failed with status ${response.status}` }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
