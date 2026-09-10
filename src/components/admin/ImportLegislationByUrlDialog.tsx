@@ -308,13 +308,16 @@ export function ImportLegislationByUrlDialog({ open, onOpenChange, initialUrl }:
         title = title.replace(/ - DRE$/, "").trim();
       }
 
+      // Campos estruturados extraídos no servidor a partir do texto da página oficial
+      const extracted = data.data?.extracted || data.extracted || {};
+
       const scraped: ScrapedData = {
-        title: title || "Título não disponível",
-        summary: summary || "",
-        number: number || "Número não identificado",
-        publication_date: "",
+        title: (extracted.title || title || "").trim() || "Título não disponível",
+        summary: (extracted.summary || summary || "").trim(),
+        number: (extracted.number || number || "").trim() || "Número não identificado",
+        publication_date: extracted.publication_date || "",
         effective_date: "",
-        entity: "",
+        entity: extracted.entity || "",
         source: type === "eurlex" ? "eurlex" : "dre",
         origin,
       };
