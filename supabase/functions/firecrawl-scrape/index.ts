@@ -105,6 +105,107 @@ async function nativeFetchScrape(url: string): Promise<{ markdown: string; metad
   }
 }
 
+// Reader render service (no API key) — renders JS pages such as DRE/EUR-Lex
+async function readerScrape(url: string): Promise<{ markdown: string; metadata: Record<string, string> } | null> {
+  try {
+    const res = await fetch(`https://r.jina.ai/${url}`, {
+      headers: {
+        'Accept': 'text/plain',
+        'X-Return-Format': 'markdown',
+        'User-Agent': 'Mozilla/5.0 (compatible; IDComplianceLex/1.0)',
+      },
+    });
+    if (!res.ok) {
+      console.error('Reader fetch failed:', res.status);
+      return null;
+    }
+    const raw = await res.text();
+    if (!raw || raw.length < 200) return null;
+
+    const titleLine = raw.match(/^Title:\s*(.+)$/m)?.[1]?.trim() || '';
+    const bodyIdx = raw.indexOf('Markdown Content:');
+    const markdown = bodyIdx >= 0 ? raw.slice(bodyIdx + 'Markdown Content:'.length).trim() : raw;
+
+    return {
+      markdown: markdown.slice(0, 150000),
+      metadata: { title: titleLine, description: '', sourceURL: url },
+    };
+  } catch (e) {
+    console.error('Reader error:', e);
+    return null;
+  }
+}
+
+const MONTHS: Record<string, string> = {
+  janeiro: '01', fevereiro: '02', 'março': '03', marco: '03', abril: '04', maio: '05', junho: '06',
+  julho: '07', agosto: '08', setembro: '09', outubro: '10', novembro: '11', dezembro: '12',
+};
+
+// Best-effort structured extraction from the rendered page text
+function extractDiplomaFields(markdown: string, title: string, url: string) {
+  const head = markdown.slice(0, 20000);
+  const plain = head
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+
+  // Number
+  const ptNum = plain.match(
+    /((?:Decreto-Lei|Decreto Legislativo Regional|Decreto Regulamentar|Decreto|Lei Constitucional|Lei Orgânica|Lei|Portaria|Despacho Normativo|Despacho|Resolução do Conselho de Ministros|Resolução da Assembleia da República|Resolução|Regulamento|Declaração de Retificação|Declaração|Aviso|Deliberação|Edital)\s*n\.?[ºo°]?\s*[\d]+[-\w]*\/\d{4}(?:\/\d+)?)/i,
+  )?.[1];
+  const euNum = plain.match(
+    /((?:Regulamento|Diretiva|Directiva|Decisão|Recomendação|Comunicação)\s*(?:Delegad[ao]\s*|de Execução\s*)?\((?:UE|CE|CEE|Euratom)(?:,\s*Euratom)?\)\s*(?:n\.?[ºo°]?\s*)?\d+\/\d+)/i,
+  )?.[1];
+
+  // Publication date "de 12 de Agosto de 2005" or "de 12 de Agosto"
+  let publication_date = '';
+  const dm = plain.match(/de\s+(\d{1,2})\s+de\s+([A-Za-zçÇ]+)(?:\s+de\s+(\d{4}))?/i);
+  if (dm) {
+    const month = MONTHS[dm[2].toLowerCase()];
+    let year = dm[3];
+    if (!year) year = (ptNum || euNum || url).match(/(\d{4})/g)?.slice(-1)[0] || '';
+    if (month && year && /^\d{4}$/.test(year)) {
+      publication_date = `${year}-${month}-${String(dm[1]).padStart(2, '0')}`;
+    }
+  }
+  if (!publication_date) {
+    const iso = plain.match(/(\d{2})[\/.-](\d{2})[\/.-](\d{4})/);
+    if (iso) publication_date = `${iso[3]}-${iso[2]}-${iso[1]}`;
+  }
+
+  // Entity
+  const entity =
+    plain.match(/(Assembleia da República|Presidência do Conselho de Ministros|Ministério[^\n,.]{0,60}|Parlamento Europeu e do Conselho|Comissão Europeia|Conselho da União Europeia|Câmara Municipal[^\n,.]{0,40})/i)?.[1]?.trim() || '';
+
+  // Summary: first substantial paragraph after the heading/date lines
+  const paragraphs = plain
+    .split(/\n{1,}/)
+    .map((p) => p.replace(/^[#>*\s|-]+/, '').trim())
+    .filter(
+      (p) =>
+        p.length > 80 &&
+        !/https?:\/\//i.test(p) &&
+        !/^(Sumário|Índice|Ir para|Partilhar|Descarregar|Imprimir|Voltar|Início)/i.test(p) &&
+        /\s/.test(p),
+    );
+  const summary = paragraphs[0]?.slice(0, 800) || '';
+
+  // Title fallback: first heading line
+  const firstLine =
+    plain
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l.length > 5 && !/^(URL Source|Title|Markdown Content)\s*:/i.test(l)) || '';
+  const cleanTitle = (title || firstLine).replace(/\s*\|\s*DRE.*$/i, '').replace(/\s*-\s*EUR-Lex.*$/i, '').trim();
+
+  return {
+    number: (ptNum || euNum || '').replace(/\s+/g, ' ').trim(),
+    title: cleanTitle,
+    summary,
+    entity,
+    publication_date,
+  };
+}
+
 // Check if user is admin
 async function checkAdminRole(supabase: any, userId: string): Promise<boolean> {
   const { data } = await supabase
@@ -235,36 +336,47 @@ Deno.serve(async (req) => {
       break;
     }
 
-    if (!response || response.status === 402 || response.status === 429) {
-      console.warn('Firecrawl unavailable (credits/rate limit) — using native fetch fallback');
-      const fallback = await nativeFetchScrape(formattedUrl);
-      if (fallback) {
+    const firecrawlOk = !!response && response.ok && !!(data?.data?.markdown || data?.markdown);
+
+    if (!firecrawlOk) {
+      console.warn('Firecrawl unavailable — using reader fallback');
+      const fallback = (await readerScrape(formattedUrl)) || (await nativeFetchScrape(formattedUrl));
+      if (fallback && /A página não se encontra disponível|página que acedeu não se encontra/i.test(fallback.markdown)) {
         return new Response(
-          JSON.stringify({ success: true, fallback: 'native_fetch', data: fallback }),
+          JSON.stringify({
+            success: false,
+            error_code: 'page_not_found',
+            error: 'A página oficial indicada não existe ou já não está disponível. Verifique o endereço.',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (fallback) {
+        const extracted = extractDiplomaFields(fallback.markdown, fallback.metadata.title || '', formattedUrl);
+        return new Response(
+          JSON.stringify({ success: true, fallback: 'reader', data: { ...fallback, extracted } }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       return new Response(
         JSON.stringify({
           success: false,
-          error_code: 'firecrawl_insufficient_credits',
-          error: 'Sem créditos Firecrawl e a leitura direta da página falhou. Recarregue os créditos ou cole o texto do diploma.',
+          error_code: 'scrape_failed',
+          error: 'Não foi possível ler a página oficial automaticamente. Preencha manualmente ou tente novamente.',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!response.ok) {
-      console.error('Firecrawl API error:', data);
-      return new Response(
-        JSON.stringify({ success: false, error: data?.error || `Request failed with status ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     console.log('Scrape successful');
+    const md = data?.data?.markdown || data?.markdown || '';
+    const meta = data?.data?.metadata || data?.metadata || {};
+    const extracted = extractDiplomaFields(md, meta.title || meta['og:title'] || '', formattedUrl);
+    const payload = data?.data
+      ? { ...data, data: { ...data.data, extracted } }
+      : { ...data, extracted };
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify(payload),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
