@@ -120,8 +120,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!apiKey) {
+    const apiKeys = [
+      Deno.env.get('FIRECRAWL_API_KEY'),
+      Deno.env.get('FIRECRAWL_API_KEY_2'),
+      Deno.env.get('FIRECRAWL_API_KEY_3'),
+    ].filter((k): k is string => !!k);
+
+    if (apiKeys.length === 0) {
       console.error('FIRECRAWL_API_KEY not configured');
       return new Response(
         JSON.stringify({ success: false, error: 'Firecrawl connector not configured' }),
