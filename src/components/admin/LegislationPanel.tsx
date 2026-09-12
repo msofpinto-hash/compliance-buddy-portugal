@@ -522,7 +522,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     // Then filter by specific category (only if not filtering by special filters)
     if (!filterNoCategory && !filterProblems && !filterRevoked && filterCategory !== "all") {
       result = result.filter(leg =>
-        leg.categories.some(cat => cat.id === filterCategory)
+        leg.categories.some(cat => categoryWithDescendants.has(cat.id))
       );
     }
 
