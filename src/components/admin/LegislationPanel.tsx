@@ -56,6 +56,8 @@ interface LegislationPanelProps {
 
 export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
+  // Same taxonomy source as the client library, so themes/descriptors match everywhere
+  const { data: taxonomy } = useThemesWithCategories();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: fixIncompletesJob } = useFixIncompletesJob();
