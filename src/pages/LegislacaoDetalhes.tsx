@@ -730,13 +730,16 @@ export default function LegislacaoDetalhes() {
                   )}
                   {legislation.revocation_date && (
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                      <AlertTriangle className={`h-5 w-5 shrink-0 mt-0.5 ${hasFutureRevocation ? "text-amber-600" : "text-destructive"}`} />
                       <div>
-                        <p className="text-sm font-medium">Data de Revogação</p>
+                        <p className="text-sm font-medium">
+                          {hasFutureRevocation ? "Revogação com efeitos a partir de" : "Data de Revogação"}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(legislation.revocation_date), "d MMMM yyyy", { locale: pt })}
                         </p>
                       </div>
+
                     </div>
                   )}
                 </div>
