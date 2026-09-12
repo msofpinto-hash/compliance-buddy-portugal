@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Download, Wrench, Palette, Loader2, Edit, Bot } from "lucide-react";
+import { BookOpen, Download, Wrench, Palette, Loader2, Edit, Bot, FileText, ListChecks, ShieldCheck } from "lucide-react";
 import { LegislationPanel } from "./LegislationPanel";
 import { ThemesPanel } from "./ThemesPanel";
 import { ImportPanel } from "./ImportPanel";
 import { UnifiedDataQualityPanel } from "./UnifiedDataQualityPanel";
 import { ManualDataFixPanel } from "./ManualDataFixPanel";
+import { DiplomasPanel } from "./DiplomasPanel";
+import { CorrigirDiplomasPanel } from "./CorrigirDiplomasPanel";
+import { RequisitosTemaPanel } from "./RequisitosTemaPanel";
+import { FontesOficiaisPanel } from "./FontesOficiaisPanel";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 export function BibliotecaPanel() {
@@ -75,6 +79,21 @@ export function BibliotecaPanel() {
               <span className="hidden sm:inline">Temas</span>
               <span className="sm:hidden">Temas</span>
             </TabsTrigger>
+            <TabsTrigger value="diplomas" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Diplomas</span>
+              <span className="sm:hidden">Dipl.</span>
+            </TabsTrigger>
+            <TabsTrigger value="requisitos" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <ListChecks className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Requisitos</span>
+              <span className="sm:hidden">Req.</span>
+            </TabsTrigger>
+            <TabsTrigger value="fontes" className="flex-1 sm:flex-none gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white">
+              <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Fontes</span>
+              <span className="sm:hidden">Fontes</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -102,14 +121,27 @@ export function BibliotecaPanel() {
             <TabsContent value="auto" className="mt-4">
               <UnifiedDataQualityPanel />
             </TabsContent>
-            <TabsContent value="manual" className="mt-4">
+            <TabsContent value="manual" className="mt-4 space-y-4">
               <ManualDataFixPanel />
+              <CorrigirDiplomasPanel />
             </TabsContent>
           </Tabs>
         </TabsContent>
 
         <TabsContent value="temas" className="mt-0">
           <ThemesPanel />
+        </TabsContent>
+
+        <TabsContent value="diplomas" className="mt-0">
+          <DiplomasPanel />
+        </TabsContent>
+
+        <TabsContent value="requisitos" className="mt-0">
+          <RequisitosTemaPanel />
+        </TabsContent>
+
+        <TabsContent value="fontes" className="mt-0">
+          <FontesOficiaisPanel />
         </TabsContent>
       </Tabs>
     </div>

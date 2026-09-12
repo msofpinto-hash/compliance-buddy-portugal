@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -142,7 +141,7 @@ function StatusChip({ ok, label, icon: Icon }: { ok: boolean; label: string; ico
   );
 }
 
-export default function Diplomas() {
+export function DiplomasPanel() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [origin, setOrigin] = useState<"all" | "PT" | "EU">("all");
@@ -268,29 +267,21 @@ export default function Diplomas() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="min-h-dvh bg-background">
-      <main className="container mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6 flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/admin">
-              <ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />
-              Voltar
-            </Link>
-          </Button>
-          <Button size="sm" className="ml-auto" onClick={() => setImportOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
-            Importar diploma
-          </Button>
-        </div>
-
-        <header className="mb-6">
-          <h1 className="font-heading text-3xl font-bold text-foreground">Diplomas</h1>
-          <p className="mt-1 text-muted-foreground">
+    <div>
+      <div>
+        <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+          <h2 className="font-heading text-xl font-semibold text-foreground">Diplomas</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Sumário, documento oficial e estado de cada diploma. Importe novos diplomas por endereço,
             edite categorizações e elimine cópias repetidas sem sair desta página.
           </p>
+          </div>
+          <Button size="sm" onClick={() => setImportOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+            Importar diploma
+          </Button>
         </header>
-
 
         <Card className="mb-6">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row">
@@ -488,7 +479,7 @@ export default function Diplomas() {
             </Button>
           </div>
         </nav>
-      </main>
+      </div>
 
       <DiplomaCategoriesDialog
         open={!!categoryTarget}

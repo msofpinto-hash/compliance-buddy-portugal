@@ -22,11 +22,6 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Consulte a entrada em vigor e a cessação de cada diploma legal, com alertas para as alterações previstas nos próximos meses.",
   },
-  "/corrigir-diplomas": {
-    title: "Corrigir Diplomas | ID Compliance",
-    description:
-      "Correção manual de diplomas sem data de publicação ou sem requisitos legais, com ligação direta à fonte oficial.",
-  },
   "/politica-ia": {
     title: "Política de Utilização de IA | ID Compliance",
     description:
@@ -47,21 +42,6 @@ const ROUTE_META: Record<string, Meta> = {
     description:
       "Consulte a biblioteca de diplomas legais nacionais e europeus, organizada por temas, categorias e requisitos aplicáveis.",
   },
-  "/progresso": {
-    title: "Progresso da Base Legal | ID Compliance",
-    description:
-      "Gráficos em tempo real do progresso da base legal: diplomas por origem, categorias atribuídas, ligações europeias e relações mapeadas.",
-  },
-  "/progresso-cliente": {
-    title: "Progresso de Conformidade | ID Compliance",
-    description:
-      "Estado do trabalho de conformidade por cliente: diplomas por extrair, requisitos por classificar, pedidos de evidência e auditorias.",
-  },
-  "/diplomas": {
-    title: "Diplomas e Dados em Falta | ID Compliance",
-    description:
-      "Lista de diplomas legais com título, categorias atribuídas e indicação do que falta: categoria, ligação à legislação europeia e relações.",
-  },
   "/categorias": {
     title: "Categorias e Descritores | ID Compliance",
     description:
@@ -71,11 +51,6 @@ const ROUTE_META: Record<string, Meta> = {
     title: "Gestão de Temas e Descritores | ID Compliance",
     description:
       "Confirme os descritores e subdescritores de cada tema, associe automaticamente os diplomas ao cliente e ajuste aplicabilidades.",
-  },
-  "/requisitos-tema": {
-    title: "Requisitos por Descritor | ID Compliance",
-    description:
-      "Painel por tema com todos os requisitos extraídos, o diploma de origem, a aplicabilidade do cliente e o estado da extração.",
   },
 
   "/legislacao-recente": {
@@ -92,11 +67,6 @@ const ROUTE_META: Record<string, Meta> = {
     title: "Administração | ID Compliance",
     description:
       "Painel de administração para gerir clientes, legislação, taxonomias e a qualidade dos dados da plataforma.",
-  },
-  "/fontes-oficiais": {
-    title: "Fontes Oficiais de Legislação | ID Compliance",
-    description:
-      "Aprove ou rejeite fontes externas de legislação, com histórico completo de decisões e motivo de cada aprovação.",
   },
   "/conformidade": {
     title: "Conformidade por Cliente | ID Compliance",
