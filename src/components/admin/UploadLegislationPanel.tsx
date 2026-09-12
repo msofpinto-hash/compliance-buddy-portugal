@@ -128,6 +128,9 @@ export function UploadLegislationPanel() {
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlDialogInitial, setUrlDialogInitial] = useState<string | undefined>(undefined);
 
+  // ----- Bulk list to descriptor dialog -----
+  const [listDialogOpen, setListDialogOpen] = useState(false);
+
   // ----- Bulk URL state -----
   type BulkRow = {
     url: string;
