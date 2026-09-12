@@ -150,41 +150,37 @@ export const IDHeroSection = ({
     initial={{ opacity: 0, y: -20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
-    className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-primary/50 to-border dark:from-[#1a1512] dark:via-[#181410] dark:to-[#141210] border border-primary/50 p-6 lg:p-8 shadow-sm"
+    className="relative isolate overflow-hidden rounded-3xl border border-[hsl(var(--hero-scrim)/0.25)] bg-[hsl(var(--hero-scrim))] p-6 lg:p-9 shadow-xl"
   >
     {image && (
-      <>
-        <img
-          src={image}
-          alt={imageAlt}
-          aria-hidden={imageAlt ? undefined : true}
-          loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/85 to-background/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
-      </>
+      <img
+        src={image}
+        alt={imageAlt}
+        aria-hidden={imageAlt ? undefined : true}
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover opacity-45"
+      />
     )}
-    {/* Decorative accent - warm gradient */}
-    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-primary via-primary to-orange-500 dark:to-orange-400" />
+    {/* Readability scrim */}
+    <div className="absolute inset-0 bg-[linear-gradient(100deg,hsl(var(--hero-scrim)/0.96)_0%,hsl(var(--hero-scrim)/0.82)_45%,hsl(var(--hero-scrim)/0.45)_100%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,hsl(var(--primary)/0.35)_0%,transparent_55%)]" />
 
-    {/* Warm corner accents */}
-    <div className="absolute -right-20 -top-20 w-48 h-48 bg-gradient-to-br from-primary/30 to-orange-200/20 dark:to-orange-700/10 rounded-full blur-3xl" />
-    <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl" />
+    {/* Accent edge */}
+    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-[hsl(var(--hero-accent))] via-[hsl(var(--primary))] to-[hsl(var(--terracotta))]" />
 
     <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pl-4">
       <div className="space-y-3">
         {badge && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-primary to-primary/80 text-primary border border-primary/60 ">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-widest bg-[hsl(var(--hero-foreground)/0.12)] text-[hsl(var(--hero-accent))] border border-[hsl(var(--hero-foreground)/0.2)] backdrop-blur-sm">
             {Icon && <Icon className="h-3.5 w-3.5" />}
             {badge}
           </span>
         )}
-        <h1 className="text-2xl lg:text-3xl font-semibold text-foreground dark:text-white tracking-tight">
+        <h1 className="text-2xl lg:text-4xl font-bold text-[hsl(var(--hero-foreground))] tracking-tight">
           {title}
         </h1>
         {subtitle && (
-          <p className="text-muted-foreground max-w-xl text-sm lg:text-base">
+          <p className="text-[hsl(var(--hero-muted))] max-w-xl text-sm lg:text-base">
             {subtitle}
           </p>
         )}
@@ -197,12 +193,12 @@ export const IDHeroSection = ({
               {stats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="min-w-[92px] rounded-lg border border-border/70 bg-white/80 dark:bg-[#141210]/70 px-3.5 py-2.5 text-center shadow-sm backdrop-blur-sm"
+                  className="min-w-[96px] rounded-xl border border-[hsl(var(--hero-foreground)/0.18)] bg-[hsl(var(--hero-foreground)/0.1)] px-3.5 py-2.5 text-center shadow-sm backdrop-blur-md"
                 >
-                  <p className="text-xl font-bold text-foreground dark:text-white leading-none">
+                  <p className="text-xl font-bold text-[hsl(var(--hero-foreground))] leading-none">
                     {stat.value}
                   </p>
-                  <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground ">
+                  <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-[hsl(var(--hero-muted))]">
                     {stat.label}
                   </p>
                 </div>
