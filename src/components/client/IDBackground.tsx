@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 export const IDBackground = () => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
     {/* Warm beige/cream base with subtle green */}
-    <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-border to-primary/40 dark:from-[#1a1512] dark:via-[#141210] dark:to-[#0f1a14]" />
+    <div className="absolute inset-0 bg-gradient-to-br from-background via-muted to-secondary/40 dark:from-[#1a1512] dark:via-[#141210] dark:to-[#0f1a14]" />
 
     {/* Subtle warm geometric pattern overlay */}
     <div
