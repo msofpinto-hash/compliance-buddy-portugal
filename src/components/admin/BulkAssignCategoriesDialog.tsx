@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { LegislationWithCategories } from "@/hooks/useLegislation";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 interface BulkAssignCategoriesDialogProps {
   legislationList: LegislationWithCategories[];
@@ -343,9 +343,12 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
               </Button>
             </div>
 
-            {/* Theme list with scroll */}
-            <ScrollArea className="flex-1 min-h-[240px] h-full overflow-y-auto pr-4">
-              <div className="space-y-2">
+            {/* Theme list with visible vertical + horizontal scrollbars */}
+            <div
+              className="flex-1 min-h-[240px] overflow-y-scroll overflow-x-auto rounded-md border p-2"
+              style={{ scrollbarGutter: "stable" }}
+            >
+              <div className="space-y-2 min-w-max pr-2">
                 {themesWithTrees.map(theme => {
                   const isThemeExpanded = expandedThemes.has(theme.id);
                   const selectedCount = getThemeSelectedCount(theme.id);
@@ -392,7 +395,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Selected summary */}
             {selectedCategories.length > 0 && (
