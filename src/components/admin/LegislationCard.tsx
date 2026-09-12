@@ -58,7 +58,10 @@ export function LegislationCard({
   onOpenAISuggestions,
 }: LegislationCardProps) {
   const hasCategories = leg.categories.length > 0;
-  const isRevoked = !!leg.revocation_date;
+  // Revogação futura não deve apresentar o diploma como já revogado
+  const isRevoked = !!leg.revocation_date && new Date(leg.revocation_date) <= new Date();
+  const hasFutureRevocation = !!leg.revocation_date && !isRevoked;
+
 
   return (
     <div
@@ -116,6 +119,12 @@ export function LegislationCard({
                 Revogado {leg.revocation_date && `em ${new Date(leg.revocation_date).toLocaleDateString('pt-PT')}`}
               </Badge>
             )}
+            {hasFutureRevocation && (
+              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-800 border-amber-200">
+                Revogação a partir de {new Date(leg.revocation_date!).toLocaleDateString('pt-PT')}
+              </Badge>
+            )}
+
             {leg.entity && (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Building2 className="h-3 w-3" />

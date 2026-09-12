@@ -584,7 +584,10 @@ export default function LegislacaoDetalhes() {
     );
   }
 
-  const isRevoked = !!legislation.revocation_date;
+  // Revogação futura não deve apresentar o diploma como já revogado
+  const isRevoked = !!legislation.revocation_date && new Date(legislation.revocation_date) <= new Date();
+  const hasFutureRevocation = !!legislation.revocation_date && !isRevoked;
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -727,13 +730,16 @@ export default function LegislacaoDetalhes() {
                   )}
                   {legislation.revocation_date && (
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                      <AlertTriangle className={`h-5 w-5 shrink-0 mt-0.5 ${hasFutureRevocation ? "text-amber-600" : "text-destructive"}`} />
                       <div>
-                        <p className="text-sm font-medium">Data de Revogação</p>
+                        <p className="text-sm font-medium">
+                          {hasFutureRevocation ? "Revogação com efeitos a partir de" : "Data de Revogação"}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(legislation.revocation_date), "d MMMM yyyy", { locale: pt })}
                         </p>
                       </div>
+
                     </div>
                   )}
                 </div>
@@ -1061,9 +1067,10 @@ export default function LegislacaoDetalhes() {
                   
                   {legislation.revocation_date && (
                     <div className="relative">
-                      <div className="absolute -left-4 top-1 h-3 w-3 rounded-full bg-destructive" />
-                      <p className="text-sm font-medium">Revogação</p>
+                      <div className={`absolute -left-4 top-1 h-3 w-3 rounded-full ${hasFutureRevocation ? "bg-amber-500" : "bg-destructive"}`} />
+                      <p className="text-sm font-medium">{hasFutureRevocation ? "Revogação futura" : "Revogação"}</p>
                       <p className="text-xs text-muted-foreground">
+
                         {format(new Date(legislation.revocation_date), "d MMM yyyy", { locale: pt })}
                       </p>
                     </div>
