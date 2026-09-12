@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { LegislationWithCategories } from "@/hooks/useLegislation";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 interface BulkAssignCategoriesDialogProps {
   legislationList: LegislationWithCategories[];
