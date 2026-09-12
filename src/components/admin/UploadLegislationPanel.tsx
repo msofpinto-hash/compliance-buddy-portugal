@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ImportLegislationByUrlDialog } from "./ImportLegislationByUrlDialog";
+import { BulkImportToCategoryDialog } from "./BulkImportToCategoryDialog";
 import {
   Upload,
   Link as LinkIcon,
