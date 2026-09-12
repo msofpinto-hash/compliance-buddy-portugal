@@ -246,8 +246,8 @@ function SearchResultItem({
       </div>
       
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{highlightName(category.name)}</p>
-        <p className="text-xs text-muted-foreground truncate">{category.path}</p>
+        <p className="text-base font-medium break-words">{highlightName(category.name)}</p>
+        <p className="text-sm text-muted-foreground break-words">{category.path}</p>
       </div>
     </div>
   );
