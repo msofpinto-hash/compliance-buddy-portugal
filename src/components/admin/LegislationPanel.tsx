@@ -348,18 +348,6 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     return out;
   }, [taxonomy, filterTheme]);
 
-  // A descriptor also includes its sub-descriptors, like in the client library tree
-  const categoryWithDescendants = useMemo(() => {
-    const all = (taxonomy || []).flatMap((t) => t.categories);
-    const ids = new Set<string>();
-    const collect = (id: string) => {
-      if (ids.has(id)) return;
-      ids.add(id);
-      all.filter((c) => c.parent_id === id).forEach((c) => collect(c.id));
-    };
-    if (filterCategory !== "all") collect(filterCategory);
-    return ids;
-  }, [taxonomy, filterCategory]);
 
   // Publication dates cannot be in the future; old historical dates are valid.
   function isInvalidPublicationDate(dateStr: string | null | undefined): boolean {
