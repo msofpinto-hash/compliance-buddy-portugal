@@ -1049,6 +1049,16 @@ export function UploadLegislationPanel() {
         }}
         initialUrl={urlDialogInitial}
       />
+      <BulkImportToCategoryDialog
+        open={listDialogOpen}
+        onOpenChange={(o) => {
+          setListDialogOpen(o);
+          if (!o) {
+            queryClient.invalidateQueries({ queryKey: ["legislation"] });
+            queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+          }
+        }}
+      />
     </Card>
   );
 }
