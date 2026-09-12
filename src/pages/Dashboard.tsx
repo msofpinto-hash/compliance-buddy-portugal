@@ -139,18 +139,18 @@ type TabType =
 
 
 const COLORS = {
-  compliant: "hsl(152, 82%, 42%)",
-  nonCompliant: "hsl(354, 85%, 55%)",
-  inProgress: "hsl(38, 95%, 52%)",
-  pending: "hsl(220, 15%, 55%)",
+  compliant: "hsl(125, 24%, 38%)",
+  nonCompliant: "hsl(0, 62%, 48%)",
+  inProgress: "hsl(36, 65%, 46%)",
+  pending: "hsl(214, 18%, 44%)",
 };
 
 // Gradient definitions for pie charts
 const PIE_GRADIENTS = {
-  compliant: { start: "hsl(158, 85%, 48%)", end: "hsl(145, 78%, 36%)" },
-  nonCompliant: { start: "hsl(0, 90%, 65%)", end: "hsl(354, 85%, 50%)" },
-  inProgress: { start: "hsl(45, 100%, 60%)", end: "hsl(32, 95%, 48%)" },
-  pending: { start: "hsl(220, 20%, 70%)", end: "hsl(220, 15%, 50%)" },
+  compliant: { start: "hsl(125, 26%, 46%)", end: "hsl(125, 24%, 32%)" },
+  nonCompliant: { start: "hsl(0, 58%, 58%)", end: "hsl(0, 62%, 44%)" },
+  inProgress: { start: "hsl(38, 62%, 56%)", end: "hsl(32, 60%, 42%)" },
+  pending: { start: "hsl(214, 16%, 62%)", end: "hsl(214, 18%, 40%)" },
 };
 
 // Audit icon configuration based on keywords
@@ -1281,11 +1281,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(158, 85%, 48%)"
+                                    stopColor="hsl(125, 26%, 46%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(145, 78%, 36%)"
+                                    stopColor="hsl(125, 24%, 32%)"
                                   />
                                 </linearGradient>
                                 <linearGradient
@@ -1297,11 +1297,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(45, 100%, 60%)"
+                                    stopColor="hsl(38, 62%, 56%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(32, 95%, 48%)"
+                                    stopColor="hsl(32, 60%, 42%)"
                                   />
                                 </linearGradient>
                                 <linearGradient
@@ -1313,11 +1313,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(0, 90%, 65%)"
+                                    stopColor="hsl(0, 58%, 58%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(354, 85%, 50%)"
+                                    stopColor="hsl(0, 62%, 44%)"
                                   />
                                 </linearGradient>
                                 <linearGradient
@@ -1329,11 +1329,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(217, 91%, 65%)"
+                                    stopColor="hsl(214, 20%, 62%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(224, 76%, 48%)"
+                                    stopColor="hsl(214, 22%, 40%)"
                                   />
                                 </linearGradient>
                               </defs>
@@ -1508,7 +1508,7 @@ export default function Dashboard() {
                             <motion.div
                               className="h-full rounded-full"
                               style={{
-                                background: `linear-gradient(90deg, ${COLORS.compliant}, hsl(168, 85%, 38%))`,
+                                background: `linear-gradient(90deg, ${COLORS.compliant}, hsl(125, 26%, 30%))`,
                               }}
                               initial={{ width: 0 }}
                               animate={{ width: `${complianceRate}%` }}
