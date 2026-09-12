@@ -395,7 +395,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Selected summary */}
             {selectedCategories.length > 0 && (
