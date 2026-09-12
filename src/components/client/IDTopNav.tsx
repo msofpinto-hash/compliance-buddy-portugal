@@ -33,6 +33,7 @@ type NavItem = {
   icon: React.ElementType;
   href: string;
   alwaysShow?: boolean;
+  adminOnly?: boolean;
 };
 
 const ALL_MODULES: NavItem[] = [
@@ -149,6 +150,7 @@ export function IDTopNav({ currentOrg, actions, counts }: IDTopNavProps) {
   });
 
   const navItems = ALL_MODULES.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
     if (item.alwaysShow) return true;
     if (isAdmin) return true;
     if (!item.moduleKey) return true;
