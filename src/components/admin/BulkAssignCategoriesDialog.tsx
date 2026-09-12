@@ -423,7 +423,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
               </div>
             )}
 
-            <div className="flex items-center justify-between border-t pt-4">
+            <div className="flex items-center justify-between border-t pt-4 shrink-0 bg-background">
               <div className="text-sm text-muted-foreground">
                 {selectedCategories.length} categoria(s) × {legislationList.length} diploma(s)
               </div>
