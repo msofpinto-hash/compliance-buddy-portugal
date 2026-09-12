@@ -17,8 +17,8 @@ export const IDBackground = () => (
  45deg,
  transparent,
  transparent 50px,
- hsl(139 30% 35%) 50px,
- hsl(139 30% 35%) 51px
+ hsl(125 22% 34%) 50px,
+ hsl(125 22% 34%) 51px
  )
  `,
       }}
@@ -29,7 +29,7 @@ export const IDBackground = () => (
       className="absolute -top-20 -right-20 w-[700px] h-[700px] opacity-15 dark:opacity-10"
       style={{
         background:
-          "radial-gradient(circle at center, hsl(15 50% 55% / 0.35) 0%, transparent 60%)",
+          "radial-gradient(circle at center, hsl(28 30% 45% / 0.3) 0%, transparent 60%)",
       }}
     />
 
@@ -38,7 +38,7 @@ export const IDBackground = () => (
       className="absolute -bottom-20 -left-20 w-[500px] h-[500px] opacity-20 dark:opacity-12"
       style={{
         background:
-          "radial-gradient(circle at center, hsl(152 45% 30% / 0.3) 0%, transparent 65%)",
+          "radial-gradient(circle at center, hsl(125 24% 30% / 0.28) 0%, transparent 65%)",
       }}
     />
 

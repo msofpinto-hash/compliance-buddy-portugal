@@ -12,50 +12,50 @@
 
 @layer base {
   :root {
-    --background: 60 14% 98%;
-    --foreground: 160 18% 14%;
+    --background: 36 24% 96%;
+    --foreground: 210 32% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 160 18% 14%;
+    --card-foreground: 210 32% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 160 18% 14%;
+    --popover-foreground: 210 32% 16%;
 
-    --primary: 139 30% 35%;
+    --primary: 125 22% 34%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 96 32% 94%;
-    --secondary-foreground: 160 24% 18%;
+    --secondary: 33 32% 90%;
+    --secondary-foreground: 210 32% 18%;
 
-    --muted: 60 8% 96%;
-    --muted-foreground: 150 8% 40%;
+    --muted: 36 18% 93%;
+    --muted-foreground: 214 18% 32%;
 
-    --accent: 96 40% 92%;
-    --accent-foreground: 160 24% 20%;
+    --accent: 125 24% 90%;
+    --accent-foreground: 210 32% 18%;
 
-    --destructive: 0 62% 44%;
+    --destructive: 0 62% 42%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 120 10% 89%;
-    --input: 120 10% 89%;
-    --ring: 139 30% 35%;
+    --border: 30 14% 84%;
+    --input: 30 14% 84%;
+    --ring: 125 22% 34%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 160 18% 14%;
-    --sidebar-primary: 139 30% 35%;
+    --sidebar-foreground: 210 32% 16%;
+    --sidebar-primary: 125 22% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 96 40% 92%;
-    --sidebar-accent-foreground: 160 24% 20%;
-    --sidebar-border: 120 10% 89%;
-    --sidebar-ring: 139 30% 35%;
+    --sidebar-accent: 125 24% 90%;
+    --sidebar-accent-foreground: 210 32% 18%;
+    --sidebar-border: 30 14% 84%;
+    --sidebar-ring: 125 22% 34%;
 
-    --chart-1: 139 30% 35%;
-    --chart-2: 141 33% 55%;
-    --chart-3: 24 46% 46%;
-    --chart-4: 35 62% 55%;
-    --chart-5: 164 55% 18%;
+    --chart-1: 125 22% 34%;
+    --chart-2: 125 18% 52%;
+    --chart-3: 28 30% 45%;
+    --chart-4: 36 45% 52%;
+    --chart-5: 210 32% 16%;
 
 
     --sidebar: 0 0% 100%;
@@ -76,15 +76,15 @@
     --spacing: 0.25rem;
 
     /* I&D brand accents (incredibleanddynamic.com) */
-    --terracotta: 24 46% 46%;
+    --terracotta: 28 30% 45%;
     --terracotta-foreground: 0 0% 100%;
-    --cream: 60 14% 98%;
+    --cream: 36 24% 96%;
 
-    /* Hero banners: deep brand green scrim + light text */
-    --hero-scrim: 164 52% 13%;
+    /* Hero banners: deep sage scrim + light text */
+    --hero-scrim: 128 24% 16%;
     --hero-foreground: 0 0% 100%;
-    --hero-muted: 96 22% 88%;
-    --hero-accent: 96 45% 80%;
+    --hero-muted: 90 18% 86%;
+    --hero-accent: 90 30% 78%;
 
 
   }
