@@ -587,7 +587,9 @@ export default function Normas() {
             )}
           </section>
         </div>
-      </main>
+          </motion.div>
+        </main>
+      </div>
 
       <Dialog open={!!detailRow} onOpenChange={(o) => !o && setDetailRow(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
