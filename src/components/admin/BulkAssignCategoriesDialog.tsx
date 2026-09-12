@@ -314,7 +314,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
         ) : (
           <div className="flex flex-col flex-1 min-h-0 space-y-4">
             {/* Legislation preview */}
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 shrink-0">
               <p className="text-sm font-medium text-amber-800 mb-2">
                 Diplomas a atualizar ({legislationList.length}):
               </p>
@@ -333,7 +333,8 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
             </div>
 
             {/* Expand/Collapse controls */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
+
               <Button variant="outline" size="sm" onClick={expandAll}>
                 Expandir Tudo
               </Button>
