@@ -47,11 +47,11 @@ export function SustainHero({
         alt="Floresta iluminada pelo sol, símbolo de sustentabilidade"
         width={1920}
         height={912}
-        className="absolute inset-0 h-full w-full object-cover opacity-25"
+        className="absolute inset-0 h-full w-full object-cover opacity-30"
       />
-      <div className="absolute inset-0 bg-white/25" />
-      <div className="absolute inset-0 bg-[linear-gradient(100deg,hsl(var(--hero-scrim)/0.98)_0%,hsl(var(--hero-scrim)/0.90)_50%,hsl(var(--hero-scrim)/0.55)_100%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_100%,hsl(var(--primary)/0.18)_0%,transparent_55%)]" />
+      <div className="absolute inset-0 bg-white/30" />
+      <div className="absolute inset-0 bg-[linear-gradient(100deg,hsl(var(--hero-scrim)/0.90)_0%,hsl(var(--hero-scrim)/0.78)_50%,hsl(var(--hero-scrim)/0.42)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_100%,hsl(var(--primary)/0.14)_0%,transparent_55%)]" />
 
       <div className="relative px-6 py-10 sm:px-10 sm:py-14 lg:py-16 max-w-3xl">
         <span className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--hero-foreground)/0.2)] bg-[hsl(var(--hero-foreground)/0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[hsl(var(--hero-accent))] backdrop-blur-sm">

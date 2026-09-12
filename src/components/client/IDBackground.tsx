@@ -160,14 +160,14 @@ export const IDHeroSection = ({
           alt={imageAlt}
           aria-hidden={imageAlt ? undefined : true}
           loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover opacity-25"
+          className="absolute inset-0 h-full w-full object-cover opacity-30"
         />
-        <div className="absolute inset-0 bg-white/25" />
+        <div className="absolute inset-0 bg-white/30" />
       </>
     )}
     {/* Readability scrim */}
-    <div className="absolute inset-0 bg-[linear-gradient(100deg,hsl(var(--hero-scrim)/0.98)_0%,hsl(var(--hero-scrim)/0.88)_45%,hsl(var(--hero-scrim)/0.58)_100%)]" />
-    <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,hsl(var(--primary)/0.18)_0%,transparent_55%)]" />
+    <div className="absolute inset-0 bg-[linear-gradient(100deg,hsl(var(--hero-scrim)/0.92)_0%,hsl(var(--hero-scrim)/0.78)_45%,hsl(var(--hero-scrim)/0.45)_100%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,hsl(var(--primary)/0.14)_0%,transparent_55%)]" />
 
     {/* Accent edge */}
     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-[hsl(var(--hero-accent))] via-[hsl(var(--primary))] to-[hsl(var(--terracotta))]" />
