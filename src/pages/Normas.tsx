@@ -40,6 +40,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import {
+  IDBackground,
+  IDCard,
+  IDHeroSection,
+} from "@/components/client/IDBackground";
+import heroNormas from "@/assets/module-documents-new.jpg";
 
 type StandardRow = {
   id: string;
@@ -377,31 +384,42 @@ export default function Normas() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <IDTopNav
-        currentOrg={currentOrg}
-        actions={
-          organizations.length > 1 ? (
-            <OrganizationSelector
-              organizations={organizations}
-              selectedOrgId={currentOrg?.id || null}
-              onSelect={setSelectedOrgId}
-            />
-          ) : null
-        }
-      />
+    <div className="min-h-screen relative overflow-hidden">
+      <IDBackground />
 
-      <main className="px-4 lg:px-8 py-6 space-y-6">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <BookMarked className="h-6 w-6 text-primary" />
-            Normas, Despachos e Notas Técnicas
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Documentação normativa aplicável, organizada por tipo e ordenada por data de
-            publicação.
-          </p>
-        </header>
+      <div className="relative z-10">
+        <IDTopNav
+          currentOrg={currentOrg}
+          actions={
+            organizations.length > 1 ? (
+              <OrganizationSelector
+                organizations={organizations}
+                selectedOrgId={currentOrg?.id || null}
+                onSelect={setSelectedOrgId}
+              />
+            ) : null
+          }
+        />
+
+        <main className="p-4 lg:p-8 space-y-5">
+          <IDHeroSection
+            title="Normas, Despachos e Notas Técnicas"
+            subtitle="Documentação normativa aplicável, organizada por tipo e ordenada por data de publicação"
+            badge="Gestão Documental"
+            icon={BookMarked}
+            image={heroNormas}
+            imageAlt="Documentação normativa"
+            stats={[
+              { label: "Documentos", value: counts.todos || 0 },
+              { label: "Versão", value: latestPeriod || "—" },
+            ]}
+          />
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+          >
 
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
           {/* Navegação por tipo */}
@@ -569,7 +587,9 @@ export default function Normas() {
             )}
           </section>
         </div>
-      </main>
+          </motion.div>
+        </main>
+      </div>
 
       <Dialog open={!!detailRow} onOpenChange={(o) => !o && setDetailRow(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
