@@ -628,12 +628,15 @@ export default function Biblioteca() {
                 >
                   <BookOpen className="h-3 w-3" /> Diplomas
                 </TabsTrigger>
-                <TabsTrigger
-                  value="categorias"
-                  className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
-                >
-                  <FolderTree className="h-3 w-3" /> Categorias
-                </TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger
+                    value="categorias"
+                    className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
+                  >
+                    <FolderTree className="h-3 w-3" /> Categorias
+                  </TabsTrigger>
+                )}
+
               </TabsList>
             </Tabs>
 
@@ -735,8 +738,9 @@ export default function Biblioteca() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.4 }}
           >
-             {view === "categorias" ? (
+             {view === "categorias" && isAdmin ? (
               <CategoriasPanel />
+
             ) : isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (

@@ -1860,7 +1860,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
             </CardDescription>
           </CardHeader>
           <CardContent className="p-2 flex flex-col">
-            {selectedCategoryId && (
+            {selectedCategoryId && editableOrganizationId && (
               <div className="mb-2 flex items-center gap-2">
                 <AddLegislationToCategoryDialog
                   categoryId={selectedCategoryId}
