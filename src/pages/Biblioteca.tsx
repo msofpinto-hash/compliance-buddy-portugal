@@ -628,12 +628,15 @@ export default function Biblioteca() {
                 >
                   <BookOpen className="h-3 w-3" /> Diplomas
                 </TabsTrigger>
-                <TabsTrigger
-                  value="categorias"
-                  className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
-                >
-                  <FolderTree className="h-3 w-3" /> Categorias
-                </TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger
+                    value="categorias"
+                    className="text-xs gap-1 data-[state=active]:bg-primary data-[state=active]:text-white"
+                  >
+                    <FolderTree className="h-3 w-3" /> Categorias
+                  </TabsTrigger>
+                )}
+
               </TabsList>
             </Tabs>
 
