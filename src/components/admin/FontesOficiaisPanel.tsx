@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +17,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
   BadgeCheck,
   CheckCircle2,
   Clock,
@@ -81,7 +79,7 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" });
 }
 
-export default function FontesOficiais() {
+export function FontesOficiaisPanel() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<{ source: SourceRow; action: Action } | null>(null);
@@ -153,20 +151,13 @@ export default function FontesOficiais() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-6xl px-4 py-8">
-        <Button variant="ghost" size="sm" asChild className="mb-4">
-          <Link to="/admin">
-            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-            Voltar à administração
-          </Link>
-        </Button>
-
-        <header className="mb-8">
-          <h1 className="flex items-center gap-2 font-heading text-3xl font-bold text-foreground">
+    <>
+      <div>
+        <header className="mb-6">
+          <h2 className="flex items-center gap-2 font-heading text-xl font-semibold text-foreground">
             <ShieldCheck className="h-7 w-7 text-primary" aria-hidden="true" />
             Fontes oficiais
-          </h1>
+          </h2>
           <p className="mt-2 max-w-3xl text-muted-foreground">
             Aprove ou rejeite as fontes externas de legislação. Apenas fontes aprovadas são apresentadas como
             oficiais na plataforma e nos diálogos de IA. Todas as decisões ficam registadas com motivo.
@@ -371,6 +362,6 @@ export default function FontesOficiais() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

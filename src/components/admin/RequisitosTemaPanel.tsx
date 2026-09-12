@@ -31,8 +31,6 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { RouteSeo } from "@/components/seo/RouteSeo";
-import { IDTopNav } from "@/components/client/IDTopNav";
 import { useAuth } from "@/contexts/AuthContext";
 
 const APPLICABILITY_OPTIONS = [
@@ -54,7 +52,7 @@ const APPLICABILITY_STYLES: Record<string, string> = {
 type Category = { id: string; name: string; parent_id: string | null; theme_id: string };
 type Diploma = { id: string; number: string | null; title: string; origin: string | null };
 
-export default function RequisitosTema() {
+export function RequisitosTemaPanel() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [themeId, setThemeId] = useState<string | null>(null);
@@ -258,13 +256,10 @@ export default function RequisitosTema() {
   const pct = totals.diplomas ? Math.round((totals.withReq / totals.diplomas) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <RouteSeo />
-      <IDTopNav />
-
-      <main className="container mx-auto space-y-4 px-4 py-6">
+    <div className="space-y-4">
+      <div className="space-y-4">
         <header className="space-y-1">
-          <h1 className="font-heading text-2xl font-semibold">Requisitos por descritor</h1>
+          <h2 className="font-heading text-xl font-semibold">Requisitos por descritor</h2>
           <p className="text-sm text-muted-foreground">
             Estado da extração de requisitos e aplicabilidade do cliente, tema a tema.
           </p>
@@ -432,7 +427,7 @@ export default function RequisitosTema() {
             )}
           </CardContent>
         </Card>
-      </main>
+      </div>
     </div>
   );
 }

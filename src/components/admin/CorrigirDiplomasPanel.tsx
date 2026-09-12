@@ -10,8 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CalendarX, FileQuestion, Loader2, Save, ExternalLink, Plus } from "lucide-react";
-import { RouteSeo } from "@/components/seo/RouteSeo";
-import { IDTopNav } from "@/components/client/IDTopNav";
 
 type DiplomaSemData = {
   id: string;
@@ -32,7 +30,7 @@ type DiplomaSemReq = {
   document_url: string | null;
 };
 
-export default function CorrigirDiplomas() {
+export function CorrigirDiplomasPanel() {
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, { publication_date: string; effective_date: string }>>({});
   const [reqDrafts, setReqDrafts] = useState<Record<string, { article: string; text: string }>>({});
@@ -124,12 +122,10 @@ export default function CorrigirDiplomas() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <RouteSeo />
-      <IDTopNav />
-      <main className="container mx-auto px-4 py-6 space-y-6">
+    <div className="space-y-6">
+      <div>
         <div>
-          <h1 className="text-2xl font-bold font-heading">Corrigir Diplomas</h1>
+          <h2 className="text-xl font-semibold font-heading">Corrigir diplomas</h2>
           <p className="text-muted-foreground text-sm">
             Corrija manualmente os diplomas que ficaram sem data de publicação ou sem requisitos legais.
           </p>
@@ -261,7 +257,7 @@ export default function CorrigirDiplomas() {
             })}
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
     </div>
   );
 }
