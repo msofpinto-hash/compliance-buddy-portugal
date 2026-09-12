@@ -65,7 +65,7 @@ const ALL_MODULES: NavItem[] = [
     label: "Vigência",
     icon: CalendarClock,
     href: "/vigencia",
-    alwaysShow: true,
+    adminOnly: true,
   },
   {
     id: "categorias",
@@ -73,6 +73,7 @@ const ALL_MODULES: NavItem[] = [
     label: "Categorias",
     icon: FolderTree,
     href: "/categorias",
+    adminOnly: true,
   },
   {
     id: "duplicados",
@@ -80,6 +81,7 @@ const ALL_MODULES: NavItem[] = [
     label: "Duplicados",
     icon: Copy,
     href: "/duplicados",
+    adminOnly: true,
   },
 
 
@@ -104,6 +106,7 @@ const ALL_MODULES: NavItem[] = [
     label: "Aprovações",
     icon: BadgeCheck,
     href: "/aprovacoes",
+    adminOnly: true,
   },
 
   {
