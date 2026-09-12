@@ -343,7 +343,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
             </div>
 
             {/* Theme list with scroll */}
-            <ScrollArea className="flex-1 min-h-0 pr-4">
+            <ScrollArea className="flex-1 min-h-[240px] h-full overflow-y-auto pr-4">
               <div className="space-y-2">
                 {themesWithTrees.map(theme => {
                   const isThemeExpanded = expandedThemes.has(theme.id);
