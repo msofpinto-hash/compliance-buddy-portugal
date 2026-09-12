@@ -395,7 +395,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
 
             {/* Selected summary */}
             {selectedCategories.length > 0 && (
-              <div className="rounded-lg bg-muted p-3">
+              <div className="rounded-lg bg-muted p-3 shrink-0 max-h-24 overflow-y-auto">
                 <p className="text-sm font-medium mb-2">Categorias a atribuir:</p>
                 <div className="flex flex-wrap gap-1">
                   {selectedCategories.map(catId => {
