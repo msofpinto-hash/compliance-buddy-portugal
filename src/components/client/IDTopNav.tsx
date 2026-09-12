@@ -100,6 +100,7 @@ const ALL_MODULES: NavItem[] = [
     label: "Planos de Ação",
     icon: ClipboardList,
     href: "/dashboard?tab=actions",
+    alwaysShow: true,
   },
   {
     id: "aprovacoes",
@@ -116,6 +117,7 @@ const ALL_MODULES: NavItem[] = [
     label: "Indicadores",
     icon: BarChart3,
     href: "/dashboard?tab=indicators",
+    alwaysShow: true,
   },
 ];
 
