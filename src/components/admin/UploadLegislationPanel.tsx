@@ -1022,6 +1022,20 @@ export function UploadLegislationPanel() {
               </>
             )}
           </TabsContent>
+
+          {/* ---------- TAB 4: Bulk list to descriptor ---------- */}
+          <TabsContent value="list" className="space-y-3">
+            <Alert>
+              <FolderTree className="h-4 w-4" />
+              <AlertDescription>
+                Importa uma <strong>lista de diplomas</strong> de uma só vez para um descritor específico.
+                Cola uma referência, URL ou <code>número | título | URL</code> por linha. Os diplomas já existentes são apenas associados; os novos só são criados se tiverem número e título.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={() => setListDialogOpen(true)} className="gap-2">
+              <FolderTree className="h-4 w-4" /> Importar lista para descritor
+            </Button>
+          </TabsContent>
         </Tabs>
       </CardContent>
       <ImportLegislationByUrlDialog
