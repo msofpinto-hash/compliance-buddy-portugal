@@ -26,28 +26,28 @@ export const IDBackground = () => (
 
     {/* Warm salmon/terracotta accent - top right */}
     <div
-      className="absolute -top-20 -right-20 w-[700px] h-[700px] opacity-15 dark:opacity-10"
+      className="absolute -top-20 -right-20 w-[700px] h-[700px] opacity-10 dark:opacity-8"
       style={{
         background:
-          "radial-gradient(circle at center, hsl(28 30% 45% / 0.3) 0%, transparent 60%)",
+          "radial-gradient(circle at center, hsl(28 30% 55% / 0.18) 0%, transparent 60%)",
       }}
     />
 
     {/* Forest green accent - bottom left */}
     <div
-      className="absolute -bottom-20 -left-20 w-[500px] h-[500px] opacity-20 dark:opacity-12"
+      className="absolute -bottom-20 -left-20 w-[500px] h-[500px] opacity-12 dark:opacity-8"
       style={{
         background:
-          "radial-gradient(circle at center, hsl(125 24% 30% / 0.28) 0%, transparent 65%)",
+          "radial-gradient(circle at center, hsl(125 24% 45% / 0.16) 0%, transparent 65%)",
       }}
     />
 
     {/* Warm brown accent - center */}
     <div
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] opacity-8 dark:opacity-5"
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] opacity-6 dark:opacity-4"
       style={{
         background:
-          "radial-gradient(ellipse at center, hsl(25 35% 40% / 0.15) 0%, transparent 70%)",
+          "radial-gradient(ellipse at center, hsl(25 35% 52% / 0.10) 0%, transparent 70%)",
       }}
     />
 
@@ -154,17 +154,20 @@ export const IDHeroSection = ({
     className="relative isolate overflow-hidden rounded-3xl border border-[hsl(var(--hero-scrim)/0.25)] bg-[hsl(var(--hero-scrim))] p-6 lg:p-9 shadow-xl"
   >
     {image && (
-      <img
-        src={image}
-        alt={imageAlt}
-        aria-hidden={imageAlt ? undefined : true}
-        loading="lazy"
-        className="absolute inset-0 h-full w-full object-cover opacity-45"
-      />
+      <>
+        <img
+          src={image}
+          alt={imageAlt}
+          aria-hidden={imageAlt ? undefined : true}
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover opacity-30"
+        />
+        <div className="absolute inset-0 bg-white/30" />
+      </>
     )}
     {/* Readability scrim */}
-    <div className="absolute inset-0 bg-[linear-gradient(100deg,hsl(var(--hero-scrim)/0.96)_0%,hsl(var(--hero-scrim)/0.82)_45%,hsl(var(--hero-scrim)/0.45)_100%)]" />
-    <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,hsl(var(--primary)/0.35)_0%,transparent_55%)]" />
+    <div className="absolute inset-0 bg-[linear-gradient(100deg,hsl(var(--hero-scrim)/0.92)_0%,hsl(var(--hero-scrim)/0.78)_45%,hsl(var(--hero-scrim)/0.45)_100%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,hsl(var(--primary)/0.14)_0%,transparent_55%)]" />
 
     {/* Accent edge */}
     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-[hsl(var(--hero-accent))] via-[hsl(var(--primary))] to-[hsl(var(--terracotta))]" />
