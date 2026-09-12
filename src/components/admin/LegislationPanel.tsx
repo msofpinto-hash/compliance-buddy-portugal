@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, Sparkles, Ban, FileQuestion, Layers, Globe2, Building2, FolderTree, Link2Off, CalendarX, CalendarClock } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
+import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
 import { useBulkFixes } from "@/hooks/useBulkFixes";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
@@ -55,6 +56,8 @@ interface LegislationPanelProps {
 
 export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) {
   const { data: legislation, isLoading, error } = useLegislationWithCategories();
+  // Same taxonomy source as the client library, so themes/descriptors match everywhere
+  const { data: taxonomy } = useThemesWithCategories();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: fixIncompletesJob } = useFixIncompletesJob();
@@ -85,6 +88,19 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [filterMissingDates, setFilterMissingDates] = useState<boolean>(false);
   const [filterInvalidDates, setFilterInvalidDates] = useState<boolean>(false);
   const [filterShortSummary, setFilterShortSummary] = useState<boolean>(false);
+
+  // A descriptor also includes its sub-descriptors, like in the client library tree
+  const categoryWithDescendants = useMemo(() => {
+    const all = (taxonomy || []).flatMap((t) => t.categories);
+    const ids = new Set<string>();
+    const collect = (id: string) => {
+      if (ids.has(id)) return;
+      ids.add(id);
+      all.filter((c) => c.parent_id === id).forEach((c) => collect(c.id));
+    };
+    if (filterCategory !== "all") collect(filterCategory);
+    return ids;
+  }, [taxonomy, filterCategory]);
 
   // Extract diploma type from number
   const extractDiplomaType = (number: string): string => {
@@ -282,7 +298,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
 
     // Filter by specific category
     if (!filterNoCategory && !filterProblems && !filterRevoked && filterCategory !== "all") {
-      result = result.filter(leg => leg.categories.some(cat => cat.id === filterCategory));
+      result = result.filter(leg => leg.categories.some(cat => categoryWithDescendants.has(cat.id)));
     }
 
     return result;
@@ -316,39 +332,35 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFixingIncompletes, setIsFixingIncompletes] = useState(false);
 
-  // Extract unique themes from legislation categories
-  const availableThemes = useMemo(() => {
-    if (!legislation) return [];
-    const themes = new Set<string>();
-    legislation.forEach(leg => {
-      leg.categories.forEach(cat => {
-        if (cat.theme_name) themes.add(cat.theme_name);
-      });
-    });
-    return Array.from(themes).sort();
-  }, [legislation]);
+  // Themes come from the taxonomy (same list the client library shows)
+  const availableThemes = useMemo(
+    () => (taxonomy || []).map((t) => t.name).sort((a, b) => a.localeCompare(b, "pt")),
+    [taxonomy],
+  );
 
-  // Extract unique categories (full paths) for the selected theme
+  // Descriptors and sub-descriptors from the taxonomy, in hierarchical order
   const availableCategories = useMemo(() => {
-    if (!legislation) return [];
-    const categories = new Map<string, string>(); // id -> full_path
-    
-    legislation.forEach(leg => {
-      leg.categories.forEach(cat => {
-        // If filtering by theme, only show categories from that theme
-        if (filterTheme === "all" || cat.theme_name === filterTheme) {
-          if (cat.id && cat.full_path) {
-            categories.set(cat.id, cat.full_path);
-          }
-        }
-      });
-    });
-    
-    // Convert to array and sort by path
-    return Array.from(categories.entries())
-      .map(([id, path]) => ({ id, path }))
-      .sort((a, b) => a.path.localeCompare(b.path, 'pt'));
-  }, [legislation, filterTheme]);
+    if (!taxonomy) return [] as { id: string; path: string }[];
+    const out: { id: string; path: string }[] = [];
+
+    for (const theme of taxonomy) {
+      if (filterTheme !== "all" && theme.name !== filterTheme) continue;
+      const walk = (parentId: string | null, prefix: string) => {
+        theme.categories
+          .filter((c) => c.parent_id === parentId)
+          .sort((a, b) => a.name.localeCompare(b.name, "pt"))
+          .forEach((c) => {
+            const path = prefix ? `${prefix} → ${c.name}` : `${theme.name} → ${c.name}`;
+            out.push({ id: c.id, path });
+            walk(c.id, path);
+          });
+      };
+      walk(null, "");
+    }
+
+    return out;
+  }, [taxonomy, filterTheme]);
+
 
   // Publication dates cannot be in the future; old historical dates are valid.
   function isInvalidPublicationDate(dateStr: string | null | undefined): boolean {
@@ -510,7 +522,7 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
     // Then filter by specific category (only if not filtering by special filters)
     if (!filterNoCategory && !filterProblems && !filterRevoked && filterCategory !== "all") {
       result = result.filter(leg =>
-        leg.categories.some(cat => cat.id === filterCategory)
+        leg.categories.some(cat => categoryWithDescendants.has(cat.id))
       );
     }
 
