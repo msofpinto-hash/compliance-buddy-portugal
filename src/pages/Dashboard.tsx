@@ -1557,6 +1557,156 @@ export default function Dashboard() {
                   </Card>
                 </motion.div>
               </div>
+
+              {/* Documents + Planned Audits overview */}
+              <div className="grid lg:grid-cols-2 gap-5">
+                {/* Recent documents */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.35 }}
+                >
+                  <IDCard className="h-full overflow-hidden">
+                    <div className="p-5 border-b border-border/60">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 rounded-lg bg-gradient-to-br from-primary to-primary shadow-md">
+                            <FolderOpen className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground dark:text-white">
+                              Documentos carregados
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Últimos ficheiros da organização
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          to="/dashboard?tab=documents"
+                          className="group flex items-center gap-1 px-4 py-2 rounded-lg border border-primary bg-primary text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-300"
+                        >
+                          Ver todos{" "}
+                          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      {loadingDocuments ? (
+                        <div className="space-y-3">
+                          {[1, 2, 3].map((i) => (
+                            <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                          ))}
+                        </div>
+                      ) : recentDocuments && recentDocuments.length > 0 ? (
+                        <div className="space-y-3">
+                          {recentDocuments.map((doc) => (
+                            <Link
+                              key={doc.id}
+                              to="/dashboard?tab=documents"
+                              className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 transition-all group"
+                            >
+                              <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                <FileText className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {doc.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {doc.category || "Documento"}
+                                  {doc.created_at &&
+                                    ` • ${format(new Date(doc.created_at), "d MMM yyyy", { locale: pt })}`}
+                                </p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="h-40 flex flex-col items-center justify-center text-muted-foreground">
+                          <FolderOpen className="h-10 w-10 mb-2 opacity-20" />
+                          <p className="text-sm">Sem documentos carregados</p>
+                        </div>
+                      )}
+                    </div>
+                  </IDCard>
+                </motion.div>
+
+                {/* Planned audits agenda */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <IDCard className="h-full overflow-hidden">
+                    <div className="p-5 border-b border-border/60">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 rounded-lg bg-gradient-to-br from-primary to-primary shadow-md">
+                            <Calendar className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground dark:text-white">
+                              Agenda de auditorias
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Próximas auditorias planeadas
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          to="/dashboard?tab=audits"
+                          className="group flex items-center gap-1 px-4 py-2 rounded-lg border border-primary bg-primary text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-300"
+                        >
+                          Ver todas{" "}
+                          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      {loadingAudits ? (
+                        <div className="space-y-3">
+                          {[1, 2, 3].map((i) => (
+                            <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                          ))}
+                        </div>
+                      ) : plannedAudits.length > 0 ? (
+                        <div className="space-y-3">
+                          {plannedAudits.map((audit) => (
+                            <Link
+                              key={audit.id}
+                              to={`/dashboard?tab=audits&sec=plano`}
+                              className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 transition-all group"
+                            >
+                              <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                <ClipboardCheck className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {audit.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {audit.audit_date
+                                    ? format(new Date(audit.audit_date), "d MMM yyyy", { locale: pt })
+                                    : "Data a definir"}
+                                  {audit.audit_type && ` • ${audit.audit_type === "mensal" ? "VCL mensal" : "Auditoria anual"}`}
+                                </p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="h-40 flex flex-col items-center justify-center text-muted-foreground">
+                          <Calendar className="h-10 w-10 mb-2 opacity-20" />
+                          <p className="text-sm">Sem auditorias planeadas</p>
+                        </div>
+                      )}
+                    </div>
+                  </IDCard>
+                </motion.div>
+              </div>
             </>
           )}
 
