@@ -366,7 +366,7 @@ export default function GestaoTemas() {
       <div key={cat.id}>
         <div
           className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
-            isActive ? "bg-primary/10" : "hover:bg-accent/50"
+            isActive ? "bg-primary/10" : "hover:bg-accent/20"
           }`}
           style={{ paddingLeft: `${level * 14 + 8}px` }}
         >

@@ -160,7 +160,7 @@ const AREA_CONFIG = {
   area_florestas: {
     label: "Florestas",
     icon: TreePine,
-    color: "bg-primary text-primary",
+    color: "bg-primary text-primary-foreground",
   },
   area_saude: { label: "Saúde", icon: Heart, color: "bg-red-100 text-red-800" },
   area_conciliacao: {
@@ -907,7 +907,7 @@ export function EvidenceRequestsPanel({
                   placeholder="Pesquisar pedidos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-accent/50 border-border/80 focus:border-primary focus:ring-primary/20 text-foreground placeholder:text-muted-foreground "
+                  className="pl-10 bg-accent/20 border-border/80 focus:border-primary focus:ring-primary/20 text-foreground placeholder:text-muted-foreground "
                 />
               </div>
             </div>
@@ -915,7 +915,7 @@ export function EvidenceRequestsPanel({
               value={statusFilter || "all"}
               onValueChange={(v) => setStatusFilter(v === "all" ? null : v)}
             >
-              <SelectTrigger className="w-[180px] bg-accent/50 border-border/80 ">
+              <SelectTrigger className="w-[180px] bg-accent/20 border-border/80 ">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -1009,7 +1009,7 @@ export function EvidenceRequestsPanel({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2 bg-accent/50 border-border/80 hover:bg-accent "
+                className="gap-2 bg-accent/20 border-border/80 hover:bg-accent "
                 onClick={() => setExportDialogOpen(true)}
                 disabled={!filteredRequests?.length}
               >
@@ -1121,7 +1121,7 @@ export function EvidenceRequestsPanel({
                               return (
                                 <div
                                   key={request.id}
-                                  className="p-4 rounded-lg border hover:bg-accent/50 transition-colors"
+                                  className="p-4 rounded-lg border hover:bg-accent/20 transition-colors"
                                 >
                                   <div className="flex items-start justify-between gap-4">
                                     <div className="flex-1 min-w-0">
@@ -1481,7 +1481,7 @@ export function EvidenceRequestsPanel({
             <div className="space-y-3">
               <Label>Adicionar documentos</Label>
 
-              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border bg-background text-foreground rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border bg-background text-foreground rounded-lg cursor-pointer hover:bg-accent/20 transition-colors">
                 <div className="flex flex-col items-center justify-center">
                   <Upload className="h-6 w-6 text-muted-foreground mb-1" />
                   <p className="text-sm text-muted-foreground">

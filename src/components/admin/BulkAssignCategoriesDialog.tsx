@@ -93,7 +93,7 @@ function CategoryItem({
       <div 
         className={cn(
           "flex items-center gap-2 rounded-lg border p-2 transition-colors",
-          isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-accent/50",
+          isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-accent/20",
           hasSelectedDescendant && !isSelected && "border-primary/20"
         )}
         style={{ marginLeft: `${level * 16}px` }}
@@ -362,7 +362,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
                       <CollapsibleTrigger asChild>
                         <div className={cn(
                           "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
-                          isThemeExpanded ? "bg-accent" : "hover:bg-accent/50",
+                          isThemeExpanded ? "bg-accent" : "hover:bg-accent/20",
                           selectedCount > 0 && "border-primary/30"
                         )}>
                           {isThemeExpanded ? (

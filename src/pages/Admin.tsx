@@ -67,7 +67,7 @@ const Admin = () => {
               onConfirm={signOut} 
               variant="ghost" 
               size="sm" 
-              className="gap-1 sm:gap-2 text-muted-foreground hover:text-primary hover:bg-accent/50 px-2 sm:px-3"
+              className="gap-1 sm:gap-2 text-muted-foreground hover:text-primary hover:bg-accent/20 px-2 sm:px-3"
             />
           </div>
         </div>

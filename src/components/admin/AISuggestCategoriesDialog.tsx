@@ -275,7 +275,7 @@ export function AISuggestCategoriesDialog({
                       className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                         selectedToRemove.has(cat.id) 
                           ? "bg-destructive/10 border-destructive/30" 
-                          : "bg-card hover:bg-accent/50"
+                          : "bg-card hover:bg-accent/20"
                       }`}
                     >
                       <Checkbox
@@ -386,7 +386,7 @@ export function AISuggestCategoriesDialog({
                       className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                         selectedToAdd.has(cat.id) 
                           ? "bg-green-50 border-green-200" 
-                          : "bg-card hover:bg-accent/50"
+                          : "bg-card hover:bg-accent/20"
                       }`}
                     >
                       <Checkbox

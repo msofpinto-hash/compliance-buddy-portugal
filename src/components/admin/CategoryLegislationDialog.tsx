@@ -263,7 +263,7 @@ export function CategoryLegislationDialog({ category, open, onOpenChange }: Cate
                         "flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all border",
                         isSelected
                           ? "bg-primary/10 border-primary/40"
-                          : "hover:bg-accent/50 border-transparent",
+                          : "hover:bg-accent/20 border-transparent",
                         isNew && "ring-2 ring-green-500/30",
                         isRemoved && "ring-2 ring-red-500/30 opacity-60"
                       )}

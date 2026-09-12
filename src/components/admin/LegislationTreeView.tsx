@@ -908,7 +908,7 @@ export function LegislationTreeView({ legislation, onSelectLegislation, hideFilt
           className={`flex items-center gap-1.5 py-2 px-2 rounded-lg cursor-pointer transition-all duration-200 ${
             isSelected 
               ? `${themeConfig?.bg} ${themeConfig?.text} shadow-sm` 
-              : 'hover:bg-accent/50'
+              : 'hover:bg-accent/20'
           } ${isMainCategory && !isSelected ? 'bg-muted/50' : ''}`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => {

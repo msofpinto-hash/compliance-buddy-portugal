@@ -805,7 +805,7 @@ export default function Dashboard() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary " />
                 <Input
                   placeholder="Pesquisa"
-                  className="pl-9 w-56 bg-accent/50 border-border/80 text-foreground dark:text-white placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
+                  className="pl-9 w-56 bg-accent/20 border-border/80 text-foreground dark:text-white placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
                 />
               </div>
               <TooltipProvider>
@@ -881,7 +881,7 @@ export default function Dashboard() {
                     </div>
                     <Link
                       to="/legislacao-recente"
-                      className="group flex items-center gap-1 px-4 py-2 rounded-lg border border-primary bg-primary text-primary text-sm font-medium hover:bg-primary transition-all duration-300"
+                      className="group flex items-center gap-1 px-4 py-2 rounded-lg border border-primary bg-primary text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-300"
                     >
                       Ver todos{" "}
                       <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
@@ -901,13 +901,13 @@ export default function Dashboard() {
                         const colors = [
                           {
                             border: "border-primary ",
-                            bg: "bg-primary/50 ",
+                            bg: "bg-primary/10 ",
                             accent: "bg-primary",
                             text: "text-primary ",
                           },
                           {
                             border: "border-primary ",
-                            bg: "bg-accent/50 ",
+                            bg: "bg-accent/20 ",
                             accent: "bg-primary",
                             text: "text-primary ",
                           },
@@ -985,7 +985,7 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
-                  <Card className="group relative bg-gradient-to-br from-white via-primary/50 to-teal-50/40 dark:from-slate-900 dark:to-teal-950/20 border border-primary/60 shadow-sm hover:shadow-lg hover:shadow-primary/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
+                  <Card className="group relative bg-gradient-to-br from-white via-primary/5 to-teal-50/40 dark:from-slate-900 dark:to-teal-950/20 border border-primary/60 shadow-sm hover:shadow-lg hover:shadow-primary/15 transition-all duration-300 overflow-hidden backdrop-blur-sm">
                     {/* Animated background glow */}
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-teal-200/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-primary/20 to-teal-400/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -1448,7 +1448,7 @@ export default function Dashboard() {
                         </Badge>
                       </motion.div>
                       <motion.div
-                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-primary/50 to-sage-100/40 dark:to-teal-900/10 border border-primary/50 hover:shadow-md hover:shadow-rose-400/15 transition-all duration-300"
+                        className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-primary/10 to-sage-100/40 dark:to-teal-900/10 border border-primary/50 hover:shadow-md hover:shadow-rose-400/15 transition-all duration-300"
                         whileHover={{ scale: 1.02, x: 4 }}
                       >
                         <div className="flex items-center gap-3">
