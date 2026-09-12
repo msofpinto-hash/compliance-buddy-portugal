@@ -343,9 +343,12 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
               </Button>
             </div>
 
-            {/* Theme list with scroll */}
-            <ScrollArea className="flex-1 min-h-[240px] h-full overflow-y-auto pr-4">
-              <div className="space-y-2">
+            {/* Theme list with visible vertical + horizontal scrollbars */}
+            <div
+              className="flex-1 min-h-[240px] overflow-y-scroll overflow-x-auto rounded-md border p-2"
+              style={{ scrollbarGutter: "stable" }}
+            >
+              <div className="space-y-2 min-w-max pr-2">
                 {themesWithTrees.map(theme => {
                   const isThemeExpanded = expandedThemes.has(theme.id);
                   const selectedCount = getThemeSelectedCount(theme.id);
