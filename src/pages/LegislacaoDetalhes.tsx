@@ -1067,9 +1067,10 @@ export default function LegislacaoDetalhes() {
                   
                   {legislation.revocation_date && (
                     <div className="relative">
-                      <div className="absolute -left-4 top-1 h-3 w-3 rounded-full bg-destructive" />
-                      <p className="text-sm font-medium">Revogação</p>
+                      <div className={`absolute -left-4 top-1 h-3 w-3 rounded-full ${hasFutureRevocation ? "bg-amber-500" : "bg-destructive"}`} />
+                      <p className="text-sm font-medium">{hasFutureRevocation ? "Revogação futura" : "Revogação"}</p>
                       <p className="text-xs text-muted-foreground">
+
                         {format(new Date(legislation.revocation_date), "d MMM yyyy", { locale: pt })}
                       </p>
                     </div>
