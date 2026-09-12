@@ -34,6 +34,8 @@ import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
 import { AnimatedStatCard } from "./AnimatedStatCard";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
 import { GlobalApplicabilityPanel } from "./GlobalApplicabilityPanel";
+import { KeywordGroupsPanel } from "./KeywordGroupsPanel";
+
 import { ClientLegislationImportPanel } from "./ClientLegislationImportPanel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
@@ -963,6 +965,16 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       <Tabs value={panelMode} onValueChange={(v) => setPanelMode(v as PanelMode)} className="w-full">
         <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-full sm:w-auto h-auto gap-1 p-1">
+            <TabsTrigger value="browse" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
+              <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Diplomas</span>
+              <span className="sr-only sm:hidden">Diplomas</span>
+            </TabsTrigger>
+            <TabsTrigger value="keywords" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
+              <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Palavras-chave</span>
+              <span className="sr-only sm:hidden">Palavras-chave</span>
+            </TabsTrigger>
             <TabsTrigger value="global" className="flex-1 sm:flex-none gap-1.5 px-3 py-2 text-xs sm:text-sm">
               <Globe2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Global</span>
@@ -976,6 +988,10 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
           </TabsList>
         </div>
 
+        <TabsContent value="keywords" className="mt-4">
+          <KeywordGroupsPanel />
+        </TabsContent>
+
         <TabsContent value="global" className="mt-4">
           <GlobalApplicabilityPanel />
         </TabsContent>
@@ -986,7 +1002,8 @@ export function LegislationPanel({ hideBanner = false }: LegislationPanelProps) 
       </Tabs>
 
       {/* List View */}
-      {viewMode === "list" && (
+      {viewMode === "list" && panelMode === "browse" && (
+
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">

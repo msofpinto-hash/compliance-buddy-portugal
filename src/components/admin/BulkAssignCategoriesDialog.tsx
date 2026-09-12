@@ -296,7 +296,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-3xl flex flex-col">
+      <DialogContent className="h-[92vh] max-h-[92vh] w-[96vw] max-w-5xl overflow-hidden flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5" />
@@ -314,7 +314,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
         ) : (
           <div className="flex flex-col flex-1 min-h-0 space-y-4">
             {/* Legislation preview */}
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 shrink-0">
               <p className="text-sm font-medium text-amber-800 mb-2">
                 Diplomas a atualizar ({legislationList.length}):
               </p>
@@ -333,7 +333,8 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
             </div>
 
             {/* Expand/Collapse controls */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
+
               <Button variant="outline" size="sm" onClick={expandAll}>
                 Expandir Tudo
               </Button>
@@ -343,7 +344,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
             </div>
 
             {/* Theme list with scroll */}
-            <ScrollArea className="flex-1 min-h-0 pr-4">
+            <ScrollArea className="flex-1 min-h-[240px] h-full overflow-y-auto pr-4">
               <div className="space-y-2">
                 {themesWithTrees.map(theme => {
                   const isThemeExpanded = expandedThemes.has(theme.id);
@@ -395,7 +396,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
 
             {/* Selected summary */}
             {selectedCategories.length > 0 && (
-              <div className="rounded-lg bg-muted p-3">
+              <div className="rounded-lg bg-muted p-3 shrink-0 max-h-24 overflow-y-auto">
                 <p className="text-sm font-medium mb-2">Categorias a atribuir:</p>
                 <div className="flex flex-wrap gap-1">
                   {selectedCategories.map(catId => {
@@ -423,7 +424,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
               </div>
             )}
 
-            <div className="flex items-center justify-between border-t pt-4">
+            <div className="flex items-center justify-between border-t pt-4 shrink-0 bg-background">
               <div className="text-sm text-muted-foreground">
                 {selectedCategories.length} categoria(s) × {legislationList.length} diploma(s)
               </div>
