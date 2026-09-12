@@ -534,7 +534,7 @@ export default function ClientPortal() {
             <Button 
               variant="ghost"
               size="sm"
-              className="gap-2 hover:bg-accent/50 hover:text-accent-foreground transition-colors"
+              className="gap-2 hover:bg-accent/20 hover:text-accent-foreground transition-colors"
               onClick={() => setExportDialogOpen(true)}
             >
               <Download className="h-4 w-4" />
@@ -544,7 +544,7 @@ export default function ClientPortal() {
             <ClientNotificationBell organizationIds={organizationIds} />
             
             <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/50 hover:text-accent-foreground transition-colors">
+              <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/20 hover:text-accent-foreground transition-colors">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden md:inline">Dashboard</span>
               </Button>
@@ -552,7 +552,7 @@ export default function ClientPortal() {
             
             {isAdmin && (
               <Link to="/admin">
-                <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/50 hover:text-accent-foreground transition-colors">
+                <Button variant="ghost" size="sm" className="gap-2 hover:bg-accent/20 hover:text-accent-foreground transition-colors">
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Admin</span>
                 </Button>

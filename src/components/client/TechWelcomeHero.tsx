@@ -128,7 +128,7 @@ export function TechWelcomeHero({
               >
                 <Link
                   to="/dashboard?tab=audits"
-                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-white/80 backdrop-blur-sm border border-primary/60 hover:border-primary/80 hover:bg-accent/50 transition-all duration-300 shadow-[0_4px_20px_hsl(38_80%_50%/0.12)]"
+                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-white/80 backdrop-blur-sm border border-primary/60 hover:border-primary/80 hover:bg-accent/20 transition-all duration-300 shadow-[0_4px_20px_hsl(38_80%_50%/0.12)]"
                 >
                   <motion.div
                     className="p-2.5 rounded-lg bg-gradient-to-br from-primary to-orange-500 shadow-lg shadow-primary/30"
@@ -155,7 +155,7 @@ export function TechWelcomeHero({
               >
                 <Link
                   to="/dashboard?tab=actions"
-                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-white/80 backdrop-blur-sm border border-primary/60 hover:border-primary/80 hover:bg-primary/50 transition-all duration-300 shadow-[0_4px_20px_hsl(152_60%_40%/0.12)]"
+                  className="group flex items-center gap-3 px-5 py-4 rounded-xl bg-white/80 backdrop-blur-sm border border-primary/60 hover:border-primary/80 hover:bg-primary/10 transition-all duration-300 shadow-[0_4px_20px_hsl(152_60%_40%/0.12)]"
                 >
                   <motion.div
                     className="p-2.5 rounded-lg bg-gradient-to-br from-primary to-teal-600 shadow-lg shadow-primary/30"

@@ -429,7 +429,7 @@ export default function Biblioteca() {
                       placeholder="Pesquisar legislação..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-accent/50 border-border/80 focus:border-primary focus:ring-primary/20 text-foreground dark:text-white placeholder:text-muted-foreground "
+                      className="pl-10 bg-accent/20 border-border/80 focus:border-primary focus:ring-primary/20 text-foreground dark:text-white placeholder:text-muted-foreground "
                     />
                     {searchTerm && (
                       <Button
@@ -664,7 +664,7 @@ export default function Biblioteca() {
                 {selectedThemeId && themes && (
                   <Badge
                     variant="secondary"
-                    className="gap-1 bg-primary text-primary border-0"
+                    className="gap-1 bg-primary text-primary-foreground border-0"
                   >
                     <Tags className="h-3 w-3" />
                     {themes.find((t) => t.id === selectedThemeId)?.name}
@@ -746,7 +746,7 @@ export default function Biblioteca() {
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton
                     key={i}
-                    className="h-32 w-full rounded-xl bg-accent/50 "
+                    className="h-32 w-full rounded-xl bg-accent/20 "
                   />
                 ))}
               </div>

@@ -132,7 +132,7 @@ function CategoryItem({
           "flex items-center gap-2 rounded-lg border p-2 transition-all cursor-pointer",
           isSelected 
             ? "bg-primary/10 border-primary/40 shadow-sm" 
-            : "hover:bg-accent/50 border-transparent hover:border-border",
+            : "hover:bg-accent/20 border-transparent hover:border-border",
           hasSelectedDescendant && !isSelected && "border-primary/20 bg-primary/5"
         )}
         style={{ marginLeft: `${level * 20}px` }}
@@ -232,7 +232,7 @@ function SearchResultItem({
         "flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer transition-all",
         isSelected 
           ? "bg-primary/10 border-primary/40 shadow-sm" 
-          : "hover:bg-accent/50 border-transparent hover:border-border"
+          : "hover:bg-accent/20 border-transparent hover:border-border"
       )}
       onClick={onToggle}
     >
@@ -664,7 +664,7 @@ export function AssignCategoriesDialog({ legislation, open, onOpenChange }: Assi
                                 <CollapsibleTrigger asChild>
                                   <div className={cn(
                                     "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all",
-                                    isThemeExpanded ? "bg-accent border-accent" : "hover:bg-accent/50",
+                                    isThemeExpanded ? "bg-accent border-accent" : "hover:bg-accent/20",
                                     selectedCount > 0 && "border-primary/40 bg-primary/5"
                                   )}>
                                     {isThemeExpanded ? (

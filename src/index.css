@@ -79,6 +79,12 @@
     --terracotta-foreground: 0 0% 100%;
     --cream: 33 82% 96%;
 
+    /* Hero banners: dark scrim + light text for guaranteed contrast */
+    --hero-scrim: 210 34% 14%;
+    --hero-foreground: 0 0% 100%;
+    --hero-muted: 33 40% 90%;
+    --hero-accent: 134 32% 78%;
+
   }
 
   .dark {
@@ -139,6 +145,11 @@
     --terracotta: 24 50% 58%;
     --terracotta-foreground: 210 30% 10%;
     --cream: 33 20% 92%;
+
+    --hero-scrim: 210 30% 8%;
+    --hero-foreground: 0 0% 100%;
+    --hero-muted: 33 20% 86%;
+    --hero-accent: 134 25% 72%;
   }
 
 }

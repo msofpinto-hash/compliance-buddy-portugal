@@ -24,7 +24,7 @@ const GLOW_CONFIGS = {
       "shadow-[0_4px_20px_hsl(152_60%_40%/0.1)] hover:shadow-[0_8px_30px_hsl(152_60%_40%/0.2)]",
     gradient: "from-primary to-teal-600",
     text: "text-primary ",
-    badge: "bg-primary text-primary border-primary/50 ",
+    badge: "bg-primary text-primary-foreground border-primary/50 ",
   },
   amber: {
     border: "border-primary/60 hover:border-primary/80 ",

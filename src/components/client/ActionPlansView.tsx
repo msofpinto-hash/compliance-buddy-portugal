@@ -1369,7 +1369,7 @@ export function ActionPlansView({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2 bg-accent/50 border-border/80 hover:bg-accent "
+                  className="gap-2 bg-accent/20 border-border/80 hover:bg-accent "
                 >
                   <Download className="h-4 w-4 text-primary " />
                   Exportar
