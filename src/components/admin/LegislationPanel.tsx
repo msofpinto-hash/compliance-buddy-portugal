@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FileText, Loader2, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, AlertTriangle, Wrench, Trash2, List, GitBranch, CalendarDays, Sparkles, Ban, FileQuestion, Layers, Globe2, Building2, FolderTree, Link2Off, CalendarX, CalendarClock } from "lucide-react";
 import { useLegislationWithCategories, type LegislationWithCategories } from "@/hooks/useLegislation";
+import { useThemesWithCategories } from "@/hooks/useThemes";
 import { useFixIncompletesJob } from "@/hooks/useFixIncompletesJob";
 import { useBulkFixes } from "@/hooks/useBulkFixes";
 import { AssignCategoriesDialog } from "./AssignCategoriesDialog";
