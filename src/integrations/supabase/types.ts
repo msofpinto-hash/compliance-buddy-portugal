@@ -1680,6 +1680,33 @@ export type Database = {
         }
         Relationships: []
       }
+      siawise_requirements_staging: {
+        Row: {
+          article: string | null
+          display_order: number | null
+          id: number
+          legislation_id: string
+          notes: string | null
+          requirement_text: string
+        }
+        Insert: {
+          article?: string | null
+          display_order?: number | null
+          id?: number
+          legislation_id: string
+          notes?: string | null
+          requirement_text: string
+        }
+        Update: {
+          article?: string | null
+          display_order?: number | null
+          id?: number
+          legislation_id?: string
+          notes?: string | null
+          requirement_text?: string
+        }
+        Relationships: []
+      }
       source_approval_history: {
         Row: {
           action: string
