@@ -540,6 +540,23 @@ export default function Dashboard() {
       }).length || 0,
   };
 
+  // Fetch recent documents for the current organization(s)
+  const { data: recentDocuments, isLoading: loadingDocuments } = useQuery({
+    queryKey: ["dashboard-documents", organizationIds],
+    queryFn: async () => {
+      if (organizationIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .in("organization_id", organizationIds)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: organizationIds.length > 0,
+  });
+
   // Fetch audits for ALL organizations
   const {
     data: audits,
@@ -559,6 +576,16 @@ export default function Dashboard() {
     },
     enabled: organizationIds.length > 0,
   });
+
+  // Planned audits agenda (next audits first)
+  const plannedAudits = (audits || [])
+    .filter((a) => a.status === "planned")
+    .sort(
+      (a, b) =>
+        new Date(a.audit_date || "9999-12-31").getTime() -
+        new Date(b.audit_date || "9999-12-31").getTime(),
+    )
+    .slice(0, 5);
 
   // Handle audit approval
   const handleApproveAudit = async (auditId: string) => {
