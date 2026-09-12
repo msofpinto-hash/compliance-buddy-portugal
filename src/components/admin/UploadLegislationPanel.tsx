@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ImportLegislationByUrlDialog } from "./ImportLegislationByUrlDialog";
+import { BulkImportToCategoryDialog } from "./BulkImportToCategoryDialog";
 import {
   Upload,
   Link as LinkIcon,
@@ -31,6 +32,7 @@ import {
   Clipboard,
   Pencil,
   Check,
+  FolderTree,
 } from "lucide-react";
 
 
@@ -125,6 +127,9 @@ export function UploadLegislationPanel() {
   // ----- Single URL dialog -----
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlDialogInitial, setUrlDialogInitial] = useState<string | undefined>(undefined);
+
+  // ----- Bulk list to descriptor dialog -----
+  const [listDialogOpen, setListDialogOpen] = useState(false);
 
   // ----- Bulk URL state -----
   type BulkRow = {
@@ -577,6 +582,9 @@ export function UploadLegislationPanel() {
             <TabsTrigger value="file" className="gap-2">
               <FileUp className="h-4 w-4" /> Upload de ficheiro
             </TabsTrigger>
+            <TabsTrigger value="list" className="gap-2">
+              <FolderTree className="h-4 w-4" /> Lista para descritor
+            </TabsTrigger>
           </TabsList>
 
           {/* ---------- TAB 1: Single URL ---------- */}
@@ -1014,6 +1022,20 @@ export function UploadLegislationPanel() {
               </>
             )}
           </TabsContent>
+
+          {/* ---------- TAB 4: Bulk list to descriptor ---------- */}
+          <TabsContent value="list" className="space-y-3">
+            <Alert>
+              <FolderTree className="h-4 w-4" />
+              <AlertDescription>
+                Importa uma <strong>lista de diplomas</strong> de uma só vez para um descritor específico.
+                Cola uma referência, URL ou <code>número | título | URL</code> por linha. Os diplomas já existentes são apenas associados; os novos só são criados se tiverem número e título.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={() => setListDialogOpen(true)} className="gap-2">
+              <FolderTree className="h-4 w-4" /> Importar lista para descritor
+            </Button>
+          </TabsContent>
         </Tabs>
       </CardContent>
       <ImportLegislationByUrlDialog
@@ -1026,6 +1048,16 @@ export function UploadLegislationPanel() {
           }
         }}
         initialUrl={urlDialogInitial}
+      />
+      <BulkImportToCategoryDialog
+        open={listDialogOpen}
+        onOpenChange={(o) => {
+          setListDialogOpen(o);
+          if (!o) {
+            queryClient.invalidateQueries({ queryKey: ["legislation"] });
+            queryClient.invalidateQueries({ queryKey: ["themes-with-categories"] });
+          }
+        }}
       />
     </Card>
   );
