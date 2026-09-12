@@ -8,16 +8,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Download, Globe, Flag, RefreshCw, Loader2, ChevronDown, 
-  Clock, CheckCircle2, FileText, Upload, Calendar, Link as LinkIcon, Plus
+  Clock, CheckCircle2, FileText, Upload, Calendar, Link as LinkIcon, Plus, FolderTree
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { pt } from "date-fns/locale";
 import { CronJobsMonitorPanel } from "./CronJobsMonitorPanel";
 import { ImportLegislationByUrlDialog } from "./ImportLegislationByUrlDialog";
+import { BulkImportToCategoryDialog } from "./BulkImportToCategoryDialog";
 
 export function ImportPanel() {
   const queryClient = useQueryClient();
   const [showImportUrlDialog, setShowImportUrlDialog] = useState(false);
+  const [showBulkImportDialog, setShowBulkImportDialog] = useState(false);
 
   // Fetch last sync info
   const { data: lastSyncs, isLoading: loadingSyncs } = useQuery({
@@ -111,14 +113,21 @@ export function ImportPanel() {
                 Sincronize legislação do Diário da República e EUR-Lex
               </CardDescription>
             </div>
-            <Button 
-              onClick={() => setShowImportUrlDialog(true)}
-              className="gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <LinkIcon className="h-4 w-4" />
-              Importar por URL
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                onClick={() => setShowImportUrlDialog(true)}
+                variant="outline"
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                <LinkIcon className="h-4 w-4" />
+                Importar por URL
+              </Button>
+              <Button onClick={() => setShowBulkImportDialog(true)} className="gap-2">
+                <FolderTree className="h-4 w-4" />
+                Importar lista para descritor
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -224,6 +233,11 @@ export function ImportPanel() {
       <ImportLegislationByUrlDialog 
         open={showImportUrlDialog} 
         onOpenChange={setShowImportUrlDialog} 
+      />
+
+      <BulkImportToCategoryDialog
+        open={showBulkImportDialog}
+        onOpenChange={setShowBulkImportDialog}
       />
     </div>
   );
