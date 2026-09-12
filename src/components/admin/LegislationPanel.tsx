@@ -34,6 +34,8 @@ import { BulkAISuggestCategoriesDialog } from "./BulkAISuggestCategoriesDialog";
 import { AnimatedStatCard } from "./AnimatedStatCard";
 import { ActiveJobsBanner } from "./ActiveJobsBanner";
 import { GlobalApplicabilityPanel } from "./GlobalApplicabilityPanel";
+import { KeywordGroupsPanel } from "./KeywordGroupsPanel";
+
 import { ClientLegislationImportPanel } from "./ClientLegislationImportPanel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
