@@ -246,8 +246,8 @@ function SearchResultItem({
       </div>
       
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{highlightName(category.name)}</p>
-        <p className="text-xs text-muted-foreground truncate">{category.path}</p>
+        <p className="text-base font-medium break-words">{highlightName(category.name)}</p>
+        <p className="text-sm text-muted-foreground break-words">{category.path}</p>
       </div>
     </div>
   );
@@ -513,7 +513,7 @@ export function AssignCategoriesDialog({ legislation, open, onOpenChange }: Assi
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-4xl flex flex-col p-0">
+      <DialogContent className="max-h-[92vh] h-[92vh] overflow-hidden sm:max-w-6xl flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <FolderTree className="h-5 w-5" />
@@ -705,9 +705,9 @@ export function AssignCategoriesDialog({ legislation, open, onOpenChange }: Assi
               </div>
 
               {/* Right panel - Selected categories */}
-              <div className="w-72 flex-shrink-0 flex flex-col bg-muted/20">
+              <div className="w-96 flex-shrink-0 flex flex-col bg-muted/20">
                 <div className="p-4 border-b">
-                  <h4 className="font-medium text-sm flex items-center gap-2">
+                  <h4 className="font-medium text-base flex items-center gap-2">
                     <Check className="h-4 w-4" />
                     Selecionadas
                     <Badge variant="secondary" className="ml-auto">{selectedCategories.length}</Badge>
@@ -723,10 +723,10 @@ export function AssignCategoriesDialog({ legislation, open, onOpenChange }: Assi
                           onClick={() => toggleCategory(cat.id)}
                         >
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{cat.name}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{cat.themeName}</p>
+                            <p className="text-base font-medium break-words">{cat.name}</p>
+                            <p className="text-xs text-muted-foreground break-words">{cat.fullPath}</p>
                           </div>
-                          <X className="h-4 w-4 text-muted-foreground group-hover:text-destructive shrink-0 mt-0.5" />
+                          <X className="h-5 w-5 text-muted-foreground group-hover:text-destructive shrink-0 mt-0.5" />
                         </div>
                       ))
                     ) : (
