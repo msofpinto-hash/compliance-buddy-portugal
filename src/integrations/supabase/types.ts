@@ -1086,6 +1086,36 @@ export type Database = {
           },
         ]
       }
+      legislation_category_mapping_audit: {
+        Row: {
+          action: string
+          category_id: string
+          deleted_at: string
+          deleted_by: string | null
+          id: string
+          legislation_id: string
+          mapping_id: string
+        }
+        Insert: {
+          action: string
+          category_id: string
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          legislation_id: string
+          mapping_id: string
+        }
+        Update: {
+          action?: string
+          category_id?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          legislation_id?: string
+          mapping_id?: string
+        }
+        Relationships: []
+      }
       legislation_duplicate_reviews: {
         Row: {
           created_at: string
