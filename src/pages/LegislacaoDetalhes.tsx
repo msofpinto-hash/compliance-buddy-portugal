@@ -584,7 +584,10 @@ export default function LegislacaoDetalhes() {
     );
   }
 
-  const isRevoked = !!legislation.revocation_date;
+  // Revogação futura não deve apresentar o diploma como já revogado
+  const isRevoked = !!legislation.revocation_date && new Date(legislation.revocation_date) <= new Date();
+  const hasFutureRevocation = !!legislation.revocation_date && !isRevoked;
+
 
   return (
     <div className="min-h-screen bg-background">
