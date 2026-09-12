@@ -15,6 +15,13 @@
       "when": 1789240256903,
       "tag": "0001_create_legal_requirements_backup",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789240576833,
+      "tag": "0002_audit_category_mapping_deletions",
+      "breakpoints": true
     }
   ]
 }
