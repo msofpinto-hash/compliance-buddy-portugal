@@ -1281,11 +1281,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(158, 85%, 48%)"
+                                    stopColor="hsl(125, 26%, 46%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(145, 78%, 36%)"
+                                    stopColor="hsl(125, 24%, 32%)"
                                   />
                                 </linearGradient>
                                 <linearGradient
@@ -1297,11 +1297,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(45, 100%, 60%)"
+                                    stopColor="hsl(38, 62%, 56%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(32, 95%, 48%)"
+                                    stopColor="hsl(32, 60%, 42%)"
                                   />
                                 </linearGradient>
                                 <linearGradient
@@ -1313,11 +1313,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(0, 90%, 65%)"
+                                    stopColor="hsl(0, 58%, 58%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(354, 85%, 50%)"
+                                    stopColor="hsl(0, 62%, 44%)"
                                   />
                                 </linearGradient>
                                 <linearGradient
@@ -1329,11 +1329,11 @@ export default function Dashboard() {
                                 >
                                   <stop
                                     offset="0%"
-                                    stopColor="hsl(217, 91%, 65%)"
+                                    stopColor="hsl(214, 20%, 62%)"
                                   />
                                   <stop
                                     offset="100%"
-                                    stopColor="hsl(224, 76%, 48%)"
+                                    stopColor="hsl(214, 22%, 40%)"
                                   />
                                 </linearGradient>
                               </defs>
@@ -1508,7 +1508,7 @@ export default function Dashboard() {
                             <motion.div
                               className="h-full rounded-full"
                               style={{
-                                background: `linear-gradient(90deg, ${COLORS.compliant}, hsl(168, 85%, 38%))`,
+                                background: `linear-gradient(90deg, ${COLORS.compliant}, hsl(125, 26%, 30%))`,
                               }}
                               initial={{ width: 0 }}
                               animate={{ width: `${complianceRate}%` }}
