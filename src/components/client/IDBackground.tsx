@@ -17,8 +17,8 @@ export const IDBackground = () => (
  45deg,
  transparent,
  transparent 50px,
- hsl(30 40% 45%) 50px,
- hsl(30 40% 45%) 51px
+ hsl(139 30% 35%) 50px,
+ hsl(139 30% 35%) 51px
  )
  `,
       }}
