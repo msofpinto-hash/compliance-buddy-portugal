@@ -58,7 +58,10 @@ export function LegislationCard({
   onOpenAISuggestions,
 }: LegislationCardProps) {
   const hasCategories = leg.categories.length > 0;
-  const isRevoked = !!leg.revocation_date;
+  // Revogação futura não deve apresentar o diploma como já revogado
+  const isRevoked = !!leg.revocation_date && new Date(leg.revocation_date) <= new Date();
+  const hasFutureRevocation = !!leg.revocation_date && !isRevoked;
+
 
   return (
     <div
