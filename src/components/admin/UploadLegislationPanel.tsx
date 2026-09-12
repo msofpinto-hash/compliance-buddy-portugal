@@ -582,6 +582,9 @@ export function UploadLegislationPanel() {
             <TabsTrigger value="file" className="gap-2">
               <FileUp className="h-4 w-4" /> Upload de ficheiro
             </TabsTrigger>
+            <TabsTrigger value="list" className="gap-2">
+              <FolderTree className="h-4 w-4" /> Lista para descritor
+            </TabsTrigger>
           </TabsList>
 
           {/* ---------- TAB 1: Single URL ---------- */}
