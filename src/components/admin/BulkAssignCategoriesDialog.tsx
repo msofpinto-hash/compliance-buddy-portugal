@@ -296,7 +296,7 @@ export function BulkAssignCategoriesDialog({ legislationList, open, onOpenChange
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-3xl flex flex-col">
+      <DialogContent className="h-[92vh] max-h-[92vh] w-[96vw] max-w-5xl overflow-hidden flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5" />
