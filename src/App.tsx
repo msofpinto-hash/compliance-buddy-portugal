@@ -21,16 +21,10 @@ import LegislacaoRecente from "./pages/LegislacaoRecente";
 import Vigencia from "./pages/Vigencia";
 import ClientPortal from "./pages/ClientPortal";
 import Settings from "./pages/Settings";
-import Diplomas from "./pages/Diplomas";
 import GestaoTemas from "./pages/GestaoTemas";
 import Categorias from "./pages/Categorias";
 import Duplicados from "./pages/Duplicados";
-import CorrigirDiplomas from "./pages/CorrigirDiplomas";
-import RequisitosTema from "./pages/RequisitosTema";
 
-import Progresso from "./pages/Progresso";
-import ProgressoCliente from "./pages/ProgressoCliente";
-import FontesOficiais from "./pages/FontesOficiais";
 import Conformidade from "./pages/Conformidade";
 import Aprovacoes from "./pages/Aprovacoes";
 import PoliticaIA from "./pages/PoliticaIA";
@@ -120,59 +114,10 @@ const App = () => (
               }
             />
             <Route
-              path="/progresso"
-              element={
-                <RequireAdmin>
-                  <Progresso />
-                </RequireAdmin>
-              }
-            />
-            <Route
-              path="/progresso-cliente"
-              element={
-                <RequireAuth>
-                  <ProgressoCliente />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/diplomas"
-              element={
-                <RequireAdmin>
-                  <Diplomas />
-                </RequireAdmin>
-              }
-            />
-            <Route
               path="/gestao-temas"
               element={
                 <RequireAdmin>
                   <GestaoTemas />
-                </RequireAdmin>
-              }
-            />
-            <Route
-              path="/corrigir-diplomas"
-              element={
-                <RequireAdmin>
-                  <CorrigirDiplomas />
-                </RequireAdmin>
-              }
-            />
-            <Route
-              path="/requisitos-tema"
-              element={
-                <RequireAdmin>
-                  <RequisitosTema />
-                </RequireAdmin>
-              }
-            />
-
-            <Route
-              path="/fontes-oficiais"
-              element={
-                <RequireAdmin>
-                  <FontesOficiais />
                 </RequireAdmin>
               }
             />
