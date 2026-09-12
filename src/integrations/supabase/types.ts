@@ -939,6 +939,42 @@ export type Database = {
           },
         ]
       }
+      legal_requirements_backup: {
+        Row: {
+          article: string | null
+          backed_up_at: string
+          backup_reason: string | null
+          display_order: number | null
+          id: string
+          legislation_id: string
+          notes: string | null
+          original_id: string | null
+          requirement_text: string
+        }
+        Insert: {
+          article?: string | null
+          backed_up_at?: string
+          backup_reason?: string | null
+          display_order?: number | null
+          id?: string
+          legislation_id: string
+          notes?: string | null
+          original_id?: string | null
+          requirement_text: string
+        }
+        Update: {
+          article?: string | null
+          backed_up_at?: string
+          backup_reason?: string | null
+          display_order?: number | null
+          id?: string
+          legislation_id?: string
+          notes?: string | null
+          original_id?: string | null
+          requirement_text?: string
+        }
+        Relationships: []
+      }
       legislation: {
         Row: {
           category: string | null
