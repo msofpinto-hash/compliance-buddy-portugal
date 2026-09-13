@@ -36,7 +36,9 @@ function decodeEntities(text: string): string {
 
 // ---------- Scraping (Firecrawl principal, fallbacks seguros) ----------
 
-async function firecrawlScrape(url: string): Promise<{ markdown: string; status: number } | null> {
+type ScrapeResult = { markdown: string; status: number; method: string };
+
+async function firecrawlScrape(url: string): Promise<ScrapeResult | null> {
   const keys = [
     Deno.env.get("FIRECRAWL_API_KEY"),
     Deno.env.get("FIRECRAWL_API_KEY_2"),
@@ -53,7 +55,7 @@ async function firecrawlScrape(url: string): Promise<{ markdown: string; status:
       const data = await res.json().catch(() => ({}));
       if (res.status === 402 || res.status === 429) continue;
       const md = data?.data?.markdown || data?.markdown || "";
-      if (res.ok && md) return { markdown: md, status: res.status };
+      if (res.ok && md) return { markdown: md, status: res.status, method: "firecrawl" };
     } catch (e) {
       console.error("[import-official-articles] firecrawl error", e);
     }
@@ -61,7 +63,7 @@ async function firecrawlScrape(url: string): Promise<{ markdown: string; status:
   return null;
 }
 
-async function readerScrape(url: string): Promise<{ markdown: string; status: number } | null> {
+async function readerScrape(url: string): Promise<ScrapeResult | null> {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers: {
@@ -75,13 +77,13 @@ async function readerScrape(url: string): Promise<{ markdown: string; status: nu
     if (!raw || raw.length < 200) return null;
     const idx = raw.indexOf("Markdown Content:");
     const markdown = idx >= 0 ? raw.slice(idx + "Markdown Content:".length).trim() : raw;
-    return { markdown, status: res.status };
+    return { markdown, status: res.status, method: "jina_reader" };
   } catch {
     return null;
   }
 }
 
-async function nativeScrape(url: string): Promise<{ markdown: string; status: number } | null> {
+async function nativeScrape(url: string): Promise<ScrapeResult | null> {
   try {
     const res = await fetch(url, {
       headers: {
@@ -105,13 +107,13 @@ async function nativeScrape(url: string): Promise<{ markdown: string; status: nu
       .replace(/\n{3,}/g, "\n\n")
       .trim();
     if (text.length < 200) return null;
-    return { markdown: text, status: res.status };
+    return { markdown: text, status: res.status, method: "native_fetch" };
   } catch {
     return null;
   }
 }
 
-// ---------- Normalização e segmentação do articulado ----------
+// ---------- Normalização ----------
 
 function normalizeContent(raw: string): string {
   return decodeEntities(raw)
@@ -128,6 +130,126 @@ function normalizeContent(raw: string): string {
     .trim();
 }
 
+// ---------- Extração do corpo consolidado (limpeza de ruído DRE) ----------
+
+const ARTICLE_RE =
+  /^(?:Artigo|Article|Artículo)\s+(\d+\.?[ºo°]?(?:-[A-Za-z]+)?)\s*\.?\s*(.*)$/i;
+const ANNEX_RE = /^(ANEXO\s*[IVXLC\d]*[-A-Za-z]*|ANNEX\s*[IVXLC\d]*)\s*(.*)$/i;
+const SECTION_RE =
+  /^((?:CAPÍTULO|CAPITULO|SECÇÃO|SECCAO|SUBSECÇÃO|TÍTULO|TITULO|PARTE)\s+[IVXLC\d]+[-A-Za-z]*)\s*(.*)$/i;
+const FINAL_RE =
+  /^(Disposições\s+(?:finais|transitórias|transitorias)(?:\s+e\s+\w+)?)\s*$/i;
+
+// Nota editorial do DRE: "Artigo 33.º, Lei n.º 17/2014 - Diário da República n.º 71/2014..."
+const EDITORIAL_NOTE_RE =
+  /^(?:Artigo|Art\.?)\s+\d+\.?[ºo°]?(?:-[A-Za-z]+)?\s*,?\s*(?:\(?(?:Lei|Decreto-Lei|Decreto|Portaria|Despacho|Declaração|Regulamento|Diretiva|Resolução|Lei Orgânica|Lei Constitucional)\b)/i;
+const EDITORIAL_DRE_RE = /Diário da República n\.[ºo]\s*\d+\/\d{4}/i;
+const EDITORIAL_MARKER_RE =
+  /^(?:[-–—>\[\(]\s*)?(?:Alterad[oa]|Revogad[oa]|Derrogad[oa]|Aditad[oa]|Retificad[oa]|Rectificad[oa]|Redação dada|Redacção dada|Na redação d[ae]|Com efeitos a partir|Republicad[oa]|Suspenso|Anulad[oa]|Declarad[oa])\b/i;
+
+// Linhas de navegação/UI do site
+const UI_NOISE_RE =
+  /^(Ir para o conteúdo principal|Ir para|Voltar|Fechar|Fechar Alterações|Ver todos os detalhes|Ver detalhes das alterações|Enviar por email|Copiar ligação|Índice|Filtrar|Mostrar revogado|Ato Original|Versão Consolidada|Análise Jurídica|Informações gerais|Modificações|Retificações|Outros Tipos|Parlamento|Decisões Judiciais|Pode sugerir melhorias|Relacionados|Versão à data de|Início|Legislação|Por código|Por data|Por tema|Lexionário|Lia|Sobre o DR|Ajuda|O meu Diário|Aberto|Jornal Oficial da República Portuguesa)\b/i;
+
+function isUiNoise(line: string): boolean {
+  if (line.length <= 2) return true;
+  if (/^[-–—*•=\s]+$/.test(line)) return true;
+  if (/^-?\s*\[[ xX]?\]/.test(line)) return true; // checkboxes
+  if (/^(Facebook|LinkedIn|Pinterest|Reddit|Telegram|X|Whatsapp)\b/i.test(line)) return true;
+  if (/^Use a tecla/i.test(line)) return true;
+  return UI_NOISE_RE.test(line);
+}
+
+function isEditorialNote(line: string): boolean {
+  if (EDITORIAL_NOTE_RE.test(line)) return true;
+  if (EDITORIAL_DRE_RE.test(line) && /^(?:Artigo|Art\.?)\s/i.test(line)) return true;
+  if (EDITORIAL_MARKER_RE.test(line)) return true;
+  return false;
+}
+
+/**
+ * Extrai o corpo consolidado do diploma:
+ * - corta tudo antes do marcador "TEXTO" da página DRE (ou do cabeçalho do diploma);
+ * - remove linhas de navegação/UI e notas editoriais de alteração;
+ * - corta rodapé de navegação final, se existir.
+ */
+function extractConsolidatedBody(
+  normalized: string,
+): { body: string; warnings: string[] } {
+  const warnings: string[] = [];
+  const lines = normalized.split("\n");
+
+  // 1) Encontrar início do TEXTO consolidado
+  let startIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^TEXTO\s*$/i.test(lines[i])) {
+      startIdx = i + 1;
+      break;
+    }
+  }
+  if (startIdx === -1) {
+    // fallback: primeira linha que pareça o cabeçalho do diploma ou Artigo 1.º
+    for (let i = 0; i < lines.length; i++) {
+      if (
+        ARTICLE_RE.test(lines[i]) && !isEditorialNote(lines[i])
+      ) {
+        startIdx = Math.max(0, i - 30); // inclui eventual preâmbulo próximo
+        break;
+      }
+    }
+    if (startIdx === -1) {
+      startIdx = 0;
+      warnings.push("text_marker_not_found: marcador 'TEXTO' não encontrado; conteúdo usado na íntegra após limpeza de ruído.");
+    } else {
+      warnings.push("text_marker_not_found: marcador 'TEXTO' não encontrado; usado o primeiro artigo como referência.");
+    }
+  }
+
+  let bodyLines = lines.slice(startIdx);
+
+  // 2) Cortar rodapé: última ocorrência de ruído forte após o fim do articulado
+  for (let i = bodyLines.length - 1; i >= 0; i--) {
+    const l = bodyLines[i];
+    if (/^(Documento (relacionado|anexo)|Versão (à data|de impressão)|Imprimir|Descarregar|Ir para o topo)/i.test(l)) {
+      bodyLines = bodyLines.slice(0, i);
+    } else if (l && !isUiNoise(l)) {
+      break;
+    }
+  }
+
+  // 3) Remover ruído de UI e notas editoriais
+  const cleaned: string[] = [];
+  let removedEditorial = 0;
+  let removedUi = 0;
+  for (const raw of bodyLines) {
+    const line = raw.trim();
+    if (!line) {
+      // preservar uma única quebra de parágrafo
+      if (cleaned.length && cleaned[cleaned.length - 1] !== "") cleaned.push("");
+      continue;
+    }
+    if (isEditorialNote(line)) {
+      removedEditorial++;
+      continue;
+    }
+    if (isUiNoise(line)) {
+      removedUi++;
+      continue;
+    }
+    cleaned.push(line);
+  }
+  if (removedEditorial > 0) {
+    warnings.push(`editorial_notes_removed: ${removedEditorial} nota(s) editorial(ais) de alteração do DRE ignorada(s).`);
+  }
+  if (removedUi > 0) {
+    warnings.push(`ui_noise_removed: ${removedUi} linha(s) de navegação/interface ignorada(s).`);
+  }
+
+  return { body: cleaned.join("\n").replace(/\n{3,}/g, "\n\n").trim(), warnings };
+}
+
+// ---------- Segmentação: 1 registo = 1 artigo completo ----------
+
 type Segment = {
   article_number: string | null;
   article_title: string | null;
@@ -138,24 +260,12 @@ type Segment = {
   display_order: number;
 };
 
-const ARTICLE_RE =
-  /^(?:Artigo|Article|Artículo)\s+(\d+\.?[ºo°]?(?:-[A-Za-z]+)?)\s*\.?\s*(.*)$/i;
-const ANNEX_RE = /^(ANEXO\s*[IVXLC\d]*[-A-Za-z]*|ANNEX\s*[IVXLC\d]*)\s*(.*)$/i;
-const SECTION_RE =
-  /^((?:CAPÍTULO|CAPITULO|SECÇÃO|SECCAO|SUBSECÇÃO|TÍTULO|TITULO|PARTE)\s+[IVXLC\d]+[-A-Za-z]*)\s*(.*)$/i;
-const FINAL_RE =
-  /^(Disposições\s+(?:finais|transitórias|transitorias)(?:\s+e\s+\w+)?)\s*$/i;
-const PARAGRAPH_RE = /^(\d+)\s*[-–—.]\s+(.+)$/;
-const POINT_RE = /^([a-zA-Z])\)\s*(.+)$/;
-
 function segmentArticles(text: string): Segment[] {
   const lines = text.split("\n");
   const segments: Segment[] = [];
   let order = 0;
 
   let current: Segment | null = null;
-  let currentArticle: string | null = null;
-  let currentType = "PREAMBULO";
 
   const push = (s: Segment | null) => {
     if (s && s.official_text.trim().length > 0) segments.push(s);
@@ -164,8 +274,6 @@ function segmentArticles(text: string): Segment[] {
   const start = (
     article_number: string | null,
     article_title: string | null,
-    paragraph_number: string | null,
-    point_letter: string | null,
     firstText: string,
     article_type: string,
   ) => {
@@ -173,8 +281,8 @@ function segmentArticles(text: string): Segment[] {
     current = {
       article_number,
       article_title,
-      paragraph_number,
-      point_letter,
+      paragraph_number: null,
+      point_letter: null,
       official_text: firstText,
       article_type,
       display_order: ++order,
@@ -190,71 +298,47 @@ function segmentArticles(text: string): Segment[] {
 
     const art = line.match(ARTICLE_RE);
     if (art) {
-      currentArticle = art[1].replace(/\.?[ºo°]$/, ".º");
-      currentType = "ARTIGO";
+      const num = art[1].replace(/\.?[ºo°]$/, ".º");
       // O título pode estar na mesma linha ou na linha seguinte
       let title = art[2]?.trim() || "";
+      let bodyStart = line;
       if (!title) {
         const next = lines[i + 1]?.trim() || "";
-        if (
-          next &&
-          !ARTICLE_RE.test(next) &&
-          !PARAGRAPH_RE.test(next) &&
-          !POINT_RE.test(next) &&
-          next.length <= 160
-        ) {
+        if (next && !ARTICLE_RE.test(next) && !/^\d+\s*[-–—.]\s+/.test(next) &&
+            !/^[a-zA-Z]\)\s*/.test(next) && !SECTION_RE.test(next) &&
+            !ANNEX_RE.test(next) && next.length <= 160) {
           title = next;
           i++;
+          bodyStart = line + "\n" + next;
         }
       }
-      start(currentArticle, title || null, null, null, line, "ARTIGO");
+      start(num, title || null, bodyStart, "ARTIGO");
       continue;
     }
 
     const annex = line.match(ANNEX_RE);
     if (annex) {
-      currentArticle = null;
-      currentType = "ANEXO";
-      start(null, annex[1].trim(), null, null, line, "ANEXO");
+      start(null, annex[1].trim(), line, "ANEXO");
       continue;
     }
 
     const sec = line.match(SECTION_RE);
     if (sec) {
-      currentType = "SECCAO";
-      start(currentArticle, sec[1].trim(), null, null, line, "SECCAO");
+      start(null, sec[1].trim(), line, "SECCAO");
       continue;
     }
 
     if (FINAL_RE.test(line)) {
-      currentType = "DISPOSICAO";
-      start(currentArticle, line.trim(), null, null, line, "DISPOSICAO");
+      start(null, line.trim(), line, "DISPOSICAO");
       continue;
     }
 
-    const par = line.match(PARAGRAPH_RE);
-    if (par && currentType === "ARTIGO") {
-      start(currentArticle, current?.article_title ?? null, par[1], null, line, "NUMERO");
-      continue;
-    }
-
-    const point = line.match(POINT_RE);
-    if (point && (currentType === "ARTIGO" || currentType === "NUMERO")) {
-      start(
-        currentArticle,
-        current?.article_title ?? null,
-        current?.paragraph_number ?? null,
-        point[1].toLowerCase(),
-        line,
-        "ALINEA",
-      );
-      continue;
-    }
-
+    // Tudo o resto (números, alíneas, subalíneas, texto corrido) fica
+    // dentro do segmento atual — unidade = artigo completo.
     if (current) {
       current.official_text += "\n" + line;
     } else {
-      start(null, null, null, null, line, "PREAMBULO");
+      start(null, null, line, "PREAMBULO");
     }
   }
   push(current);
@@ -336,20 +420,37 @@ Deno.serve(async (req) => {
     }
 
     const contentNormalized = normalizeContent(scraped.markdown);
-    const segments = segmentArticles(contentNormalized);
+    const { body: consolidatedBody, warnings } = extractConsolidatedBody(contentNormalized);
+    const segments = segmentArticles(consolidatedBody);
     const fetchedAt = new Date().toISOString();
+
+    // Métricas e validação de duplicados (só artigos reais do corpo)
+    const articles = segments.filter((s) => s.article_type === "ARTIGO");
+    const articleNumbers = articles
+      .map((s) => s.article_number)
+      .filter((n): n is string => !!n);
+    const counts = new Map<string, number>();
+    for (const n of articleNumbers) counts.set(n, (counts.get(n) ?? 0) + 1);
+    const duplicateArticleNumbers = [...counts.entries()]
+      .filter(([, c]) => c > 1)
+      .map(([n]) => n);
+
+    const totalSections = segments.filter((s) => s.article_type === "SECCAO").length;
+    const totalAnnexes = segments.filter((s) => s.article_type === "ANEXO").length;
+
+    if (duplicateArticleNumbers.length > 0) {
+      warnings.push(
+        `duplicate_article_numbers: ${duplicateArticleNumbers.join(", ")}`,
+      );
+    }
 
     const summary = {
       total_segments: segments.length,
-      articles: segments.filter((s) => s.article_type === "ARTIGO").length,
-      numbers: segments.filter((s) => s.article_type === "NUMERO").length,
-      points: segments.filter((s) => s.article_type === "ALINEA").length,
-      annexes: segments.filter((s) => s.article_type === "ANEXO").length,
-      sections: segments.filter((s) => s.article_type === "SECCAO").length,
+      articles: articles.length,
+      annexes: totalAnnexes,
+      sections: totalSections,
       dispositions: segments.filter((s) => s.article_type === "DISPOSICAO").length,
-      distinct_article_numbers: [
-        ...new Set(segments.map((s) => s.article_number).filter(Boolean)),
-      ].length,
+      distinct_article_numbers: new Set(articleNumbers).size,
     };
 
     if (dryRun) {
@@ -358,13 +459,45 @@ Deno.serve(async (req) => {
         dry_run: true,
         persisted: false,
         legislation_id: legislationId,
+        legislationId,
         official_source_id: source.id,
         source_url: source.source_url,
+        sourceUrl: source.source_url,
+        scrapeMethod: scraped.method,
         http_status: scraped.status,
         content_length: contentNormalized.length,
+        textLength: consolidatedBody.length,
+        totalArticles: articles.length,
+        distinctArticleNumbers: new Set(articleNumbers).size,
+        duplicateArticleNumbers,
+        totalSections,
+        totalAnnexes,
+        warnings,
         summary,
-        preview: segments.slice(0, 40),
+        preview: articles.slice(0, 20).map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          paragraph_number: null,
+          point_letter: null,
+          official_text: s.official_text,
+          article_type: s.article_type,
+          display_order: s.display_order,
+        })),
       });
+    }
+
+    // Regra 12: duplicados inesperados bloqueiam a persistência
+    if (duplicateArticleNumbers.length > 0) {
+      return json(
+        {
+          success: false,
+          error_code: "validation_error",
+          error: "Foram detetados números de artigo duplicados na versão consolidada; a persistência foi bloqueada.",
+          duplicateArticleNumbers,
+          warnings,
+        },
+        200,
+      );
     }
 
     const { error: updError } = await supabase
@@ -416,11 +549,13 @@ Deno.serve(async (req) => {
       legislation_id: legislationId,
       official_source_id: source.id,
       source_url: source.source_url,
+      scrapeMethod: scraped.method,
       http_status: scraped.status,
       content_length: contentNormalized.length,
       inserted_articles: inserted,
       deleted_articles: 0,
       legal_requirements_touched: false,
+      warnings,
       summary,
     });
   } catch (error) {
