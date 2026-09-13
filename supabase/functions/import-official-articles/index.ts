@@ -283,7 +283,33 @@ function segmentArticles(text: string): Segment[] {
   let current: Segment | null = null;
 
   const push = (s: Segment | null) => {
-    if (s && s.official_text.trim().length > 0) segments.push(s);
+    if (!s) return;
+    // Detetar artigo revogado: marcador "REVOGADO" ou "(Revogado.)" no corpo
+    const bodyLines = s.official_text.split("\n");
+    const kept: string[] = [];
+    const notes: string[] = [];
+    let isRevoked = false;
+    for (const bl of bodyLines) {
+      const t = bl.trim();
+      if (REVOKED_MARKER_RE.test(t)) {
+        isRevoked = true;
+        kept.push(bl); // preservar o marcador visível no texto oficial
+        continue;
+      }
+      if (REVOCATION_NOTE_RE.test(t)) {
+        // Nota editorial oficial de revogação -> revocation_note (não misturar no official_text)
+        notes.push(t.replace(/^(?:[-–—>\[\(]\s*)/, "").trim());
+        continue;
+      }
+      kept.push(bl);
+    }
+    if (s.article_type === "ARTIGO") {
+      s.revoked = isRevoked;
+      s.article_status = isRevoked ? "REVOGADO" : "EM_VIGOR";
+      s.revocation_note = notes.length > 0 ? notes.join("\n") : null;
+      s.official_text = kept.join("\n");
+    }
+    if (s.official_text.trim().length > 0) segments.push(s);
   };
 
   const start = (
@@ -301,6 +327,9 @@ function segmentArticles(text: string): Segment[] {
       official_text: firstText,
       article_type,
       display_order: ++order,
+      article_status: null,
+      revoked: false,
+      revocation_note: null,
     };
   };
 
