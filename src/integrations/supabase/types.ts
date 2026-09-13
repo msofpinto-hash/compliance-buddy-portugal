@@ -498,6 +498,2049 @@ export type Database = {
           },
         ]
       }
+      backup_cat_2407_duplicado_20260913: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string | null
+          legislation_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_cat_4regs_20260913: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string | null
+          legislation_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_cat_dup_corruptos_20260913: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string | null
+          legislation_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_cat_dup2_20260913: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string | null
+          legislation_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_cat_rec2337_20260913: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string | null
+          legislation_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_clp_duplicado_20260912: {
+        Row: {
+          category: string | null
+          ce_number: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          file_hash: string | null
+          id: string | null
+          no_digital_version: boolean | null
+          number: string | null
+          origin: string | null
+          publication_date: string | null
+          revocation_date: string | null
+          source: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: []
+      }
+      backup_clp_duplicado_cat_20260912: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string | null
+          legislation_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          legislation_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_clp_duplicado_lr_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_clp_duplicado_org_20260912: {
+        Row: {
+          applicability_type: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          organization_id: string | null
+        }
+        Insert: {
+          applicability_type?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+        }
+        Update: {
+          applicability_type?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_clp_duplicado_proc_20260912: {
+        Row: {
+          id: string | null
+          legislation_id: string | null
+          processed_at: string | null
+          relations_found: number | null
+          relations_matched: number | null
+        }
+        Insert: {
+          id?: string | null
+          legislation_id?: string | null
+          processed_at?: string | null
+          relations_found?: number | null
+          relations_matched?: number | null
+        }
+        Update: {
+          id?: string | null
+          legislation_id?: string | null
+          processed_at?: string | null
+          relations_found?: number | null
+          relations_matched?: number | null
+        }
+        Relationships: []
+      }
+      backup_leg_2407_duplicado_20260913: {
+        Row: {
+          category: string | null
+          ce_number: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          file_hash: string | null
+          id: string | null
+          no_digital_version: boolean | null
+          number: string | null
+          origin: string | null
+          publication_date: string | null
+          revocation_date: string | null
+          source: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: []
+      }
+      backup_leg_4regs_20260913: {
+        Row: {
+          category: string | null
+          ce_number: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          file_hash: string | null
+          id: string | null
+          no_digital_version: boolean | null
+          number: string | null
+          origin: string | null
+          publication_date: string | null
+          revocation_date: string | null
+          source: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: []
+      }
+      backup_leg_dup_corruptos_20260913: {
+        Row: {
+          category: string | null
+          ce_number: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          file_hash: string | null
+          id: string | null
+          no_digital_version: boolean | null
+          number: string | null
+          origin: string | null
+          publication_date: string | null
+          revocation_date: string | null
+          source: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: []
+      }
+      backup_leg_dup2_20260913: {
+        Row: {
+          category: string | null
+          ce_number: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          file_hash: string | null
+          id: string | null
+          no_digital_version: boolean | null
+          number: string | null
+          origin: string | null
+          publication_date: string | null
+          revocation_date: string | null
+          source: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: []
+      }
+      backup_leg_rec2337_20260913: {
+        Row: {
+          category: string | null
+          ce_number: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          file_hash: string | null
+          id: string | null
+          no_digital_version: boolean | null
+          number: string | null
+          origin: string | null
+          publication_date: string | null
+          revocation_date: string | null
+          source: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_2_decisoes_tecnicas_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_2_decisoes_tecnicas_remover_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_2407_duplicado_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_2439_art2_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_4_diplomas_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_4regs_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_5_comunicacoes_especiais_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_atex_2014_34_correta_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_comunicacoes_reach_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_decisao_2012_188_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_decisao_2014_955_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_decisao_2023_941_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_decisao_2024_1256_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_decisoes_lote1_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_decisoes_remover_2_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_decisoes_remover_20260912: {
+        Row: {
+          article: string | null
+          categoria_limpeza: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          categoria_limpeza?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          categoria_limpeza?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_dl147_2026_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_dup_corruptos_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_dup2_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_duplicados_globais_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          rn: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          rn?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          rn?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_inferencias_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_placeholders_2_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_placeholders_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_placeholders_3_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_prioridade_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_rcm_133_2026_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_rcm_56_2026_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_rec2337_20260913: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_recomendacoes_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_reg_2026_1738_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_regulamentos_contaminados_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_retificacao_reg_2020_878_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_lr_semanticos_4d_20260912: {
+        Row: {
+          article: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          requirement_text: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          article?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          requirement_text?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_org_4regs_20260913: {
+        Row: {
+          applicability_type: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          organization_id: string | null
+        }
+        Insert: {
+          applicability_type?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+        }
+        Update: {
+          applicability_type?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_org_rec2337_20260913: {
+        Row: {
+          applicability_type: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string | null
+          legislation_id: string | null
+          notes: string | null
+          organization_id: string | null
+        }
+        Insert: {
+          applicability_type?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+        }
+        Update: {
+          applicability_type?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string | null
+          legislation_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_portaria_113_2015_20260912: {
+        Row: {
+          category: string | null
+          ce_number: string | null
+          created_at: string | null
+          created_by: string | null
+          document_type: string | null
+          document_url: string | null
+          effective_date: string | null
+          entity: string | null
+          external_id: string | null
+          file_hash: string | null
+          id: string | null
+          no_digital_version: boolean | null
+          number: string | null
+          origin: string | null
+          publication_date: string | null
+          revocation_date: string | null
+          source: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+          uploaded_file_name: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          ce_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_type?: string | null
+          document_url?: string | null
+          effective_date?: string | null
+          entity?: string | null
+          external_id?: string | null
+          file_hash?: string | null
+          id?: string | null
+          no_digital_version?: boolean | null
+          number?: string | null
+          origin?: string | null
+          publication_date?: string | null
+          revocation_date?: string | null
+          source?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string | null
+          uploaded_file_name?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: []
+      }
+      backup_relacao_retificacao_39_2025_20260912: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          notes: string | null
+          relation_type: string | null
+          source_legislation_id: string | null
+          target_legislation_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_relacoes_alterado_por_20260912: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          notes: string | null
+          relation_type: string | null
+          source_legislation_id: string | null
+          target_legislation_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_relacoes_incoerentes_20260912: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          notes: string | null
+          relation_type: string | null
+          source_legislation_id: string | null
+          target_legislation_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_relacoes_regulamentacao_erradas_20260912: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          notes: string | null
+          relation_type: string | null
+          source_legislation_id: string | null
+          target_legislation_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_relacoes_transposicao_erradas_20260912: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          notes: string | null
+          relation_type: string | null
+          source_legislation_id: string | null
+          target_legislation_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          notes?: string | null
+          relation_type?: string | null
+          source_legislation_id?: string | null
+          target_legislation_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       category_theme_links: {
         Row: {
           category_id: string
@@ -939,6 +2982,36 @@ export type Database = {
           },
         ]
       }
+      legal_requirements_audit_20260912: {
+        Row: {
+          classificacao: string | null
+          encontrados: number | null
+          legislation_id: string | null
+          nao_encontrados: number | null
+          number: string | null
+          percentagem_encontrada: number | null
+          requisitos_total: number | null
+        }
+        Insert: {
+          classificacao?: string | null
+          encontrados?: number | null
+          legislation_id?: string | null
+          nao_encontrados?: number | null
+          number?: string | null
+          percentagem_encontrada?: number | null
+          requisitos_total?: number | null
+        }
+        Update: {
+          classificacao?: string | null
+          encontrados?: number | null
+          legislation_id?: string | null
+          nao_encontrados?: number | null
+          number?: string | null
+          percentagem_encontrada?: number | null
+          requisitos_total?: number | null
+        }
+        Relationships: []
+      }
       legal_requirements_backup: {
         Row: {
           article: string | null
@@ -975,23 +3048,207 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_requirements_reimport_backup: {
+        Row: {
+          article: string | null
+          backed_up_at: string
+          batch_id: string
+          display_order: number | null
+          id: string
+          legislation_id: string
+          notes: string | null
+          original_requirement_id: string | null
+          reason: string
+          requirement_text: string | null
+        }
+        Insert: {
+          article?: string | null
+          backed_up_at?: string
+          batch_id: string
+          display_order?: number | null
+          id?: string
+          legislation_id: string
+          notes?: string | null
+          original_requirement_id?: string | null
+          reason?: string
+          requirement_text?: string | null
+        }
+        Update: {
+          article?: string | null
+          backed_up_at?: string
+          batch_id?: string
+          display_order?: number | null
+          id?: string
+          legislation_id?: string
+          notes?: string | null
+          original_requirement_id?: string | null
+          reason?: string
+          requirement_text?: string | null
+        }
+        Relationships: []
+      }
+      legal_requirements_reimport_queue: {
+        Row: {
+          batch_id: string
+          created_at: string
+          document_url: string | null
+          error_message: string | null
+          id: string
+          legislation_id: string
+          requirements_before: number | null
+          requirements_staging: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          document_url?: string | null
+          error_message?: string | null
+          id?: string
+          legislation_id: string
+          requirements_before?: number | null
+          requirements_staging?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          document_url?: string | null
+          error_message?: string | null
+          id?: string
+          legislation_id?: string
+          requirements_before?: number | null
+          requirements_staging?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      legal_requirements_staging: {
+        Row: {
+          article: string | null
+          batch_id: string
+          created_at: string
+          display_order: number | null
+          id: string
+          legislation_id: string
+          notes: string | null
+          requirement_text: string
+          source_url: string | null
+          status: string
+        }
+        Insert: {
+          article?: string | null
+          batch_id: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          legislation_id: string
+          notes?: string | null
+          requirement_text: string
+          source_url?: string | null
+          status?: string
+        }
+        Update: {
+          article?: string | null
+          batch_id?: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          legislation_id?: string
+          notes?: string | null
+          requirement_text?: string
+          source_url?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      legal_source_content: {
+        Row: {
+          content: string | null
+          content_length: number | null
+          content_normalized: string | null
+          document_url: string
+          fetched_at: string | null
+          http_status: number | null
+          legislation_id: string
+        }
+        Insert: {
+          content?: string | null
+          content_length?: number | null
+          content_normalized?: string | null
+          document_url: string
+          fetched_at?: string | null
+          http_status?: number | null
+          legislation_id: string
+        }
+        Update: {
+          content?: string | null
+          content_length?: number | null
+          content_normalized?: string | null
+          document_url?: string
+          fetched_at?: string | null
+          http_status?: number | null
+          legislation_id?: string
+        }
+        Relationships: []
+      }
+      legal_source_fetches: {
+        Row: {
+          created_at: string | null
+          document_url: string
+          id: string
+          legislation_id: string
+          request_id: number | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_url: string
+          id?: string
+          legislation_id: string
+          request_id?: number | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_url?: string
+          id?: string
+          legislation_id?: string
+          request_id?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       legislation: {
         Row: {
           category: string | null
           ce_number: string | null
+          consolidated_date: string | null
+          consolidated_url: string | null
           created_at: string
           created_by: string | null
           document_type: string | null
           document_url: string | null
           effective_date: string | null
           entity: string | null
+          eu_relations_url: string | null
           external_id: string | null
           file_hash: string | null
           id: string
+          last_official_change_date: string | null
+          legal_analysis_url: string | null
+          modifications_url: string | null
           no_digital_version: boolean | null
           number: string
+          official_metadata_url: string | null
+          official_status: string | null
           origin: string | null
+          other_relations_url: string | null
           publication_date: string | null
+          rectifications_url: string | null
           revocation_date: string | null
           source: string | null
           summary: string | null
@@ -1003,19 +3260,29 @@ export type Database = {
         Insert: {
           category?: string | null
           ce_number?: string | null
+          consolidated_date?: string | null
+          consolidated_url?: string | null
           created_at?: string
           created_by?: string | null
           document_type?: string | null
           document_url?: string | null
           effective_date?: string | null
           entity?: string | null
+          eu_relations_url?: string | null
           external_id?: string | null
           file_hash?: string | null
           id?: string
+          last_official_change_date?: string | null
+          legal_analysis_url?: string | null
+          modifications_url?: string | null
           no_digital_version?: boolean | null
           number: string
+          official_metadata_url?: string | null
+          official_status?: string | null
           origin?: string | null
+          other_relations_url?: string | null
           publication_date?: string | null
+          rectifications_url?: string | null
           revocation_date?: string | null
           source?: string | null
           summary?: string | null
@@ -1027,19 +3294,29 @@ export type Database = {
         Update: {
           category?: string | null
           ce_number?: string | null
+          consolidated_date?: string | null
+          consolidated_url?: string | null
           created_at?: string
           created_by?: string | null
           document_type?: string | null
           document_url?: string | null
           effective_date?: string | null
           entity?: string | null
+          eu_relations_url?: string | null
           external_id?: string | null
           file_hash?: string | null
           id?: string
+          last_official_change_date?: string | null
+          legal_analysis_url?: string | null
+          modifications_url?: string | null
           no_digital_version?: boolean | null
           number?: string
+          official_metadata_url?: string | null
+          official_status?: string | null
           origin?: string | null
+          other_relations_url?: string | null
           publication_date?: string | null
+          rectifications_url?: string | null
           revocation_date?: string | null
           source?: string | null
           summary?: string | null
@@ -1049,6 +3326,78 @@ export type Database = {
           uploaded_file_url?: string | null
         }
         Relationships: []
+      }
+      legislation_articles: {
+        Row: {
+          article_number: string | null
+          article_title: string | null
+          article_type: string | null
+          consolidated_date: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string
+          is_current: boolean | null
+          legislation_id: string
+          official_source_id: string | null
+          official_text: string
+          paragraph_number: string | null
+          point_letter: string | null
+          source_type: string | null
+          source_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          article_number?: string | null
+          article_title?: string | null
+          article_type?: string | null
+          consolidated_date?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_current?: boolean | null
+          legislation_id: string
+          official_source_id?: string | null
+          official_text: string
+          paragraph_number?: string | null
+          point_letter?: string | null
+          source_type?: string | null
+          source_url: string
+          updated_at?: string | null
+        }
+        Update: {
+          article_number?: string | null
+          article_title?: string | null
+          article_type?: string | null
+          consolidated_date?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_current?: boolean | null
+          legislation_id?: string
+          official_source_id?: string | null
+          official_text?: string
+          paragraph_number?: string | null
+          point_letter?: string | null
+          source_type?: string | null
+          source_url?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislation_articles_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legislation_articles_official_source_id_fkey"
+            columns: ["official_source_id"]
+            isOneToOne: false
+            referencedRelation: "legislation_official_sources"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       legislation_category_mapping: {
         Row: {
@@ -1154,6 +3503,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      legislation_official_sources: {
+        Row: {
+          content: string | null
+          content_length: number | null
+          content_normalized: string | null
+          created_at: string | null
+          fetched_at: string | null
+          http_status: number | null
+          id: string
+          is_current: boolean | null
+          legislation_id: string
+          source_system: string
+          source_type: string
+          source_url: string
+          updated_at: string | null
+          version_date: string | null
+        }
+        Insert: {
+          content?: string | null
+          content_length?: number | null
+          content_normalized?: string | null
+          created_at?: string | null
+          fetched_at?: string | null
+          http_status?: number | null
+          id?: string
+          is_current?: boolean | null
+          legislation_id: string
+          source_system: string
+          source_type: string
+          source_url: string
+          updated_at?: string | null
+          version_date?: string | null
+        }
+        Update: {
+          content?: string | null
+          content_length?: number | null
+          content_normalized?: string | null
+          created_at?: string | null
+          fetched_at?: string | null
+          http_status?: number | null
+          id?: string
+          is_current?: boolean | null
+          legislation_id?: string
+          source_system?: string
+          source_type?: string
+          source_url?: string
+          updated_at?: string | null
+          version_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legislation_official_sources_legislation_id_fkey"
+            columns: ["legislation_id"]
+            isOneToOne: false
+            referencedRelation: "legislation"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       legislation_processing_failures: {
         Row: {
@@ -1375,6 +3783,60 @@ export type Database = {
           id?: string
           ip_address?: string | null
           success?: boolean
+        }
+        Relationships: []
+      }
+      lr_candidatos_eurlex_20260912: {
+        Row: {
+          id: string | null
+          legislation_id: string | null
+          number: string | null
+          ordem: number | null
+          potencial_requisito: boolean | null
+          texto_fonte: string | null
+        }
+        Insert: {
+          id?: string | null
+          legislation_id?: string | null
+          number?: string | null
+          ordem?: number | null
+          potencial_requisito?: boolean | null
+          texto_fonte?: string | null
+        }
+        Update: {
+          id?: string | null
+          legislation_id?: string | null
+          number?: string | null
+          ordem?: number | null
+          potencial_requisito?: boolean | null
+          texto_fonte?: string | null
+        }
+        Relationships: []
+      }
+      lr_validacao_prioridade_20260912: {
+        Row: {
+          article: string | null
+          confirmado_na_fonte: boolean | null
+          legislation_id: string | null
+          number: string | null
+          requirement_id: string | null
+          requirement_text: string | null
+        }
+        Insert: {
+          article?: string | null
+          confirmado_na_fonte?: boolean | null
+          legislation_id?: string | null
+          number?: string | null
+          requirement_id?: string | null
+          requirement_text?: string | null
+        }
+        Update: {
+          article?: string | null
+          confirmado_na_fonte?: boolean | null
+          legislation_id?: string | null
+          number?: string | null
+          requirement_id?: string | null
+          requirement_text?: string | null
         }
         Relationships: []
       }
