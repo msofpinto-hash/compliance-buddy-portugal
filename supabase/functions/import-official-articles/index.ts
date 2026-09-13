@@ -359,6 +359,7 @@ function segmentArticles(text: string): Segment[] {
             ARTICLE_RE.test(candidate) || /^\d+\s*[-–—.]\s+/.test(candidate) ||
             /^[a-zA-Z]\)\s*/.test(candidate) || SECTION_RE.test(candidate) ||
             ANNEX_RE.test(candidate) || FINAL_RE.test(candidate) ||
+            REVOKED_MARKER_RE.test(candidate) || REVOCATION_NOTE_RE.test(candidate) ||
             candidate.length > 160
           ) {
             break;
