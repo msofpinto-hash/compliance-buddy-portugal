@@ -299,17 +299,30 @@ function segmentArticles(text: string): Segment[] {
     const art = line.match(ARTICLE_RE);
     if (art) {
       const num = art[1].replace(/\.?[ºo°]$/, ".º");
-      // O título pode estar na mesma linha ou na linha seguinte
+      // O título pode estar na mesma linha ou nas linhas seguintes,
+      // tolerando uma ou mais linhas em branco (ex.: DRE versão consolidada).
       let title = art[2]?.trim() || "";
       let bodyStart = line;
       if (!title) {
-        const next = lines[i + 1]?.trim() || "";
-        if (next && !ARTICLE_RE.test(next) && !/^\d+\s*[-–—.]\s+/.test(next) &&
-            !/^[a-zA-Z]\)\s*/.test(next) && !SECTION_RE.test(next) &&
-            !ANNEX_RE.test(next) && next.length <= 160) {
-          title = next;
-          i++;
-          bodyStart = line + "\n" + next;
+        let lookahead = i + 1;
+        while (lookahead < lines.length) {
+          const candidate = lines[lookahead]?.trim() || "";
+          if (!candidate) {
+            lookahead++;
+            continue;
+          }
+          if (
+            ARTICLE_RE.test(candidate) || /^\d+\s*[-–—.]\s+/.test(candidate) ||
+            /^[a-zA-Z]\)\s*/.test(candidate) || SECTION_RE.test(candidate) ||
+            ANNEX_RE.test(candidate) || FINAL_RE.test(candidate) ||
+            candidate.length > 160
+          ) {
+            break;
+          }
+          title = candidate;
+          i = lookahead;
+          bodyStart = line + "\n" + candidate;
+          break;
         }
       }
       start(num, title || null, bodyStart, "ARTIGO");
