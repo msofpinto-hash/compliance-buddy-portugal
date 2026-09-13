@@ -144,6 +144,12 @@ const FINAL_RE =
 const EDITORIAL_NOTE_RE =
   /^(?:Artigo|Art\.?)\s+\d+\.?[ºo°]?(?:-[A-Za-z]+)?\s*,?\s*(?:\(?(?:Lei|Decreto-Lei|Decreto|Portaria|Despacho|Declaração|Regulamento|Diretiva|Resolução|Lei Orgânica|Lei Constitucional)\b)/i;
 const EDITORIAL_DRE_RE = /Diário da República n\.[ºo]\s*\d+\/\d{4}/i;
+// Nota editorial oficial de revogação junto do artigo:
+// "Revogado pelo/a Artigo 3.º do/a Decreto-Lei n.º 130/2012, de 20 de junho..."
+const REVOCATION_NOTE_RE =
+  /^(?:[-–—>\[\(]\s*)?Revogad[oa]\s+(?:pelo|pela|pelos|pelas|ao|com base)\b/i;
+// Marcador de artigo revogado no corpo consolidado
+const REVOKED_MARKER_RE = /^(REVOGADO\.?|\(Revogado\.?\))\s*$/i;
 const EDITORIAL_MARKER_RE =
   /^(?:[-–—>\[\(]\s*)?(?:Alterad[oa]|Revogad[oa]|Derrogad[oa]|Aditad[oa]|Retificad[oa]|Rectificad[oa]|Redação dada|Redacção dada|Na redação d[ae]|Com efeitos a partir|Republicad[oa]|Suspenso|Anulad[oa]|Declarad[oa])\b/i;
 
