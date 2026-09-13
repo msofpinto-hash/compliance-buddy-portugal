@@ -284,7 +284,8 @@ function segmentArticles(text: string): Segment[] {
 
   const push = (s: Segment | null) => {
     if (!s) return;
-    // Detetar artigo revogado: marcador "REVOGADO" ou "(Revogado.)" no corpo
+    // Detetar artigo revogado: marcador isolado "REVOGADO" ou nota editorial
+    // de revogação (ex: "REVOGADO pelo/a Artigo ...").
     const bodyLines = s.official_text.split("\n");
     const kept: string[] = [];
     const notes: string[] = [];
@@ -297,13 +298,18 @@ function segmentArticles(text: string): Segment[] {
         continue;
       }
       if (REVOCATION_NOTE_RE.test(t)) {
-        // Nota editorial oficial de revogação -> revocation_note (não misturar no official_text)
+        // Nota editorial oficial de revogação -> revocation_note.
+        // Preservar também no official_text para manter a palavra REVOGADO visível.
         notes.push(t.replace(/^(?:[-–—>\[\(]\s*)/, "").trim());
+        kept.push(bl);
         continue;
       }
       kept.push(bl);
     }
     if (s.article_type === "ARTIGO") {
+      // Uma nota oficial de revogação preenchida é suficiente para marcar revogado,
+      // mesmo sem marcador isolado "REVOGADO".
+      if (notes.length > 0) isRevoked = true;
       s.revoked = isRevoked;
       s.article_status = isRevoked ? "REVOGADO" : "EM_VIGOR";
       s.revocation_note = notes.length > 0 ? notes.join("\n") : null;
