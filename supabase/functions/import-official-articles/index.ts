@@ -467,6 +467,13 @@ Deno.serve(async (req) => {
     };
 
     if (dryRun) {
+      const textStart = (t: string | null | undefined, n = 400) =>
+        (t ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+      const annexSegments = segments.filter((s) => s.article_type === "ANEXO");
+      const sectionSegments = segments.filter((s) => s.article_type === "SECCAO");
+      const dispositionSegments = segments.filter(
+        (s) => s.article_type === "DISPOSICAO",
+      );
       return json({
         success: true,
         dry_run: true,
