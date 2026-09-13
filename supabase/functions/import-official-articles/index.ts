@@ -467,6 +467,13 @@ Deno.serve(async (req) => {
     };
 
     if (dryRun) {
+      const textStart = (t: string | null | undefined, n = 400) =>
+        (t ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+      const annexSegments = segments.filter((s) => s.article_type === "ANEXO");
+      const sectionSegments = segments.filter((s) => s.article_type === "SECCAO");
+      const dispositionSegments = segments.filter(
+        (s) => s.article_type === "DISPOSICAO",
+      );
       return json({
         success: true,
         dry_run: true,
@@ -495,6 +502,28 @@ Deno.serve(async (req) => {
           official_text: s.official_text,
           article_type: s.article_type,
           display_order: s.display_order,
+        })),
+        articleNumbers,
+        lastArticlesPreview: articles.slice(-10).map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          official_text_start: textStart(s.official_text),
+        })),
+        annexes: annexSegments.map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          official_text_start: textStart(s.official_text),
+        })),
+        sections: sectionSegments.map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          article_type: s.article_type,
+        })),
+        dispositions: dispositionSegments.map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          article_type: s.article_type,
+          official_text_start: textStart(s.official_text),
         })),
       });
     }
