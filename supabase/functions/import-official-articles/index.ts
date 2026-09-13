@@ -503,6 +503,28 @@ Deno.serve(async (req) => {
           article_type: s.article_type,
           display_order: s.display_order,
         })),
+        articleNumbers,
+        lastArticlesPreview: articles.slice(-10).map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          official_text_start: textStart(s.official_text),
+        })),
+        annexes: annexSegments.map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          official_text_start: textStart(s.official_text),
+        })),
+        sections: sectionSegments.map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          article_type: s.article_type,
+        })),
+        dispositions: dispositionSegments.map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          article_type: s.article_type,
+          official_text_start: textStart(s.official_text),
+        })),
       });
     }
 
