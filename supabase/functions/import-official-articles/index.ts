@@ -519,11 +519,20 @@ Deno.serve(async (req) => {
       const dispositionSegments = segments.filter(
         (s) => s.article_type === "DISPOSICAO",
       );
+      const revokedArticles = articles
+        .filter((s) => s.revoked)
+        .map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          revocation_note: s.revocation_note,
+        }));
       return json({
         totalArticles: articles.length,
         distinctArticleNumbers: new Set(articleNumbers).size,
         duplicateArticleNumbers,
         articleNumbers,
+        totalRevokedArticles: revokedArticles.length,
+        revokedArticles,
         lastArticlesPreview: articles.slice(-10).map((s) => ({
           article_number: s.article_number,
           article_title: s.article_title,
@@ -589,6 +598,9 @@ Deno.serve(async (req) => {
       consolidated_date: source.version_date ?? null,
       display_order: s.display_order,
       article_type: s.article_type,
+      article_status: s.article_status,
+      revoked: s.revoked,
+      revocation_note: s.revocation_note,
       is_current: true,
     }));
 
