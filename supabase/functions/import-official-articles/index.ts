@@ -475,34 +475,9 @@ Deno.serve(async (req) => {
         (s) => s.article_type === "DISPOSICAO",
       );
       return json({
-        success: true,
-        dry_run: true,
-        persisted: false,
-        legislation_id: legislationId,
-        legislationId,
-        official_source_id: source.id,
-        source_url: source.source_url,
-        sourceUrl: source.source_url,
-        scrapeMethod: scraped.method,
-        http_status: scraped.status,
-        content_length: contentNormalized.length,
-        textLength: consolidatedBody.length,
         totalArticles: articles.length,
         distinctArticleNumbers: new Set(articleNumbers).size,
         duplicateArticleNumbers,
-        totalSections,
-        totalAnnexes,
-        warnings,
-        summary,
-        preview: articles.slice(0, 20).map((s) => ({
-          article_number: s.article_number,
-          article_title: s.article_title,
-          paragraph_number: null,
-          point_letter: null,
-          official_text: s.official_text,
-          article_type: s.article_type,
-          display_order: s.display_order,
-        })),
         articleNumbers,
         lastArticlesPreview: articles.slice(-10).map((s) => ({
           article_number: s.article_number,
@@ -525,6 +500,7 @@ Deno.serve(async (req) => {
           article_type: s.article_type,
           official_text_start: textStart(s.official_text),
         })),
+        warnings,
       });
     }
 
