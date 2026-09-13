@@ -235,6 +235,12 @@ function extractConsolidatedBody(
       continue;
     }
     if (isEditorialNote(line)) {
+      // Preservar notas editoriais oficiais de revogação junto do artigo;
+      // serão extraídas para revocation_note na segmentação (não entram no official_text).
+      if (REVOCATION_NOTE_RE.test(line)) {
+        cleaned.push(line);
+        continue;
+      }
       removedEditorial++;
       continue;
     }
@@ -264,6 +270,9 @@ type Segment = {
   official_text: string;
   article_type: string;
   display_order: number;
+  article_status: string | null;
+  revoked: boolean;
+  revocation_note: string | null;
 };
 
 function segmentArticles(text: string): Segment[] {
