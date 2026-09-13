@@ -144,6 +144,12 @@ const FINAL_RE =
 const EDITORIAL_NOTE_RE =
   /^(?:Artigo|Art\.?)\s+\d+\.?[ºo°]?(?:-[A-Za-z]+)?\s*,?\s*(?:\(?(?:Lei|Decreto-Lei|Decreto|Portaria|Despacho|Declaração|Regulamento|Diretiva|Resolução|Lei Orgânica|Lei Constitucional)\b)/i;
 const EDITORIAL_DRE_RE = /Diário da República n\.[ºo]\s*\d+\/\d{4}/i;
+// Nota editorial oficial de revogação junto do artigo:
+// "Revogado pelo/a Artigo 3.º do/a Decreto-Lei n.º 130/2012, de 20 de junho..."
+const REVOCATION_NOTE_RE =
+  /^(?:[-–—>\[\(]\s*)?Revogad[oa]\s+(?:pelo|pela|pelos|pelas|ao|com base)\b/i;
+// Marcador de artigo revogado no corpo consolidado
+const REVOKED_MARKER_RE = /^(REVOGADO\.?|\(Revogado\.?\))\s*$/i;
 const EDITORIAL_MARKER_RE =
   /^(?:[-–—>\[\(]\s*)?(?:Alterad[oa]|Revogad[oa]|Derrogad[oa]|Aditad[oa]|Retificad[oa]|Rectificad[oa]|Redação dada|Redacção dada|Na redação d[ae]|Com efeitos a partir|Republicad[oa]|Suspenso|Anulad[oa]|Declarad[oa])\b/i;
 
@@ -229,6 +235,12 @@ function extractConsolidatedBody(
       continue;
     }
     if (isEditorialNote(line)) {
+      // Preservar notas editoriais oficiais de revogação junto do artigo;
+      // serão extraídas para revocation_note na segmentação (não entram no official_text).
+      if (REVOCATION_NOTE_RE.test(line)) {
+        cleaned.push(line);
+        continue;
+      }
       removedEditorial++;
       continue;
     }
@@ -258,6 +270,9 @@ type Segment = {
   official_text: string;
   article_type: string;
   display_order: number;
+  article_status: string | null;
+  revoked: boolean;
+  revocation_note: string | null;
 };
 
 function segmentArticles(text: string): Segment[] {
@@ -268,7 +283,33 @@ function segmentArticles(text: string): Segment[] {
   let current: Segment | null = null;
 
   const push = (s: Segment | null) => {
-    if (s && s.official_text.trim().length > 0) segments.push(s);
+    if (!s) return;
+    // Detetar artigo revogado: marcador "REVOGADO" ou "(Revogado.)" no corpo
+    const bodyLines = s.official_text.split("\n");
+    const kept: string[] = [];
+    const notes: string[] = [];
+    let isRevoked = false;
+    for (const bl of bodyLines) {
+      const t = bl.trim();
+      if (REVOKED_MARKER_RE.test(t)) {
+        isRevoked = true;
+        kept.push(bl); // preservar o marcador visível no texto oficial
+        continue;
+      }
+      if (REVOCATION_NOTE_RE.test(t)) {
+        // Nota editorial oficial de revogação -> revocation_note (não misturar no official_text)
+        notes.push(t.replace(/^(?:[-–—>\[\(]\s*)/, "").trim());
+        continue;
+      }
+      kept.push(bl);
+    }
+    if (s.article_type === "ARTIGO") {
+      s.revoked = isRevoked;
+      s.article_status = isRevoked ? "REVOGADO" : "EM_VIGOR";
+      s.revocation_note = notes.length > 0 ? notes.join("\n") : null;
+      s.official_text = kept.join("\n");
+    }
+    if (s.official_text.trim().length > 0) segments.push(s);
   };
 
   const start = (
@@ -286,6 +327,9 @@ function segmentArticles(text: string): Segment[] {
       official_text: firstText,
       article_type,
       display_order: ++order,
+      article_status: null,
+      revoked: false,
+      revocation_note: null,
     };
   };
 
@@ -315,6 +359,7 @@ function segmentArticles(text: string): Segment[] {
             ARTICLE_RE.test(candidate) || /^\d+\s*[-–—.]\s+/.test(candidate) ||
             /^[a-zA-Z]\)\s*/.test(candidate) || SECTION_RE.test(candidate) ||
             ANNEX_RE.test(candidate) || FINAL_RE.test(candidate) ||
+            REVOKED_MARKER_RE.test(candidate) || REVOCATION_NOTE_RE.test(candidate) ||
             candidate.length > 160
           ) {
             break;
@@ -474,11 +519,20 @@ Deno.serve(async (req) => {
       const dispositionSegments = segments.filter(
         (s) => s.article_type === "DISPOSICAO",
       );
+      const revokedArticles = articles
+        .filter((s) => s.revoked)
+        .map((s) => ({
+          article_number: s.article_number,
+          article_title: s.article_title,
+          revocation_note: s.revocation_note,
+        }));
       return json({
         totalArticles: articles.length,
         distinctArticleNumbers: new Set(articleNumbers).size,
         duplicateArticleNumbers,
         articleNumbers,
+        totalRevokedArticles: revokedArticles.length,
+        revokedArticles,
         lastArticlesPreview: articles.slice(-10).map((s) => ({
           article_number: s.article_number,
           article_title: s.article_title,
@@ -544,6 +598,9 @@ Deno.serve(async (req) => {
       consolidated_date: source.version_date ?? null,
       display_order: s.display_order,
       article_type: s.article_type,
+      article_status: s.article_status,
+      revoked: s.revoked,
+      revocation_note: s.revocation_note,
       is_current: true,
     }));
 

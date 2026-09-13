@@ -3330,6 +3330,7 @@ export type Database = {
       legislation_articles: {
         Row: {
           article_number: string | null
+          article_status: string | null
           article_title: string | null
           article_type: string | null
           consolidated_date: string | null
@@ -3342,12 +3343,15 @@ export type Database = {
           official_text: string
           paragraph_number: string | null
           point_letter: string | null
+          revocation_note: string | null
+          revoked: boolean
           source_type: string | null
           source_url: string
           updated_at: string | null
         }
         Insert: {
           article_number?: string | null
+          article_status?: string | null
           article_title?: string | null
           article_type?: string | null
           consolidated_date?: string | null
@@ -3360,12 +3364,15 @@ export type Database = {
           official_text: string
           paragraph_number?: string | null
           point_letter?: string | null
+          revocation_note?: string | null
+          revoked?: boolean
           source_type?: string | null
           source_url: string
           updated_at?: string | null
         }
         Update: {
           article_number?: string | null
+          article_status?: string | null
           article_title?: string | null
           article_type?: string | null
           consolidated_date?: string | null
@@ -3378,6 +3385,8 @@ export type Database = {
           official_text?: string
           paragraph_number?: string | null
           point_letter?: string | null
+          revocation_note?: string | null
+          revoked?: boolean
           source_type?: string | null
           source_url?: string
           updated_at?: string | null
