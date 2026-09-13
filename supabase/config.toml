@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.resolve-dre-via-search]
 verify_jwt = false
+
+[functions.import-official-articles]
+verify_jwt = false
